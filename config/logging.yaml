@@ -1,0 +1,94 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  detailed:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+  simple:
+    format: "%(levelname)s - %(name)s - %(message)s"
+
+  json:
+    format: '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "function": "%(funcName)s", "line": %(lineno)d, "message": "%(message)s"}'
+    datefmt: "%Y-%m-%dT%H:%M:%S"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: simple
+    stream: ext://sys.stdout
+
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/metaculus_bot.log
+    maxBytes: 10485760 # 10MB
+    backupCount: 5
+    encoding: utf8
+
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: detailed
+    filename: logs/errors.log
+    maxBytes: 10485760 # 10MB
+    backupCount: 5
+    encoding: utf8
+
+  json_file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: logs/metaculus_bot.json
+    maxBytes: 10485760 # 10MB
+    backupCount: 5
+    encoding: utf8
+
+loggers:
+  metac_bot:
+    level: DEBUG
+    handlers: [console, file, error_file, json_file]
+    propagate: false
+
+  metac_bot.agents:
+    level: DEBUG
+    handlers: [file, json_file]
+    propagate: false
+
+  metac_bot.infrastructure:
+    level: INFO
+    handlers: [file, json_file]
+    propagate: false
+
+  metac_bot.domain:
+    level: DEBUG
+    handlers: [file, json_file]
+    propagate: false
+
+  metac_bot.application:
+    level: INFO
+    handlers: [console, file, json_file]
+    propagate: false
+
+  # Third-party loggers
+  httpx:
+    level: WARNING
+    handlers: [file]
+    propagate: false
+
+  openai:
+    level: WARNING
+    handlers: [file]
+    propagate: false
+
+  requests:
+    level: WARNING
+    handlers: [file]
+    propagate: false
+
+root:
+  level: INFO
+  handlers: [console, file]

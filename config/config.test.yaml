@@ -1,0 +1,102 @@
+# Test Configuration Template
+# This configuration is used for testing and CI/CD pipelines
+
+# API Configuration (using mock/test values)
+api:
+  # OpenAI API for testing
+  openai:
+    api_key: "test-openai-key"
+    base_url: "https://api.openai.com/v1"
+    timeout: 10
+    max_retries: 1
+
+  # Metaculus API for testing
+  metaculus:
+    token: "test-metaculus-token"
+    base_url: "https://www.metaculus.com/api"
+    timeout: 10
+    max_retries: 1
+    rate_limit_delay: 0.1
+
+  # Perplexity API for testing
+  perplexity:
+    api_key: "test-perplexity-key"
+    base_url: "https://api.perplexity.ai"
+    timeout: 10
+    max_retries: 1
+
+  # Exa API for testing
+  exa:
+    api_key: "test-exa-key"
+    base_url: "https://api.exa.ai"
+    timeout: 10
+    max_retries: 1
+
+# Bot Configuration for Testing
+bot:
+  # Bot identification
+  name: "MetaculusBot-HA-Test"
+  version: "1.0.0-test"
+
+  # Minimal forecasting for testing
+  max_questions_per_run: 3
+  min_confidence_threshold: 0.5
+  ensemble_weights:
+    chain_of_thought: 0.4
+    tree_of_thought: 0.3
+    react: 0.2
+    auto_cot: 0.1
+    self_consistency: 0.0
+
+  # Minimal research for faster testing
+  research:
+    max_search_results: 3
+    max_articles_per_question: 2
+    search_timeout: 5
+    min_article_length: 100
+
+  # Relaxed validation for testing
+  validation:
+    check_probability_bounds: true
+    require_reasoning: true
+    min_reasoning_length: 50
+    max_reasoning_length: 1000
+
+# Test Logging Configuration
+logging:
+  level: "DEBUG"
+  file_path: "logs/metaculus_bot_test.log"
+  max_file_size: "5MB"
+  backup_count: 2
+  format: "simple"
+  json_output: false
+
+# Minimal Cache Configuration for Testing
+cache:
+  enabled: false
+  ttl_seconds: 60
+  max_size: 10
+
+# Fast Performance Configuration for Testing
+performance:
+  max_concurrent_requests: 2
+  request_timeout: 10
+  retry_delay: 0.5
+  batch_size: 2
+
+# Test-specific settings
+test:
+  debug_mode: true
+  save_raw_responses: true
+  mock_external_apis: true
+  test_mode: true
+
+  # Fast failure for testing
+  fail_fast: true
+  graceful_shutdown: false
+  health_check_interval: 10
+
+  # Testing features
+  generate_test_data: true
+  validate_responses: true
+  measure_performance: true

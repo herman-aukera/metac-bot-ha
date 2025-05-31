@@ -1,0 +1,102 @@
+# Production Configuration Template
+# This configuration is optimized for production use
+
+# API Configuration
+api:
+  # OpenAI API for advanced reasoning models
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: "https://api.openai.com/v1"
+    timeout: 90
+    max_retries: 5
+
+  # Metaculus API for fetching questions and submitting forecasts
+  metaculus:
+    token: "${METACULUS_TOKEN}"
+    base_url: "https://www.metaculus.com/api"
+    timeout: 60
+    max_retries: 5
+    rate_limit_delay: 2.0
+
+  # Perplexity API for web search and research
+  perplexity:
+    api_key: "${PERPLEXITY_API_KEY}"
+    base_url: "https://api.perplexity.ai"
+    timeout: 90
+    max_retries: 5
+
+  # Exa (formerly Metaphor) API for semantic search
+  exa:
+    api_key: "${EXA_API_KEY}"
+    base_url: "https://api.exa.ai"
+    timeout: 60
+    max_retries: 5
+
+# Bot Configuration
+bot:
+  # Bot identification
+  name: "MetaculusBot-HA-Production"
+  version: "1.0.0"
+
+  # Production forecasting behavior
+  max_questions_per_run: 50
+  min_confidence_threshold: 0.7
+  ensemble_weights:
+    chain_of_thought: 0.3
+    tree_of_thought: 0.25
+    react: 0.2
+    auto_cot: 0.15
+    self_consistency: 0.1
+
+  # Enhanced research for production
+  research:
+    max_search_results: 15
+    max_articles_per_question: 8
+    search_timeout: 60
+    min_article_length: 300
+
+  # Strict validation for production
+  validation:
+    check_probability_bounds: true
+    require_reasoning: true
+    min_reasoning_length: 200
+    max_reasoning_length: 3000
+
+# Production Logging Configuration
+logging:
+  level: "INFO"
+  file_path: "logs/metaculus_bot_prod.log"
+  max_file_size: "50MB"
+  backup_count: 10
+  format: "json"
+  json_output: true
+
+# Enhanced Cache Configuration
+cache:
+  enabled: true
+  ttl_seconds: 7200 # 2 hours
+  max_size: 5000
+
+# Production Performance Configuration
+performance:
+  max_concurrent_requests: 10
+  request_timeout: 120
+  retry_delay: 5.0
+  batch_size: 10
+
+# Production-specific settings
+production:
+  debug_mode: false
+  save_raw_responses: false
+  mock_external_apis: false
+  test_mode: false
+
+  # Safety settings
+  fail_fast: false
+  graceful_shutdown: true
+  health_check_interval: 300 # 5 minutes
+
+  # Monitoring
+  metrics_enabled: true
+  alert_on_errors: true
+  performance_tracking: true

@@ -1,0 +1,92 @@
+# Development Configuration Template
+# Copy this file to config.yaml and fill in your API keys
+
+# API Configuration
+api:
+  # OpenAI API for advanced reasoning models
+  openai:
+    api_key: "your_openai_api_key_here"
+    base_url: "https://api.openai.com/v1"
+    timeout: 60
+    max_retries: 3
+
+  # Metaculus API for fetching questions and submitting forecasts
+  metaculus:
+    token: "your_metaculus_token_here"
+    base_url: "https://www.metaculus.com/api"
+    timeout: 30
+    max_retries: 3
+    rate_limit_delay: 1.0
+
+  # Perplexity API for web search and research
+  perplexity:
+    api_key: "your_perplexity_api_key_here"
+    base_url: "https://api.perplexity.ai"
+    timeout: 60
+    max_retries: 3
+
+  # Exa (formerly Metaphor) API for semantic search
+  exa:
+    api_key: "your_exa_api_key_here"
+    base_url: "https://api.exa.ai"
+    timeout: 30
+    max_retries: 3
+
+# Bot Configuration
+bot:
+  # Bot identification
+  name: "MetaculusBot-HA"
+  version: "1.0.0"
+
+  # Forecasting behavior
+  max_questions_per_run: 10
+  min_confidence_threshold: 0.6
+  ensemble_weights:
+    chain_of_thought: 0.3
+    tree_of_thought: 0.25
+    react: 0.2
+    auto_cot: 0.15
+    self_consistency: 0.1
+
+  # Research configuration
+  research:
+    max_search_results: 10
+    max_articles_per_question: 5
+    search_timeout: 30
+    min_article_length: 500
+
+  # Validation rules
+  validation:
+    check_probability_bounds: true
+    require_reasoning: true
+    min_reasoning_length: 100
+    max_reasoning_length: 2000
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  file_path: "logs/metaculus_bot.log"
+  max_file_size: "10MB"
+  backup_count: 5
+  format: "detailed"
+  json_output: true
+
+# Cache Configuration
+cache:
+  enabled: true
+  ttl_seconds: 3600 # 1 hour
+  max_size: 1000
+
+# Performance Configuration
+performance:
+  max_concurrent_requests: 5
+  request_timeout: 60
+  retry_delay: 2.0
+  batch_size: 5
+
+# Development-specific settings
+development:
+  debug_mode: true
+  save_raw_responses: true
+  mock_external_apis: false
+  test_mode: false
