@@ -254,3 +254,119 @@ class LLMClient:
                 results.append(response)
         
         return results
+    
+    async def chat_completion(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        **kwargs
+    ) -> str:
+        """
+        Generate chat completion using messages format.
+        
+        This method provides compatibility with agents that expect
+        OpenAI-style chat completion format.
+        
+        Args:
+            messages: List of message dictionaries with 'role' and 'content' keys
+            model: Override the default model
+            temperature: Override the default temperature
+            max_tokens: Override the default max_tokens
+            **kwargs: Additional provider-specific parameters
+            
+        Returns:
+            Generated text response
+        """
+        # Convert messages format to simple prompt
+        # Most LLM providers accept this format, but we simplify for our generate method
+        if not messages:
+            raise ValueError("Messages list cannot be empty")
+        
+        # Extract the user message content (assuming last message is from user)
+        user_messages = [msg["content"] for msg in messages if msg.get("role") == "user"]
+        if not user_messages:
+            raise ValueError("No user message found in messages")
+        
+        # Use the last user message as the prompt
+        prompt = user_messages[-1]
+        
+        # If there are system messages, prepend them
+        system_messages = [msg["content"] for msg in messages if msg.get("role") == "system"]
+        if system_messages:
+            prompt = f"{system_messages[0]}\n\n{prompt}"
+        
+        # Call the existing generate method
+        return await self.generate(
+            prompt=prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs
+        )
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """
+        Generate response - alias for generate method to maintain test compatibility.
+        
+        Args:
+            prompt: Input prompt for the model
+            **kwargs: Additional parameters
+            
+        Returns:
+            Generated text response
+        """
+        return await self.generate(prompt, **kwargs)
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """
+        Get headers for API requests.
+        
+        Returns:
+            Dictionary of headers for the API request
+        """
+        return {
+            "Authorization": f"Bearer {self.config.api_key}",
+            "Content-Type": "application/json"
+        }
+    
+    def _format_prompt(self, prompt) -> str:
+        """
+        Format prompt for the LLM.
+        
+        Args:
+            prompt: Input prompt (can be string or dict)
+            
+        Returns:
+            Formatted prompt string
+        """
+        if isinstance(prompt, str):
+            return prompt
+        elif isinstance(prompt, dict):
+            # Handle structured prompts
+            parts = []
+            if "question" in prompt:
+                parts.append(f"Question: {prompt['question']}")
+            if "context" in prompt:
+                parts.append(f"Context: {prompt['context']}")
+            if "format" in prompt:
+                parts.append(f"Format: {prompt['format']}")
+            return "\n\n".join(parts)
+        else:
+            return str(prompt)
+    
+    async def health_check(self) -> bool:
+        """
+        Check if the LLM service is available.
+        
+        Returns:
+            True if service is healthy, False otherwise
+        """
+        try:
+            # Simple test request
+            await self.generate("test", max_tokens=1)
+            return True
+        except Exception as e:
+            self.logger.error("Health check failed", error=str(e))
+            return False

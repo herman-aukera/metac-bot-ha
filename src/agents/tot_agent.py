@@ -152,6 +152,34 @@ class TreeOfThoughtAgent(BaseAgent):
         
         return all_thoughts
     
+    def _build_context(
+        self,
+        question: Question,
+        research_report: Optional[ResearchReport]
+    ) -> str:
+        """Build context string from question and research report."""
+        context_parts = []
+        
+        if question.description:
+            context_parts.append(f"Description: {question.description}")
+        
+        if question.resolution_criteria:
+            context_parts.append(f"Resolution Criteria: {question.resolution_criteria}")
+        
+        if research_report:
+            if research_report.executive_summary:
+                context_parts.append(f"Research Summary: {research_report.executive_summary}")
+            
+            if research_report.key_insights:
+                insights = ", ".join(research_report.key_insights)
+                context_parts.append(f"Key Insights: {insights}")
+            
+            if research_report.base_rates:
+                base_rates_str = ", ".join([f"{k}: {v}" for k, v in research_report.base_rates.items()])
+                context_parts.append(f"Base Rates: {base_rates_str}")
+        
+        return "\n".join(context_parts) if context_parts else "No additional context available."
+
     async def _generate_initial_thoughts(
         self,
         question: Question,

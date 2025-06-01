@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 import pytest
 
-from src.domain.entities.question import Question, QuestionType
+from src.domain.entities.question import Question, QuestionType, QuestionStatus
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.prediction import Prediction
 from src.domain.entities.research_report import ResearchReport
@@ -36,6 +36,7 @@ class TestQuestion:
             title="Will AI achieve AGI by 2030?",
             description="Test description",
             question_type=QuestionType.BINARY,
+            status=QuestionStatus.OPEN,
             url="https://metaculus.com/questions/12345",
             close_time=close_time,
             resolve_time=None,
@@ -61,6 +62,7 @@ class TestQuestion:
             title="Which AI company will achieve AGI first?",
             description="Test description",
             question_type=QuestionType.MULTIPLE_CHOICE,
+            status=QuestionStatus.OPEN,
             url="https://metaculus.com/questions/12346",
             close_time=datetime.utcnow() + timedelta(days=30),
             resolve_time=None,
@@ -82,6 +84,7 @@ class TestQuestion:
             title="What will be the global temperature increase by 2030?",
             description="Test description",
             question_type=QuestionType.NUMERIC,
+            status=QuestionStatus.OPEN,
             url="https://metaculus.com/questions/12347",
             close_time=datetime.utcnow() + timedelta(days=30),
             resolve_time=None,
@@ -106,6 +109,7 @@ class TestQuestion:
                 title="Test question",
                 description="Test description",
                 question_type=QuestionType.MULTIPLE_CHOICE,
+                status=QuestionStatus.OPEN,
                 url="https://metaculus.com/questions/12346",
                 close_time=datetime.utcnow() + timedelta(days=30),
                 resolve_time=None,
@@ -125,6 +129,7 @@ class TestQuestion:
                 title="Test question",
                 description="Test description",
                 question_type=QuestionType.NUMERIC,
+                status=QuestionStatus.OPEN,
                 url="https://metaculus.com/questions/12347",
                 close_time=datetime.utcnow() + timedelta(days=30),
                 resolve_time=None,
@@ -228,8 +233,8 @@ class TestQuestion:
     
     def test_days_until_close(self):
         """Test days_until_close method."""
-        future_close = datetime.utcnow() + timedelta(days=30)
-        past_close = datetime.utcnow() - timedelta(days=1)
+        future_close = datetime.now(timezone.utc) + timedelta(days=30)
+        past_close = datetime.now(timezone.utc) - timedelta(days=1)
         
         open_question = Question.create_new(
             metaculus_id=12345,

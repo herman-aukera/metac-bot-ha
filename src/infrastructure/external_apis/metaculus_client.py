@@ -324,3 +324,70 @@ class MetaculusClient:
                    successful=len([q for q in valid_questions if q is not None]))
         
         return valid_questions
+    
+    async def get_question(self, question_id: int) -> Optional[Question]:
+        """
+        Get a single question by ID - alias for fetch_question.
+        
+        Args:
+            question_id: Metaculus question ID
+            
+        Returns:
+            Question object if found, None otherwise
+        """
+        return await self.fetch_question(question_id)
+    
+    async def get_questions(self, limit: int = 20, **kwargs) -> List[Question]:
+        """
+        Get multiple questions - alias for fetch_questions.
+        
+        Args:
+            limit: Maximum number of questions to fetch
+            **kwargs: Additional filters
+            
+        Returns:
+            List of Question objects
+        """
+        return await self.fetch_questions(limit=limit, **kwargs)
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """
+        Get headers for API requests.
+        
+        Returns:
+            Dictionary of headers for the API request
+        """
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "MetaculusForecastingBot/1.0"
+        }
+        
+        if self.session_token:
+            headers["Authorization"] = f"Token {self.session_token}"
+        elif hasattr(self.settings, 'metaculus') and hasattr(self.settings.metaculus, 'api_token'):
+            if self.settings.metaculus.api_token:
+                headers["Authorization"] = f"Token {self.settings.metaculus.api_token}"
+        
+        return headers
+    
+    async def _handle_rate_limit(self) -> None:
+        """
+        Handle rate limiting by waiting if necessary.
+        """
+        # Simple rate limiting - wait 1 second between requests
+        await asyncio.sleep(1.0)
+    
+    async def health_check(self) -> bool:
+        """
+        Check if the Metaculus API is available.
+        
+        Returns:
+            True if service is healthy, False otherwise
+        """
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{self.base_url}/questions/", params={"limit": 1})
+                return response.status_code == 200
+        except Exception as e:
+            logger.error("Metaculus health check failed", error=str(e))
+            return False

@@ -194,6 +194,10 @@ Remember: Be precise in your reasoning, acknowledge uncertainties, and ensure yo
         """Generate question breakdown prompt."""
         return self.question_breakdown_template.render(question=question)
     
+    def deconstruct_question(self, question: Question) -> str:
+        """Generate question deconstruction prompt - alias for get_question_breakdown_prompt."""
+        return self.get_question_breakdown_prompt(question)
+    
     def get_research_analysis_prompt(
         self, 
         question: Question, 

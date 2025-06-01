@@ -381,8 +381,26 @@ class IngestionService:
         if question_type != QuestionType.NUMERIC:
             return None, None
         
-        min_value = data.get("min_value") or data.get("min") or data.get("lower_bound")
-        max_value = data.get("max_value") or data.get("max") or data.get("upper_bound")
+        # Use is not None to handle 0 values correctly
+        min_value = data.get("min_value")
+        if min_value is None:
+            min_value = data.get("min")
+        if min_value is None:
+            min_value = data.get("lower_bound")
+        if min_value is None:
+            # Check nested possibilities structure
+            possibilities = data.get("possibilities", {})
+            min_value = possibilities.get("min")
+            
+        max_value = data.get("max_value")
+        if max_value is None:
+            max_value = data.get("max")
+        if max_value is None:
+            max_value = data.get("upper_bound")
+        if max_value is None:
+            # Check nested possibilities structure
+            possibilities = data.get("possibilities", {})
+            max_value = possibilities.get("max")
         
         try:
             min_val = float(min_value) if min_value is not None else None
@@ -420,3 +438,22 @@ class IngestionService:
         if self.validation_level == ValidationLevel.STRICT:
             raise ParseError("Invalid choices format")
         return None
+
+    async def convert_question_data(self, question_data: Dict[str, Any]) -> Question:
+        """
+        Convert raw question data to a Question domain object (async wrapper).
+        
+        This method provides an async interface to the synchronous parse_question method,
+        as required by the forecasting pipeline integration tests.
+        
+        Args:
+            question_data: Raw question data from API
+            
+        Returns:
+            Question domain object
+            
+        Raises:
+            ValidationError: If validation fails
+            ParseError: If required data is missing or invalid
+        """
+        return self.parse_question(question_data)

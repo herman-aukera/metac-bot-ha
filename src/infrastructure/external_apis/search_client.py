@@ -15,6 +15,10 @@ logger = structlog.get_logger(__name__)
 class SearchClient(ABC):
     """Abstract base class for search clients."""
     
+    def __init__(self, config=None):
+        """Initialize with optional config parameter for test compatibility."""
+        self.config = config
+    
     @abstractmethod
     async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """Search for information and return results."""
@@ -100,7 +104,7 @@ class SerpAPISearchClient(SearchClient):
     
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.api_key = settings.serpapi_key
+        self.api_key = settings.search.serpapi_key
         self.base_url = "https://serpapi.com/search"
         
         if not self.api_key:
@@ -253,7 +257,7 @@ class MultiSourceSearchClient(SearchClient):
         self.clients.append(DuckDuckGoSearchClient(settings))
         self.clients.append(WikipediaSearchClient(settings))
         
-        if settings.serpapi_key:
+        if settings.search.serpapi_key:
             self.clients.append(SerpAPISearchClient(settings))
         
         logger.info("Initialized multi-source search", client_count=len(self.clients))
@@ -320,7 +324,7 @@ class MultiSourceSearchClient(SearchClient):
 
 def create_search_client(settings: Settings) -> SearchClient:
     """Factory function to create appropriate search client based on settings."""
-    if settings.serpapi_key:
+    if settings.search.serpapi_key:
         logger.info("Creating multi-source search client with SerpAPI")
         return MultiSourceSearchClient(settings)
     else:

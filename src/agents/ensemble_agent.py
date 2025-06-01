@@ -13,6 +13,7 @@ from ..domain.value_objects.probability import Probability
 from ..domain.services.forecasting_service import ForecastingService
 from ..infrastructure.external_apis.llm_client import LLMClient
 from ..infrastructure.external_apis.search_client import SearchClient
+from ..domain.entities.research_report import ResearchReport
 
 logger = structlog.get_logger(__name__)
 
@@ -42,6 +43,51 @@ class EnsembleAgent(BaseAgent):
         
         if not agents:
             raise ValueError("Ensemble agent requires at least one base agent")
+    
+    async def conduct_research(
+        self, 
+        question: Question,
+        search_config: Optional[Dict[str, Any]] = None
+    ) -> ResearchReport:
+        """
+        Conduct research by delegating to base agents and combining their research.
+        """
+        logger.info("Starting ensemble research", question_id=question.id, agent_count=len(self.agents))
+        
+        # For now, delegate to the first agent's research
+        # In a more sophisticated implementation, we could combine research from multiple agents
+        if self.agents:
+            return await self.agents[0].conduct_research(question, search_config)
+        else:
+            # Fallback - create minimal research report
+            return ResearchReport.create_new(
+                question_id=question.id,
+                sources=[],
+                analysis="Ensemble agent with no base agents - minimal research",
+                research_depth=0,
+                research_time_spent=0.0
+            )
+    
+    async def generate_prediction(
+        self, 
+        question: Question, 
+        research_report: ResearchReport
+    ) -> Prediction:
+        """
+        Generate prediction by combining predictions from multiple agents.
+        """
+        # For now, create a simple placeholder prediction
+        from ..domain.entities.prediction import Prediction, PredictionConfidence, PredictionMethod
+        
+        return Prediction.create_binary_prediction(
+            question_id=question.id,
+            research_report_id=research_report.id,
+            probability=0.5,  # Placeholder
+            confidence=PredictionConfidence.MEDIUM,
+            method=PredictionMethod.ENSEMBLE,
+            reasoning="Ensemble prediction - placeholder implementation",
+            created_by=self.name
+        )
     
     async def predict(
         self,

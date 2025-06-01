@@ -233,9 +233,10 @@ class TestReActAgent:
     def react_agent(self, mock_llm_client, mock_search_client, mock_settings):
         """Create ReActAgent instance."""
         return ReActAgent(
+            name="test-react-agent",
+            model_config={"temperature": 0.7},
             llm_client=mock_llm_client,
-            search_client=mock_search_client,
-            config=mock_settings.agent
+            search_client=mock_search_client
         )
     
     @pytest.fixture
@@ -312,9 +313,18 @@ class TestEnsembleAgent:
     @pytest.fixture
     def ensemble_agent(self, mock_agents, mock_settings):
         """Create EnsembleAgent instance."""
+        from src.domain.services.forecasting_service import ForecastingService
+        from unittest.mock import Mock
+        
+        # Create mock forecasting service
+        mock_forecasting_service = Mock(spec=ForecastingService)
+        mock_forecasting_service.confidence_weighted_average = Mock(return_value=0.42)
+        
         return EnsembleAgent(
+            name="test-ensemble-agent",
+            model_config={"temperature": 0.7},
             agents=mock_agents,
-            config=mock_settings.ensemble
+            forecasting_service=mock_forecasting_service
         )
     
     @pytest.fixture

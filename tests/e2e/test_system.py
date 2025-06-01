@@ -7,9 +7,10 @@ from datetime import datetime, timedelta
 from unittest.mock import patch, Mock
 import tempfile
 import yaml
+from pathlib import Path
 
 from src.main import MetaculusForecastingBot
-from src.infrastructure.config.settings import Settings
+from src.infrastructure.config.settings import Config
 from src.domain.entities.question import QuestionType
 
 
@@ -80,8 +81,8 @@ class TestEndToEndForecasting:
         }
         
         with patch.dict(os.environ, test_env):
-            settings = Settings(config_path=e2e_config_file)
-            return MetaculusForecastingBot(settings)
+            config = Config(Path(e2e_config_file))
+            return MetaculusForecastingBot(config)
     
     @pytest.fixture
     def mock_real_apis(self):

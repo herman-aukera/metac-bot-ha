@@ -44,6 +44,7 @@ class Question:
     metadata: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
+    resolution_criteria: Optional[str] = None
     
     # Question-specific fields
     min_value: Optional[float] = None
@@ -95,11 +96,28 @@ class Question:
     
     def is_open(self) -> bool:
         """Check if the question is still open for forecasting."""
-        return datetime.now(timezone.utc) < self.close_time
+        now = datetime.now(timezone.utc)
+        close_time = self.close_time
+        
+        # Handle naive datetime comparison
+        if close_time.tzinfo is None:
+            now = now.replace(tzinfo=None)
+        
+        return now < close_time
     
     def is_resolved(self) -> bool:
         """Check if the question has been resolved."""
-        return self.resolve_time is not None and datetime.now(timezone.utc) > self.resolve_time
+        if self.resolve_time is None:
+            return False
+            
+        now = datetime.now(timezone.utc)
+        resolve_time = self.resolve_time
+        
+        # Handle naive datetime comparison
+        if resolve_time.tzinfo is None:
+            now = now.replace(tzinfo=None)
+            
+        return now > resolve_time
     
     def days_until_close(self) -> int:
         """Calculate days until the question closes."""

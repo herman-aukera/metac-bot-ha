@@ -134,6 +134,67 @@ class TestEnsembleConfig:
         assert config.fallback_to_single_agent is True
 
 
+class TestPipelineConfig:
+    """Test PipelineConfig class."""
+    
+    def test_pipeline_config_defaults(self):
+        """Test pipeline configuration with default values."""
+        config = PipelineConfig()
+        
+        assert config.max_concurrent_questions == 5
+        assert config.batch_delay_seconds == 1.0
+        assert config.default_research_depth == 3
+        assert config.default_agent_names == ["ensemble"]
+        assert config.enable_benchmarking is True
+
+
+class TestBotConfig:
+    """Test BotConfig class."""
+    
+    def test_bot_config_defaults(self):
+        """Test bot configuration with default values."""
+        config = BotConfig()
+        
+        assert config.name == "MetaculusBotHA"
+        assert config.version == "1.0.0"
+        assert config.research_reports_per_question == 2
+        assert config.predictions_per_research_report == 3
+        assert config.publish_reports_to_metaculus is False
+        assert config.max_concurrent_questions == 2
+
+
+class TestLoggingConfig:
+    """Test LoggingConfig class."""
+    
+    def test_logging_config_defaults(self):
+        """Test logging configuration with default values."""
+        config = LoggingConfig()
+        
+        assert config.level == "INFO"
+        assert config.format == "json"
+        assert config.console_output is True
+        assert config.enable_structured_logging is True
+        assert config.log_predictions is True
+
+
+class TestConfig:
+    """Test Config class."""
+    
+    def test_config_defaults(self):
+        """Test Config instantiation with defaults."""
+        config = Config()
+        
+        assert isinstance(config.database, DatabaseConfig)
+        assert isinstance(config.llm, LLMConfig)
+        assert isinstance(config.search, SearchConfig)
+        assert isinstance(config.metaculus, MetaculusConfig)
+        assert isinstance(config.agent, AgentConfig)
+        assert isinstance(config.ensemble, EnsembleConfig)
+        assert isinstance(config.pipeline, PipelineConfig)
+        assert isinstance(config.bot, BotConfig)
+        assert isinstance(config.logging, LoggingConfig)
+
+
 class TestSettings:
     """Test Settings class."""
     
@@ -147,6 +208,9 @@ class TestSettings:
         assert isinstance(settings.metaculus, MetaculusConfig)
         assert isinstance(settings.agent, AgentConfig)
         assert isinstance(settings.ensemble, EnsembleConfig)
+        assert isinstance(settings.pipeline, PipelineConfig)
+        assert isinstance(settings.bot, BotConfig)
+        assert isinstance(settings.logging, LoggingConfig)
         assert settings.environment == "development"
         assert settings.debug is False
     
@@ -155,7 +219,7 @@ class TestSettings:
         env_vars = {
             "LLM_MODEL": "gpt-3.5-turbo",
             "LLM_TEMPERATURE": "0.7",
-            "METACULUS_TOKEN": "test-token",
+            "METACULUS_API_TOKEN": "test-token",
             "DATABASE_HOST": "testhost",
             "DATABASE_PORT": "5433"
         }
@@ -181,6 +245,15 @@ class TestSettings:
         settings.llm.openai_api_key = "test-openai-key"
         assert settings.get_api_key("openai") == "test-openai-key"
         assert settings.get_api_key("unknown") == ""
+    
+    def test_settings_from_config(self):
+        """Test creating Settings from Config instance."""
+        config = Config()
+        settings = Settings.from_config(config)
+        
+        assert isinstance(settings, Settings)
+        assert isinstance(settings.database, DatabaseConfig)
+        assert isinstance(settings.llm, LLMConfig)
     
     def test_global_settings_functions(self):
         """Test global settings functions."""
@@ -251,3 +324,15 @@ class TestSettingsWithYAML:
             assert settings.llm.model == "gpt-3.5-turbo"
             # YAML values should still be used for non-overridden values
             assert settings.llm.temperature == 0.5
+    
+    def test_reload_settings(self, temp_config_file):
+        """Test reloading settings."""
+        # Set initial settings
+        initial_settings = Settings()
+        set_settings(initial_settings)
+        
+        # Reload with config file
+        reloaded_settings = reload_settings(temp_config_file)
+        
+        assert reloaded_settings.llm.model == "gpt-4"
+        assert reloaded_settings.llm.temperature == 0.5

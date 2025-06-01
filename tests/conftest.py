@@ -286,8 +286,38 @@ def mock_llm_client():
     """Mock LLM client."""
     from unittest.mock import Mock, AsyncMock
     client = Mock()
-    client.generate = AsyncMock()
-    client.generate_response = AsyncMock()
+    
+    # Mock generate method
+    client.generate = AsyncMock(return_value="Mocked LLM response")
+    client.generate_response = AsyncMock(return_value="Mocked LLM response")
+    
+    # Mock chat_completion method to return JSON responses for different calls
+    async def chat_completion_side_effect(*args, **kwargs):
+        # Check the messages to determine what type of response to return
+        messages = kwargs.get('messages', [])
+        if messages and len(messages) > 0:
+            content = messages[-1].get('content', '')
+            
+            # For question deconstruction
+            if 'deconstruct' in content.lower() or 'breakdown' in content.lower():
+                return '{"research_areas": ["AI progress metrics", "expert opinions", "funding trends"]}'
+            
+            # For research analysis
+            elif 'analyze' in content.lower() or 'research' in content.lower():
+                return '{"executive_summary": "AI progress is steady", "detailed_analysis": "Detailed analysis", "key_factors": ["Compute power"], "base_rates": {"AGI by 2030": 0.3}, "confidence_level": 0.8, "reasoning_steps": ["Analyzed metrics"], "evidence_for": ["Rapid advancements"], "evidence_against": ["Complexity"], "uncertainties": ["Black swan events"]}'
+            
+            # For prediction generation
+            elif 'probability' in content.lower() or 'prediction' in content.lower():
+                return '{"probability": 0.42, "confidence": "high", "reasoning": "Based on analysis", "reasoning_steps": ["Synthesized findings"], "lower_bound": 0.30, "upper_bound": 0.55, "confidence_interval": 0.25}'
+            
+            # For meta-reasoning
+            elif 'meta' in content.lower():
+                return 'PROBABILITY: 0.42\nCONFIDENCE: 0.8\nREASONING: Meta-analysis of agent predictions suggests moderate likelihood.'
+        
+        # Default response
+        return '{"result": "default response", "probability": 0.5, "confidence": 0.7}'
+    
+    client.chat_completion = AsyncMock(side_effect=chat_completion_side_effect)
     return client
 
 
