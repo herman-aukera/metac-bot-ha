@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 import aiohttp
+import httpx
 import json
 
 from src.infrastructure.external_apis.llm_client import LLMClient
@@ -35,13 +36,12 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_openai_request_success(self, llm_client, mock_openai_response):
         """Test successful OpenAI API request."""
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch('httpx.AsyncClient.post') as mock_post:
             # Mock successful response
             mock_response = Mock()
-            mock_response.status = 200
-            mock_response.json = AsyncMock(return_value=mock_openai_response)
-            mock_response.__aenter__ = AsyncMock(return_value=mock_response)
-            mock_response.__aexit__ = AsyncMock(return_value=None)
+            mock_response.status_code = 200
+            mock_response.json = Mock(return_value=mock_openai_response)
+            mock_response.raise_for_status = Mock()
             mock_post.return_value = mock_response
             
             # Test request
@@ -54,20 +54,18 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_openai_request_retry_on_failure(self, llm_client):
         """Test retry mechanism on API failure."""
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch('httpx.AsyncClient.post') as mock_post:
             # Mock failed responses followed by success
             mock_failed_response = Mock()
-            mock_failed_response.status = 500
-            mock_failed_response.__aenter__ = AsyncMock(return_value=mock_failed_response)
-            mock_failed_response.__aexit__ = AsyncMock(return_value=None)
+            mock_failed_response.status_code = 500
+            mock_failed_response.raise_for_status.side_effect = Exception("Server Error")
             
             mock_success_response = Mock()
-            mock_success_response.status = 200
-            mock_success_response.json = AsyncMock(return_value={
+            mock_success_response.status_code = 200
+            mock_success_response.json.return_value = {
                 "choices": [{"message": {"content": "Success after retry"}}]
-            })
-            mock_success_response.__aenter__ = AsyncMock(return_value=mock_success_response)
-            mock_success_response.__aexit__ = AsyncMock(return_value=None)
+            }
+            mock_success_response.raise_for_status = Mock()
             
             mock_post.side_effect = [
                 mock_failed_response,  # First attempt fails
@@ -83,20 +81,19 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_openai_max_retries_exceeded(self, llm_client):
         """Test behavior when max retries are exceeded."""
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch('httpx.AsyncClient.post') as mock_post:
             # Mock all responses as failures
             mock_failed_response = Mock()
-            mock_failed_response.status = 500
-            mock_failed_response.__aenter__ = AsyncMock(return_value=mock_failed_response)
-            mock_failed_response.__aexit__ = AsyncMock(return_value=None)
+            mock_failed_response.status_code = 500
+            mock_failed_response.raise_for_status.side_effect = Exception("Server Error")
             
             mock_post.return_value = mock_failed_response
             
             with pytest.raises(Exception):
                 await llm_client.generate_response("Test prompt")
             
-            # Should attempt max_retries + 1 times
-            assert mock_post.call_count == 4  # 3 retries + 1 initial attempt
+            # Should attempt max_retries times (3 retries total)
+            assert mock_post.call_count == 3  # max_retries = 3
     
     def test_openai_headers_construction(self, llm_client):
         """Test that OpenAI headers are constructed correctly."""
@@ -130,12 +127,13 @@ class TestSearchClient:
     def search_config(self):
         """Create search configuration for testing."""
         return SearchConfig(
-            sources=["duckduckgo", "wikipedia"],
+            provider="multi_source",
             max_results=10,
             timeout=30,
-            cache_ttl=3600,
-            deduplicate=True,
-            language="en"
+            duckduckgo_enabled=True,
+            wikipedia_enabled=True,
+            concurrent_searches=True,
+            deduplicate_results=True
         )
     
     @pytest.fixture
@@ -257,10 +255,9 @@ class TestMetaculusClient:
     def metaculus_config(self):
         """Create Metaculus configuration for testing."""
         return MetaculusConfig(
-            api_key="test-metaculus-key",
-            base_url="https://www.metaculus.com/api/v2",
-            timeout=30,
-            max_retries=3,
+            api_token="test-metaculus-key",
+            base_url="https://www.metaculus.com/api2",
+            timeout=30.0,
             submit_predictions=False,
             dry_run=True
         )
