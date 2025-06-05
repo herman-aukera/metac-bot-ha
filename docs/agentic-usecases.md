@@ -104,3 +104,49 @@
 ### Related Tests
 
 - `tests/unit/api/test_metaculus_client.py`
+
+## Multi-Choice (MC) Example
+
+### Input Example
+
+```json
+{
+  "question_id": 2,
+  "question_text": "Which city will win the bid?",
+  "type": "mc",
+  "options": ["London", "Paris", "Berlin"]
+}
+```
+
+### Output Example
+
+```json
+{
+  "question_id": 2,
+  "forecast": [0.1, 0.3, 0.6],
+  "justification": "Based on evidence for all options."
+}
+```
+
+### End-to-end: MC question → CoT → submission
+
+- ForecastChain produces MC forecast dict
+- MetaculusClient submits MC forecast (as list)
+- Handles errors and returns status
+
+### Related Tests
+
+- `tests/unit/agent/chains/test_forecast_chain.py` (MC)
+- `tests/unit/api/test_metaculus_client.py` (MC)
+- `tests/integration/test_submission_pipeline.py` (MC)
+
+## CLI Example: Model Routing
+
+To run the agent with a specific LLM model (e.g. GPT-4) and correct import path:
+
+```bash
+PYTHONPATH=$(pwd) poetry run python main_agent.py --model openai/gpt-4 --mode batch --dryrun
+```
+
+- The `--model` flag controls which LLM backend is used for reasoning.
+- See `forecast_pipeline.instructions.md` for more details on model selection and import requirements.
