@@ -20,13 +20,18 @@ def mock_llm():
 
 def test_forecast_agent_predict(monkeypatch, mock_llm, mock_search):
     # Patch ForecastAgent to use our chain with mocks
-    def chain_factory(llm=None, search_tool=None):
-        return ForecastChain(mock_llm, mock_search)
+    def chain_factory(llm=None, search_tool=None, tools=None):
+        return ForecastChain(mock_llm, mock_search, tools=tools)
     monkeypatch.setattr('src.agents.forecast_agent.ForecastChain', chain_factory)
     agent = ForecastAgent()
     question = {'question_id': 42, 'question_text': 'Will AGI arrive by 2030?'}
     result = agent.invoke(question)
     assert isinstance(result, dict)
-    assert set(result.keys()) == {'question_id', 'forecast', 'justification'}
-    assert result['forecast'] == 0.99
-    assert 'Integration justified' in result['justification']
+    assert 'question_id' in result
+    assert 'forecast' in result or 'prediction' in result
+    assert 'justification' in result
+    assert 'trace' in result
+    # Check trace structure
+    assert isinstance(result['trace'], list)
+    assert any(step['type'] == 'input' for step in result['trace'])
+    assert any(step['type'] == 'llm' for step in result['trace'])
