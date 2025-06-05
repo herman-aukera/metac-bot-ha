@@ -20,6 +20,8 @@ def run_batch(questions, submit=False, log_file=None):
             "forecast": result["forecast"],
             "justification": result["justification"]
         }
+        if "trace" in result:
+            log_entry["trace"] = result["trace"]
         if q.get("type") in ("mc", "multiple_choice"):
             log_entry["options"] = q.get("options")
         if submit and client:

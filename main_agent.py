@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--limit', type=int, default=5, help='Max questions for batch mode')
     parser.add_argument('--logfile', type=str, help='Optional log file for batch results')
     parser.add_argument('--model', type=str, help='Model ID for LLM (e.g. openai/gpt-4, anthropic/claude-3, mistral/mixtral-8x7b)')
+    parser.add_argument('--show-trace', action='store_true', help='Show step-by-step reasoning trace in output')
     args = parser.parse_args()
 
     if args.mode == 'batch':
@@ -56,6 +57,9 @@ def main():
     agent = ForecastAgent(llm=llm)
     result = agent.invoke(question)
     print(json.dumps(result, indent=2))
+    if args.show_trace and 'trace' in result:
+        print("\n--- Reasoning Trace ---")
+        print(json.dumps(result['trace'], indent=2))
     if 'options' in question:
         print('Options:', question['options'])
     if args.submit:

@@ -12,6 +12,9 @@ def run_agent(question_json, dryrun=True):
     agent = ForecastAgent()
     result = agent.invoke(question_json)
     result['tools_used'] = [tool.__class__.__name__ for tool in tool_list]
+    if 'trace' in result:
+        print("--- Reasoning Trace ---")
+        print(result['trace'])
     if dryrun:
         print(result)
     else:

@@ -143,6 +143,7 @@ Think step by step and output a numeric prediction and 90% confidence interval a
 ## Tool Routing & Integration
 
 The ForecastChain automatically invokes relevant tools (WikipediaTool, MathTool) during reasoning:
+
 - WikipediaTool: fetches short summaries for named entities in the question
 - MathTool: evaluates simple math expressions in the question
 - Tool outputs are injected into the LLM's evidence/context

@@ -10,12 +10,23 @@ ForecastChain: Chain-of-Thought + Evidence pipeline for Metaculus forecasting.
 from typing import Dict, Any
 from src.agents.search import SearchTool
 from src.agents.tools import tool_list
+from datetime import datetime
 
 class ForecastChain:
-    def __init__(self, llm, search_tool: SearchTool, tools=None):
+    def __init__(self, llm, search_tool: Any, tools=None):
         self.llm = llm
         self.search_tool = search_tool
         self.tools = tools if tools is not None else tool_list
+        self.trace = []
+
+    def _log_trace(self, step_type, input_data, output_data):
+        self.trace.append({
+            "step": len(self.trace) + 1,
+            "type": step_type,
+            "input": input_data,
+            "output": output_data,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        })
 
     def _call_tools(self, question_text):
         """Call all tools and collect their outputs for the question."""
@@ -24,11 +35,13 @@ class ForecastChain:
             # WikipediaTool: only call if question is a string and not too long
             if tool.__class__.__name__ == "WikipediaTool" and isinstance(question_text, str) and len(question_text) < 100:
                 wiki = tool.run(question_text)
+                self._log_trace("tool", {"tool": "WikipediaTool", "query": question_text}, wiki)
                 if wiki and "Wikipedia" in wiki:
                     tool_outputs["WikipediaTool"] = wiki
             # MathTool: only call if question looks like a math expression
             elif tool.__class__.__name__ == "MathTool" and any(op in question_text for op in ["+", "-", "*", "/", "%", "^"]):
                 math = tool.run(question_text)
+                self._log_trace("tool", {"tool": "MathTool", "expr": question_text}, math)
                 if math and "Error" not in math:
                     tool_outputs["MathTool"] = math
         return tool_outputs
@@ -42,12 +55,15 @@ class ForecastChain:
         4. Invoke LLM with structured input
         5. Parse and return structured forecast with justification
         """
+        self.trace = []
         if not question or 'question_id' not in question or 'question_text' not in question:
             return {"error": "Missing required question fields"}
+        self._log_trace("input", question, None)
         question_id = question['question_id']
         question_text = question['question_text']
         question_type = question.get('type', 'binary')
         evidence = self.search_tool.search(question_text)
+        self._log_trace("evidence", question_text, evidence)
         tool_outputs = self._call_tools(question_text)
         # Add tool outputs to evidence if present
         if tool_outputs:
@@ -57,13 +73,22 @@ class ForecastChain:
             if not options or not isinstance(options, list):
                 return {"error": "Missing or invalid options for multi-choice question"}
             prompt = self._build_mc_prompt(question_text, options, evidence)
+            self._log_trace("prompt", {"type": "mc", "prompt": prompt}, None)
             llm_response = self.llm.invoke({"prompt": prompt})
+            self._log_trace("llm", {"prompt": prompt}, llm_response)
             forecast, justification = self._parse_mc_llm_response(llm_response, options)
+            result = {
+                "question_id": question_id,
+                "forecast": forecast,
+                "justification": justification
+            }
         elif question_type == 'numeric':
             prompt = self._build_numeric_prompt(question_text, evidence)
+            self._log_trace("prompt", {"type": "numeric", "prompt": prompt}, None)
             llm_response = self.llm.invoke({"prompt": prompt})
+            self._log_trace("llm", {"prompt": prompt}, llm_response)
             forecast, low, high, justification = self._parse_numeric_llm_response(llm_response)
-            return {
+            result = {
                 "question_id": question_id,
                 "prediction": forecast,
                 "low": low,
@@ -72,13 +97,17 @@ class ForecastChain:
             }
         else:
             prompt = self._build_prompt(question_text, evidence)
+            self._log_trace("prompt", {"type": "binary", "prompt": prompt}, None)
             llm_response = self.llm.invoke({"prompt": prompt})
+            self._log_trace("llm", {"prompt": prompt}, llm_response)
             forecast, justification = self._parse_llm_response(llm_response)
-        return {
-            "question_id": question_id,
-            "forecast": forecast,
-            "justification": justification
-        }
+            result = {
+                "question_id": question_id,
+                "forecast": forecast,
+                "justification": justification
+            }
+        result["trace"] = self.trace
+        return result
 
     def _build_prompt(self, question_text, evidence):
         return f"""You are a forecasting agent.\nQuestion: {question_text}\nEvidence: {evidence}\nThink step by step and output a probability (0-1) and justification as JSON: {{'forecast': float, 'justification': str}}"""
