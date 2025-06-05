@@ -8,7 +8,7 @@ import structlog
 
 from .base_agent import BaseAgent
 from ..domain.entities.question import Question
-from ..domain.entities.prediction import Prediction
+from ..domain.entities.prediction import Prediction, PredictionConfidence, PredictionMethod
 from ..domain.value_objects.probability import Probability
 from ..domain.services.forecasting_service import ForecastingService
 from ..infrastructure.external_apis.llm_client import LLMClient
@@ -35,7 +35,16 @@ class EnsembleAgent(BaseAgent):
     ):
         # For ensemble agent, LLM client is optional (only needed for meta-reasoning)
         super().__init__(name, model_config)
-        self.llm_client = llm_client or agents[0].llm_client if agents else None
+        # Try to get LLM client from first agent if available, otherwise use provided one
+        self.llm_client = llm_client
+        if not self.llm_client and agents:
+            # Check if first agent has llm_client attribute
+            first_agent = agents[0]
+            try:
+                # Try to access llm_client attribute safely
+                self.llm_client = getattr(first_agent, 'llm_client', None)
+            except AttributeError:
+                self.llm_client = None
         self.search_client = search_client
         self.agents = agents
         self.forecasting_service = forecasting_service
@@ -62,10 +71,14 @@ class EnsembleAgent(BaseAgent):
             # Fallback - create minimal research report
             return ResearchReport.create_new(
                 question_id=question.id,
+                title="Ensemble Research",
+                executive_summary="Ensemble agent with no base agents - minimal research",
+                detailed_analysis="Ensemble agent with no base agents - minimal research",
                 sources=[],
-                analysis="Ensemble agent with no base agents - minimal research",
+                confidence_level=0.5,
                 research_depth=0,
-                research_time_spent=0.0
+                research_time_spent=0.0,
+                created_by=self.name
             )
     
     async def generate_prediction(
@@ -138,7 +151,7 @@ class EnsembleAgent(BaseAgent):
             logger.info(
                 "Generated ensemble prediction",
                 question_id=question.id,
-                probability=ensemble_prediction.probability.value,
+                probability=ensemble_prediction.result.binary_probability,
                 confidence=ensemble_prediction.confidence,
                 successful_agents=len(successful_predictions),
                 failed_agents=len(failed_agents)
@@ -159,7 +172,9 @@ class EnsembleAgent(BaseAgent):
     ) -> Prediction:
         """Safely execute agent prediction with error handling."""
         try:
-            return await agent.predict(question, include_research, max_research_depth)
+            # Use BaseAgent's full_forecast_cycle method which returns research_report and prediction
+            research_report, prediction = await agent.full_forecast_cycle(question)
+            return prediction
         except Exception as e:
             logger.error(
                 "Agent prediction failed",
@@ -179,7 +194,7 @@ class EnsembleAgent(BaseAgent):
         if len(predictions) == 1:
             # Single prediction - just enhance metadata
             prediction = predictions[0]
-            enhanced_metadata = prediction.metadata.copy()
+            enhanced_metadata = prediction.method_metadata.copy() if prediction.method_metadata else {}
             enhanced_metadata.update({
                 "ensemble_agent": True,
                 "predictions_used": 1,
@@ -187,31 +202,43 @@ class EnsembleAgent(BaseAgent):
                 "aggregation_strategy": "single"
             })
             
-            return Prediction.create(
+            return Prediction.create_binary_prediction(
                 question_id=question.id,
-                probability=prediction.probability,
+                research_report_id=prediction.research_report_id,
+                probability=prediction.result.binary_probability or 0.5,
                 reasoning=prediction.reasoning,
                 confidence=prediction.confidence,
-                metadata=enhanced_metadata
+                method=PredictionMethod.ENSEMBLE,
+                created_by=self.name,
+                method_metadata=enhanced_metadata
             )
         
         # Multiple predictions - aggregate based on strategy
         if self.aggregation_strategy == "simple_average":
-            final_probability = self.forecasting_service.simple_average(predictions)
+            aggregated_prediction = self.forecasting_service.aggregate_predictions(predictions, "weighted_average")
+            final_probability = aggregated_prediction.result.binary_probability
         elif self.aggregation_strategy == "weighted_average":
-            final_probability = self.forecasting_service.weighted_average(predictions)
+            aggregated_prediction = self.forecasting_service.aggregate_predictions(predictions, "weighted_average")
+            final_probability = aggregated_prediction.result.binary_probability
         elif self.aggregation_strategy == "confidence_weighted":
-            final_probability = self.forecasting_service.confidence_weighted_average(predictions)
+            aggregated_prediction = self.forecasting_service.aggregate_predictions(predictions, "confidence_weighted")
+            final_probability = aggregated_prediction.result.binary_probability
         elif self.aggregation_strategy == "median":
-            final_probability = self.forecasting_service.median_aggregation(predictions)
+            aggregated_prediction = self.forecasting_service.aggregate_predictions(predictions, "median")
+            final_probability = aggregated_prediction.result.binary_probability
         elif self.aggregation_strategy == "meta_reasoning":
             return await self._meta_reasoning_aggregation(question, predictions, failed_agents)
         else:
             # Default to confidence weighted
-            final_probability = self.forecasting_service.confidence_weighted_average(predictions)
+            aggregated_prediction = self.forecasting_service.aggregate_predictions(predictions, "confidence_weighted")
+            final_probability = aggregated_prediction.result.binary_probability
         
         # Calculate ensemble confidence
         ensemble_confidence = self._calculate_ensemble_confidence(predictions)
+        
+        # Ensure final_probability is not None
+        if final_probability is None:
+            final_probability = 0.5  # Default fallback
         
         # Generate ensemble reasoning
         ensemble_reasoning = self._generate_ensemble_reasoning(predictions, final_probability)
@@ -224,24 +251,39 @@ class EnsembleAgent(BaseAgent):
             "failed_agents": failed_agents,
             "agent_predictions": [
                 {
-                    "agent_type": pred.metadata.get("agent_type", "unknown"),
-                    "probability": pred.probability.value,
-                    "confidence": pred.confidence
+                    "agent_type": pred.method_metadata.get("agent_type", "unknown") if pred.method_metadata else "unknown",
+                    "probability": pred.result.binary_probability,
+                    "confidence": pred.get_confidence_score()
                 }
                 for pred in predictions
             ],
-            "probability_spread": max(p.probability.value for p in predictions) - 
-                              min(p.probability.value for p in predictions),
-            "confidence_range": [min(p.confidence for p in predictions), 
-                               max(p.confidence for p in predictions)]
+            "probability_spread": max(p.result.binary_probability for p in predictions if p.result.binary_probability is not None) - 
+                              min(p.result.binary_probability for p in predictions if p.result.binary_probability is not None),
+            "confidence_range": [min(p.get_confidence_score() for p in predictions), 
+                               max(p.get_confidence_score() for p in predictions)]
         }
         
-        return Prediction.create(
+        # Convert float confidence to enum
+        if ensemble_confidence <= 0.2:
+            confidence_enum = PredictionConfidence.VERY_LOW
+        elif ensemble_confidence <= 0.4:
+            confidence_enum = PredictionConfidence.LOW
+        elif ensemble_confidence <= 0.6:
+            confidence_enum = PredictionConfidence.MEDIUM
+        elif ensemble_confidence <= 0.8:
+            confidence_enum = PredictionConfidence.HIGH
+        else:
+            confidence_enum = PredictionConfidence.VERY_HIGH
+
+        return Prediction.create_binary_prediction(
             question_id=question.id,
+            research_report_id=predictions[0].research_report_id,  # Use first prediction's report
             probability=final_probability,
             reasoning=ensemble_reasoning,
-            confidence=ensemble_confidence,
-            metadata=ensemble_metadata
+            confidence=confidence_enum,
+            method=PredictionMethod.ENSEMBLE,
+            created_by=self.name,
+            method_metadata=ensemble_metadata
         )
     
     async def _meta_reasoning_aggregation(
@@ -253,7 +295,8 @@ class EnsembleAgent(BaseAgent):
         """Use LLM to perform meta-reasoning over agent predictions."""
         if not self.llm_client:
             logger.warning("No LLM client available for meta-reasoning, falling back to confidence weighting")
-            final_probability = self.forecasting_service.confidence_weighted_average(predictions)
+            aggregated_prediction = self.forecasting_service.aggregate_predictions(predictions, "confidence_weighted")
+            final_probability = aggregated_prediction.result.binary_probability or 0.5
             ensemble_confidence = self._calculate_ensemble_confidence(predictions)
             ensemble_reasoning = self._generate_ensemble_reasoning(predictions, final_probability)
         else:
@@ -304,21 +347,40 @@ REASONING: [detailed explanation of how you analyzed and synthesized the differe
             "failed_agents": failed_agents,
             "agent_predictions": [
                 {
-                    "agent_type": pred.metadata.get("agent_type", "unknown"),
-                    "probability": pred.probability.value,
-                    "confidence": pred.confidence,
+                    "agent_type": pred.method_metadata.get("agent_type", "unknown") if pred.method_metadata else "unknown",
+                    "probability": pred.result.binary_probability,
+                    "confidence": pred.get_confidence_score(),
                     "reasoning_summary": pred.reasoning[:200] + "..." if len(pred.reasoning) > 200 else pred.reasoning
                 }
                 for pred in predictions
             ]
         }
         
+        # Convert float confidence to PredictionConfidence enum
+        if ensemble_confidence <= 0.2:
+            confidence_enum = PredictionConfidence.VERY_LOW
+        elif ensemble_confidence <= 0.4:
+            confidence_enum = PredictionConfidence.LOW
+        elif ensemble_confidence <= 0.6:
+            confidence_enum = PredictionConfidence.MEDIUM
+        elif ensemble_confidence <= 0.8:
+            confidence_enum = PredictionConfidence.HIGH
+        else:
+            confidence_enum = PredictionConfidence.VERY_HIGH
+
+        # Create a PredictionResult with the final probability  
+        from ..domain.entities.prediction import PredictionResult
+        result = PredictionResult(binary_probability=final_probability)
+
         return Prediction.create(
             question_id=question.id,
-            probability=final_probability,
+            research_report_id=predictions[0].research_report_id,
+            result=result,
+            confidence=confidence_enum,
+            method=PredictionMethod.ENSEMBLE,
             reasoning=ensemble_reasoning,
-            confidence=ensemble_confidence,
-            metadata=meta_metadata
+            created_by=self.name,
+            method_metadata=meta_metadata
         )
     
     def _calculate_ensemble_confidence(self, predictions: List[Prediction]) -> float:
@@ -327,15 +389,18 @@ REASONING: [detailed explanation of how you analyzed and synthesized the differe
             return 0.0
         
         if len(predictions) == 1:
-            return predictions[0].confidence
+            return predictions[0].get_confidence_score()
         
         # Calculate agreement (inverse of spread)
-        probabilities = [p.probability.value for p in predictions]
+        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        if not probabilities:
+            return 0.0
         prob_spread = max(probabilities) - min(probabilities)
         agreement_factor = 1.0 - min(prob_spread, 1.0)  # Higher agreement = higher confidence
         
-        # Average confidence
-        avg_confidence = sum(p.confidence for p in predictions) / len(predictions)
+        # Average confidence (convert enum to float)
+        confidence_scores = [p.get_confidence_score() for p in predictions]
+        avg_confidence = sum(confidence_scores) / len(confidence_scores)
         
         # Ensemble confidence combines individual confidence and agreement
         ensemble_confidence = (avg_confidence * 0.7) + (agreement_factor * 0.3)
@@ -345,24 +410,24 @@ REASONING: [detailed explanation of how you analyzed and synthesized the differe
     def _generate_ensemble_reasoning(
         self,
         predictions: List[Prediction],
-        final_probability: Probability
+        final_probability: float
     ) -> str:
         """Generate reasoning explaining the ensemble prediction."""
         reasoning_parts = [
             f"Ensemble prediction combining {len(predictions)} agent predictions:",
-            f"Final probability: {final_probability.value:.3f}"
+            f"Final probability: {final_probability:.3f}"
         ]
         
         # Summarize individual predictions
         reasoning_parts.append("\nIndividual agent predictions:")
         for i, pred in enumerate(predictions):
-            agent_type = pred.metadata.get("agent_type", f"Agent {i+1}")
+            agent_type = pred.method_metadata.get("agent_type", f"Agent {i+1}") if pred.method_metadata else f"Agent {i+1}"
             reasoning_parts.append(
-                f"- {agent_type}: {pred.probability.value:.3f} (confidence: {pred.confidence:.2f})"
+                f"- {agent_type}: {pred.result.binary_probability:.3f} (confidence: {pred.get_confidence_score():.2f})"
             )
         
         # Analysis
-        probabilities = [p.probability.value for p in predictions]
+        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
         reasoning_parts.extend([
             f"\nPrediction spread: {max(probabilities) - min(probabilities):.3f}",
             f"Median prediction: {median(probabilities):.3f}",
@@ -384,17 +449,17 @@ REASONING: [detailed explanation of how you analyzed and synthesized the differe
         formatted_predictions = []
         
         for i, pred in enumerate(predictions):
-            agent_type = pred.metadata.get("agent_type", f"Agent {i+1}")
+            agent_type = pred.method_metadata.get("agent_type", f"Agent {i+1}") if pred.method_metadata else f"Agent {i+1}"
             formatted_predictions.append(
                 f"{agent_type.upper()} AGENT:\n"
-                f"Probability: {pred.probability.value:.3f}\n"
-                f"Confidence: {pred.confidence:.2f}\n"
+                f"Probability: {pred.result.binary_probability:.3f}\n"
+                f"Confidence: {pred.get_confidence_score():.2f}\n"
                 f"Key reasoning: {pred.reasoning[:300]}...\n"
             )
         
         return "\n" + "="*50 + "\n".join(formatted_predictions)
     
-    def _parse_meta_response(self, response: str) -> tuple[Probability, float, str]:
+    def _parse_meta_response(self, response: str) -> tuple[float, float, str]:
         """Parse meta-reasoning response."""
         lines = response.strip().split('\n')
         
@@ -424,7 +489,7 @@ REASONING: [detailed explanation of how you analyzed and synthesized the differe
             elif line.startswith('REASONING:'):
                 reasoning = line.split(':', 1)[1].strip()
         
-        return Probability(probability_value), confidence, reasoning
+        return probability_value, confidence, reasoning
     
     def get_agent_types(self) -> List[str]:
         """Get list of agent types in the ensemble."""

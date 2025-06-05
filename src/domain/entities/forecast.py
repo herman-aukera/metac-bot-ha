@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Optional, List, Dict, Any
 from uuid import UUID, uuid4
 
-from .prediction import Prediction
+from .prediction import Prediction, PredictionResult, PredictionConfidence, PredictionMethod
 from .research_report import ResearchReport
 
 
@@ -43,6 +43,9 @@ class Forecast:
     weight_distribution: Dict[str, float]
     consensus_strength: float
     
+    # Additional metadata for pipeline interface
+    metadata: Dict[str, Any]
+    
     # Performance tracking
     metaculus_response: Optional[Dict[str, Any]] = None
     
@@ -75,6 +78,73 @@ class Forecast:
             created_at=now,
             updated_at=now,
             ensemble_method=kwargs.get("ensemble_method", "weighted_average"),
+            weight_distribution=kwargs.get("weight_distribution", {}),
+            consensus_strength=kwargs.get("consensus_strength", 0.0),
+            metaculus_response=kwargs.get("metaculus_response"),
+        )
+    
+    @classmethod
+    def create(
+        cls,
+        question_id: UUID,
+        predictions: List[Prediction],
+        final_probability: "Probability",
+        aggregation_method: str = "single",
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> "Forecast":
+        """Factory method to create a forecast compatible with pipeline interface."""
+        from src.domain.value_objects.probability import Probability
+        
+        now = datetime.utcnow()
+        
+        # Create a final prediction from the probability
+        # We need a dummy research_report_id for now - this should come from the pipeline
+        dummy_research_report_id = uuid4()  # TODO: Get actual research report ID from pipeline
+        
+        # Convert final_probability to PredictionResult
+        if isinstance(final_probability, (int, float)):
+            prediction_result = PredictionResult(binary_probability=float(final_probability))
+        elif hasattr(final_probability, 'value'):
+            # It's a Probability object with .value attribute
+            prediction_result = PredictionResult(binary_probability=float(final_probability.value))
+        else:
+            # Assume it's already a PredictionResult or similar
+            prediction_result = final_probability
+        
+        final_prediction = Prediction(
+            id=uuid4(),
+            question_id=question_id,
+            research_report_id=dummy_research_report_id,
+            result=prediction_result,
+            confidence=PredictionConfidence.MEDIUM,
+            method=PredictionMethod.ENSEMBLE,  # Since this is aggregated from pipeline
+            reasoning="Aggregated prediction from pipeline",
+            reasoning_steps=["Pipeline aggregation of multiple agent predictions"],
+            created_at=now,
+            created_by=metadata.get("agent_used", "pipeline") if metadata else "pipeline"
+        )
+        
+        # Calculate confidence score from predictions
+        if predictions:
+            confidence_scores = [p.get_confidence_score() for p in predictions]
+            avg_confidence = sum(confidence_scores) / len(confidence_scores)
+        else:
+            avg_confidence = 0.5
+        
+        return cls(
+            id=uuid4(),
+            question_id=question_id,
+            research_reports=kwargs.get("research_reports", []),
+            predictions=predictions,
+            final_prediction=final_prediction,
+            status=ForecastStatus.DRAFT,
+            confidence_score=avg_confidence,
+            reasoning_summary=kwargs.get("reasoning_summary", f"Forecast using {aggregation_method} aggregation"),
+            submission_timestamp=None,
+            created_at=now,
+            updated_at=now,
+            ensemble_method=aggregation_method,
             weight_distribution=kwargs.get("weight_distribution", {}),
             consensus_strength=kwargs.get("consensus_strength", 0.0),
             metaculus_response=kwargs.get("metaculus_response"),

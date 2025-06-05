@@ -240,3 +240,67 @@ Return your response as a JSON list of research areas:
 {"research_areas": ["area1", "area2", "area3"]}
 """)
         return template.render(question=question, question_breakdown=question_breakdown)
+
+    def synthesize_findings(self, question: Question, sources: List[ResearchSource]) -> str:
+        """Generate prompt to synthesize research findings into analysis."""
+        template = Template("""
+You are an expert forecaster analyzing research findings. Synthesize the following research sources into a comprehensive analysis for this forecasting question.
+
+QUESTION: {{ question.title }}
+DESCRIPTION: {{ question.description }}
+
+RESEARCH SOURCES:
+{% for source in sources %}
+---
+Title: {{ source.title }}
+URL: {{ source.url }}
+Summary: {{ source.summary }}
+Credibility: {{ source.credibility_score }}
+{% endfor %}
+
+Synthesize these findings into a structured analysis. Follow these steps:
+
+STEP 1: KEY FINDINGS EXTRACTION
+- Extract the most relevant information for forecasting
+- Identify supporting and contradicting evidence
+- Note data quality and source reliability
+
+STEP 2: FACTOR IDENTIFICATION
+- Identify key factors that influence the outcome
+- Assess how each factor impacts probability
+- Consider factor interactions and dependencies
+
+STEP 3: BASE RATE ANALYSIS
+- Identify relevant historical precedents
+- Calculate or estimate base rates where possible
+- Compare current situation to historical patterns
+
+STEP 4: UNCERTAINTY ASSESSMENT
+- Identify major uncertainties and unknowns
+- Assess information gaps and limitations
+- Consider potential black swan events
+
+STEP 5: SYNTHESIS
+- Integrate all findings into coherent analysis
+- Provide preliminary probability assessment
+- Highlight confidence factors and concerns
+
+Provide your analysis in JSON format:
+{
+    "executive_summary": "Brief overview of research findings and implications",
+    "detailed_analysis": "Comprehensive step-by-step analysis following the 5 steps above",
+    "key_factors": ["factor1", "factor2", "factor3"],
+    "base_rates": {"similar_event_1": 0.X, "similar_event_2": 0.Y},
+    "evidence_for": ["evidence supporting positive outcome"],
+    "evidence_against": ["evidence supporting negative outcome"],
+    "uncertainties": ["key unknowns and limitations"],
+    "confidence_level": 0.X,
+    "preliminary_probability": 0.X,
+    "reasoning_steps": ["step1", "step2", "step3", "step4", "step5"]
+}
+""")
+        return template.render(question=question, sources=sources)
+
+    def generate_prediction_prompt(self, question: Question, research_report: ResearchReport) -> str:
+        """Generate prediction prompt - alias for get_prediction_prompt."""
+        return self.get_prediction_prompt(question, research_report)

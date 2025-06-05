@@ -101,7 +101,9 @@ def sample_questions():
             categories=["climate"],
             metadata={},
             created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2024, 1, 1, tzinfo=timezone.utc)
+            updated_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            min_value=-2.0,
+            max_value=5.0
         )
     ]
 

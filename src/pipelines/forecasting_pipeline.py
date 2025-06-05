@@ -169,18 +169,21 @@ class ForecastingPipeline:
                 logger.info(
                     "Generated prediction",
                     agent=agent_name,
-                    probability=prediction.probability.value,
-                    confidence=prediction.confidence
+                    probability=forecast.final_prediction.result.binary_probability if forecast.final_prediction and forecast.final_prediction.result else "N/A",
+                    confidence=forecast.final_prediction.confidence if forecast.final_prediction else "N/A"
                 )
             
             # Aggregate predictions into final forecast
             if len(predictions) == 1:
                 # Single prediction - convert to forecast
                 prediction = predictions[0]
+                # Import Probability class
+                from src.domain.value_objects.probability import Probability
+                
                 forecast = Forecast.create(
                     question_id=question.id,
                     predictions=[prediction],
-                    final_probability=prediction.probability,
+                    final_probability=Probability(prediction.result.binary_probability),
                     aggregation_method="single",
                     metadata={
                         "agent_used": agent_names[0],
@@ -208,9 +211,9 @@ class ForecastingPipeline:
             logger.info(
                 "Generated final forecast",
                 question_id=question.id,
-                final_probability=forecast.final_probability.value,
+                final_probability=forecast.final_prediction.result.binary_probability,
                 prediction_count=len(predictions),
-                aggregation_method=forecast.aggregation_method
+                aggregation_method=forecast.ensemble_method
             )
             
             return forecast
@@ -435,11 +438,11 @@ class ForecastingPipeline:
             result = {
                 "question_id": question_id,
                 "forecast": {
-                    "prediction": forecast.final_probability.value,
+                    "prediction": forecast.final_prediction.result.binary_probability,
                     "confidence": forecast.predictions[0].confidence if forecast.predictions else 0.0,
                     "method": agent_type,
                     "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
-                    "sources": forecast.predictions[0].sources if forecast.predictions else []
+                    "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []
                 },
                 "metadata": forecast.metadata
             }
@@ -502,11 +505,11 @@ class ForecastingPipeline:
                     result = {
                         "question_id": question_ids[i],
                         "forecast": {
-                            "prediction": forecast.final_probability.value,
+                            "prediction": forecast.final_prediction.result.binary_probability,
                             "confidence": forecast.predictions[0].confidence if forecast.predictions else 0.0,
                             "method": agent_type,
                             "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
-                            "sources": forecast.predictions[0].sources if forecast.predictions else []
+                            "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []
                         },
                         "metadata": forecast.metadata
                     }
@@ -565,10 +568,10 @@ class ForecastingPipeline:
                     
                     individual_forecast = {
                         "agent": agent_type,
-                        "prediction": forecast.final_probability.value,
+                        "prediction": forecast.final_prediction.result.binary_probability,
                         "confidence": forecast.predictions[0].confidence if forecast.predictions else 0.0,
                         "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
-                        "sources": forecast.predictions[0].sources if forecast.predictions else []
+                        "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []
                     }
                     individual_forecasts.append(individual_forecast)
                     
@@ -584,7 +587,7 @@ class ForecastingPipeline:
             
             # Format ensemble result
             ensemble_result = {
-                "prediction": ensemble_forecast.final_probability.value,
+                "prediction": ensemble_forecast.final_prediction.result.binary_probability,
                 "confidence": ensemble_forecast.predictions[0].confidence if ensemble_forecast.predictions else 0.0,
                 "method": "ensemble",
                 "reasoning": f"Ensemble of {len(agent_types)} agents: {', '.join(agent_types)}",

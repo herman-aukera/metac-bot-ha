@@ -78,6 +78,19 @@ class TestForecastingPipelineIntegration:
         # Setup mocks
         metaculus_client.get_question.return_value = sample_question_data
         search_client.search.return_value = mock_search_results
+        
+        # Setup LLM responses for chain of thought agent
+        llm_client.chat_completion.side_effect = [
+            # Question breakdown response
+            "Key factors to consider: AI progress metrics, expert opinions, technological milestones",
+            # Research areas response  
+            "research queries: AI progress 2024, AGI timeline experts, machine learning breakthroughs",
+            # Synthesis response (JSON format expected by synthesize_findings)
+            '{"executive_summary": "Current AI progress suggests moderate likelihood", "detailed_analysis": "Based on current research and expert opinions", "key_factors": ["AI progress", "Expert consensus"], "base_rates": {"similar_predictions": 0.4}, "confidence_level": 0.75, "reasoning_steps": ["Analysis step 1", "Analysis step 2"], "evidence_for": ["Recent breakthroughs"], "evidence_against": ["Technical challenges"], "uncertainties": ["Timeline uncertainty"]}',
+            # Prediction response (JSON format)
+            '{"probability": 0.42, "confidence": 0.75, "reasoning": "Based on current AI progress and expert opinions...", "reasoning_steps": ["Step 1", "Step 2"], "lower_bound": 0.35, "upper_bound": 0.50, "confidence_interval": [0.35, 0.50]}'
+        ]
+        
         llm_client.generate_response.return_value = {
             "reasoning": "Based on current AI progress and expert opinions...",
             "prediction": 0.42,

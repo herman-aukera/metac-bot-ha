@@ -4,11 +4,12 @@ Tree-of-Thought agent implementation for complex multi-step reasoning.
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
+from uuid import uuid4
 import structlog
 
 from .base_agent import BaseAgent
 from ..domain.entities.question import Question
-from ..domain.entities.prediction import Prediction
+from ..domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence
 from ..domain.entities.research_report import ResearchReport, ResearchSource, ResearchQuality
 from ..domain.value_objects.probability import Probability
 from ..infrastructure.external_apis.llm_client import LLMClient
@@ -86,7 +87,8 @@ class TreeOfThoughtAgent(BaseAgent):
             # Conduct research if requested
             research_report = None
             if include_research and self.search_client:
-                research_report = await self.conduct_research(question, max_research_depth)
+                search_config = {"max_depth": max_research_depth}
+                research_report = await self.conduct_research(question, search_config)
             
             # Build thought tree
             thought_tree = await self._build_thought_tree(question, research_report)
@@ -97,7 +99,7 @@ class TreeOfThoughtAgent(BaseAgent):
             logger.info(
                 "Generated ToT prediction",
                 question_id=question.id,
-                probability=prediction.probability.value,
+                probability=prediction.result.binary_probability,
                 confidence=prediction.confidence,
                 thoughts_explored=len(thought_tree)
             )
@@ -170,9 +172,9 @@ class TreeOfThoughtAgent(BaseAgent):
             if research_report.executive_summary:
                 context_parts.append(f"Research Summary: {research_report.executive_summary}")
             
-            if research_report.key_insights:
-                insights = ", ".join(research_report.key_insights)
-                context_parts.append(f"Key Insights: {insights}")
+            if research_report.key_factors:
+                factors = ", ".join(research_report.key_factors)
+                context_parts.append(f"Key Factors: {factors}")
             
             if research_report.base_rates:
                 base_rates_str = ", ".join([f"{k}: {v}" for k, v in research_report.base_rates.items()])
@@ -357,12 +359,15 @@ CONFIDENCE: [0-1]
         if research_report:
             metadata["research_report_id"] = research_report.id
         
-        return Prediction.create(
+        return Prediction.create_binary_prediction(
             question_id=question.id,
-            probability=probability,
+            research_report_id=research_report.id if research_report else uuid4(),
+            probability=probability.value,
+            confidence=PredictionConfidence(confidence) if isinstance(confidence, str) else PredictionConfidence.MEDIUM,
+            method=PredictionMethod.TREE_OF_THOUGHT,
             reasoning=reasoning,
-            confidence=confidence,
-            metadata=metadata
+            created_by=self.name,
+            method_metadata=metadata
         )
     
     def _select_best_thoughts_by_depth(self, thought_tree: List[Thought]) -> List[Thought]:

@@ -5,12 +5,13 @@ import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from uuid import uuid4
 import structlog
 
 from .base_agent import BaseAgent
 from ..domain.entities.question import Question
-from ..domain.entities.prediction import Prediction
-from ..domain.entities.research_report import ResearchReport
+from ..domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence
+from ..domain.entities.research_report import ResearchReport, ResearchSource
 from ..domain.value_objects.probability import Probability
 from ..infrastructure.external_apis.llm_client import LLMClient
 from ..infrastructure.external_apis.search_client import SearchClient
@@ -84,7 +85,7 @@ class ReActAgent(BaseAgent):
             logger.info(
                 "Generated ReAct prediction",
                 question_id=question.id,
-                probability=prediction.probability.value,
+                probability=prediction.result.binary_probability,
                 confidence=prediction.confidence,
                 steps_taken=len(react_steps)
             )
@@ -375,12 +376,15 @@ Provide reasoning about:
             ]
         }
         
-        return Prediction.create(
+        return Prediction.create_binary_prediction(
             question_id=question.id,
-            probability=probability,
+            research_report_id=uuid4(),  # ReAct doesn't have a separate research report
+            probability=probability.value,
+            confidence=PredictionConfidence(confidence) if isinstance(confidence, str) else PredictionConfidence.MEDIUM,
+            method=PredictionMethod.REACT,
             reasoning=reasoning,
-            confidence=confidence,
-            metadata=metadata
+            created_by=self.name,
+            method_metadata=metadata
         )
     
     async def conduct_research(
@@ -459,3 +463,145 @@ Provide reasoning about:
         """
         # Use the existing predict method which implements ReAct logic
         return await self.predict(question)
+    
+    def _build_initial_context(self, question: Question) -> str:
+        """Build initial context string from the question."""
+        context_parts = []
+        
+        if question.description:
+            context_parts.append(f"Description: {question.description}")
+        
+        if question.resolution_criteria:
+            context_parts.append(f"Resolution Criteria: {question.resolution_criteria}")
+        
+        if question.categories:
+            context_parts.append(f"Categories: {', '.join(question.categories)}")
+        
+        if question.close_time:
+            context_parts.append(f"Close Time: {question.close_time}")
+        
+        context_parts.append(f"Question Type: {question.question_type.value}")
+        
+        return "\n".join(context_parts) if context_parts else "No additional context available."
+
+    def _update_context(self, current_context: str, step: ReActStep) -> str:
+        """Update context with information from a completed step."""
+        new_info = f"\nStep {step.step_number} ({step.action.value}): {step.observation[:200]}..."
+        return current_context + new_info
+
+    def _format_previous_steps(self, steps: List[ReActStep]) -> str:
+        """Format previous steps for inclusion in prompts."""
+        if not steps:
+            return "No previous steps."
+        
+        formatted = []
+        for step in steps:
+            formatted.append(
+                f"Step {step.step_number}:\n"
+                f"Thought: {step.thought}\n"
+                f"Action: {step.action.value} - {step.action_input}\n"
+                f"Observation: {step.observation}\n"
+                f"Reasoning: {step.reasoning}"
+            )
+        return "\n\n".join(formatted)
+
+    def _should_finalize(self, steps: List[ReActStep], question: Question) -> bool:
+        """Determine if we should finalize based on collected information."""
+        # Finalize if we've gathered substantial information
+        if len(steps) >= 5:
+            return True
+        
+        # Finalize if last few steps didn't add much new information
+        if len(steps) >= 3:
+            recent_steps = steps[-2:]
+            if all("no" in step.observation.lower() or "not found" in step.observation.lower() 
+                  for step in recent_steps):
+                return True
+        
+        return False
+
+    def _parse_reasoning_response(self, response: str) -> Tuple[str, ActionType, str]:
+        """Parse LLM response to extract thought, action, and action input."""
+        try:
+            # Look for structured format
+            lines = response.strip().split('\n')
+            thought = ""
+            action = ActionType.THINK
+            action_input = ""
+            
+            for line in lines:
+                line = line.strip()
+                if line.startswith("Thought:"):
+                    thought = line[8:].strip()
+                elif line.startswith("Action:"):
+                    action_str = line[7:].strip().upper()
+                    try:
+                        action = ActionType(action_str.lower())
+                    except ValueError:
+                        action = ActionType.THINK
+                elif line.startswith("Action Input:"):
+                    action_input = line[13:].strip()
+            
+            return thought or "Continuing analysis", action, action_input or "general analysis"
+            
+        except Exception:
+            # Fallback to default
+            return "Analyzing the question", ActionType.THINK, "question analysis"
+
+    def _format_react_trace(self, steps: List[ReActStep]) -> str:
+        """Format complete ReAct trace for final prediction."""
+        if not steps:
+            return "No reasoning steps completed."
+        
+        trace = []
+        for step in steps:
+            trace.append(
+                f"Step {step.step_number}:\n"
+                f"Thought: {step.thought}\n"
+                f"Action: {step.action.value} - {step.action_input}\n"
+                f"Observation: {step.observation}\n"
+                f"Reflection: {step.reasoning}"
+            )
+        return "\n\n".join(trace)
+
+    def _parse_final_response(self, response: str) -> Tuple[Probability, float, str]:
+        """Parse final prediction response to extract probability, confidence, and reasoning."""
+        try:
+            # Try to find probability in the response
+            import re
+            
+            # Look for probability patterns
+            prob_match = re.search(r'(?:probability|chance|likelihood).*?(\d+(?:\.\d+)?)', response.lower())
+            if prob_match:
+                prob_value = float(prob_match.group(1))
+                # Normalize to 0-1 range if needed
+                if prob_value > 1:
+                    prob_value = prob_value / 100
+            else:
+                prob_value = 0.5  # Default neutral
+            
+            # Look for confidence patterns
+            conf_match = re.search(r'confidence.*?(\d+(?:\.\d+)?)', response.lower())
+            if conf_match:
+                confidence = float(conf_match.group(1))
+                if confidence > 1:
+                    confidence = confidence / 100
+            else:
+                confidence = 0.7  # Default moderate confidence
+            
+            probability = Probability(prob_value)
+            reasoning = response.strip()
+            
+            return probability, confidence, reasoning
+            
+        except Exception:
+            # Fallback to defaults
+            return Probability(0.5), 0.6, response.strip() or "ReAct analysis completed"
+
+    def _count_actions_by_type(self, steps: List[ReActStep]) -> Dict[str, int]:
+        """Count actions by type for metadata."""
+        counts = {}
+        for step in steps:
+            action_name = step.action.value
+            counts[action_name] = counts.get(action_name, 0) + 1
+        return counts
