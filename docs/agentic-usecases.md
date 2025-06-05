@@ -39,3 +39,37 @@
 
 - Each step is covered by unit/integration tests
 - Example: question → forecast → justification → output
+
+## ForecastChain from JSON → forecast dict
+
+### Input Example
+
+```json
+{
+  "question_id": 1,
+  "question_text": "Will it rain tomorrow?"
+}
+```
+
+### Output Example
+
+```json
+{
+  "question_id": 1,
+  "forecast": 0.88,
+  "justification": "Based on evidence."
+}
+```
+
+### Reasoning Explanation
+
+- Extracts question details
+- Gathers evidence using SearchTool
+- Builds a CoT prompt
+- Invokes LLM
+- Parses and returns forecast dict
+
+### Related Tests
+
+- `tests/unit/agent/chains/test_forecast_chain.py`
+- `tests/integration/test_agent_full_path.py`
