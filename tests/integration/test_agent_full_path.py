@@ -20,7 +20,9 @@ def mock_llm():
 
 def test_forecast_agent_predict(monkeypatch, mock_llm, mock_search):
     # Patch ForecastAgent to use our chain with mocks
-    monkeypatch.setattr('src.agents.forecast_agent.ForecastChain', lambda: ForecastChain(mock_llm, mock_search))
+    def chain_factory(llm=None, search_tool=None):
+        return ForecastChain(mock_llm, mock_search)
+    monkeypatch.setattr('src.agents.forecast_agent.ForecastChain', chain_factory)
     agent = ForecastAgent()
     question = {'question_id': 42, 'question_text': 'Will AGI arrive by 2030?'}
     result = agent.invoke(question)

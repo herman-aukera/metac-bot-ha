@@ -73,3 +73,34 @@
 
 - `tests/unit/agent/chains/test_forecast_chain.py`
 - `tests/integration/test_agent_full_path.py`
+
+## End-to-end: question → CoT → submission
+
+### Input Example
+
+```json
+{
+  "question_id": 123,
+  "question_text": "Will it rain tomorrow?"
+}
+```
+
+### Output Example (after submission)
+
+```json
+{
+  "status": "success",
+  "question_id": 123,
+  "response": { "result": "ok" }
+}
+```
+
+### Reasoning Explanation
+
+- ForecastChain produces forecast dict
+- MetaculusClient submits forecast
+- Handles errors and returns status
+
+### Related Tests
+
+- `tests/unit/api/test_metaculus_client.py`
