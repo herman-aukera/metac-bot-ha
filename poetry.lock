@@ -1390,14 +1390,14 @@ files = [
 
 [[package]]
 name = "jsonschema"
-version = "4.23.0"
+version = "4.24.0"
 description = "An implementation of JSON Schema validation for Python"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "jsonschema-4.23.0-py3-none-any.whl", hash = "sha256:fbadb6f8b144a8f8cf9f0b89ba94501d143e50411a1278633f56a7acf7fd5566"},
-    {file = "jsonschema-4.23.0.tar.gz", hash = "sha256:d71497fef26351a33265337fa77ffeb82423f3ea21283cd9467bb03999266bc4"},
+    {file = "jsonschema-4.24.0-py3-none-any.whl", hash = "sha256:a462455f19f5faf404a7902952b6f0e3ce868f3ee09a359b05eca6673bd8412d"},
+    {file = "jsonschema-4.24.0.tar.gz", hash = "sha256:0b4e8069eb12aedfa881333004bccaec24ecef5a8a6a4b6df142b2cc9599d196"},
 ]
 
 [package.dependencies]
@@ -2674,7 +2674,7 @@ description = "Python for Window Extensions"
 optional = false
 python-versions = "*"
 groups = ["dev"]
-markers = "sys_platform == \"win32\" and platform_python_implementation != \"PyPy\""
+markers = "platform_python_implementation != \"PyPy\" and sys_platform == \"win32\""
 files = [
     {file = "pywin32-310-cp310-cp310-win32.whl", hash = "sha256:6dd97011efc8bf51d6793a82292419eba2c71cf8e7250cfac03bba284454abc1"},
     {file = "pywin32-310-cp310-cp310-win_amd64.whl", hash = "sha256:c3e78706e4229b915a0821941a84e7ef420bf2b77e08c9dae3c76fd03fd2ae3d"},
@@ -4011,4 +4011,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "d784494531de68cf2cf38d20998468a506de00c77f17d1921719d489b187d477"
+content-hash = "4efe8085be87fa545b5ebfe9063619177dd50258dbead2eb52e9e78c718e9846"

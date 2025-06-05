@@ -23,3 +23,7 @@ jobs:
         env:
           METACULUS_API_KEY: ${{ secrets.METACULUS_API_KEY }}
         run: poetry run python main_agent.py --dryrun
+      - name: Run submission mode
+        env:
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+        run: poetry run python main_agent.py --submit
