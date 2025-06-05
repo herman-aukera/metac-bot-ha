@@ -140,21 +140,25 @@ Think step by step and output a numeric prediction and 90% confidence interval a
 - `tests/unit/agent/chains/test_forecast_chain.py` (numeric)
 - `tests/unit/api/test_metaculus_client.py` (numeric)
 
-## Tool Routing
+## Tool Routing & Integration
 
-- The agent can use WikipediaTool and MathTool for evidence and calculation.
-- Tools are available in `tool_list` and can be injected into chains or called from the agent.
-- Example output includes `"tools_used": ["WikipediaTool", "MathTool"]` for traceability.
+The ForecastChain automatically invokes relevant tools (WikipediaTool, MathTool) during reasoning:
+- WikipediaTool: fetches short summaries for named entities in the question
+- MathTool: evaluates simple math expressions in the question
+- Tool outputs are injected into the LLM's evidence/context
+- If a tool fails or returns empty, reasoning continues with fallback evidence
 
-### Example Reasoning
+### Example
 
 ```json
 {
-  "question": "What is the population of France?",
+  "question": "What is quantum computing?",
   "tools_used": ["WikipediaTool"],
-  "justification": "Based on Wikipedia's summary of France..."
+  "justification": "Based on Wikipedia's summary of quantum computing..."
 }
 ```
+
+See also: `tools.instructions.md` for tool details and test strategy.
 
 ## Model Selection & CLI Usage
 

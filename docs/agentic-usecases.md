@@ -140,6 +140,24 @@
 - `tests/unit/api/test_metaculus_client.py` (MC)
 - `tests/integration/test_submission_pipeline.py` (MC)
 
+## Example: Tool-Augmented Reasoning
+
+Question: "What is quantum computing?"
+
+- ForecastChain detects Wikipedia entity
+- WikipediaTool fetches summary
+- LLM uses summary in justification
+
+Output sample:
+
+```json
+{
+  "question_id": 1,
+  "forecast": 0.5,
+  "justification": "Based on Wikipedia's summary of quantum computing..."
+}
+```
+
 ## CLI Example: Model Routing
 
 To run the agent with a specific LLM model (e.g. GPT-4) and correct import path:

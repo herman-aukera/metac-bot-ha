@@ -5,12 +5,13 @@ from langchain_core.runnables import Runnable
 from src.agents.llm import MockLLM
 from src.agents.search import SearchTool
 from src.agents.chains.forecast_chain import ForecastChain
+from src.agents.tools import tool_list
 
 class ForecastAgent(Runnable):
-    def __init__(self, llm=None, search_tool=None):
+    def __init__(self, llm=None, search_tool=None, tools=None):
         llm = llm or MockLLM()
         search_tool = search_tool or SearchTool()
-        self.chain = ForecastChain(llm=llm, search_tool=search_tool)
+        self.chain = ForecastChain(llm=llm, search_tool=search_tool, tools=tools or tool_list)
 
     def invoke(self, question_json):
         """

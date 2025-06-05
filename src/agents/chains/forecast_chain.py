@@ -9,11 +9,29 @@ ForecastChain: Chain-of-Thought + Evidence pipeline for Metaculus forecasting.
 
 from typing import Dict, Any
 from src.agents.search import SearchTool
+from src.agents.tools import tool_list
 
 class ForecastChain:
-    def __init__(self, llm, search_tool: SearchTool):
+    def __init__(self, llm, search_tool: SearchTool, tools=None):
         self.llm = llm
         self.search_tool = search_tool
+        self.tools = tools if tools is not None else tool_list
+
+    def _call_tools(self, question_text):
+        """Call all tools and collect their outputs for the question."""
+        tool_outputs = {}
+        for tool in self.tools:
+            # WikipediaTool: only call if question is a string and not too long
+            if tool.__class__.__name__ == "WikipediaTool" and isinstance(question_text, str) and len(question_text) < 100:
+                wiki = tool.run(question_text)
+                if wiki and "Wikipedia" in wiki:
+                    tool_outputs["WikipediaTool"] = wiki
+            # MathTool: only call if question looks like a math expression
+            elif tool.__class__.__name__ == "MathTool" and any(op in question_text for op in ["+", "-", "*", "/", "%", "^"]):
+                math = tool.run(question_text)
+                if math and "Error" not in math:
+                    tool_outputs["MathTool"] = math
+        return tool_outputs
 
     def run(self, question: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -30,6 +48,10 @@ class ForecastChain:
         question_text = question['question_text']
         question_type = question.get('type', 'binary')
         evidence = self.search_tool.search(question_text)
+        tool_outputs = self._call_tools(question_text)
+        # Add tool outputs to evidence if present
+        if tool_outputs:
+            evidence = f"{evidence}\nTool outputs: {tool_outputs}"
         if question_type in ('mc', 'multiple_choice'):
             options = question.get('options')
             if not options or not isinstance(options, list):
