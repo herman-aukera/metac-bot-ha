@@ -67,11 +67,14 @@ class Dispatcher:
     Handles errors, batching, and provides comprehensive statistics.
     """
 
-    def __init__(self, config: Optional[DispatcherConfig] = None):
+    def __init__(self, 
+                 forecast_service: Optional[ForecastService] = None,
+                 config: Optional[DispatcherConfig] = None):
         """
         Initialize the dispatcher.
         
         Args:
+            forecast_service: Optional forecast service instance for dependency injection
             config: Dispatcher configuration. Uses defaults if None.
         """
         self.config = config or DispatcherConfig()
@@ -81,10 +84,30 @@ class Dispatcher:
         self.ingestion_service = IngestionService(
             validation_level=self.config.validation_level
         )
-        self.forecast_service = ForecastService()
+        self.forecast_service = forecast_service or ForecastService()
         
         # State
         self.stats = DispatcherStats()
+
+    def dispatch(self, question: Question) -> Forecast:
+        """
+        Dispatch a single question for forecast generation.
+        
+        Args:
+            question: The question to generate a forecast for
+            
+        Returns:
+            Generated forecast
+            
+        Raises:
+            DispatcherError: If forecast generation fails
+        """
+        try:
+            return self.forecast_service.generate_forecast(question)
+        except Exception as e:
+            error_msg = f"Failed to generate forecast for question {question.metaculus_id}: {str(e)}"
+            logger.error(error_msg)
+            raise DispatcherError(error_msg) from e
 
     def run(self, 
             limit: Optional[int] = None,

@@ -518,3 +518,93 @@ class ForecastingPipeline:
         except Exception as e:
             logger.error("Failed to run batch forecast", question_ids=question_ids, error=str(e))
             raise
+    
+    async def run_ensemble_forecast(
+        self,
+        question_id: int,
+        agent_types: List[str] = None,
+        include_research: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Run ensemble forecasting using multiple agents for a single question.
+        
+        Args:
+            question_id: Metaculus question ID
+            agent_types: List of agent types to use (defaults to all available)
+            include_research: Whether to include research step
+            
+        Returns:
+            Dictionary with question_id, ensemble_forecast, and individual_forecasts
+        """
+        if agent_types is None:
+            agent_types = ["chain_of_thought", "tree_of_thought", "react"]
+            
+        logger.info("Running ensemble forecast", question_id=question_id, agent_types=agent_types)
+        
+        try:
+            # Get question from Metaculus
+            if not self.metaculus_client:
+                raise ValueError("Metaculus client not configured")
+                
+            question_data = await self.metaculus_client.get_question(question_id)
+            
+            # Convert to Question entity
+            from ..application.ingestion_service import IngestionService
+            ingestion_service = IngestionService()
+            question = await ingestion_service.convert_question_data(question_data)
+            
+            # Generate individual forecasts from each agent
+            individual_forecasts = []
+            for agent_type in agent_types:
+                try:
+                    forecast = await self.generate_forecast(
+                        question=question,
+                        agent_names=[agent_type],
+                        include_research=include_research
+                    )
+                    
+                    individual_forecast = {
+                        "agent": agent_type,
+                        "prediction": forecast.final_probability.value,
+                        "confidence": forecast.predictions[0].confidence if forecast.predictions else 0.0,
+                        "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
+                        "sources": forecast.predictions[0].sources if forecast.predictions else []
+                    }
+                    individual_forecasts.append(individual_forecast)
+                    
+                except Exception as e:
+                    logger.error(f"Failed to generate forecast for agent {agent_type}", error=str(e))
+                    
+            # Generate ensemble forecast using all agents
+            ensemble_forecast = await self.generate_forecast(
+                question=question,
+                agent_names=agent_types,  
+                include_research=include_research
+            )
+            
+            # Format ensemble result
+            ensemble_result = {
+                "prediction": ensemble_forecast.final_probability.value,
+                "confidence": ensemble_forecast.predictions[0].confidence if ensemble_forecast.predictions else 0.0,
+                "method": "ensemble",
+                "reasoning": f"Ensemble of {len(agent_types)} agents: {', '.join(agent_types)}",
+                "sources": []
+            }
+            
+            # Add all sources from individual forecasts
+            for forecast in individual_forecasts:
+                ensemble_result["sources"].extend(forecast.get("sources", []))
+            
+            result = {
+                "question_id": question_id,
+                "ensemble_forecast": ensemble_result,
+                "individual_forecasts": individual_forecasts,
+                "metadata": ensemble_forecast.metadata
+            }
+            
+            logger.info("Completed ensemble forecast", question_id=question_id, agent_count=len(individual_forecasts))
+            return result
+            
+        except Exception as e:
+            logger.error("Failed to run ensemble forecast", question_id=question_id, error=str(e))
+            raise

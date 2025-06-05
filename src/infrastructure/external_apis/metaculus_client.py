@@ -23,6 +23,11 @@ class MetaculusClient:
         self.base_url = "https://www.metaculus.com/api2"
         self.session_token = None
         self.user_id = None
+    
+    @property
+    def config(self):
+        """Access to metaculus configuration."""
+        return self.settings.metaculus
         
     async def authenticate(self, username: Optional[str] = None, password: Optional[str] = None) -> bool:
         """Authenticate with Metaculus API."""
@@ -125,17 +130,65 @@ class MetaculusClient:
     
     async def submit_prediction(
         self,
-        question_id: int,
-        prediction: Prediction,
+        prediction_data_or_question_id,
+        prediction: Optional[Prediction] = None,
         comment: Optional[str] = None
-    ) -> bool:
+    ):
         """Submit a prediction to Metaculus."""
+        # Handle both new dict interface and old separate parameters interface
+        if isinstance(prediction_data_or_question_id, dict):
+            # New interface: submit_prediction(prediction_data)
+            prediction_data = prediction_data_or_question_id
+            question_id = prediction_data["question_id"]
+            prediction_value = prediction_data["prediction"]
+            reasoning = prediction_data.get("reasoning", "")
+        else:
+            # Old interface: submit_prediction(question_id, prediction, comment)
+            question_id = prediction_data_or_question_id
+            if prediction is None:
+                raise ValueError("prediction is required when using old interface")
+            
+            # Extract prediction value from PredictionResult
+            if prediction.result.binary_probability is not None:
+                prediction_value = prediction.result.binary_probability
+            elif prediction.result.numeric_value is not None:
+                prediction_value = prediction.result.numeric_value
+            else:
+                raise ValueError("Prediction must have either binary_probability or numeric_value")
+                
+            reasoning = comment or prediction.reasoning
+        
+        # Check dry_run mode
+        if hasattr(self.config, 'dry_run') and self.config.dry_run:
+            logger.info("Dry run mode - would submit prediction", 
+                       question_id=question_id, prediction=prediction_value)
+            return {
+                "status": "dry_run",
+                "would_submit": True,
+                "question_id": question_id,
+                "prediction": prediction_value
+            }
+        
+        # Check if submissions are disabled
+        if hasattr(self.config, 'submit_predictions') and not self.config.submit_predictions:
+            logger.info("Prediction submission disabled", question_id=question_id)
+            return {
+                "status": "disabled",
+                "submitted": False,
+                "question_id": question_id
+            }
+        
+        # Check authentication
         if not self.session_token:
             logger.error("Not authenticated with Metaculus")
-            return False
+            return {
+                "status": "error",
+                "error": "Not authenticated",
+                "submitted": False
+            }
         
         logger.info("Submitting prediction to Metaculus", question_id=question_id, 
-                   probability=prediction.probability.value)
+                   prediction=prediction_value)
         
         try:
             async with httpx.AsyncClient() as client:
@@ -144,30 +197,45 @@ class MetaculusClient:
                     'Content-Type': 'application/json'
                 }
                 
-                prediction_data = {
-                    'prediction': prediction.probability.value,
-                    'comment': comment or f"AI Forecast (Confidence: {prediction.confidence:.2f})"
+                submit_data = {
+                    'prediction': prediction_value,
+                    'comment': reasoning
                 }
                 
                 response = await client.post(
                     f"{self.base_url}/questions/{question_id}/predict/",
-                    json=prediction_data,
+                    json=submit_data,
                     headers=headers
                 )
                 
                 if response.status_code in [200, 201]:
                     logger.info("Successfully submitted prediction", question_id=question_id)
-                    return True
+                    return {
+                        "status": "success",
+                        "submitted": True,
+                        "question_id": question_id,
+                        "prediction": prediction_value
+                    }
                 else:
                     logger.error("Failed to submit prediction", 
                                question_id=question_id, 
                                status_code=response.status_code,
                                response=response.text)
-                    return False
+                    return {
+                        "status": "error",
+                        "submitted": False,
+                        "error": f"HTTP {response.status_code}",
+                        "question_id": question_id
+                    }
                     
         except Exception as e:
             logger.error("Error submitting prediction", question_id=question_id, error=str(e))
-            return False
+            return {
+                "status": "error",
+                "submitted": False,
+                "error": str(e),
+                "question_id": question_id
+            }
     
     async def fetch_user_predictions(self, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Fetch user's predictions."""

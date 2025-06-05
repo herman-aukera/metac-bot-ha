@@ -70,14 +70,14 @@ clean:
 
 # Application
 run:
-	poetry run python main.py
+	poetry run python3 main.py
 
 run-cli:
-	poetry run python src/main.py
+	poetry run python3 src/main.py
 
 # Benchmarking
 benchmark:
-	poetry run python community_benchmark.py
+	poetry run python3 community_benchmark.py
 
 # Documentation
 docs:

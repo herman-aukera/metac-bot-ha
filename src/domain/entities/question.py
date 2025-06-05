@@ -12,6 +12,7 @@ class QuestionType(Enum):
     BINARY = "binary"
     MULTIPLE_CHOICE = "multiple_choice"
     NUMERIC = "numeric"
+    CONTINUOUS = "continuous"
     DATE = "date"
 
 
@@ -89,6 +90,57 @@ class Question:
             metadata=kwargs.get("metadata", {}),
             created_at=now,
             updated_at=now,
+            min_value=kwargs.get("min_value"),
+            max_value=kwargs.get("max_value"),
+            choices=kwargs.get("choices"),
+        )
+
+    @classmethod
+    def create(
+        cls,
+        title: str,
+        description: str,
+        question_type: QuestionType,
+        resolution_criteria: Optional[str] = None,
+        close_time: Optional[datetime] = None,
+        resolve_time: Optional[datetime] = None,
+        created_at: Optional[datetime] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> "Question":
+        """Factory method to create a question from Metaculus API data."""
+        if metadata is None:
+            metadata = {}
+        
+        # Extract required fields from metadata
+        metaculus_id = metadata.get('metaculus_id', 0)
+        url = metadata.get('url', '')
+        category = metadata.get('category', '')
+        categories = [category] if category else []
+        
+        # Handle close_time default
+        if close_time is None:
+            close_time = datetime.now(timezone.utc)
+        
+        # Handle created_at default
+        if created_at is None:
+            created_at = datetime.now(timezone.utc)
+        
+        return cls(
+            id=uuid4(),
+            metaculus_id=metaculus_id,
+            title=title,
+            description=description,
+            question_type=question_type,
+            status=QuestionStatus.OPEN,
+            url=url,
+            close_time=close_time,
+            resolve_time=resolve_time,
+            categories=categories,
+            metadata=metadata,
+            created_at=created_at,
+            updated_at=created_at,
+            resolution_criteria=resolution_criteria,
             min_value=kwargs.get("min_value"),
             max_value=kwargs.get("max_value"),
             choices=kwargs.get("choices"),

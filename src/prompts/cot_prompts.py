@@ -219,3 +219,24 @@ Remember: Be precise in your reasoning, acknowledge uncertainties, and ensure yo
             question=question,
             research_report=research_report
         )
+    
+    def identify_research_areas(self, question: Question, question_breakdown: str) -> str:
+        """Generate prompt to identify research areas based on question breakdown."""
+        template = Template("""
+Based on the question breakdown below, identify 3-5 key research areas that need investigation:
+
+QUESTION: {{ question.title }}
+BREAKDOWN: {{ question_breakdown }}
+
+Identify the most important research areas needed to make an accurate forecast:
+
+1. **Primary Factors**: What are the main drivers?
+2. **Data Sources**: What data should be gathered?
+3. **Expert Sources**: Who are the relevant experts?
+4. **Trend Analysis**: What trends matter?
+5. **Risk Factors**: What could go wrong?
+
+Return your response as a JSON list of research areas:
+{"research_areas": ["area1", "area2", "area3"]}
+""")
+        return template.render(question=question, question_breakdown=question_breakdown)

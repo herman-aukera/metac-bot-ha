@@ -72,6 +72,38 @@ class Prediction:
             self.method_metadata = {}
     
     @classmethod
+    def create(
+        cls,
+        question_id: UUID,
+        research_report_id: UUID,
+        result: PredictionResult,
+        confidence: PredictionConfidence,
+        method: PredictionMethod,
+        reasoning: str,
+        created_by: str,
+        **kwargs
+    ) -> "Prediction":
+        """Generic factory method for predictions."""
+        return cls(
+            id=uuid4(),
+            question_id=question_id,
+            research_report_id=research_report_id,
+            result=result,
+            confidence=confidence,
+            method=method,
+            reasoning=reasoning,
+            reasoning_steps=kwargs.get("reasoning_steps", []),
+            created_at=datetime.utcnow(),
+            created_by=created_by,
+            lower_bound=kwargs.get("lower_bound"),
+            upper_bound=kwargs.get("upper_bound"),
+            confidence_interval=kwargs.get("confidence_interval"),
+            method_metadata=kwargs.get("method_metadata", {}),
+            internal_consistency_score=kwargs.get("internal_consistency_score"),
+            evidence_strength=kwargs.get("evidence_strength"),
+        )
+    
+    @classmethod
     def create_binary_prediction(
         cls,
         question_id: UUID,

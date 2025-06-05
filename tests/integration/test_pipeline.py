@@ -25,6 +25,8 @@ class TestForecastingPipelineIntegration:
         """Create mock external service clients."""
         llm_client = Mock()
         llm_client.generate_response = AsyncMock()
+        llm_client.chat_completion = AsyncMock()
+        llm_client.generate = AsyncMock()
         
         search_client = Mock()
         search_client.search = AsyncMock()

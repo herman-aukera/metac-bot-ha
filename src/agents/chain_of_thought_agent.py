@@ -50,7 +50,7 @@ class ChainOfThoughtAgent(BaseAgent):
             max_tokens=500
         )
         
-        question_breakdown = breakdown_response.get("choices", [{}])[0].get("message", {}).get("content", "")
+        question_breakdown = breakdown_response
         
         # 2. Identify research areas
         research_areas_prompt = self.prompts.identify_research_areas(question, question_breakdown)
@@ -60,7 +60,7 @@ class ChainOfThoughtAgent(BaseAgent):
             max_tokens=300
         )
         
-        research_areas = research_areas_response.get("choices", [{}])[0].get("message", {}).get("content", "")
+        research_areas = research_areas_response
         
         # 3. Gather information (simplified for now)
         if self.search_client:

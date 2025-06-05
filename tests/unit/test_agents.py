@@ -34,6 +34,8 @@ class TestChainOfThoughtAgent:
         """Mock LLM client."""
         client = Mock()
         client.generate_response = AsyncMock()
+        client.chat_completion = AsyncMock()
+        client.generate = AsyncMock()
         return client
     
     @pytest.fixture
@@ -73,41 +75,21 @@ class TestChainOfThoughtAgent:
         cot_agent.search_client.search.return_value = mock_search_results
         
         # Mock LLM responses for research and prediction
-        # Mock for conduct_research -> _parse_research_areas
-        mock_research_areas_response = '''{
-    "research_areas": ["AI progress metrics", "expert opinions", "funding trends"]
-}'''
-        # Mock for conduct_research -> _parse_analysis_response
-        mock_analysis_response = '''{
-    "executive_summary": "AI progress is steady, experts are optimistic, funding is high.",
-    "detailed_analysis": "Detailed analysis of AI progress, expert opinions, and funding trends.",
-    "key_factors": ["Compute power", "Algorithm innovation", "Talent pool"],
-    "base_rates": {"AGI by 2030": 0.3},
-    "confidence_level": 0.8,
-    "reasoning_steps": ["Analyzed metrics", "Reviewed opinions", "Checked funding"],
-    "evidence_for": ["Rapid advancements in LLMs"],
-    "evidence_against": ["Complexity of true AGI"],
-    "uncertainties": ["Black swan events"]
-}'''
-        # Mock for generate_prediction -> _parse_prediction_response
-        mock_prediction_response = '''{
-    "probability": 0.42,
-    "confidence": "high",
-    "reasoning": "Based on current AI progress, expert opinions, and funding trends, the likelihood of AGI by 2030 is estimated at 42%.",
-    "reasoning_steps": [
-        "Synthesized research findings.",
-        "Considered optimistic and pessimistic scenarios.",
-        "Arrived at a calibrated probability."
-    ],
-    "lower_bound": 0.30,
-    "upper_bound": 0.55,
-    "confidence_interval": 0.25
-}'''
+        mock_breakdown_response = {
+            "choices": [{"message": {"content": "Question breakdown: AGI timeline, technological milestones"}}]
+        }
+        mock_research_areas_response = {
+            "choices": [{"message": {"content": "research queries: AI progress 2024, AGI timeline experts, machine learning breakthroughs"}}]
+        }
+        mock_final_response = {
+            "choices": [{"message": {"content": '''{"probability": 0.42, "confidence": "high", "reasoning": "Based on current AI progress"}'''}}]
+        }
         
-        cot_agent.llm_client.generate.side_effect = [
-            mock_research_areas_response,  # For _parse_research_areas
-            mock_analysis_response,        # For _parse_analysis_response
-            mock_prediction_response       # For _parse_prediction_response
+        # Set up the mock to return these responses in sequence
+        cot_agent.llm_client.chat_completion.side_effect = [
+            mock_breakdown_response,
+            mock_research_areas_response, 
+            mock_final_response
         ]
         
         # Test forecasting
