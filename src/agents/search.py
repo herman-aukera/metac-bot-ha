@@ -8,4 +8,4 @@ class SearchTool:
     def search(self, query: str) -> str:
         # TODO: Integrate real AskNews/Perplexity API
         # For now, return stubbed evidence
-        return f"Stubbed evidence for: {query}"
+        return f"Evidence for: {query} (stubbed)"

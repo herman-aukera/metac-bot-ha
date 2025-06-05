@@ -17,13 +17,13 @@ class ForecastChain:
         evidence = self.search_tool.search(question_text)
 
         # 3. Chain-of-Thought reasoning (stub)
-        reasoning = f"Reasoning for: {question_text} based on evidence: {evidence}"
+        reasoning = f"Reasoning for: {question_text} based on evidence."
 
         # 4. Predict (stub: random forecast)
         forecast = 0.74
 
         # 5. Justification
-        justification = f"{reasoning}"
+        justification = f"{reasoning} Evidence: {evidence}"
 
         return {
             'question_id': question_id,
