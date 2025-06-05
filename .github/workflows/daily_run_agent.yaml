@@ -1,0 +1,25 @@
+# daily_run_agent.yaml
+# GitHub Action: Run agent every 30 minutes
+
+name: Run Metaculus Agentic Bot
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: abatilo/actions-poetry@v3
+      - name: Install dependencies
+        run: poetry install
+      - name: Run agent (dryrun)
+        env:
+          METACULUS_API_KEY: ${{ secrets.METACULUS_API_KEY }}
+        run: poetry run python main_agent.py --dryrun
