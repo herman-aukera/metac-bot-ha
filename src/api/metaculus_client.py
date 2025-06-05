@@ -23,6 +23,15 @@ FORECAST_SCHEMA = {
                     "type": "array",
                     "items": {"type": "number", "minimum": 0.0, "maximum": 1.0},
                     "minItems": 2
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "prediction": {"type": "number"},
+                        "low": {"type": "number"},
+                        "high": {"type": "number"}
+                    },
+                    "required": ["prediction", "low", "high"]
                 }
             ]
         },
@@ -50,7 +59,12 @@ class MetaculusClient:
         except ValidationError as ve:
             raise ValueError(f"Invalid payload: {ve.message}")
         url = f"{self.api_url}/questions/{question_id}/predict/"
-        req_payload = {"values": forecast} if isinstance(forecast, list) else {"value": forecast}
+        if isinstance(forecast, list):
+            req_payload = {"values": forecast}
+        elif isinstance(forecast, dict) and all(k in forecast for k in ("prediction", "low", "high")):
+            req_payload = {"value": forecast["prediction"], "low": forecast["low"], "high": forecast["high"]}
+        else:
+            req_payload = {"value": forecast}
         for attempt in range(self.max_retries):
             try:
                 resp = self.session.post(url, json=req_payload, timeout=self.timeout)

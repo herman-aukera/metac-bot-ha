@@ -14,11 +14,11 @@ class ForecastAgent(Runnable):
 
     def invoke(self, question_json):
         """
-        Given a question JSON, fetch evidence, build reasoning chain, and return forecast object.
+        Given a question JSON (binary or multi-choice), fetch evidence, build reasoning chain, and return forecast object.
         Returns:
             dict: {
                 'question_id': ...,
-                'forecast': float,
+                'forecast': float or list of floats,
                 'justification': str
             }
         """

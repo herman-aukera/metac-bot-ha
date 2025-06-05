@@ -108,3 +108,34 @@ def test_submit_forecast_multi_choice(client):
         assert 'predict' in args[0]
         assert 'values' in kwargs['json']
         assert kwargs['json']['values'] == [0.2, 0.3, 0.5]
+
+def test_submit_forecast_numeric(client):
+    """
+    Test that submit_forecast accepts and submits a numeric forecast dict (prediction, low, high).
+    Network is mocked; checks payload and response.
+    """
+    with patch.object(client.session, 'post') as mock_post:
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"result": "ok"}
+        mock_post.return_value = mock_resp
+        numeric_forecast = {"prediction": 42.0, "low": 30.0, "high": 60.0}
+        result = client.submit_forecast(789, numeric_forecast, "Numeric justification")
+        assert result["status"] == "success"
+        assert result["question_id"] == 789
+        args, kwargs = mock_post.call_args
+        assert 'predict' in args[0]
+        # Numeric payload should have value, low, high
+        assert kwargs['json']['value'] == 42.0
+        assert kwargs['json']['low'] == 30.0
+        assert kwargs['json']['high'] == 60.0
+
+def test_submit_forecast_numeric_invalid_schema(client):
+    """
+    Test that submit_forecast raises ValueError on invalid numeric forecast dict (e.g., missing keys).
+    """
+    bad_numeric = {"prediction": 42.0, "low": 30.0}  # missing 'high'
+    with patch.object(client, '_validate', side_effect=ValidationError('missing high')):
+        with pytest.raises(ValueError) as excinfo:
+            client.submit_forecast(789, bad_numeric, "Bad numeric")
+        assert "Invalid payload" in str(excinfo.value)

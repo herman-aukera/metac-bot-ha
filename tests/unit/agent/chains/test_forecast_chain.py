@@ -41,3 +41,43 @@ def test_run_llm_json_string(mock_search):
     result = chain.run(question)
     assert result['forecast'] == 0.42
     assert 'LLM string output' in result['justification']
+
+def test_run_multi_choice_question(mock_search):
+    mock_llm = Mock()
+    mock_llm.invoke.return_value = {'forecast': [0.1, 0.3, 0.6], 'justification': 'MC evidence.'}
+    chain = ForecastChain(llm=mock_llm, search_tool=mock_search)
+    question = {
+        'question_id': 10,
+        'question_text': 'Which city will win?',
+        'type': 'mc',
+        'options': ['London', 'Paris', 'Berlin']
+    }
+    result = chain.run(question)
+    assert isinstance(result, dict)
+    assert set(result.keys()) == {'question_id', 'forecast', 'justification'}
+    assert isinstance(result['forecast'], list)
+    assert len(result['forecast']) == 3
+    assert abs(sum(result['forecast']) - 1.0) < 1e-6 or sum(result['forecast']) <= 1.0
+    assert 'MC evidence' in result['justification']
+
+def test_run_numeric_question(mock_search):
+    mock_llm = Mock()
+    mock_llm.invoke.return_value = {
+        'prediction': 42.0,
+        'low': 30.0,
+        'high': 60.0,
+        'justification': 'Numeric evidence.'
+    }
+    chain = ForecastChain(llm=mock_llm, search_tool=mock_search)
+    question = {
+        'question_id': 20,
+        'question_text': 'How many widgets will be sold?',
+        'type': 'numeric'
+    }
+    result = chain.run(question)
+    assert isinstance(result, dict)
+    assert set(result.keys()) == {'question_id', 'prediction', 'low', 'high', 'justification'}
+    assert result['prediction'] == 42.0
+    assert result['low'] == 30.0
+    assert result['high'] == 60.0
+    assert 'Numeric evidence' in result['justification']
