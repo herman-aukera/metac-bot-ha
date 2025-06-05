@@ -9,20 +9,30 @@ import os
 import requests
 import json
 import time
+import jsonschema
 from jsonschema import validate, ValidationError
 
 FORECAST_SCHEMA = {
     "type": "object",
     "properties": {
         "question_id": {"type": "integer"},
-        "forecast": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "forecast": {
+            "oneOf": [
+                {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                {
+                    "type": "array",
+                    "items": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "minItems": 2
+                }
+            ]
+        },
         "justification": {"type": "string"}
     },
     "required": ["question_id", "forecast", "justification"]
 }
 
 class MetaculusClient:
-    def __init__(self, api_url=None, token=None, max_retries=3, timeout=10):
+    def __init__(self, api_url=None, token=None, max_retries=3, timeout=10, validate_fn=None):
         self.api_url = api_url or "https://www.metaculus.com/api2"
         self.token = token or os.getenv("METACULUS_TOKEN")
         if not self.token:
@@ -31,15 +41,16 @@ class MetaculusClient:
         self.session.headers.update({"Authorization": f"Token {self.token}"})
         self.max_retries = max_retries
         self.timeout = timeout
+        self._validate = validate_fn or jsonschema.validate
 
     def submit_forecast(self, question_id, forecast, justification):
         payload = {"question_id": question_id, "forecast": forecast, "justification": justification}
         try:
-            validate(instance=payload, schema=FORECAST_SCHEMA)
+            self._validate(instance=payload, schema=FORECAST_SCHEMA)
         except ValidationError as ve:
-            return {"status": "error", "error": f"Invalid payload: {ve.message}"}
+            raise ValueError(f"Invalid payload: {ve.message}")
         url = f"{self.api_url}/questions/{question_id}/predict/"
-        req_payload = {"value": forecast}
+        req_payload = {"values": forecast} if isinstance(forecast, list) else {"value": forecast}
         for attempt in range(self.max_retries):
             try:
                 resp = self.session.post(url, json=req_payload, timeout=self.timeout)
