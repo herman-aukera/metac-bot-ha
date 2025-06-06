@@ -233,3 +233,31 @@ Plugins can participate in the forecast process at two points:
 - Hooks are optional; plugins may define only one or neither.
 - If a hook returns a value, it is logged in the trace for auditability.
 - No plugin can override or break core forecast logic.
+
+## Batch Forecast Output Robustness
+
+- `run_batch` now supports all forecast result keys: `forecast`, `prediction`, `value`, etc.
+- Uses `.get()` to avoid `KeyError` and prints a fallback if no forecast is found.
+- Justification is also robustly extracted.
+- All question types (binary, MC, numeric) are handled in batch mode.
+- Example:
+
+```json
+{
+  "question_id": 2,
+  "forecast": [0.33, 0.33, 0.33],
+  "justification": "Mock LLM justification.",
+  "trace": [ ... ]
+}
+```
+
+If no forecast is found:
+
+```json
+{
+  "question_id": 99,
+  "forecast": "No forecast result available.",
+  "justification": "No justification.",
+  "trace": [ ... ]
+}
+```

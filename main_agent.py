@@ -35,6 +35,7 @@ def main():
         return
 
     if args.mode == 'batch':
+        from src.api.question_fetcher import fetch_new_questions
         questions = fetch_new_questions(limit=args.limit)
         if not questions:
             print("No new questions to forecast.")
