@@ -219,7 +219,7 @@ class TestSettings:
         env_vars = {
             "LLM_MODEL": "gpt-3.5-turbo",
             "LLM_TEMPERATURE": "0.7",
-            "METACULUS_API_TOKEN": "test-token",
+            "METACULUS_TOKEN": "test-token",
             "DATABASE_HOST": "testhost",
             "DATABASE_PORT": "5433"
         }

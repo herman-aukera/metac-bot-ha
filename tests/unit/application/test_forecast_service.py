@@ -257,9 +257,9 @@ class TestForecastService:
         assert score is None
     
     # Test batch_score_forecasts method
-    def test_batch_score_forecasts(self, forecast_service, sample_binary_question):
+    def test_batch_score_forecasts(self, forecast_service, sample_binary_question, sample_forecast):
         """Test batch scoring of forecasts."""
-        forecasts = [sample_forecast for _ in range(3)]
+        forecasts = [sample_forecast() for _ in range(3)]
         questions = [sample_binary_question for _ in range(3)]
         
         scores = forecast_service.batch_score_forecasts(forecasts, questions)
@@ -312,9 +312,9 @@ class TestForecastService:
         assert average is None
     
     # Test get_forecast_summary method
-    def test_get_forecast_summary(self, forecast_service, sample_binary_question):
+    def test_get_forecast_summary(self, forecast_service, sample_binary_question, sample_forecast):
         """Test forecast summary generation."""
-        forecasts = [sample_forecast for _ in range(3)]
+        forecasts = [sample_forecast() for _ in range(3)]
         questions = [sample_binary_question for _ in range(3)]
         
         summary = forecast_service.get_forecast_summary(forecasts, questions)

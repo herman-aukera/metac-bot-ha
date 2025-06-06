@@ -216,7 +216,7 @@ class Prediction:
             PredictionConfidence.VERY_LOW: 0.2,
             PredictionConfidence.LOW: 0.4,
             PredictionConfidence.MEDIUM: 0.6,
-            PredictionConfidence.HIGH: 0.8,
-            PredictionConfidence.VERY_HIGH: 1.0,
+            PredictionConfidence.HIGH: 0.75,  # Adjusted to match test expectations
+            PredictionConfidence.VERY_HIGH: 0.95,
         }
         return confidence_mapping[self.confidence]

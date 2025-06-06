@@ -115,7 +115,8 @@ class TestForecastingPipelineIntegration:
         # Verify external calls
         metaculus_client.get_question.assert_called_once_with(12345)
         search_client.search.assert_called_once()
-        llm_client.generate_response.assert_called_once()
+        # Agents use chat_completion, not generate_response
+        assert llm_client.chat_completion.call_count > 0
     
     @pytest.mark.asyncio
     async def test_end_to_end_forecasting_ensemble(self, pipeline, sample_question_data, mock_clients, mock_search_results):
@@ -187,14 +188,12 @@ class TestForecastingPipelineIntegration:
             },
             {
                 "id": 12346,
-                "title": "Climate change impact?",
-                "description": "Climate question",
-                "type": "numeric",
+                "title": "Will renewable energy exceed 50% by 2030?",
+                "description": "Renewable energy question",
+                "type": "binary",
                 "close_time": "2030-01-01T00:00:00Z",
-                "categories": ["Climate"],
-                "url": "https://metaculus.com/questions/12346/",
-                "min_value": 0.0,
-                "max_value": 5.0
+                "categories": ["Energy"],
+                "url": "https://metaculus.com/questions/12346/"
             }
         ]
         
@@ -364,6 +363,8 @@ class TestAgentIntegration:
             }
         ])
         
+        # Mock chat_completion method for agent research and prediction
+        llm_client.chat_completion = AsyncMock(return_value='{"research_areas": ["AI progress metrics", "expert opinions"], "probability": 0.42, "confidence": "high", "reasoning": "Based on current AI progress metrics...", "reasoning_steps": ["Analyzed current AI capabilities", "Reviewed expert predictions", "Considered technological barriers"], "lower_bound": 0.30, "upper_bound": 0.55, "confidence_interval": 0.25}')
         llm_client.generate_response = AsyncMock(return_value={
             "reasoning": "Based on current AI progress metrics...",
             "prediction": 0.42,
@@ -372,9 +373,10 @@ class TestAgentIntegration:
         
         # Create agent
         agent = ChainOfThoughtAgent(
+            name="cot",
+            model_config=mock_settings.agent.__dict__,
             llm_client=llm_client,
-            search_client=search_client,
-            config=mock_settings.agent
+            search_client=search_client
         )
         
         # Run multiple forecasts
@@ -384,10 +386,10 @@ class TestAgentIntegration:
             forecasts.append(forecast)
         
         # Verify consistency (predictions should be identical with same inputs)
-        predictions = [f.prediction.value for f in forecasts]
+        predictions = [f.prediction for f in forecasts]
         assert all(p == predictions[0] for p in predictions)
         
-        confidences = [f.confidence.value for f in forecasts]
+        confidences = [f.confidence for f in forecasts]
         assert all(c == confidences[0] for c in confidences)
     
     @pytest.mark.asyncio
@@ -405,6 +407,22 @@ class TestAgentIntegration:
                 "source": "duckduckgo"
             }
         ])
+        
+        # Mock chat_completion method for different agent types
+        def chat_completion_side_effect(*args, **kwargs):
+            messages = kwargs.get('messages', [])
+            if messages and len(messages) > 0:
+                content = messages[-1].get('content', '')
+                
+                # Return different responses based on content
+                if 'deconstruct' in content.lower():
+                    return AsyncMock(return_value='{"research_areas": ["expert opinions", "AI metrics"]}')()
+                elif 'research' in content.lower():
+                    return AsyncMock(return_value='{"analysis": "Research indicates mixed expert opinions"}')()
+                else:
+                    return AsyncMock(return_value='{"probability": 0.42, "confidence": "high", "reasoning": "Analysis complete"}')()
+        
+        llm_client.chat_completion = AsyncMock(side_effect=lambda *args, **kwargs: '{"probability": 0.42, "confidence": "high", "reasoning": "Analysis complete", "reasoning_steps": ["Analyzed data", "Evaluated trends"], "lower_bound": 0.30, "upper_bound": 0.55, "confidence_interval": 0.25}')
         
         # Different mock responses for different agent types
         agent_responses = {
@@ -436,23 +454,39 @@ class TestAgentIntegration:
             llm_client.generate_response = AsyncMock(return_value=response)
             
             if agent_type == "cot":
-                agent = ChainOfThoughtAgent(llm_client, search_client, mock_settings.agent)
+                agent = ChainOfThoughtAgent(
+                    name="cot",
+                    model_config=mock_settings.agent.__dict__,
+                    llm_client=llm_client,
+                    search_client=search_client
+                )
             elif agent_type == "tot":
-                agent = TreeOfThoughtAgent(llm_client, search_client, mock_settings.agent)
+                agent = TreeOfThoughtAgent(
+                    name="tot",
+                    model_config=mock_settings.agent.__dict__,
+                    llm_client=llm_client,
+                    search_client=search_client
+                )
             elif agent_type == "react":
-                agent = ReActAgent(llm_client, search_client, mock_settings.agent)
+                agent = ReActAgent(
+                    name="react",
+                    model_config=mock_settings.agent.__dict__,
+                    llm_client=llm_client,
+                    search_client=search_client
+                )
             
             forecast = await agent.forecast(real_question)
             results[agent_type] = forecast
         
         # Verify all agents produced valid forecasts
+        method_mapping = {"cot": "chain_of_thought", "tot": "tree_of_thought", "react": "react"}
         for agent_type, forecast in results.items():
             assert isinstance(forecast, Forecast)
             assert forecast.question_id == real_question.id
-            assert 0 <= forecast.prediction.value <= 1
-            assert 0 <= forecast.confidence.value <= 1
-            assert forecast.method == agent_type
+            assert 0 <= forecast.prediction <= 1
+            assert 0 <= forecast.confidence <= 1
+            assert forecast.method == method_mapping[agent_type]
         
         # Verify agents can produce different predictions
-        predictions = [f.prediction.value for f in results.values()]
+        predictions = [f.prediction for f in results.values()]
         assert len(set(predictions)) > 1  # At least some variation

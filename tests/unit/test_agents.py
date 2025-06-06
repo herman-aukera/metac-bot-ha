@@ -370,6 +370,8 @@ class TestEnsembleAgent:
             agent = Mock()
             agent.predict = AsyncMock()  # EnsembleAgent calls predict(), not forecast()
             agent.conduct_research = AsyncMock()
+            agent.full_forecast_cycle = AsyncMock()  # EnsembleAgent calls this method
+            agent.__class__.__name__ = f"MockAgent{i}"  # For better logging
             agents.append(agent)
         return agents
     
@@ -382,6 +384,11 @@ class TestEnsembleAgent:
         # Create mock forecasting service
         mock_forecasting_service = Mock(spec=ForecastingService)
         mock_forecasting_service.confidence_weighted_average = Mock(return_value=0.42)
+        
+        # Mock aggregate_predictions to return a Prediction with proper structure
+        mock_aggregated_prediction = Mock()
+        mock_aggregated_prediction.result.binary_probability = 0.42
+        mock_forecasting_service.aggregate_predictions = Mock(return_value=mock_aggregated_prediction)
         
         return EnsembleAgent(
             name="test-ensemble-agent",
@@ -413,8 +420,12 @@ class TestEnsembleAgent:
             self._create_test_prediction(sample_question.id, 0.4, PredictionConfidence.MEDIUM, PredictionMethod.REACT)
         ]
 
+        # Mock full_forecast_cycle to return (research_report, prediction) tuple
         for i, agent in enumerate(mock_agents):
             agent.predict.return_value = predictions[i]
+            # Create a mock research report for each agent
+            mock_research_report = self._create_test_research_report(sample_question.id)
+            agent.full_forecast_cycle.return_value = (mock_research_report, predictions[i])
 
         # Test ensemble prediction
         ensemble_prediction = await ensemble_agent.predict(sample_question)
@@ -423,9 +434,9 @@ class TestEnsembleAgent:
         assert ensemble_prediction.question_id == sample_question.id
         assert ensemble_prediction.method == PredictionMethod.ENSEMBLE
 
-        # Verify all agents were called
+        # Verify all agents were called via full_forecast_cycle
         for agent in mock_agents:
-            agent.predict.assert_called_once_with(sample_question, True, 3)
+            agent.full_forecast_cycle.assert_called_once_with(sample_question)
         
         # Check that prediction is within expected range
         binary_prob = ensemble_prediction.result.binary_probability
@@ -444,6 +455,8 @@ class TestEnsembleAgent:
             agent = Mock()
             agent.predict = AsyncMock()  # EnsembleAgent calls predict(), not forecast()
             agent.conduct_research = AsyncMock()
+            agent.full_forecast_cycle = AsyncMock()  # EnsembleAgent calls this method
+            agent.__class__.__name__ = f"MockAgent{i}"  # For better logging
             mock_agents.append(agent)
         
         # Create mock forecasting service
@@ -451,6 +464,11 @@ class TestEnsembleAgent:
         
         mock_forecasting_service = Mock(spec=ForecastingService)
         mock_forecasting_service.confidence_weighted_average = Mock(return_value=0.5)
+        
+        # Mock aggregate_predictions to return a Prediction with proper structure
+        mock_aggregated_prediction = Mock()
+        mock_aggregated_prediction.result.binary_probability = 0.5
+        mock_forecasting_service.aggregate_predictions = Mock(return_value=mock_aggregated_prediction)
         
         ensemble_agent = EnsembleAgent(
             name="test-ensemble-agent", 
@@ -477,6 +495,9 @@ class TestEnsembleAgent:
         
         for i, agent in enumerate(mock_agents):  # Use all agents now
             agent.predict.return_value = predictions[i]
+            # Create a mock research report for each agent
+            mock_research_report = self._create_test_research_report(sample_question.id)
+            agent.full_forecast_cycle.return_value = (mock_research_report, predictions[i])
         
         ensemble_prediction = await ensemble_agent.predict(sample_question)
         
@@ -488,17 +509,21 @@ class TestEnsembleAgent:
     @pytest.mark.asyncio
     async def test_ensemble_error_handling(self, ensemble_agent, sample_question, mock_agents):
         """Test ensemble error handling when agents fail."""
-        # Make first agent fail
-        mock_agents[0].predict.side_effect = Exception("Agent failed")
+        # Make first agent fail at the full_forecast_cycle level
+        mock_agents[0].full_forecast_cycle.side_effect = Exception("Agent failed")
         
         # Other agents succeed
         for agent in mock_agents[1:]:
-            agent.predict.return_value = self._create_test_prediction(
+            prediction = self._create_test_prediction(
                 sample_question.id, 
                 0.5, 
                 PredictionConfidence.HIGH, 
                 PredictionMethod.CHAIN_OF_THOUGHT
             )
+            agent.predict.return_value = prediction
+            # Set up successful full_forecast_cycle return
+            mock_research_report = self._create_test_research_report(sample_question.id)
+            agent.full_forecast_cycle.return_value = (mock_research_report, prediction)
         
         # Should still produce prediction with remaining agents
         ensemble_prediction = await ensemble_agent.predict(sample_question)

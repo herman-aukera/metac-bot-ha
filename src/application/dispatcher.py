@@ -230,10 +230,11 @@ class Dispatcher:
             self.stats.errors.append(error_msg)
             return []
         except Exception as e:
+            # For critical errors, let them propagate so they can be caught by the main run method
+            # which will wrap them in DispatcherError
             error_msg = f"Unexpected error fetching questions: {str(e)}"
             logger.error(error_msg)
-            self.stats.errors.append(error_msg)
-            return []
+            raise
 
     def _parse_questions(self, raw_questions: List[Dict[str, Any]]) -> List[Question]:
         """Parse raw questions into domain objects."""

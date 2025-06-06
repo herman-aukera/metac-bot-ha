@@ -15,7 +15,9 @@ help:
 	@echo "  format        Format code with black and isort"
 	@echo "  type-check    Run type checking with mypy"
 	@echo "  clean         Clean up cache and temporary files"
-	@echo "  run           Run the forecasting bot"
+	@echo "  run           Run the CLI forecast runner with sample data"
+	@echo "  run-cli       Run the original forecasting bot CLI"
+	@echo "  forecast      Run forecasts with --submit flag enabled"
 	@echo "  benchmark     Run benchmark tests"
 	@echo "  docs          Generate documentation"
 
@@ -70,10 +72,13 @@ clean:
 
 # Application
 run:
-	poetry run python3 main.py
+	poetry run python3 cli/run_forecast.py data/questions.json
 
 run-cli:
 	poetry run python3 src/main.py
+
+forecast:
+	poetry run python3 cli/run_forecast.py data/questions.json --submit
 
 # Benchmarking
 benchmark:

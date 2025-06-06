@@ -197,6 +197,54 @@ class ForecastingService:
         
         raise NotImplementedError("Only binary predictions supported currently")
     
+    def confidence_weighted_average(self, predictions: List[Prediction]) -> 'Probability':
+        """
+        Calculate confidence-weighted average of predictions and return as Probability.
+        
+        Args:
+            predictions: List of predictions to aggregate
+            
+        Returns:
+            Probability object with confidence-weighted average value
+        """
+        if not predictions:
+            raise ValueError("Cannot calculate average of empty prediction list")
+        
+        # Filter to binary predictions only
+        binary_predictions = [
+            p for p in predictions 
+            if p.result.binary_probability is not None
+        ]
+        
+        if not binary_predictions:
+            # Fallback to 0.5 if no binary predictions
+            from ..value_objects.probability import Probability
+            return Probability(0.5)
+        
+        if len(binary_predictions) == 1:
+            # Single prediction - return its probability
+            from ..value_objects.probability import Probability
+            return Probability(binary_predictions[0].result.binary_probability)
+        
+        # Calculate confidence-weighted average
+        confidence_weights = [p.get_confidence_score() ** 2 for p in binary_predictions]  # Square for emphasis
+        total_weight = sum(confidence_weights)
+        
+        if total_weight == 0:
+            # Equal weights if all have zero confidence
+            weighted_prob = sum(p.result.binary_probability for p in binary_predictions) / len(binary_predictions)
+        else:
+            weighted_prob = sum(
+                p.result.binary_probability * (weight / total_weight)
+                for p, weight in zip(binary_predictions, confidence_weights)
+            )
+        
+        # Ensure probability is within valid range
+        weighted_prob = max(0.0, min(1.0, weighted_prob))
+        
+        from ..value_objects.probability import Probability
+        return Probability(weighted_prob)
+    
     def _calculate_average_confidence(self, predictions: List[Prediction]) -> PredictionConfidence:
         """Calculate average confidence level from predictions."""
         confidence_scores = [p.get_confidence_score() for p in predictions]

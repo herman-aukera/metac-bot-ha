@@ -203,8 +203,9 @@ class TestIngestionService:
                 "status": "open"
             },
             {
-                # Invalid question - malformed data
-                "invalid_field": "bad_data"
+                # Invalid question - malformed data that will cause parsing failure
+                "id": "not_a_number",  # Invalid ID type that will cause parsing error
+                "title": "Invalid Question"
             }
         ]
 

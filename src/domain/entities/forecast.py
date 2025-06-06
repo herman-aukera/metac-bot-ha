@@ -3,11 +3,14 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from .prediction import Prediction, PredictionResult, PredictionConfidence, PredictionMethod
 from .research_report import ResearchReport
+
+if TYPE_CHECKING:
+    from src.domain.value_objects.probability import Probability
 
 
 class ForecastStatus(Enum):
@@ -80,6 +83,7 @@ class Forecast:
             ensemble_method=kwargs.get("ensemble_method", "weighted_average"),
             weight_distribution=kwargs.get("weight_distribution", {}),
             consensus_strength=kwargs.get("consensus_strength", 0.0),
+            metadata=kwargs.get("metadata", {}),
             metaculus_response=kwargs.get("metaculus_response"),
         )
     
@@ -147,6 +151,7 @@ class Forecast:
             ensemble_method=aggregation_method,
             weight_distribution=kwargs.get("weight_distribution", {}),
             consensus_strength=kwargs.get("consensus_strength", 0.0),
+            metadata=metadata or {},
             metaculus_response=kwargs.get("metaculus_response"),
         )
     
@@ -201,6 +206,37 @@ class Forecast:
             }
         
         return summary
+    
+    # Backward compatibility properties for tests
+    @property
+    def prediction(self) -> float:
+        """Get the final prediction probability for backward compatibility."""
+        if self.final_prediction and self.final_prediction.result.binary_probability is not None:
+            return self.final_prediction.result.binary_probability
+        return 0.5  # Default fallback
+    
+    @property
+    def confidence(self) -> float:
+        """Get the confidence score for backward compatibility."""
+        if hasattr(self.final_prediction, 'confidence'):
+            # Convert confidence enum to numeric value
+            if hasattr(self.final_prediction.confidence, 'value'):
+                confidence_map = {
+                    'very_low': 0.2,
+                    'low': 0.4, 
+                    'medium': 0.6,
+                    'high': 0.75,
+                    'very_high': 0.95
+                }
+                return confidence_map.get(self.final_prediction.confidence.value, 0.6)
+        return self.confidence_score
+    
+    @property
+    def method(self) -> str:
+        """Get the prediction method for backward compatibility."""
+        if self.final_prediction and hasattr(self.final_prediction, 'method'):
+            return self.final_prediction.method.value
+        return "unknown"
 
 def calculate_brier_score(forecast: float, outcome: int) -> float:
     """

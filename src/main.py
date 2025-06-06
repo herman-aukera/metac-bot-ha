@@ -192,7 +192,8 @@ class MetaculusForecastingBot:
             updated_at=datetime.now(timezone.utc),
             ensemble_method=agent_type,
             weight_distribution={agent_type: 1.0},
-            consensus_strength=0.8
+            consensus_strength=0.8,
+            metadata={"e2e_test": True, "error_info": error_info}
         )
         
         return {

@@ -345,7 +345,7 @@ class ForecastingPipeline:
             )
             
             avg_confidence = sum(
-                pred.confidence for forecast in agent_forecasts
+                pred.get_confidence_score() for forecast in agent_forecasts
                 for pred in forecast.predictions
             ) / max(1, sum(len(forecast.predictions) for forecast in agent_forecasts))
             
@@ -400,7 +400,8 @@ class ForecastingPipeline:
         self,
         question_id: int,
         agent_type: str = "chain_of_thought",
-        include_research: bool = True
+        include_research: bool = True,
+        collect_metrics: bool = False
     ) -> Dict[str, Any]:
         """
         Run forecasting for a single question by ID.
@@ -409,11 +410,15 @@ class ForecastingPipeline:
             question_id: Metaculus question ID
             agent_type: Type of agent to use for forecasting
             include_research: Whether to include research step
+            collect_metrics: Whether to collect performance metrics
             
         Returns:
             Dictionary with question_id and forecast data
         """
         logger.info("Running single question forecast", question_id=question_id, agent_type=agent_type)
+        
+        start_time = datetime.utcnow() if collect_metrics else None
+        metrics = {"api_calls": 0} if collect_metrics else None
         
         try:
             # Get question from Metaculus
@@ -439,7 +444,7 @@ class ForecastingPipeline:
                 "question_id": question_id,
                 "forecast": {
                     "prediction": forecast.final_prediction.result.binary_probability,
-                    "confidence": forecast.predictions[0].confidence if forecast.predictions else 0.0,
+                    "confidence": forecast.predictions[0].get_confidence_score() if forecast.predictions else 0.0,
                     "method": agent_type,
                     "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
                     "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []
@@ -506,7 +511,7 @@ class ForecastingPipeline:
                         "question_id": question_ids[i],
                         "forecast": {
                             "prediction": forecast.final_prediction.result.binary_probability,
-                            "confidence": forecast.predictions[0].confidence if forecast.predictions else 0.0,
+                            "confidence": forecast.predictions[0].get_confidence_score() if forecast.predictions else 0.0,
                             "method": agent_type,
                             "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
                             "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []

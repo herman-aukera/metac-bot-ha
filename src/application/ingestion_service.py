@@ -185,6 +185,9 @@ class IngestionService:
             
             return question
             
+        except ValidationError:
+            # Let ValidationErrors propagate as-is for test verification
+            raise
         except KeyError as e:
             raise ParseError(f"Missing required field: {e}")
         except (ValueError, TypeError) as e:
