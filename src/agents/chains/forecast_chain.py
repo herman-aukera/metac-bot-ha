@@ -28,12 +28,26 @@ class ForecastChain:
             "timestamp": datetime.utcnow().isoformat() + "Z"
         })
 
+    def add_plugins(self, plugins):
+        if plugins:
+            self.tools.extend(plugins)
+
     def _call_tools(self, question_text):
         """Call all tools and collect their outputs for the question."""
         tool_outputs = {}
         for tool in self.tools:
+            tool_name = getattr(tool, 'name', tool.__class__.__name__)
+            # PluginTool interface: must have invoke()
+            if hasattr(tool, 'invoke') and callable(tool.invoke):
+                try:
+                    output = tool.invoke(question_text)
+                    self._log_trace("tool", {"tool": tool_name, "input": question_text}, output)
+                    if output and tool_name not in tool_outputs:
+                        tool_outputs[tool_name] = output
+                except Exception as e:
+                    self._log_trace("tool", {"tool": tool_name, "input": question_text}, f"[PluginTool] Exception: {e}")
             # WikipediaTool: only call if question is a string and not too long
-            if tool.__class__.__name__ == "WikipediaTool" and isinstance(question_text, str) and len(question_text) < 100:
+            elif tool.__class__.__name__ == "WikipediaTool" and isinstance(question_text, str) and len(question_text) < 100:
                 wiki = tool.run(question_text)
                 self._log_trace("tool", {"tool": "WikipediaTool", "query": question_text}, wiki)
                 if wiki and "Wikipedia" in wiki:
@@ -56,12 +70,27 @@ class ForecastChain:
         5. Parse and return structured forecast with justification
         """
         self.trace = []
-        if not question or 'question_id' not in question or 'question_text' not in question:
+        # --- Plugin pre_forecast hooks ---
+        q = question.copy() if question else {}
+        for tool in self.tools:
+            if hasattr(tool, 'pre_forecast') and callable(tool.pre_forecast):
+                try:
+                    pre_result = tool.pre_forecast(q)
+                    self._log_trace("plugin_pre_forecast", {"tool": getattr(tool, 'name', str(tool)), "input": q}, pre_result)
+                    # If pre_forecast returns a dict, treat as mutation
+                    if isinstance(pre_result, dict):
+                        for k in ['question_id', 'question_text']:
+                            if k not in pre_result:
+                                pre_result[k] = q.get(k)
+                        q = pre_result
+                except Exception as e:
+                    self._log_trace("plugin_pre_forecast", {"tool": getattr(tool, 'name', str(tool)), "input": q}, f"[PluginTool] Exception: {e}")
+        if not q or 'question_id' not in q or 'question_text' not in q:
             return {"error": "Missing required question fields"}
-        self._log_trace("input", question, None)
-        question_id = question['question_id']
-        question_text = question['question_text']
-        question_type = question.get('type', 'binary')
+        self._log_trace("input", q, None)
+        question_id = q['question_id']
+        question_text = q['question_text']
+        question_type = q.get('type', 'binary')
         evidence = self.search_tool.search(question_text)
         self._log_trace("evidence", question_text, evidence)
         tool_outputs = self._call_tools(question_text)
@@ -69,7 +98,7 @@ class ForecastChain:
         if tool_outputs:
             evidence = f"{evidence}\nTool outputs: {tool_outputs}"
         if question_type in ('mc', 'multiple_choice'):
-            options = question.get('options')
+            options = q.get('options')
             if not options or not isinstance(options, list):
                 return {"error": "Missing or invalid options for multi-choice question"}
             prompt = self._build_mc_prompt(question_text, options, evidence)
@@ -108,6 +137,15 @@ class ForecastChain:
             }
         result["trace"] = self.trace
         return result
+
+    def post_submit_plugins(self, submission_response):
+        for tool in self.tools:
+            if hasattr(tool, 'post_submit') and callable(tool.post_submit):
+                try:
+                    post_result = tool.post_submit(submission_response)
+                    self._log_trace("plugin_post_submit", {"tool": getattr(tool, 'name', str(tool)), "input": submission_response}, post_result)
+                except Exception as e:
+                    self._log_trace("plugin_post_submit", {"tool": getattr(tool, 'name', str(tool)), "input": submission_response}, f"[PluginTool] Exception: {e}")
 
     def _build_prompt(self, question_text, evidence):
         return f"""You are a forecasting agent.\nQuestion: {question_text}\nEvidence: {evidence}\nThink step by step and output a probability (0-1) and justification as JSON: {{'forecast': float, 'justification': str}}"""

@@ -13,14 +13,12 @@ class ForecastAgent(Runnable):
         search_tool = search_tool or SearchTool()
         self.chain = ForecastChain(llm=llm, search_tool=search_tool, tools=tools or tool_list)
 
-    def invoke(self, question_json):
+    def invoke(self, question_json, submission_response=None):
         """
         Given a question JSON (binary or multi-choice), fetch evidence, build reasoning chain, and return forecast object.
-        Returns:
-            dict: {
-                'question_id': ...,
-                'forecast': float or list of floats,
-                'justification': str
-            }
+        If submission_response is provided, call plugin post_submit hooks.
         """
-        return self.chain.run(question_json)
+        result = self.chain.run(question_json)
+        if submission_response is not None:
+            self.chain.post_submit_plugins(submission_response)
+        return result

@@ -158,6 +158,75 @@ Output sample:
 }
 ```
 
+## Example: Forecast with PluginTool
+
+- PluginTool loaded from plugins directory
+- Called during reasoning, result appears in trace
+
+```json
+{
+  "question_id": 123,
+  "forecast": 0.7,
+  "justification": "Based on plugin output...",
+  "trace": [
+    {
+      "step": 3,
+      "type": "tool",
+      "input": { "tool": "MyPlugin", "input": "..." },
+      "output": "Plugin result",
+      "timestamp": "..."
+    }
+  ]
+}
+```
+
+## Example: Plugin Lifecycle Hooks
+
+- PluginTool can tag, filter, or log before/after forecast
+- Hooks are logged in the trace for auditability
+
+```json
+{
+  "step": 1,
+  "type": "plugin_pre_forecast",
+  "input": {"tool": "TaggingPlugin", "input": {"question_id": 1, ...}},
+  "output": {"question_id": 1, "question_text": "...", "tag": "science"},
+  "timestamp": "..."
+}
+{
+  "step": 7,
+  "type": "plugin_post_submit",
+  "input": {"tool": "TaggingPlugin", "input": {"status": "ok"}},
+  "output": null,
+  "timestamp": "..."
+}
+```
+
+## Example: Plugin Lifecycle Trace
+
+```json
+{
+  "step": 1,
+  "type": "plugin_pre_forecast",
+  "input": {"tool": "PrePlugin", "input": {"question_id": 1, "question_text": "foo"}},
+  "output": "pre_hook_called",
+  "timestamp": "..."
+}
+{
+  "step": 8,
+  "type": "plugin_post_submit",
+  "input": {"tool": "PostPlugin", "input": {"status": "ok"}},
+  "output": "post_hook_called",
+  "timestamp": "..."
+}
+```
+
+### Example Use Cases
+
+- Tagging questions for downstream routing
+- Logging submissions to a file or webhook
+- Alerting on high-impact forecasts
+
 ## CLI Example: Model Routing
 
 To run the agent with a specific LLM model (e.g. GPT-4) and correct import path:

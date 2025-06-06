@@ -20,7 +20,19 @@ def main():
     parser.add_argument('--logfile', type=str, help='Optional log file for batch results')
     parser.add_argument('--model', type=str, help='Model ID for LLM (e.g. openai/gpt-4, anthropic/claude-3, mistral/mixtral-8x7b)')
     parser.add_argument('--show-trace', action='store_true', help='Show step-by-step reasoning trace in output')
+    parser.add_argument('--plugin-dir', type=str, help='Directory to load external PluginTools from')
+    parser.add_argument('--enable-webhooks', action='store_true', help='Enable webhook plugin support')
+    parser.add_argument('--version', action='store_true', help='Show version and exit')
     args = parser.parse_args()
+
+    if args.version:
+        import subprocess
+        try:
+            tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0'], stderr=subprocess.DEVNULL).decode().strip()
+        except Exception:
+            tag = 'v1.0.0-rc1'
+        print(f"Metaculus Agentic Bot version: {tag}")
+        return
 
     if args.mode == 'batch':
         questions = fetch_new_questions(limit=args.limit)
@@ -55,6 +67,17 @@ def main():
     from src.agents.forecast_agent import ForecastAgent
     llm = get_llm(model_id)
     agent = ForecastAgent(llm=llm)
+    # Plugin loading
+    plugins = []
+    if args.plugin_dir:
+        from src.agents.tools.plugin_loader import load_plugins
+        plugins = load_plugins(args.plugin_dir, enable_webhooks=args.enable_webhooks)
+        if plugins:
+            print(f"Loaded plugins: {[p.name for p in plugins]}")
+        else:
+            print("No plugins loaded.")
+    if plugins:
+        agent.chain.add_plugins(plugins)
     result = agent.invoke(question)
     print(json.dumps(result, indent=2))
     if args.show_trace and 'trace' in result:

@@ -174,3 +174,62 @@ PYTHONPATH=$(pwd) poetry run python main_agent.py --model openai/gpt-4 --mode ba
 - This is required for all CLI and CI runs using the `src/` import path strategy.
 
 See CLI help for more details.
+
+## CLI Plugin Usage
+
+To run with plugins:
+
+```bash
+PYTHONPATH=$(pwd) poetry run python main_agent.py --plugin-dir plugins/ --enable-webhooks --model openai/gpt-4 --dryrun
+```
+
+- `--plugin-dir`: Directory to load PluginTool and webhook plugins from
+- `--enable-webhooks`: Allow loading webhook plugins from JSON
+- Loaded plugins are listed at startup
+
+### Plugin Trace Example
+
+```json
+{
+  "step": 3,
+  "type": "tool",
+  "input": { "tool": "MyPlugin", "input": "What is the capital of France?" },
+  "output": "Paris",
+  "timestamp": "2025-06-06T12:34:56Z"
+}
+```
+
+See `tools.instructions.md` for plugin schema and test details.
+
+## Plugin Lifecycle Flow
+
+Plugins can participate in the forecast process at two points:
+
+- **pre_forecast(question)**: Called before reasoning. Can annotate, mutate, or log. Return value (if any) is logged in the trace.
+- **post_submit(forecast)**: Called after submission. Can log, alert, or trigger side effects. Return value (if any) is logged in the trace.
+
+### Example Trace
+
+```json
+{
+  "step": 1,
+  "type": "plugin_pre_forecast",
+  "input": {"tool": "TaggingPlugin", "input": {"question_id": 1, ...}},
+  "output": "tagged for science",
+  "timestamp": "..."
+}
+{
+  "step": 8,
+  "type": "plugin_post_submit",
+  "input": {"tool": "TaggingPlugin", "input": {"status": "ok"}},
+  "output": "notified Discord",
+  "timestamp": "..."
+}
+```
+
+### When Hooks Fire
+
+- All plugins are called in order for each hook.
+- Hooks are optional; plugins may define only one or neither.
+- If a hook returns a value, it is logged in the trace for auditability.
+- No plugin can override or break core forecast logic.
