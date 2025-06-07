@@ -26,12 +26,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        import subprocess
-        try:
-            tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0'], stderr=subprocess.DEVNULL).decode().strip()
-        except Exception:
-            tag = 'v1.0.0-rc1'
-        print(f"Metaculus Agentic Bot version: {tag}")
+        print("Metaculus Agentic Bot version: v1.0.0-rc1")
         return
 
     if args.mode == 'batch':
