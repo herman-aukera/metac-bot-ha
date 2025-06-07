@@ -1,7 +1,6 @@
 # agent_runner.py
 # Core LangChain agent entrypoint for Metaculus forecasting agent
 
-from langchain_core.runnables import Runnable
 from src.agents.forecast_agent import ForecastAgent
 from src.agents.metaculus_client import MetaculusClient
 from src.agents.tools import tool_list

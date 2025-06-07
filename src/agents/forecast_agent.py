@@ -1,5 +1,5 @@
 # forecast_agent.py
-# Implements ForecastAgent using LangChain's Runnable interface
+# Implements ForecastAgent
 
 from src.agents.llm import MockLLM
 from src.agents.search import SearchTool

@@ -6,6 +6,6 @@ class SearchTool:
         self.client = client  # Inject AskNews/Perplexity client or mock
 
     def search(self, query: str) -> str:
-        # TODO: Integrate real AskNews/Perplexity API
-        # For now, return stubbed evidence
+        # Integrar API real si es necesario
+        # Por ahora, devolver evidencia simulada
         return f"Evidence for: {query} (stubbed)"

@@ -238,7 +238,6 @@ Plugins can participate in the forecast process at two points:
 
 - `run_batch` now supports all forecast result keys: `forecast`, `prediction`, `value`, etc.
 - Uses `.get()` to avoid `KeyError` and prints a fallback if no forecast is found.
-- Justification is also robustly extracted.
 - All question types (binary, MC, numeric) are handled in batch mode.
 - Example:
 
@@ -261,3 +260,9 @@ If no forecast is found:
   "trace": [ ... ]
 }
 ```
+
+## Stub Mode for Dry-Run
+
+- If no `METACULUS_TOKEN` is set, CLI loads `testdata/mock_questions.json` or returns a hardcoded question.
+- Log: “Stub mode: returning mock questions for dry-run validation”
+- CLI and trace output are fully supported in stub mode.

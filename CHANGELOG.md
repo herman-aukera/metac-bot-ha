@@ -7,6 +7,7 @@
 - 📄 Documentation updated for numeric schema and examples
 
 ## [v1.0.0-rc1] — First Release Candidate
+
 - Full support for binary, MC, numeric forecasting
 - Plugin tool system with lifecycle hooks
 - CLI: batch mode, trace logging, plugin injection
