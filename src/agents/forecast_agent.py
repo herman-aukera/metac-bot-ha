@@ -1,13 +1,12 @@
 # forecast_agent.py
 # Implements ForecastAgent using LangChain's Runnable interface
 
-from langchain_core.runnables import Runnable
 from src.agents.llm import MockLLM
 from src.agents.search import SearchTool
 from src.agents.chains.forecast_chain import ForecastChain
 from src.agents.tools import tool_list
 
-class ForecastAgent(Runnable):
+class ForecastAgent:
     def __init__(self, llm=None, search_tool=None, tools=None):
         llm = llm or MockLLM()
         search_tool = search_tool or SearchTool()
