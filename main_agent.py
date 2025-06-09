@@ -10,6 +10,13 @@ from src.api.metaculus_client import MetaculusClient
 from src.api.question_fetcher import fetch_new_questions
 from src.agents.batch_executor import run_batch
 
+# Carga variables de entorno desde .env si está presente (solo en desarrollo)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 def main():
     parser = argparse.ArgumentParser(description="Run Metaculus Agentic Bot")
     parser.add_argument('--dryrun', action='store_true', help='Run in dry mode (no submission)')
