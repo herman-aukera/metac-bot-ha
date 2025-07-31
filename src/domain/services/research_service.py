@@ -2,7 +2,7 @@
 
 from typing import List, Dict, Any, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 import structlog
 
 from ..entities.question import Question
@@ -104,9 +104,11 @@ class ResearchService:
                 base_rates=base_rates,
                 quality=quality,
                 confidence_level=synthesis.get("confidence_level", 0.7),
-                research_methods=synthesis.get("methods_used", []),
-                time_horizon=self._determine_time_horizon(question),
-                limitations=synthesis.get("limitations", [])
+                research_methodology=", ".join(synthesis.get("methods_used", ["web_search", "source_validation", "synthesis"])),
+                reasoning_steps=synthesis.get("reasoning_steps", []),
+                evidence_for=synthesis.get("evidence_for", []),
+                evidence_against=synthesis.get("evidence_against", []),
+                uncertainties=synthesis.get("uncertainties", [])
             )
             
             logger.info(
@@ -231,33 +233,33 @@ class ResearchService:
                 validated_sources.append(validated_source)
         
         return validated_sources
-    
+        
     def _calculate_credibility_score(self, source: ResearchSource) -> float:
         """Calculate credibility score for a source."""
         score = 0.5  # Base score
-        
+
         # Domain credibility
         domain = source.url.split("//")[-1].split("/")[0] if source.url else ""
-        
+
         high_credibility_domains = [
             "arxiv.org", "nature.com", "science.org", "pubmed.gov",
             "census.gov", "worldbank.org", "imf.org", "oecd.org",
             "who.int", "cdc.gov", "fda.gov"
         ]
-        
+
         medium_credibility_domains = [
             "reuters.com", "bbc.com", "economist.com", "ft.com",
             "wsj.com", "nytimes.com", "bloomberg.com"
         ]
-        
+
         if any(d in domain for d in high_credibility_domains):
             score += 0.3
         elif any(d in domain for d in medium_credibility_domains):
             score += 0.2
-        
+
         # Recency bonus
         if source.publish_date:
-            days_old = (datetime.now() - source.publish_date).days
+            days_old = (datetime.now(timezone.utc) - source.publish_date).days
             if days_old < 30:
                 score += 0.1
             elif days_old < 90:
@@ -322,8 +324,19 @@ class ResearchService:
             f"Comprehensive analysis of available information reveals several important "
             f"considerations for forecasting '{question.title}'. "
             f"The research identified {len(key_factors)} primary factors that could "
-            f"influence the outcome. Historical base rates suggest relevant frequencies "
-            f"ranging from {min(base_rates.values()):.2f} to {max(base_rates.values()):.2f}. "
+            f"influence the outcome. "
+        )
+        
+        # Add base rates information only if we have base rates
+        if base_rates:
+            detailed_analysis += (
+                f"Historical base rates suggest relevant frequencies "
+                f"ranging from {min(base_rates.values()):.2f} to {max(base_rates.values()):.2f}. "
+            )
+        else:
+            detailed_analysis += "No historical base rates were identified. "
+            
+        detailed_analysis += (
             f"Source quality is generally {'high' if avg_credibility > 0.7 else 'medium' if avg_credibility > 0.5 else 'low'} "
             f"with an average credibility score of {avg_credibility:.2f}."
         )
@@ -365,17 +378,14 @@ class ResearchService:
         # Low quality: few sources or low credibility
         else:
             return ResearchQuality.LOW
-    
+            
     def _determine_time_horizon(self, question: Question) -> Optional[TimeRange]:
         """Determine the time horizon for the research based on question."""
         # In a real implementation, this would parse the question
         # to extract timeline information
-        
-        # For now, return a default time range
-        start_date = datetime.now()
-        end_date = datetime(2025, 12, 31)  # Default to end of 2025
-        
-        return TimeRange(start_date=start_date, end_date=end_date)
+
+        # For now, return None since ResearchReport doesn't store time_horizon
+        return None
     
     def _create_fallback_research_report(
         self, 
@@ -395,9 +405,11 @@ class ResearchService:
             base_rates={},
             quality=ResearchQuality.LOW,
             confidence_level=0.2,
-            research_methods=["fallback"],
-            time_horizon=None,
-            limitations=["Research failure", "No external sources", "Minimal analysis"]
+            research_methodology="fallback",
+            reasoning_steps=["Research failure", "No external sources", "Minimal analysis"],
+            evidence_for=[],
+            evidence_against=[],
+            uncertainties=["Research failure", "No external sources", "Minimal analysis"]
         )
     
     def validate_research_config(self, config: Dict[str, Any]) -> bool:
@@ -434,16 +446,16 @@ class ResearchService:
     def get_supported_providers(self) -> List[str]:
         """Get list of supported research providers."""
         return self.supported_providers.copy()
-    
+        
     def get_quality_metrics(self, research_report: ResearchReport) -> Dict[str, Any]:
         """Get quality metrics for a research report."""
-        
+
         source_count = len(research_report.sources)
         avg_credibility = (
             sum(s.credibility_score for s in research_report.sources) / source_count
             if source_count > 0 else 0.0
         )
-        
+
         return {
             "source_count": source_count,
             "average_credibility": avg_credibility,
@@ -451,6 +463,6 @@ class ResearchService:
             "confidence_level": research_report.confidence_level,
             "key_factors_count": len(research_report.key_factors),
             "base_rates_count": len(research_report.base_rates),
-            "has_time_horizon": research_report.time_horizon is not None,
-            "limitations_count": len(research_report.limitations)
+            "has_reasoning_steps": len(research_report.reasoning_steps) > 0,
+            "has_evidence": len(research_report.evidence_for) > 0 or len(research_report.evidence_against) > 0
         }

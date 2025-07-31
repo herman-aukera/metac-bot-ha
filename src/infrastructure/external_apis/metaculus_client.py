@@ -330,7 +330,10 @@ class MetaculusClient:
             close_time=close_time,
             resolve_time=resolve_time,
             created_at=created_at,
-            metadata=metadata
+            metadata=metadata,
+            choices=data.get('choices') if question_type == QuestionType.MULTIPLE_CHOICE else None,
+            min_value=data.get('min_value') if question_type == QuestionType.CONTINUOUS else None,
+            max_value=data.get('max_value') if question_type == QuestionType.CONTINUOUS else None
         )
     
     def _parse_datetime(self, date_str: Optional[str]) -> Optional[datetime]:

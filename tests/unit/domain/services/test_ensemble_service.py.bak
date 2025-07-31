@@ -1,0 +1,1647 @@
+"""Comprehensive tests for EnsembleService."""
+
+import pytest
+import statistics
+from unittest.mock import Mock, patch
+from uuid import uuid4, UUID
+from datetime import datetime, timezone
+
+from src.domain.services.ensemble_service import EnsembleService
+from src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence
+from src.domain.entities.question import Question, QuestionType
+from src.domain.entities.research_report import ResearchReport
+from src.domain.value_objects.probability import Probability
+from src.domain.value_objects.confidence import ConfidenceLevel
+
+
+class TestEnsembleService:
+    """Test suite for EnsembleService."""
+    
+    @pytest.fixture
+    def ensemble_service(self):
+        """Create EnsembleService instance."""
+        return EnsembleService()
+    
+    @pytest.fixture
+    def sample_question_id(self):
+        """Create sample question ID."""
+        return uuid4()
+    
+    @pytest.fixture
+    def mock_predictions(self, sample_question_id):
+        """Create mock predictions for testing."""
+        predictions = []
+        probabilities = [0.3, 0.5, 0.7]
+        confidences = [0.6, 0.8, 0.9]
+        methods = [PredictionMethod.CHAIN_OF_THOUGHT, PredictionMethod.TREE_OF_THOUGHT, PredictionMethod.REACT]
+        
+        for i, (prob, conf, method) in enumerate(zip(probabilities, confidences, methods)):
+            prediction = Mock(spec=Prediction)
+            prediction.question_id = sample_question_id
+            prediction.probability = Mock()
+            prediction.probability.value = prob
+            prediction.confidence = Mock()
+            prediction.confidence.value = conf
+            prediction.method = method
+            prediction.agent_name = f"agent_{i}"
+            prediction.model_version = "test-v1.0"
+            prediction.reasoning = f"Test reasoning {i}"
+            predictions.append(prediction)
+        
+        return predictions
+
+    # Initialization Tests
+    def test_initialization(self, ensemble_service):
+        """Test EnsembleService initialization."""
+        assert isinstance(ensemble_service, EnsembleService)
+        assert len(ensemble_service.aggregation_methods) == 6
+        assert "simple_average" in ensemble_service.aggregation_methods
+        assert "weighted_average" in ensemble_service.aggregation_methods
+        assert "median" in ensemble_service.aggregation_methods
+        assert "trimmed_mean" in ensemble_service.aggregation_methods
+        assert "confidence_weighted" in ensemble_service.aggregation_methods
+        assert "performance_weighted" in ensemble_service.aggregation_methods
+        
+        assert len(ensemble_service.supported_agent_types) == 5
+        assert "chain_of_thought" in ensemble_service.supported_agent_types
+        assert "tree_of_thought" in ensemble_service.supported_agent_types
+        assert "react" in ensemble_service.supported_agent_types
+        assert "auto_cot" in ensemble_service.supported_agent_types
+        assert "self_consistency" in ensemble_service.supported_agent_types
+
+    # Aggregation Method Tests
+    def test_simple_average_aggregation(self, ensemble_service, mock_predictions):
+        """Test simple average aggregation."""
+        result = ensemble_service.aggregate_predictions(mock_predictions, "simple_average")
+        
+        assert isinstance(result, Prediction)
+        expected_prob = statistics.mean([0.3, 0.5, 0.7])  # 0.5
+        assert abs(result.probability.value - expected_prob) < 0.001
+        assert result.method == PredictionMethod.ENSEMBLE
+        assert "simple_average" in result.reasoning
+
+    def test_median_aggregation(self, ensemble_service, mock_predictions):
+        """Test median aggregation."""
+        result = ensemble_service.aggregate_predictions(mock_predictions, "median")
+        
+        assert isinstance(result, Prediction)
+        expected_prob = statistics.median([0.3, 0.5, 0.7])  # 0.5
+        assert abs(result.probability.value - expected_prob) < 0.001
+        assert result.method == PredictionMethod.ENSEMBLE
+        assert "median" in result.reasoning
+
+    def test_weighted_average_aggregation(self, ensemble_service, mock_predictions):
+        """Test weighted average aggregation."""
+        weights = [0.2, 0.3, 0.5]
+        result = ensemble_service.aggregate_predictions(mock_predictions, "weighted_average", weights)
+        
+        assert isinstance(result, Prediction)
+        expected_prob = (0.3 * 0.2 + 0.5 * 0.3 + 0.7 * 0.5)  # 0.56
+        assert abs(result.probability.value - expected_prob) < 0.001
+        assert result.method == PredictionMethod.ENSEMBLE
+
+    def test_weighted_average_with_default_weights(self, ensemble_service, mock_predictions):
+        """Test weighted average with default confidence-based weights."""
+        result = ensemble_service.aggregate_predictions(mock_predictions, "weighted_average")
+        
+        assert isinstance(result, Prediction)
+        # Should weight by confidence: 0.6, 0.8, 0.9
+        total_conf = 0.6 + 0.8 + 0.9  # 2.3
+        expected_prob = (0.3 * 0.6/2.3 + 0.5 * 0.8/2.3 + 0.7 * 0.9/2.3)
+        assert abs(result.probability.value - expected_prob) < 0.001
+
+    def test_confidence_weighted_aggregation(self, ensemble_service, mock_predictions):
+        """Test confidence-weighted aggregation."""
+        result = ensemble_service.aggregate_predictions(mock_predictions, "confidence_weighted")
+        
+        assert isinstance(result, Prediction)
+        # Should weight by confidence values
+        confidences = [0.6, 0.8, 0.9]
+        probabilities = [0.3, 0.5, 0.7]
+        expected_prob = sum(p * c for p, c in zip(probabilities, confidences)) / sum(confidences)
+        assert abs(result.probability.value - expected_prob) < 0.001
+
+    def test_trimmed_mean_aggregation(self, ensemble_service, mock_predictions):
+        """Test trimmed mean aggregation."""
+        result = ensemble_service.aggregate_predictions(mock_predictions, "trimmed_mean")
+        
+        assert isinstance(result, Prediction)
+        # With 3 predictions and 10% trim, should be similar to regular mean
+        assert 0.3 <= result.probability.value <= 0.7
+        assert result.method == PredictionMethod.ENSEMBLE
+
+    def test_performance_weighted_aggregation(self, ensemble_service, mock_predictions):
+        """Test performance-weighted aggregation (falls back to equal weights)."""
+        result = ensemble_service.aggregate_predictions(mock_predictions, "performance_weighted")
+        
+        assert isinstance(result, Prediction)
+        # Should fall back to equal weights (simple average)
+        expected_prob = statistics.mean([0.3, 0.5, 0.7])
+        assert abs(result.probability.value - expected_prob) < 0.001
+
+    # Error Handling Tests
+    def test_empty_predictions_list(self, ensemble_service):
+        """Test error when no predictions provided."""
+        with pytest.raises(ValueError, match="Cannot aggregate empty prediction list"):
+            ensemble_service.aggregate_predictions([], "simple_average")
+
+    def test_mixed_question_ids(self, ensemble_service):
+        """Test error when predictions have different question IDs."""
+        pred1 = Mock(spec=Prediction)
+        pred1.question_id = uuid4()
+        pred1.probability = Mock()
+        pred1.probability.value = 0.5
+        
+        pred2 = Mock(spec=Prediction)
+        pred2.question_id = uuid4()  # Different ID
+        pred2.probability = Mock()
+        pred2.probability.value = 0.6
+        
+        with pytest.raises(ValueError, match="All predictions must be for the same question"):
+            ensemble_service.aggregate_predictions([pred1, pred2], "simple_average")
+
+    def test_invalid_aggregation_method(self, ensemble_service, mock_predictions):
+        """Test error with invalid aggregation method."""
+        with pytest.raises(ValueError, match="Unsupported aggregation method: invalid_method"):
+            ensemble_service.aggregate_predictions(mock_predictions, "invalid_method")
+
+    # Edge Cases
+    def test_single_prediction(self, ensemble_service, sample_question_id):
+        """Test aggregation with single prediction."""
+        prediction = Mock(spec=Prediction)
+        prediction.question_id = sample_question_id
+        prediction.probability = Mock()
+        prediction.probability.value = 0.7
+        prediction.confidence = Mock()
+        prediction.confidence.value = 0.8
+        prediction.method = PredictionMethod.CHAIN_OF_THOUGHT
+        prediction.agent_name = "agent_1"
+        prediction.model_version = "test-v1.0"
+        prediction.reasoning = "Single prediction"
+        
+        result = ensemble_service.aggregate_predictions([prediction], "simple_average")
+        assert abs(result.probability.value - 0.7) < 0.001
+
+    def test_extreme_probabilities(self, ensemble_service, sample_question_id):
+        """Test aggregation with extreme probability values."""
+        predictions = []
+        for i, prob in enumerate([0.0, 1.0, 0.5]):
+            pred = Mock(spec=Prediction)
+            pred.question_id = sample_question_id
+            pred.probability = Mock()
+            pred.probability.value = prob
+            pred.confidence = Mock()
+            pred.confidence.value = 0.8
+            pred.method = PredictionMethod.CHAIN_OF_THOUGHT
+            pred.agent_name = f"agent_{i}"
+            pred.model_version = "test-v1.0"
+            pred.reasoning = f"Test {i}"
+            predictions.append(pred)
+        
+        result = ensemble_service.aggregate_predictions(predictions, "simple_average")
+        assert 0.0 <= result.probability.value <= 1.0
+        assert abs(result.probability.value - 0.5) < 0.001
+
+    def test_zero_confidence_predictions(self, ensemble_service, sample_question_id):
+        """Test aggregation with zero confidence predictions."""
+        predictions = []
+        for i, prob in enumerate([0.3, 0.5, 0.7]):
+            pred = Mock(spec=Prediction)
+            pred.question_id = sample_question_id
+            pred.probability = Mock()
+            pred.probability.value = prob
+            pred.confidence = Mock()
+            pred.confidence.value = 0.0  # Zero confidence
+            pred.method = PredictionMethod.CHAIN_OF_THOUGHT
+            pred.agent_name = f"agent_{i}"
+            pred.model_version = "test-v1.0"
+            pred.reasoning = f"Test {i}"
+            predictions.append(pred)
+        
+        result = ensemble_service.aggregate_predictions(predictions, "confidence_weighted")
+        # Should fall back to equal weights
+        expected_prob = statistics.mean([0.3, 0.5, 0.7])
+        assert abs(result.probability.value - expected_prob) < 0.001
+
+    # Helper Method Tests
+    def test_calculate_default_weights(self, ensemble_service, mock_predictions):
+        """Test default weight calculation."""
+        weights = ensemble_service._calculate_default_weights(mock_predictions)
+        
+        assert len(weights) == 3
+        assert all(w > 0 for w in weights)
+        assert abs(sum(weights) - 1.0) < 0.001  # Should sum to 1
+        
+        # Higher confidence should get higher weight
+        confidences = [0.6, 0.8, 0.9]
+        total_conf = sum(confidences)
+        expected_weights = [c / total_conf for c in confidences]
+        for expected, actual in zip(expected_weights, weights):
+            assert abs(expected - actual) < 0.001
+
+    def test_calculate_default_weights_zero_confidence(self, ensemble_service, sample_question_id):
+        """Test default weights with zero confidence."""
+        predictions = []
+        for i in range(3):
+            pred = Mock(spec=Prediction)
+            pred.confidence = Mock()
+            pred.confidence.value = 0.0
+            predictions.append(pred)
+        
+        weights = ensemble_service._calculate_default_weights(predictions)
+        
+        assert len(weights) == 3
+        assert all(abs(w - 1/3) < 0.001 for w in weights)  # Equal weights
+
+    def test_weighted_average_helper(self, ensemble_service):
+        """Test weighted average calculation."""
+        values = [0.3, 0.5, 0.7]
+        weights = [0.2, 0.3, 0.5]
+        
+        result = ensemble_service._weighted_average(values, weights)
+        expected = 0.3 * 0.2 + 0.5 * 0.3 + 0.7 * 0.5
+        assert abs(result - expected) < 0.001
+
+    def test_weighted_average_zero_weights(self, ensemble_service):
+        """Test weighted average with zero weights."""
+        values = [0.3, 0.5, 0.7]
+        weights = [0.0, 0.0, 0.0]
+        
+        result = ensemble_service._weighted_average(values, weights)
+        expected = statistics.mean(values)
+        assert abs(result - expected) < 0.001
+
+    def test_weighted_average_mismatched_lengths(self, ensemble_service):
+        """Test weighted average with mismatched lengths."""
+        values = [0.3, 0.5]
+        weights = [0.2, 0.3, 0.5]
+        
+        with pytest.raises(ValueError, match="Values and weights must have same length"):
+            ensemble_service._weighted_average(values, weights)
+
+    def test_trimmed_mean(self, ensemble_service):
+        """Test trimmed mean calculation."""
+        values = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        
+        result = ensemble_service._trimmed_mean(values, trim_percent=0.2)
+        # Should remove 20% from each end (1-2 values each side)
+        # Remaining values should be middle portion
+        assert 0.2 < result < 0.8
+
+    # Confidence Calculation Tests
+    def test_calculate_ensemble_confidence(self, ensemble_service, mock_predictions):
+        """Test ensemble confidence calculation."""
+        confidence = ensemble_service._calculate_ensemble_confidence(mock_predictions, "simple_average")
+        
+        assert isinstance(confidence, ConfidenceLevel)
+        assert 0.0 <= confidence.value <= 1.0
+        
+        # Should incorporate agreement and diversity bonuses
+        # Higher confidence predictions should result in higher ensemble confidence
+        assert confidence.value > 0.5
+
+    def test_ensemble_confidence_high_agreement(self, ensemble_service, sample_question_id):
+        """Test ensemble confidence with high agreement."""
+        predictions = []
+        # All predictions very similar - high agreement
+        for i, prob in enumerate([0.50, 0.51, 0.52]):
+            pred = Mock(spec=Prediction)
+            pred.question_id = sample_question_id
+            pred.probability = Mock()
+            pred.probability.value = prob
+            pred.confidence = Mock()
+            pred.confidence.value = 0.8
+            pred.method = [PredictionMethod.CHAIN_OF_THOUGHT, PredictionMethod.TREE_OF_THOUGHT, PredictionMethod.REACT][i]
+            predictions.append(pred)
+        
+        confidence = ensemble_service._calculate_ensemble_confidence(predictions, "simple_average")
+        
+        # High agreement should boost confidence
+        assert confidence.value > 0.8
+
+    def test_ensemble_confidence_low_agreement(self, ensemble_service, sample_question_id):
+        """Test ensemble confidence with low agreement."""
+        predictions = []
+        # Very different predictions - low agreement
+        for i, prob in enumerate([0.1, 0.5, 0.9]):
+            pred = Mock(spec=Prediction)
+            pred.question_id = sample_question_id
+            pred.probability = Mock()
+            pred.probability.value = prob
+            pred.confidence = Mock()
+            pred.confidence.value = 0.8
+            pred.method = [PredictionMethod.CHAIN_OF_THOUGHT, PredictionMethod.TREE_OF_THOUGHT, PredictionMethod.REACT][i]
+            predictions.append(pred)
+        
+        confidence = ensemble_service._calculate_ensemble_confidence(predictions, "simple_average")
+        
+        # Low agreement should reduce confidence relative to base
+        # But should still be reasonable due to method diversity
+        assert 0.3 <= confidence.value <= 0.9
+
+    # Reasoning Generation Tests
+    def test_create_ensemble_reasoning(self, ensemble_service, mock_predictions):
+        """Test ensemble reasoning generation."""
+        reasoning = ensemble_service._create_ensemble_reasoning(
+            mock_predictions, "simple_average", 0.5
+        )
+        
+        assert isinstance(reasoning, str)
+        assert "simple_average" in reasoning
+        assert "3 predictions" in reasoning
+        assert "0.500" in reasoning  # Final probability
+        
+        # Should include individual prediction info
+        assert "agent_0" in reasoning
+        assert "agent_1" in reasoning
+        assert "agent_2" in reasoning
+        
+        # Should include statistics
+        assert "Mean:" in reasoning
+        assert "Median:" in reasoning
+
+    # Support Method Tests
+    def test_get_supported_methods(self, ensemble_service):
+        """Test getting supported aggregation methods."""
+        methods = ensemble_service.get_supported_methods()
+        
+        assert isinstance(methods, list)
+        assert len(methods) == 6
+        assert "simple_average" in methods
+        assert "weighted_average" in methods
+        assert "median" in methods
+        assert "trimmed_mean" in methods
+        assert "confidence_weighted" in methods
+        assert "performance_weighted" in methods
+
+    def test_get_supported_agent_types(self, ensemble_service):
+        """Test getting supported agent types."""
+        agent_types = ensemble_service.get_supported_agent_types()
+        
+        assert isinstance(agent_types, list)
+        assert len(agent_types) == 5
+        assert "chain_of_thought" in agent_types
+        assert "tree_of_thought" in agent_types
+        assert "react" in agent_types
+        assert "auto_cot" in agent_types
+        assert "self_consistency" in agent_types
+
+    def test_validate_ensemble_config(self, ensemble_service):
+        """Test ensemble configuration validation."""
+        # Valid config
+        valid_config = {
+            "aggregation_method": "simple_average",
+            "agent_types": ["chain_of_thought", "react"],
+            "min_predictions": 2
+        }
+        assert ensemble_service.validate_ensemble_config(valid_config) is True
+        
+        # Invalid aggregation method
+        invalid_config = {
+            "aggregation_method": "invalid_method",
+            "agent_types": ["chain_of_thought"],
+            "min_predictions": 1
+        }
+        assert ensemble_service.validate_ensemble_config(invalid_config) is False
+
+    # Performance Evaluation Tests
+    def test_evaluate_ensemble_performance(self, ensemble_service, sample_question_id):
+        """Test ensemble performance evaluation."""
+        # Create ensemble predictions
+        ensemble_predictions = []
+        for i in range(3):
+            pred = Mock(spec=Prediction)
+            pred.question_id = sample_question_id
+            pred.probability = Mock()
+            pred.probability.value = 0.6
+            pred.confidence = Mock()
+            pred.confidence.value = 0.8
+            ensemble_predictions.append(pred)
+        
+        # Create individual predictions (list of lists)
+        individual_predictions = []
+        for i in range(3):
+            individual_set = []
+            for j in range(2):  # 2 individual predictions per ensemble
+                pred = Mock(spec=Prediction)
+                pred.probability = Mock()
+                pred.probability.value = 0.5 + j * 0.2
+                individual_set.append(pred)
+            individual_predictions.append(individual_set)
+        
+        metrics = ensemble_service.evaluate_ensemble_performance(
+            ensemble_predictions, individual_predictions
+        )
+        
+        assert isinstance(metrics, dict)
+        assert "ensemble_count" in metrics
+        assert "average_input_predictions" in metrics
+        assert "diversity_metrics" in metrics
+        assert "confidence_metrics" in metrics
+        
+        assert metrics["ensemble_count"] == 3
+        assert metrics["average_input_predictions"] == 2.0
+
+    def test_evaluate_ensemble_performance_with_ground_truth(self, ensemble_service, sample_question_id):
+        """Test ensemble performance evaluation with ground truth."""
+        # Create ensemble predictions
+        ensemble_predictions = []
+        for i, prob in enumerate([0.3, 0.7, 0.6]):
+            pred = Mock(spec=Prediction)
+            pred.question_id = sample_question_id
+            pred.probability = Mock()
+            pred.probability.value = prob
+            pred.confidence = Mock()
+            pred.confidence.value = 0.8
+            ensemble_predictions.append(pred)
+        
+        # Create individual predictions
+        individual_predictions = [
+            [Mock(spec=Prediction)] * 2,  # 2 predictions for first ensemble
+            [Mock(spec=Prediction)] * 2,  # 2 predictions for second ensemble
+            [Mock(spec=Prediction)] * 2   # 2 predictions for third ensemble
+        ]
+        
+        # Set up probability values for individual predictions
+        for pred_set in individual_predictions:
+            for pred in pred_set:
+                pred.probability = Mock()
+                pred.probability.value = 0.5
+        
+        ground_truth = [False, True, True]  # 0, 1, 1
+        
+        metrics = ensemble_service.evaluate_ensemble_performance(
+            ensemble_predictions, individual_predictions, ground_truth
+        )
+        
+        assert "accuracy_metrics" in metrics
+        assert "brier_score" in metrics["accuracy_metrics"]
+        assert "mean_absolute_error" in metrics["accuracy_metrics"]
+
+    def test_evaluate_performance_mismatched_lengths(self, ensemble_service):
+        """Test error with mismatched prediction lengths."""
+        ensemble_preds = [Mock()]
+        individual_preds = [Mock(), Mock()]  # Different length
+        
+        with pytest.raises(ValueError, match="Ensemble and individual predictions lists must have same length"):
+            ensemble_service.evaluate_ensemble_performance(ensemble_preds, individual_preds)
+
+    def test_evaluate_performance_ground_truth_mismatch(self, ensemble_service):
+        """Test error with mismatched ground truth length."""
+        ensemble_preds = [Mock(), Mock()]
+        individual_preds = [Mock(), Mock()]
+        ground_truth = [True]  # Different length
+        
+        with pytest.raises(ValueError, match="Ground truth must match ensemble predictions length"):
+            ensemble_service.evaluate_ensemble_performance(ensemble_preds, individual_preds, ground_truth)
+
+    # Diversity and Confidence Metrics Tests
+    def test_calculate_diversity_metrics(self, ensemble_service):
+        """Test diversity metrics calculation."""
+        # Create predictions with varying probabilities
+        individual_predictions = []
+        for i in range(3):
+            pred_set = []
+            for j, prob in enumerate([0.3, 0.7]):  # High variance set
+                pred = Mock(spec=Prediction)
+                pred.probability = Mock()
+                pred.probability.value = prob
+                pred_set.append(pred)
+            individual_predictions.append(pred_set)
+        
+        metrics = ensemble_service._calculate_diversity_metrics(individual_predictions)
+        
+        assert isinstance(metrics, dict)
+        assert "mean_variance" in metrics
+        assert "mean_range" in metrics
+        assert "high_diversity_fraction" in metrics
+        
+        # Should show high diversity due to 0.3-0.7 range
+        assert metrics["mean_range"] == 0.4
+        assert metrics["high_diversity_fraction"] == 1.0  # All have high variance
+
+    def test_calculate_confidence_metrics(self, ensemble_service):
+        """Test confidence metrics calculation."""
+        predictions = []
+        for conf in [0.6, 0.8, 0.9]:
+            pred = Mock(spec=Prediction)
+            pred.confidence = Mock()
+            pred.confidence.value = conf
+            predictions.append(pred)
+        
+        metrics = ensemble_service._calculate_confidence_metrics(predictions)
+        
+        assert isinstance(metrics, dict)
+        assert "mean_confidence" in metrics
+        assert "confidence_std" in metrics
+        assert "high_confidence_fraction" in metrics
+        
+        assert abs(metrics["mean_confidence"] - 0.7667) < 0.01
+        assert metrics["high_confidence_fraction"] == 2/3  # 2 out of 3 > 0.8
+
+    def test_calculate_accuracy_metrics(self, ensemble_service):
+        """Test accuracy metrics calculation."""
+        predictions = []
+        for prob in [0.3, 0.7, 0.6]:
+            pred = Mock(spec=Prediction)
+            pred.probability = Mock()
+            pred.probability.value = prob
+            predictions.append(pred)
+        
+        ground_truth = [False, True, True]  # [0, 1, 1]
+        
+        metrics = ensemble_service._calculate_accuracy_metrics(predictions, ground_truth)
+        
+        assert isinstance(metrics, dict)
+        assert "brier_score" in metrics
+        assert "mean_absolute_error" in metrics
+        
+        # Brier score: (0.3-0)^2 + (0.7-1)^2 + (0.6-1)^2 = 0.09 + 0.09 + 0.16 = 0.34
+        expected_brier = (0.3**2 + 0.3**2 + 0.4**2) / 3
+        assert abs(metrics["brier_score"] - expected_brier) < 0.01
+        
+        # MAE: |0.3-0| + |0.7-1| + |0.6-1| = 0.3 + 0.3 + 0.4 = 1.0 / 3 = 0.333
+        expected_mae = (0.3 + 0.3 + 0.4) / 3
+        assert abs(metrics["mean_absolute_error"] - expected_mae) < 0.01
+
+    # Integration Tests
+    def test_full_aggregation_workflow(self, ensemble_service, mock_predictions):
+        """Test complete aggregation workflow."""
+        # Test multiple methods work together
+        methods = ["simple_average", "median", "confidence_weighted"]
+        results = []
+        
+        for method in methods:
+            result = ensemble_service.aggregate_predictions(mock_predictions, method)
+            results.append(result)
+            
+            assert isinstance(result, Prediction)
+            assert result.method == PredictionMethod.ENSEMBLE
+            assert 0.0 <= result.probability.value <= 1.0
+            assert method in result.reasoning.lower()
+        
+        # Results should be different between methods
+        probabilities = [r.probability.value for r in results]
+        assert len(set(probabilities)) > 1  # At least some different results
+
+    def test_large_prediction_set(self, ensemble_service, sample_question_id):
+        """Test aggregation with large number of predictions."""
+        predictions = []
+        for i in range(100):  # Large set
+            pred = Mock(spec=Prediction)
+            pred.question_id = sample_question_id
+            pred.probability = Mock()
+            pred.probability.value = 0.4 + (i % 3) * 0.1  # 0.4, 0.5, 0.6 pattern
+            pred.confidence = Mock()
+            pred.confidence.value = 0.7 + (i % 2) * 0.1  # 0.7, 0.8 pattern
+            pred.method = PredictionMethod.CHAIN_OF_THOUGHT
+            pred.agent_name = f"agent_{i}"
+            pred.model_version = "test-v1.0"
+            pred.reasoning = f"Test {i}"
+            predictions.append(pred)
+        
+        result = ensemble_service.aggregate_predictions(predictions, "simple_average")
+        
+        assert isinstance(result, Prediction)
+        assert 0.4 <= result.probability.value <= 0.6
+        assert "100 predictions" in result.reasoning
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            def test_simple_initialization(self):
+        """Test basic initialization."""
+        service = EnsembleService()
+        assert service is not None
+        assert len(service.aggregation_methods) > 0
+        assert len(service.supported_agent_types) > 0
+
+    def test_get_supported_methods(self):
+        """Test getting supported methods."""
+        service = EnsembleService()
+        methods = service.get_supported_methods()
+        assert isinstance(methods, list)
+        assert len(methods) > 0
+
+    def test_validate_config_empty(self):
+        """Test config validation with empty config."""
+        service = EnsembleService()
+        assert service.validate_ensemble_config({}) is True
+
+
+class TestSimpleAggregationTests:        assert "confidence_weighted" in result.agent_name        assert result.method == PredictionMethod.ENSEMBLE        # Should use confidence values as weights                )            method="confidence_weighted"            self.predictions,         result = self.service.aggregate_predictions(        """Test confidence-weighted aggregation."""    def test_confidence_weighted_aggregation(self):            assert 0.69 < result.probability.value < 0.70        # Expected: 0.6*0.333 + 0.7*0.375 + 0.8*0.292 ≈ 0.695        # Normalized: [0.8/2.4, 0.9/2.4, 0.7/2.4] = [0.333, 0.375, 0.292]        # Weights should be based on confidence levels [0.8, 0.9, 0.7]                )            method="weighted_average"            self.predictions,         result = self.service.aggregate_predictions(        """Test weighted average using confidence-based default weights."""    def test_weighted_average_with_default_weights(self):            assert abs(result.probability.value - 0.73) < 0.001        # Expected: 0.6*0.2 + 0.7*0.3 + 0.8*0.5 = 0.12 + 0.21 + 0.4 = 0.73                )            weights=weights            method="weighted_average",            self.predictions,         result = self.service.aggregate_predictions(        weights = [0.2, 0.3, 0.5]        """Test weighted average with explicit weights."""    def test_weighted_average_with_explicit_weights(self):            assert result.method == PredictionMethod.ENSEMBLE        assert result.probability.value == 0.7        # Expected: median of [0.6, 0.7, 0.8] = 0.7                )            method="median"            self.predictions,         result = self.service.aggregate_predictions(        """Test median aggregation method."""    def test_median_aggregation(self):            assert result.metadata["input_predictions_count"] == 3        assert result.metadata["aggregation_method"] == "simple_average"        assert "aggregation_method" in result.metadata        assert "EnsembleService-simple_average" in result.agent_name        assert result.method == PredictionMethod.ENSEMBLE        assert result.question_id == self.question_id        assert result.probability.value == 0.7        # Expected: (0.6 + 0.7 + 0.8) / 3 = 0.7                )            method="simple_average"            self.predictions,         result = self.service.aggregate_predictions(        """Test simple average aggregation method."""    def test_simple_average_aggregation(self):            ]            )                model_version="v1.0"                agent_name="Agent3",                method=PredictionMethod.REACT,                reasoning="Prediction 3",                confidence=ConfidenceLevel(0.7),                probability=Probability(0.8),                question_id=self.question_id,            Prediction.create_new(            ),                model_version="v1.0"                agent_name="Agent2",                method=PredictionMethod.TREE_OF_THOUGHT,                reasoning="Prediction 2",                confidence=ConfidenceLevel(0.9),                probability=Probability(0.7),                question_id=self.question_id,            Prediction.create_new(            ),                model_version="v1.0"                agent_name="Agent1",                method=PredictionMethod.CHAIN_OF_THOUGHT,                reasoning="Prediction 1",                confidence=ConfidenceLevel(0.8),                probability=Probability(0.6),                question_id=self.question_id,            Prediction.create_new(        self.predictions = [        # Create three predictions for testing                self.question_id = uuid4()        self.service = EnsembleService()        """Set up test fixtures."""    def setup_method(self):        """Test prediction aggregation methods."""class TestPredictionAggregation:        assert "react" in service.supported_agent_types        assert "tree_of_thought" in service.supported_agent_types        assert "chain_of_thought" in service.supported_agent_types                assert "performance_weighted" in service.aggregation_methods        assert "confidence_weighted" in service.aggregation_methods        assert "trimmed_mean" in service.aggregation_methods        assert "median" in service.aggregation_methods        assert "weighted_average" in service.aggregation_methods        assert "simple_average" in service.aggregation_methods                service = EnsembleService()        """Test service initializes with correct defaults."""    def test_initialization(self):        """Test ensemble service initialization."""class TestEnsembleServiceInitialization:        ]            )                model_version="v1.0"                agent_name="ReAct_Agent",                method=PredictionMethod.REACT,                reasoning="Third prediction reasoning",                confidence=ConfidenceLevel(0.7),                probability=Probability(0.8),                question_id=self.question_id,            Prediction.create_new(            ),                model_version="v1.0"                agent_name="ToT_Agent",                method=PredictionMethod.TREE_OF_THOUGHT,                reasoning="Second prediction reasoning",                confidence=ConfidenceLevel(0.9),                probability=Probability(0.6),                question_id=self.question_id,            Prediction.create_new(            ),                model_version="v1.0"                agent_name="CoT_Agent",                method=PredictionMethod.CHAIN_OF_THOUGHT,                reasoning="First prediction reasoning",                confidence=ConfidenceLevel(0.8),                probability=Probability(0.7),                question_id=self.question_id,            Prediction.create_new(        self.predictions = [        # Create sample predictions for testing                self.question_id = uuid4()        self.service = EnsembleService()        """Set up test fixtures."""    def setup_method(self):        """Test suite for EnsembleService."""class TestEnsembleService:from src.domain.value_objects.confidence import ConfidenceLevelfrom src.domain.value_objects.probability import Probabilityfrom src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidencefrom src.domain.services.ensemble_service import EnsembleServiceimport statisticsfrom datetime import datetime, timezonefrom datetime import datetime, timezone
+import statistics
+
+from src.domain.services.ensemble_service import EnsembleService
+from src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence
+from src.domain.value_objects.probability import Probability
+from src.domain.value_objects.confidence import ConfidenceLevel
+
+
+class TestEnsembleService:
+    """Test suite for EnsembleService."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+        self.question_id = uuid4()
+        
+        # Create sample predictions for testing
+        self.predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="First prediction reasoning",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="CoT_Agent",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.9),
+                reasoning="Second prediction reasoning",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="ToT_Agent",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.8),
+                confidence=ConfidenceLevel(0.7),
+                reasoning="Third prediction reasoning",
+                method=PredictionMethod.REACT,
+                agent_name="ReAct_Agent",
+                model_version="v1.0"
+            )
+        ]
+
+
+class TestEnsembleServiceInitialization:
+    """Test ensemble service initialization."""
+    
+    def test_initialization(self):
+        """Test service initializes with correct defaults."""
+        service = EnsembleService()
+        
+        assert "simple_average" in service.aggregation_methods
+        assert "weighted_average" in service.aggregation_methods
+        assert "median" in service.aggregation_methods
+        assert "trimmed_mean" in service.aggregation_methods
+        assert "confidence_weighted" in service.aggregation_methods
+        assert "performance_weighted" in service.aggregation_methods
+        
+        assert "chain_of_thought" in service.supported_agent_types
+        assert "tree_of_thought" in service.supported_agent_types
+        assert "react" in service.supported_agent_types
+
+
+class TestPredictionAggregation:
+    """Test prediction aggregation methods."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+        self.question_id = uuid4()
+        
+        # Create three predictions for testing
+        self.predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Prediction 1",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.9),
+                reasoning="Prediction 2",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.8),
+                confidence=ConfidenceLevel(0.7),
+                reasoning="Prediction 3",
+                method=PredictionMethod.REACT,
+                agent_name="Agent3",
+                model_version="v1.0"
+            )
+        ]
+    
+    def test_simple_average_aggregation(self):
+        """Test simple average aggregation method."""
+        result = self.service.aggregate_predictions(
+            self.predictions, 
+            method="simple_average"
+        )
+        
+        # Expected: (0.6 + 0.7 + 0.8) / 3 = 0.7
+        assert result.probability.value == 0.7
+        assert result.question_id == self.question_id
+        assert result.method == PredictionMethod.ENSEMBLE
+        assert "EnsembleService-simple_average" in result.agent_name
+        assert "aggregation_method" in result.metadata
+        assert result.metadata["aggregation_method"] == "simple_average"
+        assert result.metadata["input_predictions_count"] == 3
+    
+    def test_median_aggregation(self):
+        """Test median aggregation method."""
+        result = self.service.aggregate_predictions(
+            self.predictions, 
+            method="median"
+        )
+        
+        # Expected: median of [0.6, 0.7, 0.8] = 0.7
+        assert result.probability.value == 0.7
+        assert result.method == PredictionMethod.ENSEMBLE
+    
+    def test_weighted_average_with_explicit_weights(self):
+        """Test weighted average with explicit weights."""
+        weights = [0.2, 0.3, 0.5]
+        result = self.service.aggregate_predictions(
+            self.predictions, 
+            method="weighted_average",
+            weights=weights
+        )
+        
+        # Expected: 0.6*0.2 + 0.7*0.3 + 0.8*0.5 = 0.12 + 0.21 + 0.4 = 0.73
+        assert abs(result.probability.value - 0.73) < 0.001
+    
+    def test_weighted_average_with_default_weights(self):
+        """Test weighted average using confidence-based default weights."""
+        result = self.service.aggregate_predictions(
+            self.predictions, 
+            method="weighted_average"
+        )
+        
+        # Weights should be based on confidence levels [0.8, 0.9, 0.7]
+        # Normalized: [0.8/2.4, 0.9/2.4, 0.7/2.4] = [0.333, 0.375, 0.292]
+        # Expected: 0.6*0.333 + 0.7*0.375 + 0.8*0.292 ≈ 0.695
+        assert 0.69 < result.probability.value < 0.70
+    
+    def test_confidence_weighted_aggregation(self):
+        """Test confidence-weighted aggregation."""
+        result = self.service.aggregate_predictions(
+            self.predictions, 
+            method="confidence_weighted"
+        )
+        
+        # Should use confidence values as weights
+        assert result.method == PredictionMethod.ENSEMBLE
+        assert "confidence_weighted" in result.agent_name
+    
+    def test_trimmed_mean_aggregation(self):
+        """Test trimmed mean aggregation."""
+        # Add more predictions for meaningful trimming
+        extra_predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.1),  # Outlier low
+                confidence=ConfidenceLevel(0.5),
+                reasoning="Outlier low",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent4",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.95),  # Outlier high
+                confidence=ConfidenceLevel(0.5),
+                reasoning="Outlier high",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent5",
+                model_version="v1.0"
+            )
+        ]
+        
+        all_predictions = self.predictions + extra_predictions
+        result = self.service.aggregate_predictions(
+            all_predictions, 
+            method="trimmed_mean"
+        )
+        
+        # Should trim extreme values and average the rest
+        assert result.method == PredictionMethod.ENSEMBLE
+        assert 0.6 < result.probability.value < 0.8  # Should be closer to central values
+    
+    def test_performance_weighted_aggregation(self):
+        """Test performance-weighted aggregation."""
+        result = self.service.aggregate_predictions(
+            self.predictions, 
+            method="performance_weighted"
+        )
+        
+        # Currently uses equal weights (performance tracking not implemented)
+        expected = (0.6 + 0.7 + 0.8) / 3
+        assert abs(result.probability.value - expected) < 0.001
+
+
+class TestAggregationErrorHandling:
+    """Test error handling in aggregation methods."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+    
+    def test_empty_predictions_list(self):
+        """Test aggregation with empty predictions list."""
+        with pytest.raises(ValueError, match="Cannot aggregate empty prediction list"):
+            self.service.aggregate_predictions([])
+    
+    def test_predictions_for_different_questions(self):
+        """Test aggregation with predictions for different questions."""
+        question_id_1 = uuid4()
+        question_id_2 = uuid4()
+        
+        predictions = [
+            Prediction.create_new(
+                question_id=question_id_1,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Prediction 1",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=question_id_2,  # Different question
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.9),
+                reasoning="Prediction 2",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            )
+        ]
+        
+        with pytest.raises(ValueError, match="All predictions must be for the same question"):
+            self.service.aggregate_predictions(predictions)
+    
+    def test_unsupported_aggregation_method(self):
+        """Test aggregation with unsupported method."""
+        question_id = uuid4()
+        predictions = [
+            Prediction.create_new(
+                question_id=question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Prediction",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent",
+                model_version="v1.0"
+            )
+        ]
+        
+        with pytest.raises(ValueError, match="Unsupported aggregation method: invalid_method"):
+            self.service.aggregate_predictions(predictions, method="invalid_method")
+
+
+class TestHelperMethods:
+    """Test helper methods in EnsembleService."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+    
+    def test_calculate_default_weights_with_confidence(self):
+        """Test default weight calculation based on confidence."""
+        question_id = uuid4()
+        predictions = [
+            Prediction.create_new(
+                question_id=question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="High confidence",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.4),
+                reasoning="Low confidence",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            )
+        ]
+        
+        weights = self.service._calculate_default_weights(predictions)
+        
+        # Higher confidence should get higher weight
+        assert weights[0] > weights[1]  # 0.8 confidence > 0.4 confidence
+        assert abs(sum(weights) - 1.0) < 0.001  # Weights should sum to 1
+    
+    def test_calculate_default_weights_zero_confidence(self):
+        """Test default weight calculation with zero confidence."""
+        question_id = uuid4()
+        predictions = [
+            Prediction.create_new(
+                question_id=question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.0),
+                reasoning="No confidence",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.0),
+                reasoning="No confidence",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            )
+        ]
+        
+        weights = self.service._calculate_default_weights(predictions)
+        
+        # Should fall back to equal weights
+        assert weights == [0.5, 0.5]
+    
+    def test_weighted_average(self):
+        """Test weighted average calculation."""
+        values = [0.6, 0.7, 0.8]
+        weights = [0.2, 0.3, 0.5]
+        
+        result = self.service._weighted_average(values, weights)
+        expected = 0.6 * 0.2 + 0.7 * 0.3 + 0.8 * 0.5
+        
+        assert abs(result - expected) < 0.001
+    
+    def test_weighted_average_mismatched_lengths(self):
+        """Test weighted average with mismatched lengths."""
+        values = [0.6, 0.7]
+        weights = [0.3, 0.4, 0.3]
+        
+        with pytest.raises(ValueError, match="Values and weights must have same length"):
+            self.service._weighted_average(values, weights)
+    
+    def test_weighted_average_zero_weights(self):
+        """Test weighted average with all zero weights."""
+        values = [0.6, 0.7, 0.8]
+        weights = [0.0, 0.0, 0.0]
+        
+        result = self.service._weighted_average(values, weights)
+        expected = statistics.mean(values)
+        
+        assert abs(result - expected) < 0.001
+    
+    def test_trimmed_mean(self):
+        """Test trimmed mean calculation."""
+        values = [0.1, 0.2, 0.5, 0.7, 0.9]  # Will trim 0.1 and 0.9
+        
+        result = self.service._trimmed_mean(values, trim_percent=0.2)
+        expected = statistics.mean([0.2, 0.5, 0.7])
+        
+        assert abs(result - expected) < 0.001
+    
+    def test_trimmed_mean_small_sample(self):
+        """Test trimmed mean with small sample size."""
+        values = [0.6, 0.7]
+        
+        result = self.service._trimmed_mean(values, trim_percent=0.1)
+        expected = statistics.mean(values)
+        
+        assert abs(result - expected) < 0.001
+    
+    def test_trimmed_mean_no_trimming(self):
+        """Test trimmed mean when trim count is zero."""
+        values = [0.6, 0.7, 0.8]
+        
+        result = self.service._trimmed_mean(values, trim_percent=0.05)  # Small percent
+        expected = statistics.mean(values)
+        
+        assert abs(result - expected) < 0.001
+
+
+class TestEnsembleConfidence:
+    """Test ensemble confidence calculation."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+        self.question_id = uuid4()
+    
+    def test_ensemble_confidence_high_agreement(self):
+        """Test ensemble confidence with high agreement."""
+        # Predictions with similar probabilities (high agreement)
+        predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.70),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Similar prediction 1",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.71),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Similar prediction 2",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.69),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Similar prediction 3",
+                method=PredictionMethod.REACT,
+                agent_name="Agent3",
+                model_version="v1.0"
+            )
+        ]
+        
+        confidence = self.service._calculate_ensemble_confidence(predictions, "simple_average")
+        
+        # Should be higher than individual confidences due to agreement
+        assert confidence.value > 0.8
+    
+    def test_ensemble_confidence_low_agreement(self):
+        """Test ensemble confidence with low agreement."""
+        # Predictions with very different probabilities (low agreement)
+        predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.2),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Low prediction",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.8),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="High prediction",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            )
+        ]
+        
+        confidence = self.service._calculate_ensemble_confidence(predictions, "simple_average")
+        
+        # Should be similar to individual confidences (no agreement bonus)
+        assert 0.7 <= confidence.value <= 0.9
+    
+    def test_ensemble_confidence_diverse_methods(self):
+        """Test ensemble confidence bonus for diverse methods."""
+        predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.6),
+                reasoning="CoT prediction",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.6),
+                reasoning="ToT prediction",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.6),
+                reasoning="ReAct prediction",
+                method=PredictionMethod.REACT,
+                agent_name="Agent3",
+                model_version="v1.0"
+            )
+        ]
+        
+        confidence = self.service._calculate_ensemble_confidence(predictions, "simple_average")
+        
+        # Should include diversity bonus for multiple methods
+        assert confidence.value > 0.6
+
+
+class TestEnsembleReasoning:
+    """Test ensemble reasoning generation."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+        self.question_id = uuid4()
+    
+    def test_ensemble_reasoning_generation(self):
+        """Test generation of ensemble reasoning text."""
+        predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="First reasoning",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="CoT_Agent",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.9),
+                reasoning="Second reasoning",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="ToT_Agent",
+                model_version="v1.0"
+            )
+        ]
+        
+        reasoning = self.service._create_ensemble_reasoning(
+            predictions, "simple_average", 0.65
+        )
+        
+        assert "Ensemble prediction using simple_average aggregation" in reasoning
+        assert "2 predictions" in reasoning
+        assert "CoT_Agent" in reasoning
+        assert "ToT_Agent" in reasoning
+        assert "0.600" in reasoning  # First probability
+        assert "0.700" in reasoning  # Second probability
+        assert "Mean:" in reasoning
+        assert "Median:" in reasoning
+        assert "0.650" in reasoning  # Final probability
+    
+    def test_ensemble_reasoning_agreement_analysis(self):
+        """Test reasoning includes agreement analysis."""
+        # High agreement predictions
+        predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.70),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Similar 1",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.71),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Similar 2",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            )
+        ]
+        
+        reasoning = self.service._create_ensemble_reasoning(
+            predictions, "simple_average", 0.705
+        )
+        
+        assert "High agreement" in reasoning or "agreement between predictions" in reasoning
+        assert "Standard deviation:" in reasoning
+        assert "Range:" in reasoning
+
+
+class TestPerformanceEvaluation:
+    """Test ensemble performance evaluation."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+        self.question_id = uuid4()
+    
+    def test_evaluate_ensemble_performance_basic(self):
+        """Test basic ensemble performance evaluation."""
+        ensemble_predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Ensemble prediction",
+                method=PredictionMethod.ENSEMBLE,
+                agent_name="EnsembleService",
+                model_version="v1.0"
+            )
+        ]
+        
+        individual_predictions = [[
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.7),
+                reasoning="Individual 1",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.8),
+                confidence=ConfidenceLevel(0.9),
+                reasoning="Individual 2",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            )
+        ]]
+        
+        metrics = self.service.evaluate_ensemble_performance(
+            ensemble_predictions, individual_predictions
+        )
+        
+        assert metrics["ensemble_count"] == 1
+        assert metrics["average_input_predictions"] == 2.0
+        assert "diversity_metrics" in metrics
+        assert "confidence_metrics" in metrics
+    
+    def test_evaluate_ensemble_performance_with_ground_truth(self):
+        """Test ensemble performance evaluation with ground truth."""
+        ensemble_predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.7),
+                confidence=ConfidenceLevel(0.8),
+                reasoning="Ensemble prediction",
+                method=PredictionMethod.ENSEMBLE,
+                agent_name="EnsembleService",
+                model_version="v1.0"
+            )
+        ]
+        
+        individual_predictions = [[
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.6),
+                confidence=ConfidenceLevel(0.7),
+                reasoning="Individual 1",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            )
+        ]]
+        
+        ground_truth = [True]  # The event actually happened
+        
+        metrics = self.service.evaluate_ensemble_performance(
+            ensemble_predictions, individual_predictions, ground_truth
+        )
+        
+        assert "accuracy_metrics" in metrics
+        assert "brier_score" in metrics["accuracy_metrics"]
+        assert "mean_absolute_error" in metrics["accuracy_metrics"]
+    
+    def test_evaluate_ensemble_performance_mismatched_lengths(self):
+        """Test performance evaluation with mismatched input lengths."""
+        ensemble_predictions = [Mock()]
+        individual_predictions = [Mock(), Mock()]  # Different length
+        
+        with pytest.raises(ValueError, match="must have same length"):
+            self.service.evaluate_ensemble_performance(
+                ensemble_predictions, individual_predictions
+            )
+
+
+class TestConfigurationAndUtilities:
+    """Test configuration and utility methods."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+    
+    def test_get_supported_methods(self):
+        """Test getting supported aggregation methods."""
+        methods = self.service.get_supported_methods()
+        
+        assert "simple_average" in methods
+        assert "weighted_average" in methods
+        assert "median" in methods
+        assert len(methods) == len(self.service.aggregation_methods)
+        
+        # Ensure it returns a copy
+        methods.append("test_method")
+        assert "test_method" not in self.service.aggregation_methods
+    
+    def test_get_supported_agent_types(self):
+        """Test getting supported agent types."""
+        agent_types = self.service.get_supported_agent_types()
+        
+        assert "chain_of_thought" in agent_types
+        assert "tree_of_thought" in agent_types
+        assert "react" in agent_types
+        assert len(agent_types) == len(self.service.supported_agent_types)
+    
+    def test_validate_ensemble_config_valid(self):
+        """Test validation of valid ensemble configuration."""
+        valid_config = {
+            "aggregation_method": "weighted_average",
+            "weights": [0.3, 0.7],
+            "min_predictions": 2
+        }
+        
+        assert self.service.validate_ensemble_config(valid_config) is True
+    
+    def test_validate_ensemble_config_invalid_method(self):
+        """Test validation with invalid aggregation method."""
+        invalid_config = {
+            "aggregation_method": "invalid_method"
+        }
+        
+        assert self.service.validate_ensemble_config(invalid_config) is False
+    
+    def test_validate_ensemble_config_invalid_weights(self):
+        """Test validation with invalid weights."""
+        invalid_config = {
+            "weights": ["not", "numeric"]
+        }
+        
+        assert self.service.validate_ensemble_config(invalid_config) is False
+    
+    def test_validate_ensemble_config_invalid_min_predictions(self):
+        """Test validation with invalid min_predictions."""
+        invalid_config = {
+            "min_predictions": 0
+        }
+        
+        assert self.service.validate_ensemble_config(invalid_config) is False
+    
+    def test_validate_ensemble_config_empty(self):
+        """Test validation with empty configuration."""
+        assert self.service.validate_ensemble_config({}) is True
+
+
+class TestEnsembleEdgeCases:
+    """Test edge cases and boundary conditions."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.service = EnsembleService()
+        self.question_id = uuid4()
+    
+    def test_single_prediction_aggregation(self):
+        """Test aggregation with only one prediction."""
+        prediction = Prediction.create_new(
+            question_id=self.question_id,
+            probability=Probability(0.75),
+            confidence=ConfidenceLevel(0.9),
+            reasoning="Single prediction",
+            method=PredictionMethod.CHAIN_OF_THOUGHT,
+            agent_name="SingleAgent",
+            model_version="v1.0"
+        )
+        
+        result = self.service.aggregate_predictions([prediction])
+        
+        # Result should be very similar to input
+        assert result.probability.value == 0.75
+        assert result.method == PredictionMethod.ENSEMBLE
+    
+    def test_extreme_probability_values(self):
+        """Test aggregation with extreme probability values."""
+        predictions = [
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.01),  # Very low
+                confidence=ConfidenceLevel(0.5),
+                reasoning="Very unlikely",
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
+                agent_name="Agent1",
+                model_version="v1.0"
+            ),
+            Prediction.create_new(
+                question_id=self.question_id,
+                probability=Probability(0.99),  # Very high
+                confidence=ConfidenceLevel(0.5),
+                reasoning="Very likely",
+                method=PredictionMethod.TREE_OF_THOUGHT,
+                agent_name="Agent2",
+                model_version="v1.0"
+            )
+        ]
+        
+        result = self.service.aggregate_predictions(predictions)
+        
+        # Should still produce valid probability
+        assert 0.0 <= result.probability.value <= 1.0
+        assert result.method == PredictionMethod.ENSEMBLE
+    
+    def test_boundary_probability_clamping(self):
+        """Test that probabilities are clamped to valid range."""
+        # Mock the aggregation to produce out-of-range value
+        with patch.object(self.service, '_weighted_average', return_value=1.5):
+            predictions = [
+                Prediction.create_new(
+                    question_id=self.question_id,
+                    probability=Probability(0.9),
+                    confidence=ConfidenceLevel(0.8),
+                    reasoning="High prediction",
+                    method=PredictionMethod.CHAIN_OF_THOUGHT,
+                    agent_name="Agent",
+                    model_version="v1.0"
+                )
+            ]
+            
+            result = self.service.aggregate_predictions(predictions, method="weighted_average")
+            
+            # Should be clamped to 1.0
+            assert result.probability.value == 1.0

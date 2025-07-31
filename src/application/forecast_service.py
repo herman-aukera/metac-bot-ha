@@ -247,6 +247,7 @@ class ForecastService:
         
         This is a mock implementation that simulates AI forecasting by using
         the community prediction as a base and adding some random variation.
+        Now supports binary, numeric, and multiple choice questions.
         
         Args:
             question: The question to generate a forecast for
@@ -269,8 +270,25 @@ class ForecastService:
         if not question.is_open():
             raise ForecastValidationError("Cannot generate forecast for closed question")
         
-        if question.question_type != QuestionType.BINARY:
-            raise ForecastValidationError("Can only generate forecasts for binary questions")
+        # Support multiple question types
+        if question.question_type == QuestionType.BINARY:
+            return self._generate_binary_forecast(question)
+        elif question.question_type == QuestionType.NUMERIC:
+            return self._generate_numeric_forecast(question)
+        elif question.question_type == QuestionType.MULTIPLE_CHOICE:
+            return self._generate_multiple_choice_forecast(question)
+        else:
+            raise ForecastValidationError(f"Question type {question.question_type.value} is not yet supported")
+
+    def _generate_binary_forecast(self, question: Question) -> Forecast:
+        """Generate forecast for binary questions."""
+        import random
+        from src.domain.entities.prediction import (
+            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+        )
+        from src.domain.entities.research_report import (
+            ResearchReport, ResearchSource, ResearchQuality
+        )
         
         # Mock AI prediction logic: use community prediction if available,
         # otherwise use a baseline probability with some variation
@@ -343,35 +361,272 @@ class ForecastService:
                                      min(p.result.binary_probability for p in predictions))
         )
 
-    def _generate_mock_reasoning(self, question: Question, ai_probability: float, base_probability: float) -> str:
-        """
-        Generate mock reasoning for a forecast.
+    def _generate_numeric_forecast(self, question: Question) -> Forecast:
+        """Generate forecast for numeric questions."""
+        import random
+        from src.domain.entities.prediction import (
+            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+        )
+        from src.domain.entities.research_report import (
+            ResearchReport, ResearchSource, ResearchQuality
+        )
         
-        Args:
-            question: The question being forecasted
-            ai_probability: The AI's predicted probability
-            base_probability: The base probability used
+        # Extract bounds
+        min_val = question.min_value or 0
+        max_val = question.max_value or 100
+        range_val = max_val - min_val
+        
+        # Use community prediction as base if available
+        base_value = min_val + (range_val * 0.5)  # Default to middle of range
+        if question.metadata and "community_prediction" in question.metadata:
+            community_pred = question.metadata["community_prediction"]
+            if isinstance(community_pred, (int, float)) and min_val <= community_pred <= max_val:
+                base_value = float(community_pred)
+        
+        # Create a mock research report
+        research_report = self._create_mock_research_report(question, (base_value - min_val) / range_val)
+        
+        # Generate multiple prediction variants
+        predictions = []
+        methods = [PredictionMethod.CHAIN_OF_THOUGHT, PredictionMethod.AUTO_COT]
+        
+        for i, method in enumerate(methods):
+            # Add variation (10% of range)
+            variation = random.uniform(-0.1 * range_val, 0.1 * range_val)
+            predicted_value = max(min_val, min(max_val, base_value + variation))
             
-        Returns:
-            Generated reasoning text
-        """
+            # Generate confidence based on distance from bounds
+            distance_from_bounds = min(predicted_value - min_val, max_val - predicted_value)
+            normalized_distance = distance_from_bounds / (range_val / 2)
+            
+            if normalized_distance > 0.6:
+                confidence = PredictionConfidence.HIGH
+            elif normalized_distance > 0.3:
+                confidence = PredictionConfidence.MEDIUM
+            else:
+                confidence = PredictionConfidence.LOW
+            
+            # Create prediction using factory method
+            prediction = Prediction.create_numeric_prediction(
+                question_id=question.id,
+                research_report_id=research_report.id,
+                value=predicted_value,
+                confidence=confidence,
+                method=method,
+                reasoning=self._generate_numeric_reasoning(question, predicted_value, base_value),
+                created_by="ai_forecast_service",
+                method_metadata={"base_value": base_value, "variation": variation}
+            )
+            predictions.append(prediction)
+        
+        # Create final prediction (ensemble average)
+        final_value = sum(p.result.numeric_value for p in predictions) / len(predictions)
+        
+        final_prediction = Prediction.create_numeric_prediction(
+            question_id=question.id,
+            research_report_id=research_report.id,
+            value=final_value,
+            confidence=PredictionConfidence.MEDIUM,
+            method=PredictionMethod.ENSEMBLE,
+            reasoning=f"Ensemble of {len(predictions)} predictions with final value {final_value:.2f}",
+            created_by="ai_forecast_service",
+            method_metadata={"component_predictions": len(predictions)}
+        )
+        
+        # Create forecast
+        return Forecast.create_new(
+            question_id=question.id,
+            research_reports=[research_report],
+            predictions=predictions,
+            final_prediction=final_prediction,
+            reasoning_summary=f"AI-generated numeric forecast with {len(predictions)} prediction methods",
+            ensemble_method="simple_average",
+            weight_distribution={method.value: 1.0/len(methods) for method in methods},
+            consensus_strength=1.0 - abs(max(p.result.numeric_value for p in predictions) - 
+                                        min(p.result.numeric_value for p in predictions)) / range_val
+        )
+
+    def _generate_multiple_choice_forecast(self, question: Question) -> Forecast:
+        """Generate forecast for multiple choice questions."""
+        import random
+        from src.domain.entities.prediction import (
+            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+        )
+        from src.domain.entities.research_report import (
+            ResearchReport, ResearchSource, ResearchQuality
+        )
+        
+        if not question.choices:
+            raise ForecastValidationError("Multiple choice question must have choices defined")
+        
+        # Create mock probability distribution across choices
+        choices = question.choices
+        num_choices = len(choices)
+        
+        # Base distribution - slightly favor first few choices but add randomness
+        base_probs = []
+        remaining_prob = 1.0
+        for i in range(num_choices - 1):
+            # Exponentially decreasing probability with some randomness
+            prob = remaining_prob * random.uniform(0.1, 0.6)
+            base_probs.append(prob)
+            remaining_prob -= prob
+        base_probs.append(remaining_prob)  # Last choice gets remaining probability
+        
+        # Normalize to ensure sum = 1
+        total = sum(base_probs)
+        base_probs = [p / total for p in base_probs]
+        
+        # Create a mock research report
+        best_choice_idx = base_probs.index(max(base_probs))
+        research_report = self._create_mock_research_report(question, max(base_probs))
+        
+        # Generate multiple prediction variants
+        predictions = []
+        methods = [PredictionMethod.CHAIN_OF_THOUGHT, PredictionMethod.AUTO_COT]
+        
+        for i, method in enumerate(methods):
+            # Add variation to probabilities
+            varied_probs = []
+            for prob in base_probs:
+                variation = random.uniform(-0.05, 0.05)
+                varied_prob = max(0.01, prob + variation)
+                varied_probs.append(varied_prob)
+            
+            # Normalize again
+            total = sum(varied_probs)
+            varied_probs = [p / total for p in varied_probs]
+            
+            # Determine most likely choice
+            predicted_choice_idx = varied_probs.index(max(varied_probs))
+            predicted_choice = choices[predicted_choice_idx]
+            
+            # Generate confidence based on how concentrated the prediction is
+            max_prob = max(varied_probs)
+            if max_prob > 0.6:
+                confidence = PredictionConfidence.HIGH
+            elif max_prob > 0.4:
+                confidence = PredictionConfidence.MEDIUM
+            else:
+                confidence = PredictionConfidence.LOW
+            
+            # Create prediction
+            prediction = Prediction.create_multiple_choice_prediction(
+                question_id=question.id,
+                research_report_id=research_report.id,
+                choice_probabilities=dict(zip(choices, varied_probs)),
+                confidence=confidence,
+                method=method,
+                reasoning=self._generate_choice_reasoning(question, predicted_choice, varied_probs, choices),
+                created_by="ai_forecast_service",
+                method_metadata={"base_probabilities": dict(zip(choices, base_probs))}
+            )
+            predictions.append(prediction)
+        
+        # Create final prediction (ensemble of choice probabilities)
+        ensemble_probs = {}
+        for choice in choices:
+            ensemble_probs[choice] = sum(
+                p.result.multiple_choice_probabilities.get(choice, 0) for p in predictions
+            ) / len(predictions)
+        
+        # Final choice is the one with highest ensemble probability
+        final_choice = max(ensemble_probs.keys(), key=lambda x: ensemble_probs[x])
+        
+        final_prediction = Prediction.create_multiple_choice_prediction(
+            question_id=question.id,
+            research_report_id=research_report.id,
+            choice_probabilities=ensemble_probs,
+            confidence=PredictionConfidence.MEDIUM,
+            method=PredictionMethod.ENSEMBLE,
+            reasoning=f"Ensemble of {len(predictions)} predictions favoring '{final_choice}' with {ensemble_probs[final_choice]:.1%} probability",
+            created_by="ai_forecast_service",
+            method_metadata={"component_predictions": len(predictions)}
+        )
+        
+        # Create forecast
+        return Forecast.create_new(
+            question_id=question.id,
+            research_reports=[research_report],
+            predictions=predictions,
+            final_prediction=final_prediction,
+            reasoning_summary=f"AI-generated multiple choice forecast with {len(predictions)} prediction methods",
+            ensemble_method="probability_averaging",
+            weight_distribution={method.value: 1.0/len(methods) for method in methods},
+            consensus_strength=ensemble_probs[final_choice]  # Strength based on winning choice probability
+        )
+
+    def _generate_mock_reasoning(self, question: Question, predicted_probability: float, base_probability: float) -> str:
+        """Generate reasoning for binary predictions."""
         reasoning_parts = [
-            f"Analysis of question: {question.title}",
+            f"Analysis of binary question: {question.title}",
             f"",
             f"Key factors considered:",
-            f"- Current base rate/community prediction: {base_probability:.1%}",
-            f"- Historical precedents and trends",
-            f"- Expert opinions and market indicators",
-            f"- Time horizon until resolution: {question.close_time}",
+            f"- Base rate probability: {base_probability:.1%}",
+            f"- Predicted probability: {predicted_probability:.1%}",
+            f"- Historical precedents and patterns",
+            f"- Current indicators and expert opinions",
+            f"- Market signals and community predictions",
             f"",
             f"Assessment:",
-            f"Based on available information and analytical reasoning, "
-            f"the probability of a positive outcome is estimated at {ai_probability:.1%}.",
-            f"",
-            f"This assessment considers both the base rate and specific factors "
-            f"relevant to this particular question. The confidence level reflects "
-            f"the quality and quantity of available evidence.",
+            f"Based on comprehensive analysis, the probability of a positive outcome "
+            f"is estimated at {predicted_probability:.1%}. This assessment incorporates "
+            f"base rate analysis, current indicators, and expert opinion synthesis."
         ]
+        
+        # Add interpretation based on probability level
+        if predicted_probability > 0.7:
+            reasoning_parts.append(f"The high probability reflects strong supporting evidence.")
+        elif predicted_probability < 0.3:
+            reasoning_parts.append(f"The low probability reflects limited supporting evidence.")
+        else:
+            reasoning_parts.append(f"The moderate probability reflects mixed evidence and uncertainty.")
+        
+        return "\n".join(reasoning_parts)
+
+    def _generate_numeric_reasoning(self, question: Question, predicted_value: float, base_value: float) -> str:
+        """Generate reasoning for numeric predictions."""
+        reasoning_parts = [
+            f"Analysis of numeric question: {question.title}",
+            f"",
+            f"Key factors considered:",
+            f"- Base estimate: {base_value:.2f}",
+            f"- Predicted value: {predicted_value:.2f}",
+            f"- Valid range: {question.min_value} to {question.max_value}",
+            f"- Historical patterns and trends",
+            f"- Expert projections and market indicators",
+            f"",
+            f"Assessment:",
+            f"Based on quantitative analysis and expert opinion synthesis, "
+            f"the predicted value is {predicted_value:.2f}. This estimate considers "
+            f"both baseline trends and potential variability factors."
+        ]
+        return "\n".join(reasoning_parts)
+
+    def _generate_choice_reasoning(self, question: Question, predicted_choice: str, 
+                                 probabilities: List[float], choices: List[str]) -> str:
+        """Generate reasoning for multiple choice predictions."""
+        choice_prob = probabilities[choices.index(predicted_choice)]
+        
+        reasoning_parts = [
+            f"Analysis of multiple choice question: {question.title}",
+            f"",
+            f"Choice probabilities:",
+        ]
+        
+        # List all choices with their probabilities
+        for choice, prob in zip(choices, probabilities):
+            marker = "→" if choice == predicted_choice else " "
+            reasoning_parts.append(f"{marker} {choice}: {prob:.1%}")
+        
+        reasoning_parts.extend([
+            f"",
+            f"Assessment:",
+            f"Based on available evidence and analysis, '{predicted_choice}' appears "
+            f"to be the most likely outcome with {choice_prob:.1%} probability. "
+            f"This assessment considers historical precedents, expert opinions, "
+            f"and current indicators relevant to this question."
+        ])
         
         return "\n".join(reasoning_parts)
 

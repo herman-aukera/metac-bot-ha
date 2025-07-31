@@ -1,5 +1,5 @@
 # Metaculus AI Forecasting Bot - Development Makefile
-.PHONY: help install install-dev test test-unit test-integration test-e2e test-coverage lint format type-check clean run benchmark docs
+.PHONY: help install install-dev test test-unit test-integration test-e2e test-coverage lint format type-check clean run benchmark docs ensemble
 
 # Default target
 help:
@@ -18,6 +18,7 @@ help:
 	@echo "  run           Run the CLI forecast runner with sample data"
 	@echo "  run-cli       Run the original forecasting bot CLI"
 	@echo "  forecast      Run forecasts with --submit flag enabled"
+	@echo "  ensemble      Run ensemble forecasting with multiple agents"
 	@echo "  benchmark     Run benchmark tests"
 	@echo "  docs          Generate documentation"
 
@@ -79,6 +80,9 @@ run-cli:
 
 forecast:
 	poetry run python3 cli/run_forecast.py data/questions.json --submit
+
+ensemble:
+	poetry run python3 cli/run_forecast.py data/questions.json --ensemble --agents chain_of_thought tree_of_thought react --aggregation weighted_average
 
 # Benchmarking
 benchmark:

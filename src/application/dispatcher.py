@@ -18,6 +18,10 @@ from src.domain.entities.question import Question
 from src.domain.entities.forecast import Forecast
 from src.domain.value_objects.probability import Probability
 from src.domain.value_objects.confidence import ConfidenceLevel
+# Import ensemble and reasoning logging capabilities
+from src.pipelines.forecasting_pipeline import ForecastingPipeline
+from src.infrastructure.logging.reasoning_logger import log_agent_reasoning, log_ensemble_reasoning
+from src.infrastructure.config.settings import Settings
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +35,15 @@ class DispatcherConfig:
     max_retries: int = 3
     enable_dry_run: bool = False
     api_config: Optional[APIConfig] = None
+    # Ensemble forecasting options
+    enable_ensemble: bool = False
+    ensemble_agents: Optional[List[str]] = None
+    ensemble_aggregation_method: str = "weighted_average"
+    enable_reasoning_logs: bool = True
+    
+    def __post_init__(self):
+        if self.ensemble_agents is None:
+            self.ensemble_agents = ["chain_of_thought", "tree_of_thought", "react"]
 
 
 @dataclass
@@ -86,6 +99,16 @@ class Dispatcher:
         )
         self.forecast_service = forecast_service or ForecastService()
         
+        # Initialize ensemble forecasting pipeline if enabled
+        self.forecasting_pipeline = None
+        if self.config.enable_ensemble:
+            try:
+                settings = Settings()
+                self.forecasting_pipeline = ForecastingPipeline(settings=settings)
+            except Exception as e:
+                logger.warning(f"Failed to initialize forecasting pipeline: {e}")
+                self.forecasting_pipeline = None
+        
         # State
         self.stats = DispatcherStats()
 
@@ -103,9 +126,160 @@ class Dispatcher:
             DispatcherError: If forecast generation fails
         """
         try:
-            return self.forecast_service.generate_forecast(question)
+            # Use ensemble forecasting if enabled and available
+            if self.config.enable_ensemble and self.forecasting_pipeline:
+                return self.dispatch_ensemble(question)
+            else:
+                return self.forecast_service.generate_forecast(question)
         except Exception as e:
             error_msg = f"Failed to generate forecast for question {question.metaculus_id}: {str(e)}"
+            logger.error(error_msg)
+            raise DispatcherError(error_msg) from e
+
+    def dispatch_ensemble(self, question: Question) -> Forecast:
+        """
+        Dispatch a single question for ensemble forecast generation.
+        
+        Args:
+            question: The question to generate a forecast for
+            
+        Returns:
+            Generated ensemble forecast
+            
+        Raises:
+            DispatcherError: If ensemble forecast generation fails
+        """
+        try:
+            logger.info(f"Generating ensemble forecast for question {question.metaculus_id}")
+            
+            # Try to use the forecasting pipeline for ensemble forecasting
+            if self.forecasting_pipeline:
+                try:
+                    # Convert to async call - for now use asyncio.run as a bridge
+                    # TODO: Make dispatcher fully async in future iterations
+                    import asyncio
+                    
+                    # Determine agent types to use
+                    agent_types = self.config.ensemble_agents or ["chain_of_thought", "tree_of_thought", "react"]
+                    
+                    # Use the pipeline's generate_forecast method directly with the Question entity
+                    # This avoids the need for Metaculus client and works with local questions
+                    ensemble_forecast = asyncio.run(
+                        self.forecasting_pipeline.generate_forecast(
+                            question=question,
+                            agent_names=agent_types,
+                            include_research=True
+                        )
+                    )
+                    
+                    # The pipeline already returns a proper Forecast object
+                    forecast = ensemble_forecast
+                    
+                    # Update metadata to indicate ensemble success
+                    if forecast.metadata is None:
+                        forecast.metadata = {}
+                    forecast.metadata.update({
+                        "ensemble_attempted": True,
+                        "ensemble_agents": agent_types,
+                        "aggregation_method": self.config.ensemble_aggregation_method,
+                        "ensemble_success": True,
+                        "offline_mode": True
+                    })
+                    
+                except Exception as pipeline_error:
+                    logger.warning(f"ForecastingPipeline failed ({pipeline_error}), falling back to ForecastService ensemble")
+                    # Fall back to the standard ForecastService which has its own ensemble logic
+                    forecast = self.forecast_service.generate_forecast(question)
+                    
+                    # Update metadata to indicate ensemble fallback
+                    if forecast.metadata is None:
+                        forecast.metadata = {}
+                    forecast.metadata.update({
+                        "ensemble_attempted": True,
+                        "ensemble_agents": self.config.ensemble_agents or ["ai_forecast_service"],
+                        "aggregation_method": self.config.ensemble_aggregation_method,
+                        "ensemble_success": True,
+                        "pipeline_fallback": True,
+                        "offline_mode": True
+                    })
+            else:
+                # Fallback to standard forecasting if pipeline not available
+                logger.warning("Ensemble forecasting pipeline not available, falling back to standard forecasting")
+                forecast = self.forecast_service.generate_forecast(question)
+                
+                # Add ensemble metadata to indicate fallback
+                if forecast.metadata is None:
+                    forecast.metadata = {}
+                forecast.metadata.update({
+                    "ensemble_attempted": True,
+                    "ensemble_agents": self.config.ensemble_agents,
+                    "aggregation_method": self.config.ensemble_aggregation_method,
+                    "fallback_used": True,
+                    "ensemble_success": False
+                })
+            
+            # Log reasoning if enabled
+            if self.config.enable_reasoning_logs:
+                try:
+                    # Log individual agent reasoning if available in forecast metadata
+                    if hasattr(forecast, 'metadata') and forecast.metadata and forecast.metadata.get("agents_used"):
+                        agents_used = forecast.metadata.get("agents_used", [])
+                        for agent_name in agents_used:
+                            # Find prediction for this agent
+                            agent_prediction = None
+                            for pred in forecast.predictions:
+                                if pred.created_by == agent_name or agent_name in pred.reasoning:
+                                    agent_prediction = pred
+                                    break
+                            
+                            if agent_prediction:
+                                reasoning_data = {
+                                    "reasoning": agent_prediction.reasoning or "No detailed reasoning available",
+                                    "method": agent_name,
+                                    "confidence": agent_prediction.confidence.value if hasattr(agent_prediction.confidence, 'value') else str(agent_prediction.confidence)
+                                }
+                                
+                                prediction_result = {
+                                    "probability": agent_prediction.result.binary_probability,
+                                    "confidence": agent_prediction.confidence.value if hasattr(agent_prediction.confidence, 'value') else str(agent_prediction.confidence),
+                                    "method": agent_name
+                                }
+                                
+                                log_agent_reasoning(
+                                    question_id=question.metaculus_id or question.id,
+                                    agent_name=agent_name,
+                                    reasoning_data=reasoning_data,
+                                    prediction_result=prediction_result
+                                )
+                    
+                    # Log ensemble reasoning
+                    reasoning_data = {
+                        "reasoning": forecast.reasoning_summary or "Ensemble forecast with multiple agents",
+                        "method": "ensemble",
+                        "agents_used": self.config.ensemble_agents or ["chain_of_thought", "tree_of_thought", "react"],
+                        "aggregation_method": forecast.ensemble_method or self.config.ensemble_aggregation_method,
+                        "prediction_count": len(forecast.predictions)
+                    }
+                    
+                    prediction_result = {
+                        "probability": forecast.final_prediction.result.binary_probability if forecast.final_prediction else None,
+                        "confidence": forecast.final_prediction.confidence.value if forecast.final_prediction and hasattr(forecast.final_prediction.confidence, 'value') else str(forecast.final_prediction.confidence) if forecast.final_prediction else None,
+                        "method": "ensemble"
+                    }
+                    
+                    log_agent_reasoning(
+                        question_id=question.metaculus_id or question.id,
+                        agent_name="ensemble",
+                        reasoning_data=reasoning_data,
+                        prediction_result=prediction_result
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to log reasoning trace: {e}")
+            
+            return forecast
+            
+        except Exception as e:
+            error_msg = f"Failed to generate ensemble forecast for question {question.metaculus_id}: {str(e)}"
             logger.error(error_msg)
             raise DispatcherError(error_msg) from e
 

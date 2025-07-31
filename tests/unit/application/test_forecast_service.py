@@ -234,8 +234,16 @@ class TestForecastService:
     
     def test_generate_forecast_non_binary_question(self, forecast_service, sample_numeric_question):
         """Test forecast generation with non-binary question."""
-        with pytest.raises(ForecastValidationError, match="Can only generate forecasts for binary questions"):
-            forecast_service.generate_forecast(sample_numeric_question)
+        # The service now supports numeric questions, so this should succeed
+        forecast = forecast_service.generate_forecast(sample_numeric_question)
+        
+        assert isinstance(forecast, Forecast)
+        assert forecast.question_id == sample_numeric_question.id
+        assert len(forecast.predictions) > 0
+        assert forecast.final_prediction is not None
+        assert forecast.final_prediction.result.numeric_value is not None
+        assert sample_numeric_question.min_value <= forecast.final_prediction.result.numeric_value <= sample_numeric_question.max_value
+        assert len(forecast.research_reports) > 0
     
     # Test score_forecast method
     def test_score_forecast_unresolved_question(self, forecast_service, sample_forecast, sample_binary_question):

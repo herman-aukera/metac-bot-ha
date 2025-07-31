@@ -125,7 +125,10 @@ def run_forecasting_pipeline(
     questions_file: Path,
     submit: bool = False,
     limit: Optional[int] = None,
-    verbose: bool = False
+    verbose: bool = False,
+    ensemble: bool = False,
+    ensemble_agents: Optional[List[str]] = None,
+    aggregation_method: str = "weighted_average"
 ) -> int:
     """
     Run the complete forecasting pipeline.
@@ -135,6 +138,9 @@ def run_forecasting_pipeline(
         submit: Whether to submit forecasts (placeholder for future implementation)
         limit: Maximum number of questions to process
         verbose: Enable verbose logging
+        ensemble: Enable ensemble forecasting with multiple agents
+        ensemble_agents: List of agent names to use for ensemble (default: all available)
+        aggregation_method: Method to use for aggregating ensemble predictions
         
     Returns:
         Exit code (0 for success, 1 for error)
@@ -144,6 +150,9 @@ def run_forecasting_pipeline(
     
     try:
         logger.info(f"Starting forecasting pipeline with file: {questions_file}")
+        if ensemble:
+            logger.info(f"Ensemble mode enabled with agents: {ensemble_agents or 'default'}")
+            logger.info(f"Aggregation method: {aggregation_method}")
         
         # Step 1: Load questions from file
         logger.info("Loading questions from file...")
@@ -175,7 +184,11 @@ def run_forecasting_pipeline(
         config = DispatcherConfig(
             batch_size=len(questions),  # Process all questions in one batch
             validation_level=ValidationLevel.LENIENT,
-            enable_dry_run=submit is False  # Dry run unless submitting
+            enable_dry_run=submit is False,  # Dry run unless submitting
+            enable_ensemble=ensemble,
+            ensemble_agents=ensemble_agents,
+            ensemble_aggregation_method=aggregation_method,
+            enable_reasoning_logs=True
         )
         dispatcher = Dispatcher(config=config)
         
@@ -184,13 +197,28 @@ def run_forecasting_pipeline(
         forecasts = []
         for question in questions:
             try:
-                logger.debug(f"Generating forecast for question {question.metaculus_id}: {question.title}")
-                forecast = dispatcher.forecast_service.generate_forecast(question)
+                if ensemble:
+                    logger.debug(f"Generating ensemble forecast for question {question.metaculus_id}: {question.title}")
+                else:
+                    logger.debug(f"Generating forecast for question {question.metaculus_id}: {question.title}")
+                
+                forecast = dispatcher.dispatch(question)
                 forecasts.append(forecast)
                 
                 # Display result immediately
                 print("\n" + "="*80)
                 print(format_forecast_output(question, forecast))
+                if ensemble and forecast.metadata and forecast.metadata.get("ensemble_attempted"):
+                    ensemble_info = []
+                    if forecast.metadata.get("fallback_used"):
+                        ensemble_info.append("⚠️  Used fallback (ensemble not fully implemented)")
+                    if forecast.metadata.get("ensemble_agents"):
+                        ensemble_info.append(f"Agents: {', '.join(forecast.metadata['ensemble_agents'])}")
+                    if forecast.metadata.get("aggregation_method"):
+                        ensemble_info.append(f"Aggregation: {forecast.metadata['aggregation_method']}")
+                    
+                    if ensemble_info:
+                        print("Ensemble Info: " + " | ".join(ensemble_info))
                 print("="*80)
                 
             except Exception as e:
@@ -202,6 +230,18 @@ def run_forecasting_pipeline(
         print(f"Questions processed: {len(questions)}")
         print(f"Forecasts generated: {len(forecasts)}")
         print(f"Success rate: {len(forecasts)/len(questions)*100:.1f}%")
+        
+        if ensemble:
+            print(f"Ensemble mode: {'✅ Enabled' if ensemble else '❌ Disabled'}")
+            if ensemble_agents:
+                print(f"Agents used: {', '.join(ensemble_agents)}")
+            print(f"Aggregation method: {aggregation_method}")
+            
+            # Check if reasoning logs were created
+            logs_dir = Path("logs/reasoning")
+            if logs_dir.exists():
+                log_files = list(logs_dir.glob("*.md"))
+                print(f"Reasoning logs created: {len(log_files)} files in {logs_dir}")
         
         if submit:
             print("\n⚠️  SUBMIT FLAG DETECTED")
@@ -237,6 +277,8 @@ Examples:
   %(prog)s data/questions.json
   %(prog)s data/questions.json --limit 5 --verbose
   %(prog)s data/questions.json --submit --limit 10
+  %(prog)s data/questions.json --ensemble --limit 3
+  %(prog)s data/questions.json --ensemble --agents cot tot react --aggregation median
         """
     )
     
@@ -264,14 +306,42 @@ Examples:
         help='Enable verbose logging'
     )
     
+    # Ensemble forecasting options
+    parser.add_argument(
+        '--ensemble',
+        action='store_true',
+        help='Enable ensemble forecasting using multiple agents'
+    )
+    
+    parser.add_argument(
+        '--agents',
+        nargs='+',
+        choices=['chain_of_thought', 'cot', 'tree_of_thought', 'tot', 'react', 'ensemble'],
+        help='Specific agents to use for ensemble forecasting (default: all available)'
+    )
+    
+    parser.add_argument(
+        '--aggregation',
+        choices=['simple_average', 'weighted_average', 'median', 'trimmed_mean', 'confidence_weighted', 'performance_weighted'],
+        default='weighted_average',
+        help='Method to use for aggregating ensemble predictions (default: weighted_average)'
+    )
+    
     args = parser.parse_args()
+    
+    # Validate ensemble arguments
+    if args.agents and not args.ensemble:
+        parser.error("--agents can only be used with --ensemble")
     
     # Run the forecasting pipeline
     exit_code = run_forecasting_pipeline(
         questions_file=args.questions_file,
         submit=args.submit,
         limit=args.limit,
-        verbose=args.verbose
+        verbose=args.verbose,
+        ensemble=args.ensemble,
+        ensemble_agents=args.agents,
+        aggregation_method=args.aggregation
     )
     
     sys.exit(exit_code)

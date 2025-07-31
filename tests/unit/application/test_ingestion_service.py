@@ -238,7 +238,7 @@ class TestIngestionService:
 
         # Assert
         assert result is not None
-        assert result.categories == ["Politics", "Economics"]
+        assert set(result.categories) == {"Politics", "Economics"}  # Categories as set (order not guaranteed)
 
     def test_parse_question_with_resolve_time(self):
         """Test parsing question with resolve time."""
