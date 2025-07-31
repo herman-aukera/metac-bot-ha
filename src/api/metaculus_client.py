@@ -7,10 +7,9 @@ MetaculusClient: Handles forecast submission to Metaculus via API or forecasting
 """
 import os
 import requests
-import json
 import time
 import jsonschema
-from jsonschema import validate, ValidationError
+from jsonschema import ValidationError
 
 FORECAST_SCHEMA = {
     "type": "object",

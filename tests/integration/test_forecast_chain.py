@@ -1,10 +1,7 @@
 # test_forecast_chain.py
 # Integration tests for ForecastChain with WikipediaTool and MathTool
-import pytest
-from unittest.mock import patch
 from src.agents.chains.forecast_chain import ForecastChain
 from src.agents.tools import WikipediaTool, MathTool
-import types
 
 class DummyLLM:
     def invoke(self, input_dict):

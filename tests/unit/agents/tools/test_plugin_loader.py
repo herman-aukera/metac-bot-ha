@@ -48,7 +48,8 @@ def test_plugin_loader_handles_errors():
         assert isinstance(plugins, list)
 
 def test_load_webhook_plugin_from_json(monkeypatch):
-    import tempfile, json as pyjson
+    import tempfile
+    import json as pyjson
     # Mock requests.post
     class DummyResp:
         def __init__(self, code, data):

@@ -1,6 +1,5 @@
 # test_wikipedia.py
 # Unit tests for WikipediaTool
-import pytest
 from src.agents.tools.wikipedia import WikipediaTool
 
 class MockResponse:

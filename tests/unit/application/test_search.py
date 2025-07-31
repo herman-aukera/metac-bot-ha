@@ -1,7 +1,6 @@
 # test_search.py
 # Unit tests for SearchTool
 
-import pytest
 from src.agents.search import SearchTool
 
 def test_search_stub():

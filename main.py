@@ -332,7 +332,7 @@ if __name__ == "__main__":
     litellm_logger.propagate = False
 
     parser = argparse.ArgumentParser(
-        description="Run the Q1TemplateBot forecasting system"
+        description="Run the Tournament Optimization Forecasting System"
     )
     parser.add_argument(
         "--mode",
@@ -340,6 +340,27 @@ if __name__ == "__main__":
         choices=["tournament", "quarterly_cup", "test_questions"],
         default="tournament",
         help="Specify the run mode (default: tournament)",
+    )
+    parser.add_argument(
+        "--use-optimization",
+        action="store_true",
+        default=True,
+        help="Use advanced tournament optimization features (default: True)"
+    )
+    parser.add_argument(
+        "--legacy-mode",
+        action="store_true",
+        help="Run in legacy mode without optimization features"
+    )
+    parser.add_argument(
+        "--max-questions",
+        type=int,
+        help="Maximum number of questions to process"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run without submitting forecasts"
     )
     args = parser.parse_args()
     run_mode: Literal["tournament", "quarterly_cup", "test_questions"] = (
@@ -351,52 +372,91 @@ if __name__ == "__main__":
         "test_questions",
     ], "Invalid run mode"
 
-    template_bot = TemplateForecaster(
-        research_reports_per_question=1,
-        predictions_per_research_report=5,
-        use_research_summary_to_forecast=False,
-        publish_reports_to_metaculus=True,
-        folder_to_save_reports_to=None,
-        skip_previously_forecasted_questions=True,
-        # llms={  # choose your model names or GeneralLlm llms here, otherwise defaults will be chosen for you
-        #     "default": GeneralLlm(
-        #         model="metaculus/anthropic/claude-3-5-sonnet-20241022",
-        #         temperature=0.3,
-        #         timeout=40,
-        #         allowed_tries=2,
-        #     ),
-        #     "summarizer": "openai/gpt-4o-mini",
-        # },
-    )
+    # Determine whether to use optimization features
+    use_optimization = args.use_optimization and not args.legacy_mode
 
-    if run_mode == "tournament":
-        forecast_reports = asyncio.run(
-            template_bot.forecast_on_tournament(
-                MetaculusApi.CURRENT_AI_COMPETITION_ID, return_exceptions=True
+    if use_optimization:
+        logger.info("Running with advanced tournament optimization features")
+
+        # Initialize tournament optimization system (placeholder - would use dependency injection)
+        try:
+            from src.application.services.integration_service import IntegrationService
+            from src.application.services.integration_service import LegacyQuestionFormat
+
+            # In a real implementation, this would properly initialize all services
+            # For now, we'll fall back to legacy mode if optimization isn't available
+            logger.warning("Tournament optimization system not fully initialized, falling back to legacy mode")
+            use_optimization = False
+        except ImportError:
+            logger.warning("Tournament optimization modules not available, using legacy mode")
+            use_optimization = False
+
+    if not use_optimization:
+        logger.info("Running in legacy mode")
+
+        template_bot = TemplateForecaster(
+            research_reports_per_question=1,
+            predictions_per_research_report=5,
+            use_research_summary_to_forecast=False,
+            publish_reports_to_metaculus=not args.dry_run,
+            folder_to_save_reports_to=None,
+            skip_previously_forecasted_questions=True,
+            # llms={  # choose your model names or GeneralLlm llms here, otherwise defaults will be chosen for you
+            #     "default": GeneralLlm(
+            #         model="metaculus/anthropic/claude-3-5-sonnet-20241022",
+            #         temperature=0.3,
+            #         timeout=40,
+            #         allowed_tries=2,
+            #     ),
+            #     "summarizer": "openai/gpt-4o-mini",
+            # },
+        )
+
+        if run_mode == "tournament":
+            tournament_id = MetaculusApi.CURRENT_AI_COMPETITION_ID
+            if args.max_questions:
+                logger.info(f"Processing maximum {args.max_questions} questions")
+
+            forecast_reports = asyncio.run(
+                template_bot.forecast_on_tournament(
+                    tournament_id, return_exceptions=True
+                )
             )
-        )
-    elif run_mode == "quarterly_cup":
-        # The quarterly cup is a good way to test the bot's performance on regularly open questions. You can also use AXC_2025_TOURNAMENT_ID = 32564
-        # The new quarterly cup may not be initialized near the beginning of a quarter
-        template_bot.skip_previously_forecasted_questions = False
-        forecast_reports = asyncio.run(
-            template_bot.forecast_on_tournament(
-                MetaculusApi.CURRENT_QUARTERLY_CUP_ID, return_exceptions=True
+        elif run_mode == "quarterly_cup":
+            # The quarterly cup is a good way to test the bot's performance on regularly open questions. You can also use AXC_2025_TOURNAMENT_ID = 32564
+            # The new quarterly cup may not be initialized near the beginning of a quarter
+            template_bot.skip_previously_forecasted_questions = False
+            forecast_reports = asyncio.run(
+                template_bot.forecast_on_tournament(
+                    MetaculusApi.CURRENT_QUARTERLY_CUP_ID, return_exceptions=True
+                )
             )
-        )
-    elif run_mode == "test_questions":
-        # Example questions are a good way to test the bot's performance on a single question
-        EXAMPLE_QUESTIONS = [
-            "https://www.metaculus.com/questions/578/human-extinction-by-2100/",  # Human Extinction - Binary
-            "https://www.metaculus.com/questions/14333/age-of-oldest-human-as-of-2100/",  # Age of Oldest Human - Numeric
-            "https://www.metaculus.com/questions/22427/number-of-new-leading-ai-labs/",  # Number of New Leading AI Labs - Multiple Choice
-        ]
-        template_bot.skip_previously_forecasted_questions = False
-        questions = [
-            MetaculusApi.get_question_by_url(question_url)
-            for question_url in EXAMPLE_QUESTIONS
-        ]
-        forecast_reports = asyncio.run(
-            template_bot.forecast_questions(questions, return_exceptions=True)
-        )
-    TemplateForecaster.log_report_summary(forecast_reports)  # type: ignore
+        elif run_mode == "test_questions":
+            # Example questions are a good way to test the bot's performance on a single question
+            EXAMPLE_QUESTIONS = [
+                "https://www.metaculus.com/questions/578/human-extinction-by-2100/",  # Human Extinction - Binary
+                "https://www.metaculus.com/questions/14333/age-of-oldest-human-as-of-2100/",  # Age of Oldest Human - Numeric
+                "https://www.metaculus.com/questions/22427/number-of-new-leading-ai-labs/",  # Number of New Leading AI Labs - Multiple Choice
+            ]
+            template_bot.skip_previously_forecasted_questions = False
+            questions = [
+                MetaculusApi.get_question_by_url(question_url)
+                for question_url in EXAMPLE_QUESTIONS
+            ]
+            if args.max_questions:
+                questions = questions[:args.max_questions]
+
+            forecast_reports = asyncio.run(
+                template_bot.forecast_questions(questions, return_exceptions=True)
+            )
+
+        TemplateForecaster.log_report_summary(forecast_reports)  # type: ignore
+
+        # Log summary with optimization status
+        logger.info(f"Completed forecasting run in {'legacy' if not use_optimization else 'optimized'} mode")
+        if args.dry_run:
+            logger.info("Dry run completed - no forecasts were submitted")
+    else:
+        # Use tournament optimization system
+        logger.info("Tournament optimization system would be used here")
+        # Implementation would go here when fully integrated

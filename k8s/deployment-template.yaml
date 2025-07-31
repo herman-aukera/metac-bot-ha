@@ -1,0 +1,241 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: { { DEPLOYMENT_NAME } }
+  namespace: ${NAMESPACE}
+  labels:
+    app: tournament-optimization
+    version: ${IMAGE_TAG}
+    environment: ${ENVIRONMENT}
+spec:
+  replicas: ${REPLICAS}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: tournament-optimization
+      version: ${IMAGE_TAG}
+  template:
+    metadata:
+      labels:
+        app: tournament-optimization
+        version: ${IMAGE_TAG}
+        environment: ${ENVIRONMENT}
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9090'
+        prometheus.io/path: '/metrics'
+    spec:
+      serviceAccountName: tournament-optimization
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: tournament-optimization
+          image: ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          env:
+            - name: ENVIRONMENT
+              value: '${ENVIRONMENT}'
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: redis-url
+            - name: METACULUS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: metaculus-api-key
+            - name: ASKNEWS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: asknews-api-key
+            - name: PERPLEXITY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: perplexity-api-key
+            - name: EXA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: exa-api-key
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: openai-api-key
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tournament-optimization-secrets
+                  key: anthropic-api-key
+          resources:
+            requests:
+              cpu: ${RESOURCES_CPU_REQUEST}
+              memory: ${RESOURCES_MEMORY_REQUEST}
+            limits:
+              cpu: ${RESOURCES_CPU_LIMIT}
+              memory: ${RESOURCES_MEMORY_LIMIT}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+              readOnly: true
+            - name: feature-flags
+              mountPath: /app/configs/feature_flags.json
+              subPath: feature_flags.json
+              readOnly: true
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: config
+          configMap:
+            name: tournament-optimization-config
+        - name: feature-flags
+          configMap:
+            name: tournament-optimization-feature-flags
+        - name: logs
+          emptyDir: {}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tournament-optimization
+  namespace: ${NAMESPACE}
+  labels:
+    app: tournament-optimization
+    environment: ${ENVIRONMENT}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
+  selector:
+    app: tournament-optimization
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tournament-optimization
+  namespace: ${NAMESPACE}
+  labels:
+    app: tournament-optimization
+    environment: ${ENVIRONMENT}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tournament-optimization
+  namespace: ${NAMESPACE}
+rules:
+  - apiGroups: ['']
+    resources: ['configmaps', 'secrets']
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['apps']
+    resources: ['deployments']
+    verbs: ['get', 'list', 'watch']
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tournament-optimization
+  namespace: ${NAMESPACE}
+subjects:
+  - kind: ServiceAccount
+    name: tournament-optimization
+    namespace: ${NAMESPACE}
+roleRef:
+  kind: Role
+  name: tournament-optimization
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tournament-optimization-config
+  namespace: ${NAMESPACE}
+  labels:
+    app: tournament-optimization
+    environment: ${ENVIRONMENT}
+data:
+  app.yaml: |
+    environment: ${ENVIRONMENT}
+    log_level: INFO
+    metrics_enabled: true
+    health_check_enabled: true
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tournament-optimization-feature-flags
+  namespace: ${NAMESPACE}
+  labels:
+    app: tournament-optimization
+    environment: ${ENVIRONMENT}
+data:
+  feature_flags.json: |
+    {
+      "flags": {
+        "ensemble_reasoning": {
+          "name": "Ensemble Reasoning",
+          "description": "Enable ensemble reasoning with multiple agents",
+          "type": "boolean",
+          "default_value": true,
+          "enabled": true,
+          "rules": [
+            {
+              "strategy": "all_users",
+              "value": true
+            }
+          ]
+        }
+      }
+    }

@@ -1,6 +1,5 @@
 # test_math.py
 # Unit tests for MathTool
-import pytest
 from src.agents.tools.math import MathTool, safe_eval
 
 def test_mathtool_basic():

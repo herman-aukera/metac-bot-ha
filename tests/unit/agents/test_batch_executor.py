@@ -1,7 +1,6 @@
 # test_batch_executor.py
 # Unit tests for batch_executor logic
-import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from src.agents.batch_executor import run_batch
 
 def test_run_batch_dryrun():
@@ -20,7 +19,6 @@ def test_run_batch_dryrun():
         assert logs[1]["forecast"] == 0.7
 
 import os
-import contextlib
 
 def test_run_batch_submit():
     questions = [{"question_id": 1, "question_text": "Q1"}]

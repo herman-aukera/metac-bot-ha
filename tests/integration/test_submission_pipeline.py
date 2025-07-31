@@ -1,6 +1,5 @@
 # test_submission_pipeline.py
 # Integration test: ForecastChain → MetaculusClient submission
-import pytest
 from unittest.mock import patch, Mock
 from src.agents.llm import MockLLM
 from src.agents.search import SearchTool

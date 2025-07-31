@@ -1,0 +1,108 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install
+          # Install security scanning tools
+          pip install safety bandit
+
+      - name: Run security tests
+        run: |
+          python scripts/security_scan.py --fail-on-issues
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-report
+          path: security_report.json
+
+      - name: Comment PR with security results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const report = JSON.parse(fs.readFileSync('security_report.json', 'utf8'));
+              const status = report.overall_status === 'PASS' ? '✅ PASS' : '❌ FAIL';
+
+              const comment = `## 🔒 Security Scan Results
+
+              **Overall Status:** ${status}
+
+              ### Summary
+              - **Security Tests:** ${report.security_tests.passed} passed, ${report.security_tests.failed} failed
+              - **Dependency Vulnerabilities:** ${report.dependency_scan.high_risk} high, ${report.dependency_scan.medium_risk} medium, ${report.dependency_scan.low_risk} low
+              - **Code Security Issues:** ${report.code_scan.critical} critical, ${report.code_scan.high} high, ${report.code_scan.medium} medium, ${report.code_scan.low} low
+              - **Configuration Issues:** ${report.configuration_scan.issues.length} found
+
+              ${report.overall_status === 'FAIL' ? '⚠️ **Action Required:** Please address the security issues before merging.' : ''}
+              `;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.log('Could not read security report:', error);
+            }
+
+  dependency-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
+
+  codeql-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: python
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2

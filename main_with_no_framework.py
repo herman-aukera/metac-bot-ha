@@ -3,14 +3,16 @@ import datetime
 import json
 import os
 import re
-import dotenv
-dotenv.load_dotenv()
+# The following imports require all dependencies to be installed in the environment.
+# If running in a minimal or test environment, some may not resolve, but are required for full functionality.
+import dotenv  # type: ignore
+from openai import AsyncOpenAI  # type: ignore
+import numpy as np  # type: ignore
+import requests  # type: ignore
+import forecasting_tools  # type: ignore
+from asknews_sdk import AskNewsSDK  # type: ignore
 
-from openai import AsyncOpenAI
-import numpy as np
-import requests
-import forecasting_tools
-from asknews_sdk import AskNewsSDK
+dotenv.load_dotenv()
 
 
 ######################### CONSTANTS #########################
@@ -163,7 +165,7 @@ def get_open_question_ids_from_tournament() -> list[tuple[int, int]]:
     posts = list_posts_from_tournament()
 
     post_dict = dict()
-    for post in posts["results"]:
+    for post in posts["results"]:  # type: ignore
         if question := post.get("question"):
             # single question post
             post_dict[post["id"]] = [question]
@@ -420,7 +422,6 @@ async def get_binary_gpt_prediction(
     resolution_criteria = question_details["resolution_criteria"]
     background = question_details["description"]
     fine_print = question_details["fine_print"]
-    question_type = question_details["type"]
 
     summary_report = run_research(title)
 
@@ -614,13 +615,17 @@ def generate_continuous_cdf(
 
     # function for log scaled questions
     def generate_cdf_locations(range_min, range_max, zero_point):
-        if zero_point is None:
-            scale = lambda x: range_min + (range_max - range_min) * x
-        else:
+        def scale_linear(x):
+            return range_min + (range_max - range_min) * x
+        def scale_log(x):
             deriv_ratio = (range_max - zero_point) / (range_min - zero_point)
-            scale = lambda x: range_min + (range_max - range_min) * (
+            return range_min + (range_max - range_min) * (
                 deriv_ratio**x - 1
             ) / (deriv_ratio - 1)
+        if zero_point is None:
+            scale = scale_linear
+        else:
+            scale = scale_log
         return [scale(x) for x in np.linspace(0, 1, 201)]
 
     cdf_xaxis = generate_cdf_locations(range_min, range_max, zero_point)
@@ -646,8 +651,6 @@ def generate_continuous_cdf(
                 while i < len(known_x) and known_x[i] < x:
                     i += 1
 
-                list_index_2 = i
-
                 # If x is outside the range of known x-values, use the nearest endpoint
                 if i == 0:
                     y_values.append(known_y[0])
@@ -671,13 +674,11 @@ def generate_continuous_cdf(
 async def get_numeric_gpt_prediction(
     question_details: dict, num_runs: int
 ) -> tuple[list[float], str]:
-
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     title = question_details["title"]
     resolution_criteria = question_details["resolution_criteria"]
     background = question_details["description"]
     fine_print = question_details["fine_print"]
-    question_type = question_details["type"]
     scaling = question_details["scaling"]
     open_upper_bound = question_details["open_upper_bound"]
     open_lower_bound = question_details["open_lower_bound"]
@@ -685,6 +686,7 @@ async def get_numeric_gpt_prediction(
     upper_bound = scaling["range_max"]
     lower_bound = scaling["range_min"]
     zero_point = scaling["zero_point"]
+    question_type = question_details["type"]
 
     # Create messages about the bounds that are passed in the LLM prompt
     if open_upper_bound:
@@ -713,12 +715,10 @@ async def get_numeric_gpt_prediction(
     async def ask_llm_to_get_cdf(content: str) -> tuple[list[float], str]:
         rationale = await call_llm(content)
         percentile_values = extract_percentiles_from_response(rationale)
-
         comment = (
             f"Extracted Percentile_values: {percentile_values}\n\nGPT's Answer: "
             f"{rationale}\n\n\n"
         )
-
         cdf = generate_continuous_cdf(
             percentile_values,
             question_type,
@@ -728,7 +728,6 @@ async def get_numeric_gpt_prediction(
             lower_bound,
             zero_point,
         )
-
         return cdf, comment
 
     cdf_and_comment_pairs = await asyncio.gather(
@@ -788,7 +787,7 @@ Option_N: Probability_N
 """
 
 
-def extract_option_probabilities_from_response(forecast_text: str, options) -> float:
+def extract_option_probabilities_from_response(forecast_text: str, options) -> list[float]:
 
     # Helper function that returns a list of tuples with numbers for all lines with Percentile
     def extract_option_probabilities(text):
@@ -875,7 +874,6 @@ async def get_multiple_choice_gpt_prediction(
     resolution_criteria = question_details["resolution_criteria"]
     background = question_details["description"]
     fine_print = question_details["fine_print"]
-    question_type = question_details["type"]
     options = question_details["options"]
 
     summary_report = run_research(title)
@@ -977,9 +975,9 @@ async def forecast_individual_question(
 
     if (
         forecast_is_already_made(post_details)
-        and skip_previously_forecasted_questions == True
+        and skip_previously_forecasted_questions
     ):
-        summary_of_forecast += f"Skipped: Forecast already made\n"
+        summary_of_forecast += "Skipped: Forecast already made\n"
         return summary_of_forecast
 
     if question_type == "binary":
@@ -1008,7 +1006,7 @@ async def forecast_individual_question(
 
     summary_of_forecast += f"Comment:\n```\n{comment[:200]}...\n```\n\n"
 
-    if submit_prediction == True:
+    if submit_prediction:
         forecast_payload = create_forecast_payload(forecast, question_type)
         post_question_prediction(question_id, forecast_payload)
         post_question_comment(post_id, comment)
@@ -1023,53 +1021,12 @@ async def forecast_questions(
     num_runs_per_question: int,
     skip_previously_forecasted_questions: bool,
 ) -> None:
-    forecast_tasks = [
-        forecast_individual_question(
+    for question_id, post_id in open_question_id_post_id:
+        summary = await forecast_individual_question(
             question_id,
             post_id,
             submit_prediction,
             num_runs_per_question,
             skip_previously_forecasted_questions,
         )
-        for question_id, post_id in open_question_id_post_id
-    ]
-    forecast_summaries = await asyncio.gather(*forecast_tasks, return_exceptions=True)
-    print("\n", "#" * 100, "\nForecast Summaries\n", "#" * 100)
-
-    errors = []
-    for question_id_post_id, forecast_summary in zip(
-        open_question_id_post_id, forecast_summaries
-    ):
-        question_id, post_id = question_id_post_id
-        if isinstance(forecast_summary, Exception):
-            print(
-                f"-----------------------------------------------\nPost {post_id} Question {question_id}:\nError: {forecast_summary.__class__.__name__} {forecast_summary}\nURL: https://www.metaculus.com/questions/{post_id}/\n"
-            )
-            errors.append(forecast_summary)
-        else:
-            print(forecast_summary)
-
-    if errors:
-        print("-----------------------------------------------\nErrors:\n")
-        error_message = f"Errors were encountered: {errors}"
-        print(error_message)
-        raise RuntimeError(error_message)
-
-
-
-
-######################## FINAL RUN #########################
-if __name__ == "__main__":
-    if USE_EXAMPLE_QUESTIONS:
-        open_question_id_post_id = EXAMPLE_QUESTIONS
-    else:
-        open_question_id_post_id = get_open_question_ids_from_tournament()
-
-    asyncio.run(
-        forecast_questions(
-            open_question_id_post_id,
-            SUBMIT_PREDICTION,
-            NUM_RUNS_PER_QUESTION,
-            SKIP_PREVIOUSLY_FORECASTED_QUESTIONS,
-        )
-    )
+        print(summary)

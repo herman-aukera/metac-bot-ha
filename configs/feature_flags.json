@@ -1,0 +1,434 @@
+{
+  "flags": {
+    "ensemble_reasoning": {
+      "name": "Ensemble Reasoning",
+      "description": "Enable ensemble reasoning with multiple agents for improved prediction accuracy",
+      "type": "boolean",
+      "default_value": true,
+      "enabled": true,
+      "tags": [
+        "core",
+        "reasoning",
+        "agents"
+      ],
+      "rules": [
+        {
+          "strategy": "environment",
+          "value": true,
+          "environments": [
+            "production",
+            "staging"
+          ],
+          "metadata": {
+            "rollout_phase": "stable"
+          }
+        },
+        {
+          "strategy": "percentage",
+          "value": true,
+          "percentage": 100.0,
+          "environments": [
+            "development"
+          ],
+          "metadata": {
+            "rollout_phase": "development"
+          }
+        }
+      ]
+    },
+    "advanced_research_pipeline": {
+      "name": "Advanced Research Pipeline",
+      "description": "Enable multi-provider research pipeline with enhanced source analysis",
+      "type": "boolean",
+      "default_value": false,
+      "enabled": true,
+      "tags": [
+        "research",
+        "pipeline",
+        "optimization"
+      ],
+      "rules": [
+        {
+          "strategy": "percentage",
+          "value": true,
+          "percentage": 75.0,
+          "environments": [
+            "production"
+          ],
+          "metadata": {
+            "rollout_phase": "gradual_rollout",
+            "target_percentage": 100.0
+          }
+        },
+        {
+          "strategy": "all_users",
+          "value": true,
+          "environments": [
+            "staging",
+            "development"
+          ],
+          "metadata": {
+            "rollout_phase": "testing"
+          }
+        }
+      ]
+    },
+    "tournament_strategy_optimization": {
+      "name": "Tournament Strategy Optimization",
+      "description": "Enable advanced tournament strategy optimization and question prioritization",
+      "type": "boolean",
+      "default_value": false,
+      "enabled": true,
+      "tags": [
+        "tournament",
+        "strategy",
+        "optimization"
+      ],
+      "rules": [
+        {
+          "strategy": "a_b_test",
+          "value": true,
+          "percentage": 50.0,
+          "environments": [
+            "production"
+          ],
+          "metadata": {
+            "test_group": "strategy_optimization_test",
+            "test_duration_days": 30,
+            "success_metric": "tournament_ranking_improvement"
+          }
+        },
+        {
+          "strategy": "all_users",
+          "value": true,
+          "environments": [
+            "staging"
+          ],
+          "metadata": {
+            "rollout_phase": "pre_production_testing"
+          }
+        }
+      ]
+    },
+    "real_time_learning": {
+      "name": "Real-time Learning",
+      "description": "Enable real-time learning and adaptation based on tournament performance",
+      "type": "boolean",
+      "default_value": false,
+      "enabled": true,
+      "tags": [
+        "learning",
+        "adaptation",
+        "performance"
+      ],
+      "rules": [
+        {
+          "strategy": "percentage",
+          "value": true,
+          "percentage": 25.0,
+          "environments": [
+            "production"
+          ],
+          "start_date": "2024-01-01T00:00:00Z",
+          "metadata": {
+            "rollout_phase": "limited_rollout",
+            "monitoring_required": true
+          }
+        }
+      ]
+    },
+    "circuit_breaker_protection": {
+      "name": "Circuit Breaker Protection",
+      "description": "Enable circuit breaker protection for external service calls",
+      "type": "boolean",
+      "default_value": true,
+      "enabled": true,
+      "tags": [
+        "resilience",
+        "reliability",
+        "infrastructure"
+      ],
+      "rules": [
+        {
+          "strategy": "all_users",
+          "value": true,
+          "metadata": {
+            "rollout_phase": "stable",
+            "critical_feature": true
+          }
+        }
+      ]
+    },
+    "performance_monitoring": {
+      "name": "Performance Monitoring",
+      "description": "Enable detailed performance monitoring and metrics collection",
+      "type": "boolean",
+      "default_value": true,
+      "enabled": true,
+      "tags": [
+        "monitoring",
+        "performance",
+        "observability"
+      ],
+      "rules": [
+        {
+          "strategy": "environment",
+          "value": true,
+          "environments": [
+            "production",
+            "staging"
+          ],
+          "metadata": {
+            "rollout_phase": "stable"
+          }
+        },
+        {
+          "strategy": "percentage",
+          "value": true,
+          "percentage": 50.0,
+          "environments": [
+            "development"
+          ],
+          "metadata": {
+            "rollout_phase": "development_sampling"
+          }
+        }
+      ]
+    },
+    "max_ensemble_agents": {
+      "name": "Maximum Ensemble Agents",
+      "description": "Maximum number of agents to use in ensemble reasoning",
+      "type": "number",
+      "default_value": 3,
+      "enabled": true,
+      "tags": [
+        "configuration",
+        "agents",
+        "performance"
+      ],
+      "rules": [
+        {
+          "strategy": "environment",
+          "value": 5,
+          "environments": [
+            "production"
+          ],
+          "metadata": {
+            "resource_allocation": "high"
+          }
+        },
+        {
+          "strategy": "environment",
+          "value": 4,
+          "environments": [
+            "staging"
+          ],
+          "metadata": {
+            "resource_allocation": "medium"
+          }
+        },
+        {
+          "strategy": "environment",
+          "value": 2,
+          "environments": [
+            "development"
+          ],
+          "metadata": {
+            "resource_allocation": "low"
+          }
+        }
+      ]
+    },
+    "research_timeout_seconds": {
+      "name": "Research Timeout",
+      "description": "Timeout for research operations in seconds",
+      "type": "number",
+      "default_value": 30,
+      "enabled": true,
+      "tags": [
+        "configuration",
+        "timeout",
+        "research"
+      ],
+      "rules": [
+        {
+          "strategy": "environment",
+          "value": 60,
+          "environments": [
+            "production"
+          ],
+          "metadata": {
+            "quality_priority": "high"
+          }
+        },
+        {
+          "strategy": "environment",
+          "value": 45,
+          "environments": [
+            "staging"
+          ],
+          "metadata": {
+            "quality_priority": "medium"
+          }
+        }
+      ]
+    },
+    "cache_ttl_minutes": {
+      "name": "Cache TTL Minutes",
+      "description": "Time-to-live for cached research results in minutes",
+      "type": "number",
+      "default_value": 60,
+      "enabled": true,
+      "tags": [
+        "configuration",
+        "cache",
+        "performance"
+      ],
+      "rules": [
+        {
+          "strategy": "environment",
+          "value": 120,
+          "environments": [
+            "production"
+          ],
+          "metadata": {
+            "cache_strategy": "aggressive"
+          }
+        },
+        {
+          "strategy": "environment",
+          "value": 30,
+          "environments": [
+            "development"
+          ],
+          "metadata": {
+            "cache_strategy": "minimal"
+          }
+        }
+      ]
+    },
+    "blue_green_deployment": {
+      "name": "Blue-Green Deployment",
+      "description": "Enable blue-green deployment strategy",
+      "type": "boolean",
+      "default_value": true,
+      "enabled": true,
+      "tags": [
+        "deployment",
+        "strategy",
+        "reliability"
+      ],
+      "rules": [
+        {
+          "strategy": "environment",
+          "value": true,
+          "environments": [
+            "production"
+          ],
+          "metadata": {
+            "deployment_strategy": "zero_downtime"
+          }
+        },
+        {
+          "strategy": "environment",
+          "value": false,
+          "environments": [
+            "development"
+          ],
+          "metadata": {
+            "deployment_strategy": "rolling"
+          }
+        }
+      ]
+    },
+    "auto_rollback_enabled": {
+      "name": "Auto Rollback",
+      "description": "Enable automatic rollback on deployment failures",
+      "type": "boolean",
+      "default_value": true,
+      "enabled": true,
+      "tags": [
+        "deployment",
+        "rollback",
+        "safety"
+      ],
+      "rules": [
+        {
+          "strategy": "all_users",
+          "value": true,
+          "metadata": {
+            "safety_feature": true,
+            "rollback_threshold_errors": 5
+          }
+        }
+      ]
+    },
+    "experimental_features": {
+      "name": "Experimental Features",
+      "description": "Enable experimental optimization features",
+      "type": "json",
+      "default_value": {
+        "neural_ensemble_weighting": false,
+        "quantum_reasoning_simulation": false,
+        "meta_learning_adaptation": false
+      },
+      "enabled": true,
+      "tags": [
+        "experimental",
+        "research",
+        "advanced"
+      ],
+      "rules": [
+        {
+          "strategy": "user_list",
+          "value": {
+            "neural_ensemble_weighting": true,
+            "quantum_reasoning_simulation": false,
+            "meta_learning_adaptation": true
+          },
+          "user_list": [
+            "research_team",
+            "beta_testers"
+          ],
+          "metadata": {
+            "experimental_group": "advanced_features"
+          }
+        },
+        {
+          "strategy": "percentage",
+          "value": {
+            "neural_ensemble_weighting": true,
+            "quantum_reasoning_simulation": false,
+            "meta_learning_adaptation": false
+          },
+          "percentage": 5.0,
+          "environments": [
+            "production"
+          ],
+          "metadata": {
+            "experimental_group": "limited_rollout"
+          }
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2024-01-15T10:00:00Z",
+    "environment_configs": {
+      "development": {
+        "default_rollout_percentage": 100.0,
+        "enable_debug_logging": true
+      },
+      "staging": {
+        "default_rollout_percentage": 100.0,
+        "enable_debug_logging": false
+      },
+      "production": {
+        "default_rollout_percentage": 50.0,
+        "enable_debug_logging": false,
+        "require_approval": true
+      }
+    }
+  }
+}

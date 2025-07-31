@@ -1,0 +1,491 @@
+name: Tournament Optimization CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'blue-green'
+        type: choice
+        options:
+          - blue-green
+          - rolling
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Pre-flight checks and validation
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+      target_env: ${{ steps.check.outputs.target_env }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check deployment conditions
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "target_env=production" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "target_env=staging" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "target_env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          else
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+            echo "target_env=none" >> $GITHUB_OUTPUT
+          fi
+
+  # Comprehensive security scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install --with=dev,test
+
+      - name: Run comprehensive security scan
+        run: |
+          # Safety check for known vulnerabilities
+          poetry run safety check --json --output security-report.json || true
+
+          # Bandit for security issues in code
+          poetry run bandit -r src/ -f json -o bandit-report.json || true
+
+          # Semgrep for additional security patterns
+          pip install semgrep
+          semgrep --config=auto src/ --json --output=semgrep-report.json || true
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: python
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            security-report.json
+            bandit-report.json
+            semgrep-report.json
+
+      - name: Security gate check
+        run: |
+          # Check for critical security issues
+          python scripts/security_gate_check.py \
+            --safety-report security-report.json \
+            --bandit-report bandit-report.json \
+            --semgrep-report semgrep-report.json
+
+  # Code quality and linting
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install --with=dev,test
+
+      - name: Run code quality checks
+        run: |
+          # Format checking
+          poetry run black --check src/ tests/
+
+          # Import sorting
+          poetry run isort --check-only src/ tests/
+
+          # Linting
+          poetry run flake8 src/ tests/
+
+          # Type checking
+          poetry run mypy src/
+
+          # Complexity analysis
+          poetry run radon cc src/ --min B
+
+  # Comprehensive testing suite
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-type: [unit, integration, e2e]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install --with=dev,test
+
+      - name: Run ${{ matrix.test-type }} tests
+        env:
+          DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          case "${{ matrix.test-type }}" in
+            unit)
+              poetry run pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=html --cov-fail-under=90
+              ;;
+            integration)
+              poetry run pytest tests/integration/ -v --maxfail=5
+              ;;
+            e2e)
+              poetry run pytest tests/e2e/ -v --maxfail=3
+              ;;
+          esac
+
+      - name: Upload coverage reports
+        if: matrix.test-type == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.test-type }}
+          path: |
+            htmlcov/
+            coverage.xml
+            pytest-report.xml
+
+  # Performance and load testing
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install --with=dev,test
+
+      - name: Run performance tests
+        run: |
+          # Benchmark tests
+          poetry run pytest tests/performance/ -v --benchmark-json=benchmark.json
+
+          # Load testing
+          poetry run locust --headless --users 100 --spawn-rate 10 --run-time 60s --host http://localhost:8000
+
+      - name: Performance regression check
+        run: |
+          python scripts/performance_regression_check.py benchmark.json
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: |
+            benchmark.json
+            locust-report.html
+
+  # Build and security scan Docker images
+  build-and-scan:
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality, test, performance-test]
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: blue-green
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ steps.meta.outputs.version }}
+
+      - name: Run comprehensive container security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Snyk container scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          args: --severity-threshold=high
+
+  # Deploy to staging environment
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [preflight, build-and-scan]
+    if: needs.preflight.outputs.should_deploy == 'true' && (needs.preflight.outputs.target_env == 'staging' || github.ref == 'refs/heads/develop')
+    environment:
+      name: staging
+      url: https://tournament-optimization-staging.example.com
+    concurrency:
+      group: staging-deployment
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region us-west-2 --name tournament-optimization-staging
+
+      - name: Deploy to staging
+        env:
+          ENVIRONMENT: staging
+          IMAGE_TAG: ${{ github.sha }}
+          DEPLOYMENT_STRATEGY: ${{ github.event.inputs.deployment_strategy || 'blue-green' }}
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh -e staging -t ${{ github.sha }} -s blue-green
+
+      - name: Run smoke tests
+        run: |
+          python scripts/smoke_tests.py --environment staging --timeout 300
+
+      - name: Run deployment validation
+        run: |
+          python scripts/deployment_validation.py --environment staging
+
+      - name: Update deployment status
+        if: always()
+        run: |
+          python scripts/update_deployment_status.py \
+            --environment staging \
+            --status ${{ job.status }} \
+            --commit ${{ github.sha }}
+
+  # Deploy to production environment
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [preflight, build-and-scan]
+    if: needs.preflight.outputs.should_deploy == 'true' && needs.preflight.outputs.target_env == 'production'
+    environment:
+      name: production
+      url: https://tournament-optimization.example.com
+    concurrency:
+      group: production-deployment
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-west-2
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region us-west-2 --name tournament-optimization-production
+
+      - name: Pre-deployment checks
+        run: |
+          python scripts/pre_deployment_checks.py --environment production
+
+      - name: Deploy to production
+        env:
+          ENVIRONMENT: production
+          IMAGE_TAG: ${{ github.sha }}
+          DEPLOYMENT_STRATEGY: blue-green
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh -e production -t ${{ github.sha }} -s blue-green
+
+      - name: Run comprehensive smoke tests
+        run: |
+          python scripts/smoke_tests.py --environment production --timeout 600 --comprehensive
+
+      - name: Run deployment validation
+        run: |
+          python scripts/deployment_validation.py --environment production --strict
+
+      - name: Monitor deployment health
+        run: |
+          python scripts/deployment_health_monitor.py \
+            --environment production \
+            --duration 300 \
+            --auto-rollback
+
+      - name: Update deployment status
+        if: always()
+        run: |
+          python scripts/update_deployment_status.py \
+            --environment production \
+            --status ${{ job.status }} \
+            --commit ${{ github.sha }}
+
+      - name: Notify deployment success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: '🚀 Production deployment successful! Version: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: '❌ Production deployment failed! Version: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Post-deployment monitoring and validation
+  post-deployment:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up monitoring
+        run: |
+          python scripts/setup_post_deployment_monitoring.py \
+            --environment ${{ needs.preflight.outputs.target_env }} \
+            --version ${{ github.sha }}
+
+      - name: Schedule performance regression tests
+        run: |
+          python scripts/schedule_regression_tests.py \
+            --environment ${{ needs.preflight.outputs.target_env }} \
+            --delay 300

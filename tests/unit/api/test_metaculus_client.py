@@ -3,7 +3,6 @@
 import pytest
 from unittest.mock import patch, Mock
 from src.api.metaculus_client import MetaculusClient
-import jsonschema
 from jsonschema import ValidationError
 
 @pytest.fixture

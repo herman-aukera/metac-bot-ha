@@ -1,6 +1,5 @@
 # test_question_fetcher.py
 # Unit tests for question_fetcher filtering logic
-import pytest
 from unittest.mock import patch, Mock
 from src.api.question_fetcher import fetch_new_questions
 

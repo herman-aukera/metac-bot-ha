@@ -8,7 +8,6 @@ ForecastChain: Chain-of-Thought + Evidence pipeline for Metaculus forecasting.
 """
 
 from typing import Dict, Any
-from src.agents.search import SearchTool
 from src.agents.tools import tool_list
 from datetime import datetime
 

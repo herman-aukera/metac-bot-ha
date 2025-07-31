@@ -6,7 +6,6 @@ MathTool: Safe math evaluator for forecast agent.
 - CI/offline safe: can be mocked in tests.
 """
 import math
-import operator
 import ast
 
 SAFE_NAMES = {k: getattr(math, k) for k in dir(math) if not k.startswith("_")}

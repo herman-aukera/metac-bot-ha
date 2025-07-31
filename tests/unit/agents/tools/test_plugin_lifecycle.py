@@ -1,5 +1,4 @@
 # test_plugin_lifecycle.py
-import pytest
 from src.agents.chains.forecast_chain import ForecastChain
 from src.agents.tools.plugin_loader import PluginTool
 

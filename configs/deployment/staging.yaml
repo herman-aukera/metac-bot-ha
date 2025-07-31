@@ -1,0 +1,144 @@
+# Staging Environment Configuration
+environment: staging
+
+# Registry Configuration
+registry:
+  url: 'ghcr.io'
+  namespace: 'tournament-optimization'
+
+# Image Configuration
+image:
+  name: 'tournament-optimization'
+  tag: 'staging-latest'
+  pull_policy: 'Always'
+
+# Deployment Configuration
+deployment:
+  replicas: 2
+  strategy: 'RollingUpdate'
+  max_unavailable: 1
+  max_surge: 1
+
+# Resource Configuration
+resources:
+  requests:
+    cpu: '200m'
+    memory: '512Mi'
+  limits:
+    cpu: '1000m'
+    memory: '1Gi'
+
+# Service Configuration
+service:
+  type: 'ClusterIP'
+  port: 8000
+  target_port: 8000
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  host: 'tournament-optimization-staging.example.com'
+  tls: true
+  tls_secret: 'tournament-optimization-staging-tls'
+
+# Database Configuration
+database:
+  host: 'tournament-optimization-staging-db.cluster-xyz.us-west-2.rds.amazonaws.com'
+  port: 5432
+  name: 'tournament_optimization_staging'
+  username: 'staging_user'
+  ssl_mode: 'require'
+  max_connections: 20
+  connection_timeout: 30
+
+# Redis Configuration
+redis:
+  host: 'tournament-optimization-staging-cache.abc123.cache.amazonaws.com'
+  port: 6379
+  database: 0
+  max_connections: 20
+  connection_timeout: 5
+  ssl: true
+
+# External APIs Configuration
+external_apis:
+  metaculus:
+    base_url: 'https://www.metaculus.com/api2'
+    timeout: 30
+    rate_limit: 200
+
+  search_providers:
+    asknews:
+      enabled: true
+      timeout: 15
+      rate_limit: 100
+    perplexity:
+      enabled: true
+      timeout: 20
+      rate_limit: 60
+    exa:
+      enabled: true
+      timeout: 15
+      rate_limit: 200
+    serpapi:
+      enabled: true
+      timeout: 20
+      rate_limit: 100
+    duckduckgo:
+      enabled: true
+      timeout: 10
+      rate_limit: 50
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_path: '/health'
+  readiness_check_path: '/ready'
+  log_level: 'INFO'
+  structured_logging: true
+  prometheus_enabled: true
+  jaeger_enabled: true
+
+# Security Configuration
+security:
+  enable_rate_limiting: true
+  rate_limit_requests_per_minute: 500
+  enable_cors: true
+  cors_origins: ['https://tournament-optimization-staging.example.com']
+  enable_csrf_protection: true
+  enable_input_validation: true
+
+# Feature Flags
+feature_flags:
+  config_path: 'configs/feature_flags.json'
+  reload_interval: 300 # 5 minutes
+
+# Performance Configuration
+performance:
+  enable_caching: true
+  cache_ttl: 3600 # 1 hour
+  enable_compression: true
+  max_concurrent_requests: 100
+  enable_connection_pooling: true
+
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: '0 2 * * *' # Daily at 2 AM
+  retention_days: 14
+  s3_bucket: 'tournament-optimization-staging-backups'
+
+# Auto-scaling Configuration
+autoscaling:
+  enabled: true
+  min_replicas: 2
+  max_replicas: 5
+  target_cpu_utilization: 70
+  target_memory_utilization: 80
+
+# Blue-Green Deployment
+blue_green:
+  enabled: true
+  health_check_timeout: 300
+  traffic_switch_delay: 60

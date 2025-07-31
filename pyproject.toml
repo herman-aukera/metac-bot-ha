@@ -18,12 +18,17 @@ forecasting-tools = "^0.2.23"
 langchain-core = "^0.3.63"
 jsonschema = "^4.24.0"
 pytest = "^8.4.0"
+bleach = "^6.1.0"
+cryptography = "^42.0.0"
+aioredis = "^2.0.1"
+aiohttp = "^3.9.0"
 
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
+pytest-cov = "^6.1.1"
+ruff = "^0.11.13"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
