@@ -9,7 +9,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.11"
 python-decouple = "^3.8"
-requests = "^2.32.3"
+requests = "^2.32.4"
 asknews = "^0.9.1"
 numpy = "^2.2.0"
 openai = "^1.57.4"
