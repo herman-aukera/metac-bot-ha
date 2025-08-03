@@ -1,239 +1,239 @@
-name: Metaculus AI Forecasting Bot CI/CD
+#name: Metaculus AI Forecasting Bot CI/CD
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-  schedule:
-    # Run daily at 2 AM UTC for production forecasting
-    - cron: "0 2 * * *"
+#on:
+#  push:
+#    branches: [main, develop]
+#  pull_request:
+#    branches: [main]
+#  workflow_dispatch:
+#  schedule:
+#    # Run daily at 2 AM UTC for production forecasting
+#    - cron: "0 2 * * *"
 
-# Add concurrency group to prevent parallel runs
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+## Add concurrency group to prevent parallel runs
+#concurrency:
+#  group: ${{ github.workflow }}-${{ github.ref }}
+#  cancel-in-progress: true
 
-env:
-  PYTHON_VERSION: "3.11"
+#env:
+#  PYTHON_VERSION: "3.11"
 
-jobs:
-  # Code quality and testing pipeline
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        test-type: [unit, integration, e2e]
+#jobs:
+#  # Code quality and testing pipeline
+#  test:
+#    name: Test Suite
+#    runs-on: ubuntu-latest
+#    strategy:
+#      matrix:
+#        test-type: [unit, integration, e2e]
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+#    steps:
+#      - name: Check out repository
+#        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
+#      - name: Install poetry
+#        uses: snok/install-poetry@v1
+#        with:
+#          virtualenvs-create: true
+#          virtualenvs-in-project: true
+#          installer-parallel: true
 
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+#      - name: Load cached venv
+#        id: cached-poetry-dependencies
+#        uses: actions/cache@v4
+#        with:
+#          path: .venv
+#          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction
+#      - name: Install dependencies
+#        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+#        run: poetry install --no-interaction
 
-      - name: Run ${{ matrix.test-type }} tests
-        run: |
-          case "${{ matrix.test-type }}" in
-            unit)
-              poetry run pytest tests/unit/ -v --cov=src --cov-report=xml
-              ;;
-            integration)
-              poetry run pytest tests/integration/ -v
-              ;;
-            e2e)
-              poetry run pytest tests/e2e/ -v
-              ;;
-          esac
-        env:
-          # Test environment variables (mocked)
-          OPENAI_API_KEY: "test-key"
-          METACULUS_TOKEN: "test-token"
-          PERPLEXITY_API_KEY: "test-key"
-          EXA_API_KEY: "test-key"
+#      - name: Run ${{ matrix.test-type }} tests
+#        run: |
+#          case "${{ matrix.test-type }}" in
+#            unit)
+#              poetry run pytest tests/unit/ -v --cov=src --cov-report=xml
+#              ;;
+#            integration)
+#              poetry run pytest tests/integration/ -v
+#              ;;
+#            e2e)
+#              poetry run pytest tests/e2e/ -v
+#              ;;
+#          esac
+#        env:
+#          # Test environment variables (mocked)
+#          OPENAI_API_KEY: "test-key"
+#          METACULUS_TOKEN: "test-token"
+#          PERPLEXITY_API_KEY: "test-key"
+#          EXA_API_KEY: "test-key"
 
-      - name: Upload coverage to Codecov
-        if: matrix.test-type == 'unit'
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+#      - name: Upload coverage to Codecov
+#        if: matrix.test-type == 'unit'
+#        uses: codecov/codecov-action@v3
+#        with:
+#          file: ./coverage.xml
+#          fail_ci_if_error: false
 
-  # Code quality checks
-  quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
+#  # Code quality checks
+#  quality:
+#    name: Code Quality
+#    runs-on: ubuntu-latest
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+#    steps:
+#      - name: Check out repository
+#        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
+#      - name: Install poetry
+#        uses: snok/install-poetry@v1
+#        with:
+#          virtualenvs-create: true
+#          virtualenvs-in-project: true
+#          installer-parallel: true
 
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+#      - name: Load cached venv
+#        id: cached-poetry-dependencies
+#        uses: actions/cache@v4
+#        with:
+#          path: .venv
+#          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction
+#      - name: Install dependencies
+#        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+#        run: poetry install --no-interaction
 
-      - name: Check code formatting
-        run: |
-          poetry run black --check src tests
-          poetry run isort --check-only src tests
+#      - name: Check code formatting
+#        run: |
+#          poetry run black --check src tests
+#          poetry run isort --check-only src tests
 
-      - name: Run linting
-        run: |
-          poetry run flake8 src tests
-          poetry run pylint src --fail-under=8.0
+#      - name: Run linting
+#        run: |
+#          poetry run flake8 src tests
+#          poetry run pylint src --fail-under=8.0
 
-      - name: Run type checking
-        run: poetry run mypy src
+#      - name: Run type checking
+#        run: poetry run mypy src
 
-  # Production forecasting job (only on schedule or manual trigger)
-  forecast:
-    name: Production Forecasting
-    runs-on: ubuntu-latest
-    needs: [test, quality]
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+#  # Production forecasting job (only on schedule or manual trigger)
+#  forecast:
+#    name: Production Forecasting
+#    runs-on: ubuntu-latest
+#    needs: [test, quality]
+#    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+#    steps:
+#      - name: Check out repository
+#        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
+#      - name: Install poetry
+#        uses: snok/install-poetry@v1
+#        with:
+#          virtualenvs-create: true
+#          virtualenvs-in-project: true
+#          installer-parallel: true
 
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+#      - name: Load cached venv
+#        id: cached-poetry-dependencies
+#        uses: actions/cache@v4
+#        with:
+#          path: .venv
+#          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction
+#      - name: Install dependencies
+#        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+#        run: poetry install --no-interaction
 
-      - name: Run forecasting bot
-        run: poetry run python main.py --mode production
-        env:
-          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
-          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
-          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
+#      - name: Run forecasting bot
+#        run: poetry run python main.py --mode production
+#        env:
+#          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+#          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+#          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+#          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+#          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
+#          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
 
-      - name: Upload forecasting results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: forecasting-results
-          path: |
-            logs/
-            results/
-            *.log
-          retention-days: 30
+#      - name: Upload forecasting results
+#        uses: actions/upload-artifact@v3
+#        if: always()
+#        with:
+#          name: forecasting-results
+#          path: |
+#            logs/
+#            results/
+#            *.log
+#          retention-days: 30
 
-  # Benchmark testing (weekly)
-  benchmark:
-    name: Benchmark Testing
-    runs-on: ubuntu-latest
-    needs: [test, quality]
-    if: github.event_name == 'workflow_dispatch'
+#  # Benchmark testing (weekly)
+#  benchmark:
+#    name: Benchmark Testing
+#    runs-on: ubuntu-latest
+#    needs: [test, quality]
+#    if: github.event_name == 'workflow_dispatch'
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+#    steps:
+#      - name: Check out repository
+#        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
+#      - name: Install poetry
+#        uses: snok/install-poetry@v1
+#        with:
+#          virtualenvs-create: true
+#          virtualenvs-in-project: true
+#          installer-parallel: true
 
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+#      - name: Load cached venv
+#        id: cached-poetry-dependencies
+#        uses: actions/cache@v4
+#        with:
+#          path: .venv
+#          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction
+#      - name: Install dependencies
+#        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+#        run: poetry install --no-interaction
 
-      - name: Run benchmark tests
-        run: poetry run python community_benchmark.py
-        env:
-          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
-          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#      - name: Run benchmark tests
+#        run: poetry run python community_benchmark.py
+#        env:
+#          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+#          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+#          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+#          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+#          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: benchmark-results
-          path: |
-            benchmark_results/
-            *.json
-            *.csv
-          retention-days: 90
+#      - name: Upload benchmark results
+#        uses: actions/upload-artifact@v3
+#        if: always()
+#        with:
+#          name: benchmark-results
+#          path: |
+#            benchmark_results/
+#            *.json
+#            *.csv
+#          retention-days: 90
