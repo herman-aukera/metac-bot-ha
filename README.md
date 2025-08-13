@@ -1,13 +1,16 @@
 # Simple Metaculus forecasting bot
+
 This repository contains a simple bot meant to get you started with creating your own bot for the AI Forecasting Tournament. Go to https://www.metaculus.com/aib/ for more info and tournament rules.
 
 In this project are 2 files:
+
 - **main.py**: Our recommended template option that uses [forecasting-tools](https://github.com/Metaculus/forecasting-tools) package to handle a lot of stuff in the background for you (such as API calls). We will update the package, thus allowing you to gain new features with minimal changes to your code.
 - **main_with_no_framework.py**: A copy of main.py but implemented with minimal dependencies. Useful if you want a more custom approach.
 
 Join the conversation about bot creation, get support, and follow updates on the [Metaculus Discord](https://discord.com/invite/NJgCC2nDfh) 'build a forecasting bot' channel.
 
 ## 30min Video Tutorial
+
 This tutorial shows you how to set our template bot so you can start forecasting in the tournament.
 
 [![Watch the tutorial](https://cdn.loom.com/sessions/thumbnails/fc3c1a643b984a15b510647d8f760685-42b452e1ab7d2afa-full-play.gif)](https://www.loom.com/share/fc3c1a643b984a15b510647d8f760685?sid=29b502e0-cf64-421e-82c0-3a78451159ed)
@@ -16,6 +19,7 @@ If you run into trouble, reach out to `ben [at] metaculus [.com]`
 
 
 ## Quick start -> Fork and use Github Actions
+
 The easiest way to use this repo is to fork it, enable github workflow/actions, and then set repository secrets. Then your bot will run every 30min, pick up new questions, and forecast on them. Automation is handled in the `.github/workflows/` folder. The `daily_run_simple_bot.yaml` file runs the simple bot every 30 min and will skip questions it has already forecasted on.
 
 1) **Fork the repository**: Go to the [repository](https://github.com/Metaculus/metac-bot-template) and click 'fork'.
@@ -25,7 +29,9 @@ The easiest way to use this repo is to fork it, enable github workflow/actions, 
 The bot should just work as is at this point. You can disable the workflow by clicking `Actions > Regularly forecast new questions > Triple dots > disable workflow`
 
 ## Getting your Metaculus Token
+
 To get a bot account and your API Token:
+
 1) Go to https://metaculus.com/aib
 2) Click "Log Out" if you are using your personal account
 3) Click "Create a Bot Account"
@@ -38,7 +44,9 @@ If your regular Metaculus account uses Gmail, you can create a separate bot acco
 ## Search Provider API Keys
 
 ### Getting AskNews Setup
+
 Metaculus is collaborating with AskNews to give free access for news searches. Each registered bot builder gets 3k calls per month, 9k calls total for the tournament (please note that latest news requests (48 hours back) are 1 call and archive news requests are 5 calls), and 5M tokens. Bots have access to the /news and /deepnews endpoints. To sign up:
+
 1. Make an account on AskNews (if you have not yet, https://my.asknews.app)
 2. Send the email address associated with your AskNews account to the email `rob [at] asknews [.app]` (or DM `@drafty` in Discord)
 3. In that email also send the username of your Metaculus bot and please indicate if you plan to use /news and/or /deepnews.
@@ -119,7 +127,7 @@ if __name__ == "__main__":
     sources = ["asknews"]
     model = "deepseek-basic"
     search_depth = 2
-    max_depth = 2 
+    max_depth = 2
     asyncio.run(
         deep_research(
             query, sources, model, search_depth, max_depth
@@ -140,7 +148,9 @@ You will get tags in your response, including:
 These tags are likely useful for extracting the pieces that you need for your pipeline. For example, if you dont want to include all the thinking/searching, you could just extract <final_response> </final_response>
 
 ### Getting Perplexity Set Up
+
 Perplexity works as an internet powered LLM, and costs half a cent per search (if you pick the right model) plus token costs. It is less customizable but generally cheaper.
+
 1. Create an account on the free tier at www.perplexity.ai
 2. Go to https://www.perplexity.ai/settings/account
 3. Click "API" in the top bar
@@ -149,7 +159,9 @@ Perplexity works as an internet powered LLM, and costs half a cent per search (i
 6. Add it to the .env as `PERPLEXITY_API_KEY=your-key-here`
 
 ### Getting Exa Set Up
+
 Exa is closer to a more traditional search provider. Exa takes in a search query and a list of filters and returns a list of websites. Each site returned can have scraped text, semantic higlights, AI summary, and more. By putting GPT on top of Exa, you can recreate Perplexity with more control. An implementation of this is available in the `SmartSearcher` of the `forecasting-tools` python package. Each Exa search costs half a cent per search plus a tenth of a cent per 'text-content' requested per site requested. Content items include: highlights from a source, summary of a source, or full text.
+
 1. Make an account with Exa at Exa.ai
 2. Go to https://dashboard.exa.ai/playground
 3. Click on "API Keys" in the left sidebar
@@ -158,7 +170,9 @@ Exa is closer to a more traditional search provider. Exa takes in a search query
 6. Add it to the .env as `EXA_API_KEY=your-key-here`
 
 ### Other Search
+
 Here are some other unvetted but interesting options for search and website reading:
+
 - Tavily
 - Google Search API
 - crawl4ai
@@ -166,9 +180,11 @@ Here are some other unvetted but interesting options for search and website read
 - Playwright
 
 ## Accessing the Metaculus LLM Proxy
+
 OpenAI and Anthropic have generously donated credits to bot builders in the tournament which we are providing through an llm proxy.
 
 To get credits assigned to your model choices (or if you need renewed credits from a previous quarter), please send an email to `ben [at] metaculus [.com]` with the below:
+
 * The username of your bot
 * A couple paragraph description of how your existing bot works, or what you plan to build
 * An estimate of how much budget/tokens you might productively use
@@ -182,7 +198,9 @@ You can also use the `forecasting-tools` package to call the proxy. To do this, 
 
 
 ## Run the bot locally
+
 Clone the repository. Find your terminal and run the following commands:
+
 ```bash
 git clone https://github.com/Metaculus/metac-bot-template.git
 ```
@@ -190,9 +208,11 @@ git clone https://github.com/Metaculus/metac-bot-template.git
 If you forked the repository first, you have to replace the url in the `git clone` command with the url to your fork. Just go to your forked repository and copy the url from the address bar in the browser.
 
 ### Installing dependencies
+
 Make sure you have python and [poetry](https://python-poetry.org/docs/#installing-with-pipx) installed (poetry is a python package manager).
 
 If you don't have poetry installed run the below:
+
 ```bash
 sudo apt update -y
 sudo apt install -y pipx
@@ -204,9 +224,11 @@ poetry config virtualenvs.in-project true
 
 
 Inside the terminal, go to the directory you cloned the repository into and run the following command:
+
 ```bash
 poetry install
 ```
+
 to install all required dependencies.
 
 ### Setting environment variables
@@ -216,12 +238,15 @@ Running the bot requires various environment variables. If you run the bot local
 ### Running the bot
 
 To test the simple bot, execute the following command in your terminal:
+
 ```bash
 poetry run python main.py --mode test_questions
 ```
+
 Make sure to set the environment variables as described above and to set the parameters in the code to your liking. In particular, to submit predictions, make sure that `submit_predictions` is set to `True` (it is set to `True` by default in main.py).
 
 ## Early Benchmarking
+
 Provided in this project is an example of how to benchmark your bot's forecasts against the community prediction for questions on Metaculus. Running `community_benchmark.py` will run versions of your bot defined by you (e.g. with different LLMs or research paths) and score them on how close they are to the community prediction using expected baseline score (a proper score assuming the community prediction is the true probability). You will want to edit the file to choose which bot configurations you want to test and how many questions you want to test on. Any class inheriting from `forecasting-tools.Forecastbot` can be passed into the benchmarker. As of March 28, 2025 the benchmarker only works with binary questions.
 
 To run a benchmark:
@@ -236,7 +261,9 @@ To view a UI showing your scores, statistical error bars, and your bot's reasoni
 See more information in the benchmarking section of the [forecasting-tools repo](https://github.com/Metaculus/forecasting-tools?tab=readme-ov-file#benchmarking)
 
 ## Ideas for bot improvements
-Below are some ideas for making a novel bot. 
+
+Below are some ideas for making a novel bot.
+
 - Finetuned LLM on Metaculus Data: Create an optimized prompt (using DSPY or a similar toolset) and/or a fine-tuned LLM using all past Metaculus data. The thought is that this will train the LLM to be well-calibrated on real-life questions. Consider knowledge cutoffs and data leakage from search providers.
 - Dataset explorer: Create a tool that can find if there are datasets or graphs related to a question online, download them if they exist, and then run data science on them to answer a question.
 - Question decomposer: A tool that takes a complex question and breaks it down into simpler questions to answer those instead
