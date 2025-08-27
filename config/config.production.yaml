@@ -1,0 +1,230 @@
+# Production Configuration for AI Forecasting Bot
+# This configuration is optimized for tournament performance and reliability
+
+# Application Settings
+app:
+  name: 'ai-forecasting-bot'
+  version: '1.0.0'
+  environment: 'production'
+  debug: false
+  log_level: 'INFO'
+
+# Tournament Configuration
+tournament:
+  max_concurrent_questions: 10
+  prediction_timeout_seconds: 300
+  deadline_buffer_minutes: 30
+  auto_submit: true
+  dry_run: false
+
+# Agent Configuration
+agents:
+  ensemble:
+    enabled: true
+    agents:
+      - type: 'chain_of_thought'
+        weight: 0.25
+        timeout: 120
+      - type: 'tree_of_thought'
+        weight: 0.25
+        timeout: 180
+      - type: 'react'
+        weight: 0.25
+        timeout: 150
+      - type: 'auto_cot'
+        weight: 0.25
+        timeout: 120
+
+    aggregation:
+      method: 'confidence_weighted'
+      min_confidence: 0.1
+      diversity_threshold: 0.3
+
+  reasoning:
+    max_depth: 5
+    bias_detection: true
+    confidence_calibration: true
+    trace_preservation: true
+
+# API Configuration
+apis:
+  metaculus:
+    base_url: 'https://www.metaculus.com/api2'
+    timeout: 30
+    retry_attempts: 3
+    retry_delay: 5
+    rate_limit:
+      requests_per_minute: 60
+      burst_limit: 10
+
+  research:
+    asknews:
+      timeout: 20
+      max_articles: 10
+    perplexity:
+      timeout: 25
+      max_results: 5
+    exa:
+      timeout: 15
+      max_results: 8
+    serpapi:
+      timeout: 20
+      max_results: 10
+    duckduckgo:
+      timeout: 15
+      max_results: 5
+
+# Infrastructure Configuration
+infrastructure:
+  reliability:
+    circuit_breaker:
+      failure_threshold: 5
+      recovery_timeout: 60
+      half_open_max_calls: 3
+
+    rate_limiter:
+      default_limit: 100
+      window_seconds: 60
+
+    retry:
+      max_attempts: 3
+      base_delay: 1.0
+      max_delay: 30.0
+      exponential_base: 2.0
+
+    health_check:
+      interval_seconds: 30
+      timeout_seconds: 10
+
+  monitoring:
+    metrics:
+      enabled: true
+      port: 8080
+      path: '/metrics'
+
+    alerts:
+      enabled: true
+      webhook_url: '${ALERT_WEBHOOK_URL}'
+
+    performance_tracking:
+      enabled: true
+      history_retention_hours: 168 # 7 days
+
+# Database Configuration (if needed)
+database:
+  type: 'sqlite'
+  path: 'data/forecasting_bot.db'
+  connection_pool:
+    max_connections: 10
+    timeout: 30
+
+# Caching Configuration
+cache:
+  type: 'memory'
+  max_size_mb: 512
+  ttl_seconds: 3600
+
+# Security Configuration
+security:
+  api_keys:
+    encryption: true
+    rotation_days: 90
+
+  rate_limiting:
+    enabled: true
+    per_ip_limit: 1000
+    per_hour_limit: 10000
+
+# Performance Configuration
+performance:
+  threading:
+    max_workers: 4
+    queue_size: 100
+
+  memory:
+    max_usage_mb: 2048
+    gc_threshold: 1536
+
+  processing:
+    batch_size: 5
+    parallel_research: true
+    cache_predictions: true
+
+# Deployment Configuration
+deployment:
+  strategy: 'blue_green'
+  health_check:
+    path: '/health'
+    timeout: 10
+    retries: 3
+
+  rollback:
+    enabled: true
+    auto_rollback: true
+    backup_retention_days: 30
+
+  scaling:
+    auto_scale: false
+    min_replicas: 1
+    max_replicas: 3
+    cpu_threshold: 80
+    memory_threshold: 85
+
+# Logging Configuration
+logging:
+  level: 'INFO'
+  format: 'json'
+
+  handlers:
+    console:
+      enabled: true
+      level: 'INFO'
+
+    file:
+      enabled: true
+      level: 'DEBUG'
+      path: 'logs/app.log'
+      max_size_mb: 100
+      backup_count: 5
+
+    reasoning:
+      enabled: true
+      path: 'logs/reasoning'
+      max_files: 1000
+
+  loggers:
+    agents: 'INFO'
+    infrastructure: 'INFO'
+    tournament: 'DEBUG'
+    performance: 'INFO'
+
+# Feature Flags
+features:
+  advanced_reasoning: true
+  tournament_analytics: true
+  real_time_adaptation: true
+  risk_management: true
+  calibration_tracking: true
+  performance_optimization: true
+
+# Tournament Strategy Configuration
+strategy:
+  risk_management:
+    conservative_threshold: 0.3
+    abstention_enabled: true
+    confidence_scaling: true
+
+  calibration:
+    tracking_enabled: true
+    drift_detection: true
+    auto_correction: true
+
+  adaptation:
+    performance_tracking: true
+    strategy_evolution: true
+    meta_learning: true
+
+  scoring_optimization:
+    tournament_specific: true
+    timing_optimization: true
+    confidence_optimization: true

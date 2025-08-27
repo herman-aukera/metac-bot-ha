@@ -1,0 +1,333 @@
+name: Tournament Deadline-Aware Forecasting
+
+on:
+  workflow_dispatch:
+    inputs:
+      scheduling_mode:
+        description: 'Scheduling mode for tournament phase'
+        required: true
+        default: 'normal'
+        type: choice
+        options:
+          - normal
+          - critical
+          - final_24h
+      custom_frequency_hours:
+        description: 'Custom frequency in hours (overrides mode)'
+        required: false
+        type: string
+        default: ''
+
+  # Scheduled runs based on tournament phase
+  # Enable different schedules by uncommenting as needed
+  schedule:
+    # Normal tournament operation (every 4 hours)
+    - cron: '0 */4 * * *'
+
+    # Critical period scheduling (every 2 hours) - uncomment when needed
+    # - cron: '0 */2 * * *'
+
+    # Final 24 hours scheduling (every hour) - uncomment for deadline periods
+    # - cron: '0 * * * *'
+
+concurrency:
+  group: tournament-deadline-aware-${{ github.event.inputs.scheduling_mode || 'scheduled' }}
+  cancel-in-progress: true
+
+jobs:
+  determine_scheduling:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.schedule_check.outputs.should_run }}
+      frequency_hours: ${{ steps.schedule_check.outputs.frequency_hours }}
+      scheduling_mode: ${{ steps.schedule_check.outputs.scheduling_mode }}
+    steps:
+      - name: Check scheduling requirements
+        id: schedule_check
+        run: |
+          # Default values
+          SHOULD_RUN="true"
+          FREQUENCY_HOURS="4"
+          SCHEDULING_MODE="${{ github.event.inputs.scheduling_mode || 'normal' }}"
+
+          # Override with custom frequency if provided
+          if [ -n "${{ github.event.inputs.custom_frequency_hours }}" ]; then
+            FREQUENCY_HOURS="${{ github.event.inputs.custom_frequency_hours }}"
+          else
+            # Set frequency based on mode
+            case "$SCHEDULING_MODE" in
+              "critical")
+                FREQUENCY_HOURS="2"
+                ;;
+              "final_24h")
+                FREQUENCY_HOURS="1"
+                ;;
+              *)
+                FREQUENCY_HOURS="4"
+                ;;
+            esac
+          fi
+
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+          echo "frequency_hours=$FREQUENCY_HOURS" >> $GITHUB_OUTPUT
+          echo "scheduling_mode=$SCHEDULING_MODE" >> $GITHUB_OUTPUT
+
+          echo "🕐 Scheduling Mode: $SCHEDULING_MODE"
+          echo "⏱️ Frequency: Every $FREQUENCY_HOURS hours"
+
+  tournament_forecast:
+    needs: determine_scheduling
+    if: needs.determine_scheduling.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Validate API keys
+        run: |
+          poetry run python -c "
+          from src.infrastructure.config.api_keys import api_key_manager
+          import sys
+          validation = api_key_manager.validate_required_keys()
+          api_key_manager.log_key_status()
+          if not validation['valid']:
+              print('❌ Missing required API keys:', [k['key'] for k in validation['missing_keys']])
+              sys.exit(1)
+          else:
+              print('✅ All required API keys are configured')
+          "
+        env:
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
+
+      - name: Check budget status before run
+        id: budget_check
+        run: |
+          echo "💰 Checking budget status before deadline-aware forecasting..."
+          poetry run python -c "
+          from src.infrastructure.config.budget_manager import BudgetManager
+          from src.infrastructure.monitoring.budget_dashboard import BudgetDashboard
+          import sys
+          import os
+
+          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
+          dashboard = BudgetDashboard(budget_manager)
+
+          status = budget_manager.get_budget_status()
+          print(f'💰 Budget Status: {status[\"status\"]}')
+          print(f'💸 Spent: \${status[\"spent\"]:.2f} / \${status[\"budget_limit\"]:.2f}')
+          print(f'📊 Utilization: {status[\"utilization\"]:.1%}')
+
+          # Set output for workflow decisions
+          print(f'budget_status={status[\"status\"]}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          print(f'budget_utilization={status[\"utilization\"]:.3f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          print(f'budget_remaining={status[\"remaining\"]:.2f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+
+          # Check if we should continue
+          if status['utilization'] >= 0.98:
+              print('🚨 CRITICAL: Budget exhausted (98%+), suspending workflow')
+              sys.exit(1)
+          elif status['utilization'] >= 0.95:
+              print('⚠️ WARNING: Budget critical (95%+), emergency mode activated')
+          elif status['utilization'] >= 0.80:
+              print('⚠️ CAUTION: Budget high (80%+), conservative mode activated')
+          else:
+              print('✅ Budget status normal, proceeding with forecasting')
+          "
+        env:
+          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
+
+      - name: Run deadline-aware tournament bot
+        if: steps.budget_check.outputs.budget_utilization < '0.98'
+        run: |
+          echo "🚀 Starting deadline-aware tournament forecasting..."
+          echo "📅 Scheduling Mode: ${{ needs.determine_scheduling.outputs.scheduling_mode }}"
+          echo "⏱️ Frequency: Every ${{ needs.determine_scheduling.outputs.frequency_hours }} hours"
+          echo "💰 Budget utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
+          echo "💵 Budget remaining: ${{ steps.budget_check.outputs.budget_remaining }}"
+          poetry run python main.py
+          echo "✅ Tournament forecasting completed successfully"
+        env:
+          # Required API keys
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+          # Optional API keys
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
+
+          # Bot configuration
+          APP_ENV: production
+          LOG_LEVEL: INFO
+          DRY_RUN: false
+
+          # Tournament configuration
+          PUBLISH_REPORTS: true
+          AIB_TOURNAMENT_ID: 32813
+          TOURNAMENT_MODE: true
+
+          # Budget management configuration
+          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
+          COST_TRACKING_ENABLED: true
+          EMERGENCY_MODE_THRESHOLD: 0.95
+          CONSERVATIVE_MODE_THRESHOLD: 0.80
+          BUDGET_STATUS: ${{ steps.budget_check.outputs.budget_status }}
+
+          # Deadline-aware scheduling configuration
+          SCHEDULING_FREQUENCY_HOURS: ${{ needs.determine_scheduling.outputs.frequency_hours }}
+          DEADLINE_AWARE_SCHEDULING: true
+          CRITICAL_PERIOD_FREQUENCY_HOURS: 2
+          FINAL_24H_FREQUENCY_HOURS: 1
+          TOURNAMENT_SCOPE: seasonal
+
+          # Metaculus proxy configuration
+          ENABLE_PROXY_CREDITS: true
+          METACULUS_DEFAULT_MODEL: ${{ secrets.METACULUS_DEFAULT_MODEL || 'metaculus/claude-3-5-sonnet' }}
+          METACULUS_SUMMARIZER_MODEL: ${{ secrets.METACULUS_SUMMARIZER_MODEL || 'metaculus/gpt-4o-mini' }}
+          METACULUS_RESEARCH_MODEL: ${{ secrets.METACULUS_RESEARCH_MODEL || 'metaculus/gpt-4o' }}
+          MAX_PROXY_REQUESTS: 1000
+
+      - name: Generate cost report
+        if: always() && steps.budget_check.outputs.budget_utilization >= '0.0'
+        run: |
+          echo "📊 Generating post-run cost report..."
+          poetry run python -c "
+          from src.infrastructure.config.budget_manager import BudgetManager
+          from src.infrastructure.monitoring.budget_dashboard import BudgetDashboard
+          import os
+          import json
+          from datetime import datetime
+
+          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
+          dashboard = BudgetDashboard(budget_manager)
+
+          # Generate comprehensive report
+          status = budget_manager.get_budget_status()
+          report = {
+              'timestamp': datetime.now().isoformat(),
+              'workflow_run': os.getenv('GITHUB_RUN_NUMBER'),
+              'scheduling_mode': '${{ needs.determine_scheduling.outputs.scheduling_mode }}',
+              'frequency_hours': '${{ needs.determine_scheduling.outputs.frequency_hours }}',
+              'budget_status': status,
+              'recommendations': dashboard.get_budget_recommendations()
+          }
+
+          print('📊 Deadline-Aware Cost Report:')
+          print(f'  📅 Mode: ${{ needs.determine_scheduling.outputs.scheduling_mode }}')
+          print(f'  ⏱️ Frequency: Every ${{ needs.determine_scheduling.outputs.frequency_hours }} hours')
+          print(f'  💰 Total Budget: \${status[\"budget_limit\"]:.2f}')
+          print(f'  💸 Amount Spent: \${status[\"spent\"]:.2f}')
+          print(f'  💵 Remaining: \${status[\"remaining\"]:.2f}')
+          print(f'  📈 Utilization: {status[\"utilization\"]:.1%}')
+          print(f'  🎯 Status: {status[\"status\"]}')
+
+          # Save detailed report
+          with open('deadline_aware_cost_report.json', 'w') as f:
+              json.dump(report, f, indent=2)
+
+          print('📄 Detailed cost report saved to deadline_aware_cost_report.json')
+          "
+        env:
+          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
+
+      - name: Report scheduling status
+        if: always()
+        run: |
+          echo "📊 Scheduling Report:"
+          echo "  Mode: ${{ needs.determine_scheduling.outputs.scheduling_mode }}"
+          echo "  Frequency: Every ${{ needs.determine_scheduling.outputs.frequency_hours }} hours"
+          echo "  Status: ${{ job.status }}"
+          echo "  Budget Status: ${{ steps.budget_check.outputs.budget_status }}"
+          echo "  Budget Utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deadline-aware forecasting completed successfully"
+          else
+            echo "❌ Deadline-aware forecasting failed"
+
+            # Check if failure was due to budget exhaustion
+            if [ "${{ steps.budget_check.outputs.budget_utilization }}" != "" ]; then
+              if (( $(echo "${{ steps.budget_check.outputs.budget_utilization }} >= 0.98" | bc -l) )); then
+                echo "💸 Failure cause: Budget exhausted"
+                echo "🛑 Workflow suspended due to budget limits"
+              fi
+            fi
+          fi
+
+      - name: Check for budget alerts
+        if: always() && steps.budget_check.outputs.budget_utilization >= '0.80'
+        run: |
+          echo "🚨 Budget Alert Triggered in Deadline-Aware Mode!"
+          echo "Current utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
+          echo "Remaining budget: ${{ steps.budget_check.outputs.budget_remaining }}"
+          echo "Scheduling mode: ${{ needs.determine_scheduling.outputs.scheduling_mode }}"
+
+          if (( $(echo "${{ steps.budget_check.outputs.budget_utilization }} >= 0.95" | bc -l) )); then
+            echo "🔴 CRITICAL ALERT: Budget utilization >= 95%"
+            echo "Action required: Consider suspending automated runs or reducing frequency"
+          elif (( $(echo "${{ steps.budget_check.outputs.budget_utilization }} >= 0.80" | bc -l) )); then
+            echo "🟡 WARNING ALERT: Budget utilization >= 80%"
+            echo "Action recommended: Monitor closely and consider switching to normal mode"
+          fi
+
+      - name: Upload cost report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deadline-aware-run-${{ github.run_number }}-${{ needs.determine_scheduling.outputs.scheduling_mode }}-${{ steps.budget_check.outputs.budget_status || 'unknown' }}
+          path: |
+            deadline_aware_cost_report.json
+            *.log
+            logs/
+          retention-days: 30
+
+      - name: Budget exhaustion workflow suspension
+        if: always() && steps.budget_check.outputs.budget_utilization >= '0.98'
+        run: |
+          echo "🚨 CRITICAL: Budget exhausted in deadline-aware mode"
+          echo "Current utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
+          echo "Remaining budget: ${{ steps.budget_check.outputs.budget_remaining }}"
+          echo "Scheduling mode: ${{ needs.determine_scheduling.outputs.scheduling_mode }}"
+          echo ""
+          echo "🛑 RECOMMENDED ACTIONS:"
+          echo "1. Disable scheduled workflow runs immediately"
+          echo "2. Switch to manual forecasting for critical deadlines only"
+          echo "3. Review cost optimization opportunities"
+          echo "4. Consider emergency budget increase if tournament is critical"
+
+          # This will cause the workflow to fail, preventing future scheduled runs
+          exit 1

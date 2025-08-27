@@ -396,7 +396,9 @@ class AuthoritativeSourceManager:
     and specialized knowledge bases with quantified credibility scoring.
     """
 
-    def __init__(self):
+    def __init__(self, search_client=None, llm_client=None):
+        self.search_client = search_client
+        self.llm_client = llm_client
         self.domain_authority_scores = self._initialize_domain_authority()
         self.journal_impact_scores = self._initialize_journal_scores()
         self.institution_rankings = self._initialize_institution_rankings()

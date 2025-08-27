@@ -272,7 +272,8 @@ class ConflictResolver:
     coherent conclusions with uncertainty documentation.
     """
 
-    def __init__(self):
+    def __init__(self, llm_client=None):
+        self.llm_client = llm_client
         self.resolution_strategies = {
             ResolutionStrategy.CREDIBILITY_WEIGHTED: CredibilityWeightedStrategy(),
             ResolutionStrategy.CONSENSUS_BASED: ConsensusBasedStrategy(),

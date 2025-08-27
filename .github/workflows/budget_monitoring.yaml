@@ -1,0 +1,317 @@
+name: Budget Monitoring and Cost Tracking
+
+on:
+  schedule:
+    # Run budget monitoring every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_report:
+        description: 'Force generate comprehensive budget report'
+        required: false
+        default: 'false'
+        type: boolean
+      check_suspension:
+        description: 'Check if workflows should be suspended due to budget'
+        required: false
+        default: 'true'
+        type: boolean
+
+concurrency:
+  group: budget-monitoring
+  cancel-in-progress: false # Don't cancel budget monitoring
+
+jobs:
+  budget_monitoring:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      budget_status: ${{ steps.budget_analysis.outputs.budget_status }}
+      should_suspend: ${{ steps.budget_analysis.outputs.should_suspend }}
+      utilization: ${{ steps.budget_analysis.outputs.utilization }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Comprehensive budget analysis
+        id: budget_analysis
+        run: |
+          echo "💰 Running comprehensive budget analysis..."
+          poetry run python -c "
+          from src.infrastructure.config.budget_manager import BudgetManager
+          from src.infrastructure.monitoring.budget_dashboard import BudgetDashboard
+          from src.infrastructure.monitoring.alert_system import AlertSystem
+          import os
+          import json
+          from datetime import datetime, timedelta
+
+          # Initialize components
+          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
+          dashboard = BudgetDashboard(budget_manager)
+          alert_system = AlertSystem()
+
+          # Get current status
+          status = budget_manager.get_budget_status()
+          recommendations = dashboard.get_budget_recommendations()
+
+          print('💰 COMPREHENSIVE BUDGET ANALYSIS')
+          print('=' * 50)
+          print(f'📅 Analysis Time: {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S UTC\")}')
+          print(f'💰 Total Budget: \${status[\"budget_limit\"]:.2f}')
+          print(f'💸 Amount Spent: \${status[\"spent\"]:.2f}')
+          print(f'💵 Remaining: \${status[\"remaining\"]:.2f}')
+          print(f'📊 Utilization: {status[\"utilization\"]:.1%}')
+          print(f'🎯 Status Level: {status[\"status\"]}')
+          print(f'📈 Questions Processed: {status.get(\"questions_processed\", 0)}')
+          print(f'💲 Avg Cost/Question: \${status.get(\"average_cost_per_question\", 0):.3f}')
+          print(f'🔮 Est. Questions Remaining: {status.get(\"estimated_questions_remaining\", \"N/A\")}')
+
+          # Determine actions
+          should_suspend = status['utilization'] >= 0.98
+          should_alert = status['utilization'] >= 0.80
+
+          # Set outputs
+          print(f'budget_status={status[\"status\"]}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          print(f'should_suspend={str(should_suspend).lower()}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          print(f'utilization={status[\"utilization\"]:.3f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          print(f'remaining_budget={status[\"remaining\"]:.2f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          print(f'should_alert={str(should_alert).lower()}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+
+          # Generate detailed report
+          report = {
+              'timestamp': datetime.now().isoformat(),
+              'budget_analysis': status,
+              'recommendations': recommendations,
+              'alerts': {
+                  'should_suspend': should_suspend,
+                  'should_alert': should_alert,
+                  'alert_level': 'critical' if should_suspend else 'warning' if should_alert else 'normal'
+              },
+              'workflow_recommendations': {
+                  'suspend_scheduled_runs': should_suspend,
+                  'switch_to_conservative_mode': status['utilization'] >= 0.80,
+                  'enable_emergency_mode': status['utilization'] >= 0.95,
+                  'manual_oversight_required': status['utilization'] >= 0.90
+              }
+          }
+
+          # Save report
+          with open('budget_monitoring_report.json', 'w') as f:
+              json.dump(report, f, indent=2)
+
+          print()
+          print('📋 RECOMMENDATIONS:')
+          for rec in recommendations:
+              print(f'  • {rec}')
+
+          if should_suspend:
+              print()
+              print('🚨 CRITICAL ACTION REQUIRED:')
+              print('  • Budget exhausted (98%+ utilization)')
+              print('  • Suspend all automated workflows immediately')
+              print('  • Switch to manual forecasting only')
+          elif should_alert:
+              print()
+              print('⚠️ WARNING - MONITORING REQUIRED:')
+              print('  • High budget utilization detected')
+              print('  • Consider reducing forecast frequency')
+              print('  • Monitor remaining budget closely')
+
+          print()
+          print('📄 Detailed report saved to budget_monitoring_report.json')
+          "
+        env:
+          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
+
+      - name: Generate cost per run analysis
+        run: |
+          echo "📊 Analyzing cost per workflow run..."
+          poetry run python -c "
+          from src.infrastructure.config.budget_manager import BudgetManager
+          from src.infrastructure.monitoring.performance_tracker import PerformanceTracker
+          import os
+          import json
+          from datetime import datetime, timedelta
+
+          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
+          performance_tracker = PerformanceTracker()
+
+          # Analyze recent performance
+          status = budget_manager.get_budget_status()
+
+          print('📊 COST PER RUN ANALYSIS')
+          print('=' * 40)
+
+          if status.get('questions_processed', 0) > 0:
+              avg_cost = status['spent'] / status['questions_processed']
+              print(f'💲 Average Cost per Question: \${avg_cost:.3f}')
+
+              # Estimate remaining capacity
+              remaining_questions = int(status['remaining'] / avg_cost) if avg_cost > 0 else 0
+              print(f'🔮 Estimated Questions Remaining: {remaining_questions}')
+
+              # Calculate run frequency recommendations
+              if remaining_questions > 0:
+                  days_remaining = 30  # Assume 30 days left in tournament
+                  questions_per_day = remaining_questions / days_remaining
+                  recommended_frequency = max(1, int(24 / questions_per_day)) if questions_per_day > 0 else 24
+
+                  print(f'📅 Recommended Frequency: Every {recommended_frequency} hours')
+                  print(f'🎯 Target Questions/Day: {questions_per_day:.1f}')
+              else:
+                  print('⚠️ WARNING: Insufficient budget for additional questions')
+          else:
+              print('📊 No questions processed yet - unable to calculate averages')
+
+          # Save analysis
+          analysis = {
+              'timestamp': datetime.now().isoformat(),
+              'cost_analysis': {
+                  'total_spent': status['spent'],
+                  'questions_processed': status.get('questions_processed', 0),
+                  'average_cost_per_question': status.get('average_cost_per_question', 0),
+                  'estimated_questions_remaining': status.get('estimated_questions_remaining', 0)
+              }
+          }
+
+          with open('cost_per_run_analysis.json', 'w') as f:
+              json.dump(analysis, f, indent=2)
+
+          print('📄 Cost analysis saved to cost_per_run_analysis.json')
+          "
+        env:
+          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
+
+      - name: Check workflow suspension requirements
+        if: github.event.inputs.check_suspension != 'false'
+        run: |
+          echo "🔍 Checking if workflows should be suspended..."
+
+          if [ "${{ steps.budget_analysis.outputs.should_suspend }}" == "true" ]; then
+            echo "🚨 WORKFLOW SUSPENSION REQUIRED"
+            echo "Budget utilization: ${{ steps.budget_analysis.outputs.utilization }}"
+            echo "Remaining budget: ${{ steps.budget_analysis.outputs.remaining_budget }}"
+            echo ""
+            echo "🛑 IMMEDIATE ACTIONS REQUIRED:"
+            echo "1. Disable all scheduled tournament workflows"
+            echo "2. Cancel any running workflow instances"
+            echo "3. Switch to manual forecasting mode only"
+            echo "4. Review budget allocation and optimization opportunities"
+            echo ""
+            echo "To disable workflows, update repository settings or modify cron schedules."
+          else
+            echo "✅ Budget status allows continued automated operation"
+            echo "Current utilization: ${{ steps.budget_analysis.outputs.utilization }}"
+            echo "Status: ${{ steps.budget_analysis.outputs.budget_status }}"
+          fi
+
+      - name: Generate budget alerts
+        if: steps.budget_analysis.outputs.should_alert == 'true'
+        run: |
+          echo "🚨 BUDGET ALERT GENERATED"
+          echo "Alert Level: ${{ steps.budget_analysis.outputs.should_suspend == 'true' && 'CRITICAL' || 'WARNING' }}"
+          echo "Budget Utilization: ${{ steps.budget_analysis.outputs.utilization }}"
+          echo "Remaining Budget: ${{ steps.budget_analysis.outputs.remaining_budget }}"
+          echo "Status: ${{ steps.budget_analysis.outputs.budget_status }}"
+          echo ""
+
+          if [ "${{ steps.budget_analysis.outputs.should_suspend }}" == "true" ]; then
+            echo "🔴 CRITICAL ALERT: Budget exhausted - immediate action required"
+            echo "Recommended: Suspend all automated workflows"
+          else
+            echo "🟡 WARNING ALERT: High budget utilization detected"
+            echo "Recommended: Monitor closely and consider conservative mode"
+          fi
+
+      - name: Upload monitoring reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: budget-monitoring-${{ github.run_number }}-${{ steps.budget_analysis.outputs.budget_status }}
+          path: |
+            budget_monitoring_report.json
+            cost_per_run_analysis.json
+            *.log
+          retention-days: 90
+
+      - name: Summary report
+        if: always()
+        run: |
+          echo "📊 BUDGET MONITORING SUMMARY"
+          echo "=" * 50
+          echo "🕐 Monitoring Time: $(date)"
+          echo "💰 Budget Status: ${{ steps.budget_analysis.outputs.budget_status }}"
+          echo "📊 Utilization: ${{ steps.budget_analysis.outputs.utilization }}"
+          echo "💵 Remaining: ${{ steps.budget_analysis.outputs.remaining_budget }}"
+          echo "🚨 Should Suspend: ${{ steps.budget_analysis.outputs.should_suspend }}"
+          echo "⚠️ Should Alert: ${{ steps.budget_analysis.outputs.should_alert }}"
+          echo ""
+          echo "📄 Reports uploaded as workflow artifacts"
+          echo "🔍 Check artifacts for detailed analysis"
+
+  workflow_suspension_check:
+    needs: budget_monitoring
+    if: needs.budget_monitoring.outputs.should_suspend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Critical budget exhaustion notification
+        run: |
+          echo "🚨 CRITICAL: BUDGET EXHAUSTED - WORKFLOW SUSPENSION REQUIRED"
+          echo ""
+          echo "📊 Current Status:"
+          echo "  Budget Status: ${{ needs.budget_monitoring.outputs.budget_status }}"
+          echo "  Utilization: ${{ needs.budget_monitoring.outputs.utilization }}"
+          echo "  Remaining: ${{ needs.budget_monitoring.outputs.remaining_budget }}"
+          echo ""
+          echo "🛑 REQUIRED ACTIONS:"
+          echo "1. Immediately disable scheduled workflows:"
+          echo "   - run_bot_on_tournament.yaml"
+          echo "   - tournament_deadline_aware.yaml"
+          echo "   - Any other automated forecasting workflows"
+          echo ""
+          echo "2. Cancel any currently running workflow instances"
+          echo ""
+          echo "3. Switch to manual forecasting mode for critical deadlines only"
+          echo ""
+          echo "4. Review and implement cost optimization measures"
+          echo ""
+          echo "5. Consider emergency budget increase if tournament participation is critical"
+          echo ""
+          echo "⚠️ This workflow will continue to fail until budget issues are resolved"
+          echo "   to prevent accidental re-enabling of automated workflows."
+
+          # Fail the workflow to prevent accidental continuation
+          exit 1
+
+      - name: Disable workflows notification
+        if: failure()
+        run: |
+          echo "💡 To disable workflows, either:"
+          echo "1. Comment out or remove cron schedules in workflow files"
+          echo "2. Disable workflows in GitHub repository settings"
+          echo "3. Set repository variables to control scheduling"
+          echo ""
+          echo "🔧 Example: Set BUDGET_EXHAUSTED=true in repository variables"
+          echo "   and add conditions to workflow triggers"

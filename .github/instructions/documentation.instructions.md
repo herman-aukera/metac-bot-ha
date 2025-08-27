@@ -16,13 +16,13 @@ All tests must trace back to a documented workflow or behavior.
 
 For **every new feature, tool, chain, or agent behavior**, the following must exist:
 
-| Requirement         | File/Location                                |
-|---------------------|----------------------------------------------|
-| Feature Doc         | `/docs/FEATURE_NAME.md`                      |
-| Input/Output Sample | In the doc — JSON or CLI format              |
-| Linked Test         | Link to `tests/` file + line #               |
-| Explanation         | Description of reasoning or logic applied    |
-| Forecast Schema     | Clearly defined output format                |
+| Requirement         | File/Location                             |
+| ------------------- | ----------------------------------------- |
+| Feature Doc         | `/docs/FEATURE_NAME.md`                   |
+| Input/Output Sample | In the doc — JSON or CLI format           |
+| Linked Test         | Link to `tests/` file + line #            |
+| Explanation         | Description of reasoning or logic applied |
+| Forecast Schema     | Clearly defined output format             |
 
 ---
 

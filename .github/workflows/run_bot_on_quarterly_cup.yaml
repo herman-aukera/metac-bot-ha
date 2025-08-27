@@ -1,55 +1,110 @@
-# DISABLED: Forecast on Quarterly Cup
-# This workflow is disabled until API secrets are configured
-# To enable: uncomment this workflow and configure the required secrets in GitHub
+name: Forecast on Quarterly Cup
 
-# name: Forecast on Quarterly Cup
+on:
+  workflow_dispatch:
+  # Automatic scheduling - runs at midnight every 2 days
+  schedule:
+    - cron: '0 0 */2 * *'
 
-# on:
-#   workflow_dispatch:
-#   # Disabled automatic scheduling until secrets are configured
-#   # schedule:
-#   #   - cron: "0 0 */2 * *" # runs at midnight every 2 days
+# Optimized concurrency control for quarterly cup scheduling
+concurrency:
+  group: quarterly-cup-forecasting
+  cancel-in-progress: true # Cancel previous runs to avoid conflicts
 
-# # Add concurrency group to prevent parallel runs
-# concurrency:
-#   group: ${{ github.workflow }}
-#   cancel-in-progress: false
+# Job to run the quarterly cup forecast bot
+jobs:
+  quarterly_forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # Longer timeout for quarterly cup processing
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-# # Job to run the quarterly cup forecast bot
-# jobs:
-#   quarterly_forecast:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Check out repository
-#         uses: actions/checkout@v4
-#       - uses: actions/setup-python@v4
-#         with:
-#           python-version: "3.11"
-#       - name: Install poetry
-#         uses: snok/install-poetry@v1
-#         with:
-#           virtualenvs-create: true
-#           virtualenvs-in-project: true
-#           installer-parallel: true
-#       - name: Load cached venv
-#         id: cached-poetry-dependencies
-#         uses: actions/cache@v4
-#         with:
-#           path: .venv
-#           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-#       - name: Install dependencies
-#         run: poetry install --no-interaction --no-root
-#       - name: Run bot
-#         run: |
-#           poetry run python main.py --mode quarterly_cup
-#         # Configure these secrets in GitHub repository settings:
-#         # Settings --> Secrets and variables --> Actions
-#         env:
-#           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-#           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
-#           EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
-#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-#           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-#           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-#           ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
-#           ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Validate API keys
+        run: |
+          poetry run python -c "
+          from src.infrastructure.config.api_keys import api_key_manager
+          import sys
+          validation = api_key_manager.validate_required_keys()
+          api_key_manager.log_key_status()
+          if not validation['valid']:
+              print('❌ Missing required API keys:', [k['key'] for k in validation['missing_keys']])
+              sys.exit(1)
+          else:
+              print('✅ All required API keys are configured')
+          "
+        env:
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN || 'dummy_perplexity_key' }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || 'dummy_perplexity_key' }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
+
+      - name: Run bot with monitoring
+        run: |
+          echo "🚀 Starting quarterly cup forecasting bot..."
+          poetry run python main.py --mode quarterly_cup
+          echo "✅ Quarterly cup forecasting completed successfully"
+        env:
+          # Required API keys (must be configured in GitHub secrets)
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+          # Optional API keys (will use fallback if not configured)
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
+
+          # Bot configuration
+          APP_ENV: production
+          LOG_LEVEL: INFO
+          DRY_RUN: false
+
+      - name: Monitor deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Quarterly cup forecasting deployment successful"
+            echo "📊 Monitoring: Bot executed without errors"
+          else
+            echo "❌ Quarterly cup forecasting deployment failed"
+            echo "🔍 Check logs above for error details"
+            exit 1
+          fi
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarterly-cup-logs-${{ github.run_number }}
+          path: |
+            *.log
+            logs/
+          retention-days: 7

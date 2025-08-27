@@ -565,7 +565,9 @@ class KnowledgeGapDetector:
     recommendations for improving research depth and source diversification.
     """
 
-    def __init__(self):
+    def __init__(self, llm_client=None, search_client=None):
+        self.llm_client = llm_client
+        self.search_client = search_client
         self.gap_detectors = {
             "source_diversity": SourceDiversityDetector(),
             "temporal_coverage": TemporalCoverageDetector(),

@@ -5,8 +5,13 @@ logs/
 outputs/
 .env*
 !.env.template
+!.env.example
 configs/secrets.env
 *.log
+
+# Private scripts with API keys
+scripts/*-private.sh
+scripts/setup-github-secrets-private.sh
 
 # AI/ML specific
 models/
@@ -192,4 +197,4 @@ cython_debug/
 agent.yaml
 
 # macOS
-.DS_Store 
+.DS_Store

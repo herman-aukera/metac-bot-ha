@@ -1,0 +1,65 @@
+groups:
+  - name: forecasting_bot_alerts
+    rules:
+      - alert: ForecastingBotDown
+        expr: up{job="forecasting-bot"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Forecasting bot is down'
+          description: 'The AI forecasting bot has been down for more than 1 minute.'
+
+      - alert: HighErrorRate
+        expr: rate(forecasting_bot_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High error rate detected'
+          description: 'Error rate is {{ $value }} errors per second.'
+
+      - alert: LowPredictionAccuracy
+        expr: forecasting_bot_accuracy_score < 0.6
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Low prediction accuracy'
+          description: 'Prediction accuracy has dropped to {{ $value }}.'
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes{job="forecasting-bot"} > 1073741824
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High memory usage'
+          description: 'Memory usage is {{ $value | humanize }}B.'
+
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(forecasting_bot_request_duration_seconds_bucket[5m])) > 30
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Slow response times'
+          description: '95th percentile response time is {{ $value }}s.'
+
+      - alert: TournamentDeadlineMissed
+        expr: forecasting_bot_missed_deadlines_total > 0
+        for: 0s
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Tournament deadline missed'
+          description: '{{ $value }} tournament deadlines have been missed.'
+
+      - alert: CalibrationDrift
+        expr: abs(forecasting_bot_calibration_error) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Calibration drift detected'
+          description: 'Calibration error is {{ $value }}.'

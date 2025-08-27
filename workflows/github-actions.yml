@@ -2,9 +2,18 @@ name: CI/CD Pipeline
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    # Updated from every 30 minutes to every 4 hours for tournament optimization
+    # Configurable through environment variables in production workflows
+    - cron: '0 */4 * * *'
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      scheduling_frequency_hours:
+        description: 'Scheduling frequency in hours'
+        required: false
+        default: '4'
+        type: string
 
 jobs:
   build_and_test:
@@ -34,3 +43,11 @@ jobs:
       - name: Deploy to server
         run: |
           echo "Deploy steps go here"
+          echo "Scheduling frequency: ${{ github.event.inputs.scheduling_frequency_hours || '4' }} hours"
+        env:
+          # Tournament scheduling configuration
+          SCHEDULING_FREQUENCY_HOURS: ${{ github.event.inputs.scheduling_frequency_hours || vars.SCHEDULING_FREQUENCY_HOURS || '4' }}
+          DEADLINE_AWARE_SCHEDULING: ${{ vars.DEADLINE_AWARE_SCHEDULING || 'true' }}
+          CRITICAL_PERIOD_FREQUENCY_HOURS: ${{ vars.CRITICAL_PERIOD_FREQUENCY_HOURS || '2' }}
+          FINAL_24H_FREQUENCY_HOURS: ${{ vars.FINAL_24H_FREQUENCY_HOURS || '1' }}
+          TOURNAMENT_SCOPE: ${{ vars.TOURNAMENT_SCOPE || 'seasonal' }}

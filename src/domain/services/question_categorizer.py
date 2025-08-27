@@ -49,8 +49,9 @@ class QuestionCategorizer:
     strategy selection based on question characteristics.
     """
 
-    def __init__(self):
+    def __init__(self, llm_client=None):
         """Initialize question categorizer with specialized strategies."""
+        self.llm_client = llm_client
         self._category_strategies = self._initialize_category_strategies()
         self._classification_cache: Dict[UUID, QuestionClassification] = {}
         self._keyword_patterns = self._initialize_keyword_patterns()

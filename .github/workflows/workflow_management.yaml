@@ -1,0 +1,270 @@
+name: Workflow Management and Auto-Suspension
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - suspend_all
+          - resume_all
+          - check_status
+        default: 'check_status'
+      reason:
+        description: 'Reason for action'
+        required: false
+        default: 'Manual intervention'
+        type: string
+
+  # Trigger from budget monitoring workflow
+  workflow_call:
+    inputs:
+      action:
+        required: true
+        type: string
+      budget_status:
+        required: true
+        type: string
+      utilization:
+        required: true
+        type: string
+
+concurrency:
+  group: workflow-management
+  cancel-in-progress: false
+
+jobs:
+  workflow_management:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine action
+        id: determine_action
+        run: |
+          ACTION="${{ github.event.inputs.action || inputs.action }}"
+          BUDGET_STATUS="${{ github.event.inputs.budget_status || inputs.budget_status || 'unknown' }}"
+          UTILIZATION="${{ github.event.inputs.utilization || inputs.utilization || '0' }}"
+          REASON="${{ github.event.inputs.reason || 'Automated budget management' }}"
+
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "budget_status=$BUDGET_STATUS" >> $GITHUB_OUTPUT
+          echo "utilization=$UTILIZATION" >> $GITHUB_OUTPUT
+          echo "reason=$REASON" >> $GITHUB_OUTPUT
+
+          echo "🔧 Workflow Management Action: $ACTION"
+          echo "💰 Budget Status: $BUDGET_STATUS"
+          echo "📊 Utilization: $UTILIZATION"
+          echo "📝 Reason: $REASON"
+
+      - name: Check current workflow status
+        id: check_workflows
+        run: |
+          echo "🔍 Checking current workflow status..."
+
+          # List of workflows to manage
+          WORKFLOWS=(
+            "run_bot_on_tournament.yaml"
+            "tournament_deadline_aware.yaml"
+            "run_bot_on_quarterly_cup.yaml"
+          )
+
+          echo "📋 Managed Workflows:"
+          for workflow in "${WORKFLOWS[@]}"; do
+            if [ -f ".github/workflows/$workflow" ]; then
+              # Check if workflow has active cron schedules
+              if grep -q "cron:" ".github/workflows/$workflow" && ! grep -q "#.*cron:" ".github/workflows/$workflow"; then
+                echo "  ✅ $workflow - ACTIVE"
+                echo "active_workflows=$workflow" >> $GITHUB_OUTPUT
+              else
+                echo "  ⏸️ $workflow - SUSPENDED"
+              fi
+            else
+              echo "  ❓ $workflow - NOT FOUND"
+            fi
+          done
+
+      - name: Suspend workflows
+        if: steps.determine_action.outputs.action == 'suspend_all'
+        run: |
+          echo "🛑 Suspending tournament workflows due to budget constraints..."
+          echo "💰 Budget Status: ${{ steps.determine_action.outputs.budget_status }}"
+          echo "📊 Utilization: ${{ steps.determine_action.outputs.utilization }}"
+          echo "📝 Reason: ${{ steps.determine_action.outputs.reason }}"
+
+          # Create backup of original workflows
+          mkdir -p .github/workflows/backup
+
+          WORKFLOWS=(
+            "run_bot_on_tournament.yaml"
+            "tournament_deadline_aware.yaml"
+            "run_bot_on_quarterly_cup.yaml"
+          )
+
+          for workflow in "${WORKFLOWS[@]}"; do
+            if [ -f ".github/workflows/$workflow" ]; then
+              echo "🔄 Processing $workflow..."
+
+              # Backup original
+              cp ".github/workflows/$workflow" ".github/workflows/backup/${workflow}.backup"
+
+              # Comment out cron schedules
+              sed -i 's/^[[:space:]]*- cron:/    # SUSPENDED - cron:/' ".github/workflows/$workflow"
+              sed -i 's/^[[:space:]]*cron:/  # SUSPENDED - cron:/' ".github/workflows/$workflow"
+
+              # Add suspension notice at the top
+              cat > temp_header << EOF
+# 🚨 WORKFLOW SUSPENDED DUE TO BUDGET CONSTRAINTS
+# Suspension Date: $(date -u)
+# Budget Status: ${{ steps.determine_action.outputs.budget_status }}
+# Utilization: ${{ steps.determine_action.outputs.utilization }}
+# Reason: ${{ steps.determine_action.outputs.reason }}
+#
+# To resume: Run workflow_management.yaml with action 'resume_all'
+# Or manually uncomment the cron schedules below
+#
+EOF
+              cat temp_header ".github/workflows/$workflow" > temp_workflow
+              mv temp_workflow ".github/workflows/$workflow"
+              rm temp_header
+
+              echo "  ✅ $workflow suspended"
+            else
+              echo "  ❓ $workflow not found"
+            fi
+          done
+
+          echo "🛑 All tournament workflows have been suspended"
+          echo "💾 Backups saved to .github/workflows/backup/"
+
+      - name: Resume workflows
+        if: steps.determine_action.outputs.action == 'resume_all'
+        run: |
+          echo "▶️ Resuming tournament workflows..."
+          echo "📝 Reason: ${{ steps.determine_action.outputs.reason }}"
+
+          WORKFLOWS=(
+            "run_bot_on_tournament.yaml"
+            "tournament_deadline_aware.yaml"
+            "run_bot_on_quarterly_cup.yaml"
+          )
+
+          for workflow in "${WORKFLOWS[@]}"; do
+            if [ -f ".github/workflows/backup/${workflow}.backup" ]; then
+              echo "🔄 Restoring $workflow from backup..."
+              cp ".github/workflows/backup/${workflow}.backup" ".github/workflows/$workflow"
+              echo "  ✅ $workflow restored"
+            else
+              echo "  ❓ No backup found for $workflow"
+
+              # Try to uncomment suspended schedules
+              if [ -f ".github/workflows/$workflow" ]; then
+                sed -i 's/^[[:space:]]*# SUSPENDED - cron:/    - cron:/' ".github/workflows/$workflow"
+                sed -i 's/^[[:space:]]*# SUSPENDED - cron:/  cron:/' ".github/workflows/$workflow"
+
+                # Remove suspension header (first 10 lines if they contain suspension notice)
+                if head -n 1 ".github/workflows/$workflow" | grep -q "WORKFLOW SUSPENDED"; then
+                  tail -n +11 ".github/workflows/$workflow" > temp_workflow
+                  mv temp_workflow ".github/workflows/$workflow"
+                fi
+
+                echo "  ✅ $workflow uncommented"
+              fi
+            fi
+          done
+
+          echo "▶️ All tournament workflows have been resumed"
+
+      - name: Generate status report
+        if: steps.determine_action.outputs.action == 'check_status'
+        run: |
+          echo "📊 WORKFLOW STATUS REPORT"
+          echo "=" * 50
+          echo "🕐 Check Time: $(date -u)"
+          echo "💰 Budget Status: ${{ steps.determine_action.outputs.budget_status }}"
+          echo "📊 Utilization: ${{ steps.determine_action.outputs.utilization }}"
+          echo ""
+
+          WORKFLOWS=(
+            "run_bot_on_tournament.yaml"
+            "tournament_deadline_aware.yaml"
+            "run_bot_on_quarterly_cup.yaml"
+          )
+
+          echo "📋 Workflow Status:"
+          for workflow in "${WORKFLOWS[@]}"; do
+            if [ -f ".github/workflows/$workflow" ]; then
+              if grep -q "WORKFLOW SUSPENDED" ".github/workflows/$workflow"; then
+                echo "  🛑 $workflow - SUSPENDED"
+              elif grep -q "cron:" ".github/workflows/$workflow" && ! grep -q "#.*cron:" ".github/workflows/$workflow"; then
+                echo "  ✅ $workflow - ACTIVE"
+              else
+                echo "  ⏸️ $workflow - INACTIVE (no cron schedule)"
+              fi
+            else
+              echo "  ❓ $workflow - NOT FOUND"
+            fi
+          done
+
+          echo ""
+          echo "🔧 Available Actions:"
+          echo "  • suspend_all - Suspend all tournament workflows"
+          echo "  • resume_all - Resume all tournament workflows"
+          echo "  • check_status - Show current status (this report)"
+
+      - name: Commit workflow changes
+        if: steps.determine_action.outputs.action != 'check_status'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          if git diff --quiet; then
+            echo "📝 No changes to commit"
+          else
+            git add .github/workflows/
+            git commit -m "🤖 Workflow Management: ${{ steps.determine_action.outputs.action }}
+
+            Action: ${{ steps.determine_action.outputs.action }}
+            Budget Status: ${{ steps.determine_action.outputs.budget_status }}
+            Utilization: ${{ steps.determine_action.outputs.utilization }}
+            Reason: ${{ steps.determine_action.outputs.reason }}
+            Timestamp: $(date -u)"
+
+            git push
+            echo "✅ Workflow changes committed and pushed"
+          fi
+
+      - name: Action summary
+        if: always()
+        run: |
+          echo "📋 WORKFLOW MANAGEMENT SUMMARY"
+          echo "=" * 50
+          echo "🔧 Action Performed: ${{ steps.determine_action.outputs.action }}"
+          echo "💰 Budget Status: ${{ steps.determine_action.outputs.budget_status }}"
+          echo "📊 Utilization: ${{ steps.determine_action.outputs.utilization }}"
+          echo "📝 Reason: ${{ steps.determine_action.outputs.reason }}"
+          echo "🕐 Completed: $(date -u)"
+          echo ""
+
+          case "${{ steps.determine_action.outputs.action }}" in
+            "suspend_all")
+              echo "🛑 All tournament workflows have been suspended"
+              echo "💾 Backups created in .github/workflows/backup/"
+              echo "▶️ To resume: Run this workflow with action 'resume_all'"
+              ;;
+            "resume_all")
+              echo "▶️ All tournament workflows have been resumed"
+              echo "🔍 Verify workflows are active in the Actions tab"
+              ;;
+            "check_status")
+              echo "📊 Status report generated above"
+              echo "🔧 Use suspend_all or resume_all actions as needed"
+              ;;
+          esac

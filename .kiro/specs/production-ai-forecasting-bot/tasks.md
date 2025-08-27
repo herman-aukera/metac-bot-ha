@@ -12,7 +12,7 @@ This implementation plan converts the tournament-focused design into actionable 
   - Add calibration and risk management domain services
   - _Requirements: 1.1, 1.2, 6.1, 6.4_
 
-- [-] 2. Advanced Reasoning Engine Core
+- [x] 2. Advanced Reasoning Engine Core
   - [x] 2.1 Implement ReasoningOrchestrator with multi-step reasoning capabilities
     - Create reasoning trace preservation and step-by-step documentation
     - Implement confidence threshold management and reasoning validation
@@ -56,7 +56,7 @@ This implementation plan converts the tournament-focused design into actionable 
     - Create submission timing optimization for maximum impact
     - _Requirements: 2.2, 2.3, 6.5_
 
-- [ ] 4. Enhanced Evidence Gathering System
+- [x] 4. Enhanced Evidence Gathering System
   - [x] 4.1 Implement AuthoritativeSourceManager
     - Create academic paper and expert opinion integration
     - Add source credibility evaluation with quantified scoring
@@ -75,7 +75,7 @@ This implementation plan converts the tournament-focused design into actionable 
     - Create research depth optimization and source diversification
     - _Requirements: 2.4, 2.5_
 
-- [-] 5. Ensemble Intelligence Optimization
+- [x] 5. Ensemble Intelligence Optimization
   - [x] 5.1 Implement sophisticated aggregation methods
     - Create confidence-weighted averaging and meta-reasoning aggregation
     - Add median, trimmed mean, and advanced ensemble techniques
@@ -158,7 +158,7 @@ This implementation plan converts the tournament-focused design into actionable 
     - Create API rate limit optimization and resource allocation
     - _Requirements: 8.4, 8.5_
 
-- [-] 10. Metaculus Integration and Tournament Operations
+- [x] 10. Metaculus Integration and Tournament Operations
   - [x] 10.1 Enhance Metaculus API integration for tournament operations
     - Implement tournament-specific question retrieval and categorization
     - Add deadline tracking and submission timing optimization
@@ -171,31 +171,74 @@ This implementation plan converts the tournament-focused design into actionable 
     - Create dry-run mode with tournament condition simulation
     - _Requirements: 9.3, 9.4, 9.5_
 
-- [ ] 11. Comprehensive Testing and Quality Assurance
-  - [ ] 11.1 Implement tournament simulation testing framework
+- [x] 11. Comprehensive Testing and Quality Assurance
+  - [x] 11.1 Implement tournament simulation testing framework
     - Create end-to-end tournament scenario simulation and validation
     - Add competitive pressure testing and performance benchmarking
     - Implement recovery and resilience testing under tournament conditions
     - _Requirements: 10.3, 10.4, 10.5_
 
-  - [ ] 11.2 Develop agent performance and calibration testing
+  - [x] 11.2 Develop agent performance and calibration testing
     - Create individual agent accuracy benchmarking and validation
     - Add ensemble optimization testing and calibration accuracy validation
     - Implement reasoning quality assessment and bias detection testing
     - _Requirements: 10.1, 10.2, 10.3_
 
-- [ ] 12. Integration and System Optimization
-  - [ ] 12.1 Integrate all components with tournament orchestration
+- [x] 12. Integration and System Optimization
+  - [x] 12.1 Integrate all components with tournament orchestration
     - Wire together all enhanced components with proper dependency injection
     - Add system-wide configuration management and hot-reloading
     - Create comprehensive integration testing and validation
     - _Requirements: 10.1, 10.2, 10.5_
 
-  - [ ] 12.2 Implement production deployment and monitoring
+  - [x] 12.2 Implement production deployment and monitoring
     - Create containerized deployment with CI/CD pipeline integration
     - Add comprehensive monitoring, alerting, and performance tracking
     - Implement blue-green deployment and automated rollback capabilities
     - _Requirements: 10.4, 10.5_
+
+- [x] 13. Tournament Compliance Fixes (URGENT - Tournament starts Sep 1, 2025)
+  - [x] 13.1 Fix reasoning comments publication
+    - Change default publish_reports_to_metaculus from False to True in settings.py
+    - Verify PUBLISH_REPORTS environment variable is set to true
+    - Ensure DRY_RUN is set to false for production tournament mode
+    - Test reasoning comment publication in dry-run mode first
+    - _Requirements: 9.3, 9.4, 9.5_
+
+  - [x] 13.2 Implement tournament targeting and scheduling optimization
+    - Replace MetaculusApi.CURRENT_AI_COMPETITION_ID with specific Fall 2025 tournament ID (32813)
+    - Add environment variable AIB_TOURNAMENT_ID=32813 for tournament targeting
+    - Optimize GitHub Actions scheduling from every 30 minutes to strategic intervals
+    - Implement tournament-specific question filtering and prioritization
+    - _Requirements: 9.1, 9.2_
+
+  - [x] 13.3 Integrate Metaculus proxy API for free credits
+    - Add support for Metaculus proxy model IDs (metaculus/claude-3-5-sonnet, metaculus/gpt-4o)
+    - Implement fallback mechanism to OpenRouter when proxy credits exhausted
+    - Update LLM configuration to use proxy models when available
+    - Add credit usage tracking and monitoring
+    - _Requirements: 8.4, 8.5_
+
+  - [x] 13.4 Optimize AskNews integration for tournament
+    - Verify AskNews integration is working with tournament credentials
+    - Implement 9,000 free call quota management and monitoring
+    - Prioritize AskNews over other search providers for news research
+    - Add fallback to existing search providers when AskNews quota exhausted
+    - _Requirements: 2.1, 2.2_
+
+  - [x] 13.5 Apply open source licensing and GitHub Actions optimization
+    - Add GPL-3.0 license to ensure tournament compliance and author attribution
+    - Configure GitHub Secrets for METACULUS_TOKEN and all API keys
+    - Optimize GitHub Actions workflow for tournament scheduling
+    - Test automated deployment and monitoring systems
+    - _Requirements: 10.4, 10.5_
+
+  - [x] 13.6 Tournament performance validation and competitive optimization
+    - Implement log-based scoring optimization strategies
+    - Add tournament-specific calibration and confidence adjustment
+    - Create tournament compliance monitoring and alerting
+    - Test complete tournament workflow end-to-end
+    - _Requirements: 7.1, 7.2, 7.3_
 
 ## Implementation Notes
 
