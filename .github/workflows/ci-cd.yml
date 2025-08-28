@@ -39,6 +39,9 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
+      - name: Update poetry lock file
+        run: poetry lock --no-update
+
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
@@ -73,15 +76,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run security scan
-        uses: securecodewarrior/github-action-add-sarif@v1
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          sarif-file: 'security-scan-results.sarif'
+          python-version: '3.11'
 
       - name: Run dependency check
         run: |
-          pip install safety
+          pip install safety bandit
           safety check --json --output safety-report.json || true
+          bandit -r src -f json -o bandit-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+            bandit-report.json
 
   build:
     needs: [test, security]

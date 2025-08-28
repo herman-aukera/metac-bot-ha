@@ -120,17 +120,17 @@ jobs:
               sed -i 's/^[[:space:]]*cron:/  # SUSPENDED - cron:/' ".github/workflows/$workflow"
 
               # Add suspension notice at the top
-              cat > temp_header << EOF
-# 🚨 WORKFLOW SUSPENDED DUE TO BUDGET CONSTRAINTS
-# Suspension Date: $(date -u)
-# Budget Status: ${{ steps.determine_action.outputs.budget_status }}
-# Utilization: ${{ steps.determine_action.outputs.utilization }}
-# Reason: ${{ steps.determine_action.outputs.reason }}
-#
-# To resume: Run workflow_management.yaml with action 'resume_all'
-# Or manually uncomment the cron schedules below
-#
-EOF
+              cat > temp_header << 'EOF'
+          # 🚨 WORKFLOW SUSPENDED DUE TO BUDGET CONSTRAINTS
+          # Suspension Date: $(date -u)
+          # Budget Status: OVER_BUDGET
+          # Utilization: HIGH
+          # Reason: Budget constraints exceeded
+          #
+          # To resume: Run workflow_management.yaml with action 'resume_all'
+          # Or manually uncomment the cron schedules below
+          #
+          EOF
               cat temp_header ".github/workflows/$workflow" > temp_workflow
               mv temp_workflow ".github/workflows/$workflow"
               rm temp_header
