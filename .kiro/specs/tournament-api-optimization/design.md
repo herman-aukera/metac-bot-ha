@@ -65,7 +65,7 @@ class OptimizedTemplateForecaster(ForecastBot):
 
     def _setup_cost_optimized_models(self):
         """Configure models based on budget and task requirements"""
-        openrouter_key = os.getenv("OPENROUTER_API_KEY", "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")
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
 
         return {
             "research": GeneralLlm(

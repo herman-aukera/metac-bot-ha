@@ -1,8 +1,8 @@
-# Design Document - GPT-5 Tri-Model Optimization with Anti-Slop Directives
+# Design Document - OpenRouter Tri-Model Optimization with Anti-Slop Directives
 
 ## Overview
 
-This design document outlines the architecture for an enhanced GPT-5 tri-model system that implements strategic cost-performance optimization with sophisticated anti-slop quality guards. The system will maximize tournament forecasting performance within the $100 budget constraint by intelligently routing tasks across GPT-5 nano, mini, and full variants while ensuring evidence-based reasoning and tournament compliance.
+This design document outlines the architecture for an enhanced OpenRouter tri-model system that implements strategic cost-performance optimization with sophisticated anti-slop quality guards. The system will maximize tournament forecasting performance within the $100 budget constraint by intelligently routing tasks across OpenRouter's available models while ensuring evidence-based reasoning and tournament compliance through a unified API gateway approach.
 
 ## Architecture
 
@@ -10,61 +10,86 @@ This design document outlines the architecture for an enhanced GPT-5 tri-model s
 
 ```mermaid
 graph TB
-    A[TemplateForecaster] --> B[Enhanced Tri-Model Router]
-    B --> C[GPT-5 Nano<br/>$0.05/1M tokens]
-    B --> D[GPT-5 Mini<br/>$0.25/1M tokens]
-    B --> E[GPT-5 Full<br/>$1.50/1M tokens]
+    A[TemplateForecaster] --> B[OpenRouter Tri-Model Router]
+    B --> C[OpenRouter Gateway<br/>https://openrouter.ai/api/v1]
 
-    F[Anti-Slop Prompt Engine] --> B
-    G[Budget Manager] --> B
-    H[Quality Validator] --> I[Multi-Stage Pipeline]
+    C --> D[Tier 3: openai/gpt-5-nano<br/>$0.05/1M tokens]
+    C --> E[Tier 2: openai/gpt-5-mini<br/>$0.25/1M tokens]
+    C --> F[Tier 1: openai/gpt-5<br/>$1.50/1M tokens]
+    C --> G[Free Fallbacks<br/>openai/gpt-oss-20b:free<br/>moonshotai/kimi-k2:free]
+    C --> H[AskNews Research<br/>Free via METACULUSQ4]
 
-    I --> J[Research Stage<br/>Mini Model]
-    I --> K[Validation Stage<br/>Nano Model]
-    I --> L[Forecasting Stage<br/>Full Model]
+    I[Anti-Slop Prompt Engine] --> B
+    J[Budget Manager] --> B
+    K[Quality Validator] --> L[Multi-Stage Pipeline]
 
-    M[Performance Monitor] --> N[Cost Tracker]
-    M --> O[Model Effectiveness Analyzer]
-    M --> P[Tournament Compliance Monitor]
+    L --> M[Research Stage<br/>AskNews + gpt-5-mini]
+    L --> N[Validation Stage<br/>gpt-5-nano]
+    L --> O[Forecasting Stage<br/>gpt-5]
+
+    P[Performance Monitor] --> Q[Cost Tracker]
+    P --> R[Model Effectiveness Analyzer]
+    P --> S[Tournament Compliance Monitor]
 ```
 
-### Strategic Cost-Performance Triangle
+### Strategic Cost-Performance Triangle via OpenRouter
 
-The system implements a three-tier model hierarchy optimized for different cognitive loads:
+The system implements a three-tier model hierarchy optimized for different cognitive loads through OpenRouter's unified gateway:
 
-1. **GPT-5 Nano** ($0.05/1M tokens)
+1. **Tier 3: openai/gpt-5-nano** ($0.05/1M tokens)
    - Ultra-fast validation and parsing
    - Simple summaries and basic fact-checking
    - Deterministic responses (temp=0.1)
    - 30-second timeout for speed
 
-2. **GPT-5 Mini** ($0.25/1M tokens)
+2. **Tier 2: openai/gpt-5-mini** ($0.25/1M tokens)
    - Research synthesis and intermediate reasoning
    - News summarization and moderate complexity analysis
    - Balanced creativity (temp=0.3)
    - 60-second timeout for thoroughness
 
-3. **GPT-5 Full** ($1.50/1M tokens)
+3. **Tier 1: openai/gpt-5** ($1.50/1M tokens)
    - Final forecasting decisions and complex analysis
    - Maximum reasoning power for critical predictions
    - Precise calibration (temp=0.0)
    - 90-second timeout for deep thinking
 
+4. **Free Fallbacks** ($0/1M tokens)
+   - openai/gpt-oss-20b:free for emergency operation
+   - moonshotai/kimi-k2:free for budget exhaustion
+   - Essential functionality preservation
+
+5. **Cost-Optimized Research Strategy** (AskNews Primary)
+   - **Primary**: AskNews API (100% FREE for 4 months via METACULUSQ4 tournament code)
+   - **Synthesis**: openai/gpt-5-mini for analysis and citation formatting
+   - **Fallback**: openai/gpt-oss-20b:free and moonshotai/kimi-k2:free when AskNews quota exhausted
+   - **NO expensive APIs**: Perplexity, Claude, or other paid research services eliminated
+   - Real-time 48-hour news focus with cost optimization
+
 ## Components and Interfaces
 
-### Enhanced Tri-Model Router
+### OpenRouter Tri-Model Router
 
 ```python
-class EnhancedTriModelRouter:
+class OpenRouterTriModelRouter:
     """
-    Strategic model routing with advanced decision logic.
+    Strategic model routing through OpenRouter with advanced decision logic.
     """
 
     def __init__(self):
-        self.models: Dict[ModelTier, GeneralLlm]
+        self.openrouter_base_url = "https://openrouter.ai/api/v1"
+        self.openrouter_headers = self._get_attribution_headers()
+        self.models: Dict[ModelTier, OpenRouterModel]
         self.routing_strategy: Dict[TaskType, ModelTier]
         self.cost_tracker: CostTracker
         self.performance_analyzer: ModelPerformanceAnalyzer
+
+    def _get_attribution_headers(self) -> Dict[str, str]:
+        """Get OpenRouter attribution headers for ranking."""
+        return {
+            "HTTP-Referer": os.getenv("OPENROUTER_HTTP_REFERER"),
+            "X-Title": os.getenv("OPENROUTER_APP_TITLE")
+        }
 
     async def route_query(
         self,
@@ -74,7 +99,7 @@ class EnhancedTriModelRouter:
         budget_remaining: float,
         priority: TaskPriority = "normal"
     ) -> RoutingResult:
-        """Route query with enhanced decision logic."""
+        """Route query through OpenRouter with enhanced decision logic."""
 
     def choose_optimal_model(
         self,
@@ -82,10 +107,23 @@ class EnhancedTriModelRouter:
         complexity: ComplexityLevel,
         content_analysis: ContentAnalysis,
         budget_context: BudgetContext
-    ) -> ModelSelection:
-        """Advanced model selection with multiple factors."""
+    ) -> OpenRouterModelSelection:
+        """Advanced model selection with OpenRouter provider routing."""
 
-    def get_routing_explanation(self, selection: ModelSelection) -> str:
+    def _create_provider_preferences(
+        self,
+        model_name: str,
+        budget_mode: BudgetMode
+    ) -> Dict[str, Any]:
+        """Create OpenRouter provider preferences for optimal routing."""
+        preferences = {}
+        if budget_mode == BudgetMode.CRITICAL:
+            preferences["sort"] = "price"  # Use :floor shortcut equivalent
+        elif budget_mode == BudgetMode.EMERGENCY:
+            preferences["max_price"] = {"prompt": 0.1, "completion": 0.1}
+        return preferences
+
+    def get_routing_explanation(self, selection: OpenRouterModelSelection) -> str:
         """Provide transparent reasoning for model choice."""
 ```
 
@@ -128,28 +166,90 @@ class AdvancedAntiSlopPrompts:
 ```python
 class MultiStageValidationPipeline:
     """
-    Three-stage validation system for quality assurance.
+    Three-stage validation system for quality assurance via OpenRouter.
     """
 
     async def execute_research_stage(
         self,
         question: MetaculusQuestion
     ) -> ValidatedResearch:
-        """Stage 1: Research with GPT-5 Mini + citation requirements."""
+        """Stage 1: Cost-optimized research with AskNews (FREE) + gpt-5-mini synthesis."""
+        # PRIMARY: AskNews API for research (100% FREE for 4 months via METACULUSQ4)
+        # SYNTHESIS: openai/gpt-5-mini for analysis and citation formatting
+        # FALLBACK: openai/gpt-oss-20b:free or moonshotai/kimi-k2:free when AskNews quota exhausted
+        # NO EXPENSIVE APIS: Perplexity, Claude, or other paid research services
 
     async def execute_validation_stage(
         self,
         research: ResearchResults
     ) -> ValidationResults:
-        """Stage 2: Validation with GPT-5 Nano + hallucination detection."""
+        """Stage 2: Validation with gpt-5-nano + hallucination detection."""
+        # Use openai/gpt-5-nano for fast validation
+        # Check citations, logical consistency, evidence traceability
 
     async def execute_forecasting_stage(
         self,
         question: MetaculusQuestion,
         validated_research: ValidatedResearch
     ) -> CalibratedForecast:
-        """Stage 3: Forecasting with GPT-5 Full + calibration checks."""
+        """Stage 3: Forecasting with gpt-5 + calibration checks."""
+        # Use openai/gpt-5 for maximum reasoning power
+        # Apply calibration techniques and uncertainty quantification
 ```
+
+### OpenRouter Configuration Manager
+
+```python
+class OpenRouterConfigManager:
+    """
+    Manages OpenRouter-specific configuration and provider routing.
+    """
+
+    def __init__(self):
+        self.base_url = "https://openrouter.ai/api/v1"
+        self.api_key = os.getenv("OPENROUTER_API_KEY")
+        self.attribution_headers = self._get_attribution_headers()
+
+    def _get_attribution_headers(self) -> Dict[str, str]:
+        """Get attribution headers for OpenRouter ranking."""
+        headers = {}
+        if referer := os.getenv("OPENROUTER_HTTP_REFERER"):
+            headers["HTTP-Referer"] = referer
+        if title := os.getenv("OPENROUTER_APP_TITLE"):
+            headers["X-Title"] = title
+        return headers
+
+    def create_model_client(
+        self,
+        model_name: str,
+        provider_preferences: Optional[Dict[str, Any]] = None
+    ) -> GeneralLlm:
+        """Create OpenRouter-configured model client."""
+        return GeneralLlm(
+            model=model_name,
+            api_key=self.api_key,
+            base_url=self.base_url,
+            extra_headers=self.attribution_headers,
+            provider_preferences=provider_preferences
+        )
+
+    def get_provider_preferences_for_budget_mode(
+        self,
+        budget_mode: BudgetMode
+    ) -> Dict[str, Any]:
+        """Get provider preferences optimized for budget mode."""
+        if budget_mode == BudgetMode.CRITICAL:
+            return {
+                "sort": "price",
+                "allow_fallbacks": True,
+                "only": ["openai", "moonshotai"]  # Free models only
+            }
+        elif budget_mode == BudgetMode.EMERGENCY:
+            return {
+                "sort": "price",
+                "max_price": {"prompt": 0.1, "completion": 0.1}
+            }
+        return {"sort": "price"}  # Default to price optimization
 
 ### Budget-Aware Operation Manager
 
@@ -171,6 +271,11 @@ class BudgetAwareOperationManager:
 
     def get_emergency_protocols(self) -> EmergencyProtocols:
         """Define emergency protocols for budget exhaustion."""
+        return EmergencyProtocols(
+            free_models=["openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free"],
+            essential_functions_only=True,
+            max_tokens_per_request=500
+        )
 ```
 
 ## Data Models
@@ -194,12 +299,14 @@ class BudgetContext:
     operation_mode: OperationMode
 
 @dataclass
-class ModelSelection:
+class OpenRouterModelSelection:
+    selected_model: str  # e.g., "openai/gpt-4o-mini"
     selected_tier: ModelTier
     rationale: str
     estimated_cost: float
     confidence_score: float
-    fallback_options: List[ModelTier]
+    provider_preferences: Dict[str, Any]
+    fallback_models: List[str]
 
 @dataclass
 class RoutingResult:

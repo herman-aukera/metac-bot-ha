@@ -77,7 +77,7 @@ Successfully implemented comprehensive budget management and API key configurati
 Added new environment variables:
 ```bash
 # Required - Tournament provided key
-OPENROUTER_API_KEY=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
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # Budget Management Configuration
 BUDGET_LIMIT=100.0

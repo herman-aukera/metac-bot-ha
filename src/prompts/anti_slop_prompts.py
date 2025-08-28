@@ -1,569 +1,611 @@
 """
-Anti-slop prompt templates for tournament forecasting.
-Implements quality guard directives for GPT-5 tri-model system.
+Anti-Slop Prompt Engineering System for GPT-5 Tri-Model Router.
+Implements tier-specific prompt optimizations with advanced quality guards.
 """
 
-from datetime import datetime
-from typing import Dict, Optional
-from forecasting_tools import clean_indents
+from typing import List, Optional, Dict, Any
+import logging
 
+logger = logging.getLogger(__name__)
 
 class AntiSlopPrompts:
     """
-    Anti-slop prompt templates with quality guard directives.
-    Designed for competitive tournament forecasting with GPT-5 variants.
+    Advanced anti-slop prompt system with tier-specific optimizations.
+
+    Implements Chain-of-Verification (CoVe), evidence traceability,
+    and calibration techniques for GPT-5 models.
     """
 
-    @staticmethod
-    def get_base_anti_slop_directives() -> str:
-        """Enhanced base anti-slop quality guard directives with latest prompt engineering techniques."""
-        return clean_indents("""
-            # ENHANCED ANTI-SLOP / QUALITY GUARD SYSTEM
+    def __init__(self):
+        """Initialize anti-slop prompt system."""
+        self.base_directives = self._get_base_anti_slop_directives()
+        self.tier_optimizations = self._get_tier_optimizations()
 
-            ## CHAIN-OF-VERIFICATION (CoVe) PROTOCOL
-            • Think step-by-step internally: first... then... finally...
-            • For each claim, internally verify: "Can I cite the source? Is this factual?"
-            • Output only final, verified reasoning - no internal deliberation visible
-            • Pre-send check: Does every statement trace to verifiable evidence?
+    def _get_base_anti_slop_directives(self) -> str:
+        """Enhanced base anti-slop directives with latest prompt engineering techniques."""
+        return """
+# ANTI-SLOP / QUALITY GUARD - CHAIN-OF-VERIFICATION (CoVe)
 
-            ## EVIDENCE TRACEABILITY REQUIREMENTS
-            • Ground every factual claim with specific sources (URLs, dates, publications)
-            • No hallucinations - if unsure, say "Information unavailable" explicitly
-            • Distinguish between facts, interpretations, and predictions clearly
-            • Use precise language: "According to [source]..." not "It is known that..."
+## INTERNAL REASONING (CoVe Process):
+1. Generate initial response internally
+2. Verify each claim against evidence
+3. Check for logical consistency
+4. Identify uncertainty areas
+5. Revise and output final response
 
-            ## UNCERTAINTY ACKNOWLEDGMENT PROTOCOL
-            • If uncertain about anything, acknowledge it explicitly with confidence levels
-            • Use calibrated language: "likely" (60-80%), "very likely" (80-95%), "almost certain" (95%+)
-            • Question your own reasoning: "Could there be edge cases or alternatives?"
-            • Avoid confident incorrectness - better to admit uncertainty than provide wrong answers
+## EVIDENCE TRACEABILITY PRE-CHECKS:
+• Every factual claim MUST trace to specific, verifiable sources
+• Cite sources with [Source: URL/Publication] format
+• If no source available, state "Based on general knowledge" or "Uncertain"
+• Flag any information gaps explicitly
 
-            ## STRUCTURED OUTPUT REQUIREMENTS
-            • Use bullet points (•) for clear structure and readability
-            • Keep response ≤ 300 words unless complex analysis explicitly required
-            • Maintain human, helpful tone while being surgically precise
-            • No corporate speak or robotic language - stay warm but accurate
+## UNCERTAINTY ACKNOWLEDGMENT:
+• Use calibrated confidence language: "likely", "possibly", "uncertain"
+• Acknowledge limitations: "Based on available information..."
+• Avoid false precision: prefer ranges over exact numbers
+• State confidence level when making predictions
 
-            ## TOURNAMENT CALIBRATION DIRECTIVES
-            • Avoid overconfidence - calibrate predictions carefully for log scoring
-            • Consider base rates and reference classes for all predictions
-            • Account for unknown unknowns and black swan possibilities
-            • Weight evidence quality over quantity in decision-making
+## STRUCTURED OUTPUT FORMATTING:
+• Use bullet points (•) for clarity and scannability
+• Keep responses ≤ 300 words unless complex analysis explicitly required
+• Use clear section headers when appropriate
+• End with explicit uncertainty statement if applicable
 
-            ## QUALITY VERIFICATION CHECKLIST
-            Before responding, verify:
-            ✓ Every claim has traceable evidence
-            ✓ Uncertainty is appropriately acknowledged
-            ✓ Reasoning is logically consistent
-            ✓ No hallucinations or unsupported statements
-            ✓ Appropriate calibration for tournament context
-        """)
+## CALIBRATION INSTRUCTIONS:
+• Consider base rates and historical precedents
+• Account for your own potential biases and overconfidence
+• Provide probability ranges rather than point estimates
+• Reference similar cases when available
 
-    @staticmethod
-    def get_research_prompt(question_text: str, model_tier: str = "mini") -> str:
-        """
-        Research prompt with anti-slop directives for GPT-5 variants.
-
-        Args:
-            question_text: The forecasting question to research
-            model_tier: Model tier (nano/mini/full) for tier-specific optimization
-        """
-
-        tier_specific = {
-            "nano": "• Prioritize speed and essential facts only\n• Focus on most recent and credible sources\n",
-            "mini": "• Balance depth with efficiency\n• Provide structured synthesis with key insights\n",
-            "full": "• Use comprehensive analysis capability\n• Provide detailed research with multiple perspectives\n"
+## FINAL VERIFICATION:
+• Pre-check: Does every statement trace to verifiable evidence?
+• Question your reasoning: What could go wrong? What am I missing?
+• Consider alternative explanations and edge cases
+• Maintain helpful, human tone while being precise and honest
+"""
+    def _get_tier_optimizations(self) -> Dict[str, str]:
+        """Tier-specific optimizations for each GPT-5 model."""
+        return {
+            "nano": """
+## GPT-5-NANO OPTIMIZATION:
+• Prioritize speed and accuracy over depth
+• Focus on essential information only
+• Use concise, direct language
+• Validate core facts quickly
+• Maximum 150 words for efficiency
+• Use deterministic responses for consistency
+""",
+            "mini": """
+## GPT-5-MINI OPTIMIZATION:
+• Balance depth with efficiency
+• Provide moderate detail with good reasoning
+• Synthesize information effectively
+• Include relevant context
+• Use structured analytical approach
+• Optimize for research synthesis tasks
+""",
+            "full": """
+## GPT-5-FULL OPTIMIZATION:
+• Use maximum reasoning capability
+• Provide comprehensive analysis when warranted
+• Consider multiple perspectives and scenarios
+• Apply sophisticated reasoning patterns
+• Integrate complex information with nuanced interpretation
+• Apply meta-cognitive reasoning about reasoning quality
+"""
         }
 
-        return clean_indents(f"""
-            You are a research assistant to an elite forecasting expert competing in the Metaculus AI Benchmark Tournament.
-            Your research will directly impact tournament performance and must meet the highest quality standards.
+    def get_research_prompt(self, question_text: str, model_tier: str = "mini") -> str:
+        """Generate research prompt with enhanced anti-slop directives."""
+        task_directives = """
+## RESEARCH TASK DIRECTIVES:
+• MANDATORY: Cite every factual claim with [Source: URL/Publication, Date]
+• Prioritize 48-hour news window for recent developments
+• Use credible sources: major news outlets, academic papers, official reports
+• Acknowledge information gaps explicitly: "No recent data available on..."
+• Synthesize information without speculation or extrapolation
+• Flag conflicting information from different sources
+• Include source reliability assessment when relevant
 
-            {AntiSlopPrompts.get_base_anti_slop_directives()}
+## EVIDENCE REQUIREMENTS:
+• Each claim needs verifiable source attribution
+• Distinguish between confirmed facts and reported claims
+• Note source publication dates and relevance
+• Identify potential source biases or limitations
+"""
 
-            # RESEARCH-SPECIFIC QUALITY PROTOCOL
+        tier_optimization = self.tier_optimizations.get(model_tier, "")
 
-            ## SOURCE VERIFICATION REQUIREMENTS
-            • Cite every factual claim with complete source attribution: [Source Name, Date, URL/Publication]
-            • Prioritize primary sources over secondary reporting when possible
-            • Verify credibility: prefer established news outlets, academic sources, official statements
-            • Flag any information that cannot be independently verified
+        prompt = f"""{self.base_directives}
 
-            ## INFORMATION SYNTHESIS PROTOCOL
-            • Acknowledge information gaps explicitly - never fill with speculation
-            • Distinguish between confirmed facts, reported claims, and expert opinions
-            • Prioritize recent developments (last 48 hours most critical for forecasting)
-            • Synthesize without adding unsupported interpretations or connecting unrelated dots
-            • Focus specifically on factors that could influence the question's resolution
+{task_directives}
 
-            ## TIER-SPECIFIC OPTIMIZATION
-            {tier_specific.get(model_tier, "")}
+{tier_optimization}
 
-            # SYSTEMATIC RESEARCH TASK
-            Research this forecasting question with tournament-grade rigor:
+## RESEARCH QUESTION:
+{question_text}
 
-            **QUESTION**: {question_text}
+## OUTPUT REQUIREMENTS:
+Provide a comprehensive research summary with:
+1. Key findings with source citations
+2. Information gaps and limitations
+3. Source reliability assessment
+4. Uncertainty acknowledgment where appropriate
 
-            **RESEARCH PROTOCOL** - Address each section systematically:
-
-            ## 1. RECENT DEVELOPMENTS (Last 48 Hours)
-            • [Specific events with exact dates and source citations]
-            • [Market reactions, policy announcements, breaking news]
-            • [If no recent developments: "No significant developments in last 48 hours"]
-
-            ## 2. HISTORICAL CONTEXT & BASE RATES
-            • [Relevant precedents with specific dates and outcomes]
-            • [Historical frequency of similar events for base rate estimation]
-            • [Pattern analysis from comparable situations]
-
-            ## 3. EXPERT ANALYSIS & MARKET SIGNALS
-            • [Credible expert opinions with names, credentials, and publication sources]
-            • [Prediction market data if available, with platform and timestamp]
-            • [Official statements from relevant authorities]
-
-            ## 4. QUANTITATIVE DATA POINTS
-            • [Numerical data with verification and source specification]
-            • [Trend analysis with time series if relevant]
-            • [Statistical context and confidence intervals where available]
-
-            ## 5. KEY UNCERTAINTY FACTORS
-            • [Specific unknowns that could significantly shift the outcome]
-            • [Potential black swan events or unexpected developments]
-            • [Information gaps that limit forecasting confidence]
-
-            **RESEARCH QUALITY STANDARD**: Provide only verified, traceable information.
-            If information is unavailable or uncertain, state this explicitly rather than speculating.
-        """)
-
-    @staticmethod
-    def get_binary_forecast_prompt(question_text: str, background_info: str,
-                                 resolution_criteria: str, fine_print: str,
-                                 research: str, model_tier: str = "full") -> str:
-        """
-        Binary forecasting prompt with anti-slop directives.
-
-        Args:
-            question_text: The binary question to forecast
-            background_info: Question background information
-            resolution_criteria: How the question will be resolved
-            fine_print: Additional question details
-            research: Research findings from research phase
-            model_tier: Model tier for tier-specific optimization
-        """
-
-        tier_specific = {
-            "nano": "• Focus on essential factors only\n• Provide quick, calibrated assessment\n",
-            "mini": "• Balance thoroughness with efficiency\n• Consider key scenarios and base rates\n",
-            "full": "• Use maximum reasoning capability\n• Comprehensive scenario analysis and calibration\n"
-        }
-
-        return clean_indents(f"""
-            You are an elite forecasting expert competing in the Metaculus AI Benchmark Tournament.
-            Your goal is to provide the most accurate, well-calibrated probability estimate optimized for log scoring.
-
-            {AntiSlopPrompts.get_base_anti_slop_directives()}
-
-            # ADVANCED FORECASTING PROTOCOL
-
-            ## EVIDENCE-BASED PREDICTION FRAMEWORK
-            • Base all predictions on verifiable evidence and historical precedents
-            • Weight evidence by quality, recency, and relevance to resolution criteria
-            • Distinguish between correlation and causation in your analysis
-            • Consider multiple independent lines of evidence before concluding
-
-            ## CALIBRATION & OVERCONFIDENCE MITIGATION
-            • Think in frequencies: "In X out of 100 similar situations, this outcome occurs"
-            • Avoid extreme probabilities (5-95% range) unless evidence is overwhelming
-            • Apply systematic debiasing: consider why you might be wrong
-            • Use reference class forecasting: what happened in similar historical cases?
-
-            ## SCENARIO ANALYSIS REQUIREMENTS
-            • Consider multiple plausible pathways to both Yes and No outcomes
-            • Weight scenarios by their probability and evidence strength
-            • Account for interaction effects between different factors
-            • Include low-probability, high-impact scenarios in your analysis
-
-            ## TIER-SPECIFIC OPTIMIZATION
-            {tier_specific.get(model_tier, "")}
-
-            # TOURNAMENT FORECASTING TASK
-
-            **QUESTION**: {question_text}
-
-            **BACKGROUND**: {background_info}
-
-            **RESOLUTION CRITERIA**: {resolution_criteria}
-
-            **FINE PRINT**: {fine_print}
-
-            **RESEARCH FINDINGS**: {research}
-
-            **TODAY'S DATE**: {datetime.now().strftime("%Y-%m-%d")}
-
-            # SYSTEMATIC ANALYSIS PROTOCOL
-
-            ## 1. TEMPORAL ANALYSIS
-            **Time Horizon**: {datetime.now().strftime("%Y-%m-%d")} to resolution
-            • How much time remains for developments to occur?
-            • What is the typical timeline for similar events?
-            • Are there critical decision points or deadlines approaching?
-
-            ## 2. STATUS QUO PROJECTION
-            **Baseline Scenario**: If current trends continue unchanged
-            • What is the most likely outcome under current conditions?
-            • What momentum or inertia factors favor continuity?
-            • How stable are current conditions?
-
-            ## 3. SCENARIO PATHWAY ANALYSIS
-            **YES Scenario Analysis**:
-            • Most plausible pathway(s) to a "Yes" outcome
-            • Required conditions and their individual probabilities
-            • Catalysts or triggers that could accelerate this outcome
-
-            **NO Scenario Analysis**:
-            • Most plausible pathway(s) to a "No" outcome
-            • Barriers or obstacles preventing "Yes" outcome
-            • Defensive factors that maintain status quo
-
-            ## 4. BASE RATE & REFERENCE CLASS
-            **Historical Context**:
-            • What is the base rate frequency of similar events?
-            • How does this specific case compare to the reference class?
-            • What adjustments are needed for unique circumstances?
-
-            ## 5. UNCERTAINTY & RISK FACTORS
-            **Key Variables**:
-            • Which factors could significantly shift the probability?
-            • What unknown unknowns or black swan events are possible?
-            • How confident can we be given available information?
-
-            # FINAL CALIBRATED PREDICTION
-
-            **Probability**: XX%
-            (Where XX is your carefully calibrated probability estimate between 5-95%)
-
-            **Confidence Assessment**: [Low/Medium/High]
-            • Why this confidence level rather than higher or lower?
-            • What additional information would most change your estimate?
-
-            **Core Reasoning**: [2-3 sentences citing specific evidence, base rates, and key scenarios]
-
-            **Calibration Check**: "In 100 similar questions where I assign XX% probability,
-            I expect approximately XX to resolve positively."
-        """)
-
-    @staticmethod
-    def get_multiple_choice_prompt(question_text: str, options: list, background_info: str,
-                                 resolution_criteria: str, fine_print: str, research: str,
-                                 model_tier: str = "full") -> str:
-        """Multiple choice forecasting prompt with anti-slop directives."""
-
-        options_str = ", ".join(options)
-
-        tier_specific = {
-            "nano": "• Focus on most likely outcomes\n• Quick probability assignment\n",
-            "mini": "• Consider all options systematically\n• Balanced probability distribution\n",
-            "full": "• Comprehensive analysis of all scenarios\n• Detailed probability reasoning\n"
-        }
-
-        return clean_indents(f"""
-            You are an elite forecasting expert competing in the Metaculus AI Benchmark Tournament.
-
-            {AntiSlopPrompts.get_base_anti_slop_directives()}
-
-            # MULTIPLE CHOICE FORECASTING DIRECTIVES
-            • Assign probabilities to ALL options (must sum to 100%)
-            • Leave moderate probability on most options for unexpected outcomes
-            • Base probability assignments on evidence strength
-            • Consider correlation between options
-            • Avoid overconfidence in any single outcome
-            {tier_specific.get(model_tier, "")}
-
-            **QUESTION**: {question_text}
-
-            **OPTIONS**: {options_str}
-
-            **BACKGROUND**: {background_info}
-
-            **RESOLUTION CRITERIA**: {resolution_criteria}
-
-            **FINE PRINT**: {fine_print}
-
-            **RESEARCH FINDINGS**: {research}
-
-            **TODAY'S DATE**: {datetime.now().strftime("%Y-%m-%d")}
-
-            # ANALYSIS PROTOCOL
-            Before assigning probabilities, consider:
-
-            (a) **Time Horizon**: How much time until resolution?
-            (b) **Status Quo**: Which outcome if trends continue?
-            (c) **Unexpected Scenarios**: What could cause surprising outcomes?
-            (d) **Evidence Strength**: Which options have strongest support?
-            (e) **Historical Patterns**: What do similar cases suggest?
-
-            # PROBABILITY ASSIGNMENT
-            Remember:
-            • Good forecasters leave some probability on most options
-            • Avoid putting >80% on any single option unless evidence is overwhelming
-            • Consider that unexpected outcomes happen ~20% of the time
-            • Weight evidence quality, not just quantity
-
-            **FINAL PROBABILITIES** (must sum to 100%):
-            {chr(10).join([f"{option}: XX%" for option in options])}
-
-            **Reasoning**: [Brief explanation of probability assignments with evidence]
-        """)
-
-    @staticmethod
-    def get_numeric_forecast_prompt(question_text: str, background_info: str,
+Format: Use bullet points for clarity, cite all sources, acknowledge limitations.
+"""
+        return prompt.strip()
+    def get_binary_forecast_prompt(self, question_text: str, background_info: str,
                                   resolution_criteria: str, fine_print: str,
-                                  research: str, unit_of_measure: Optional[str] = None,
-                                  lower_bound: Optional[float] = None,
-                                  upper_bound: Optional[float] = None,
-                                  model_tier: str = "full") -> str:
-        """Numeric forecasting prompt with anti-slop directives."""
+                                  research: str, model_tier: str = "full") -> str:
+        """Generate binary forecasting prompt with advanced calibration techniques."""
+        task_directives = """
+## BINARY FORECASTING WITH CALIBRATION:
+
+### SCENARIO ANALYSIS REQUIRED:
+• Scenario 1: Status quo continues - what probability?
+• Scenario 2: Moderate change occurs - what probability?
+• Scenario 3: Significant disruption happens - what probability?
+
+### BASE RATE CONSIDERATION:
+• What is the historical frequency of similar events?
+• How does this specific case differ from the base rate?
+• What reference class should we use for comparison?
+
+### OVERCONFIDENCE REDUCTION:
+• Consider what you might be missing or overlooking
+• What could make you wrong? List 2-3 specific ways
+• Are you anchoring on recent/salient information?
+• Widen confidence intervals to account for unknown unknowns
+
+### COMMUNITY PREDICTION ANCHORING:
+• If community predictions available, consider their wisdom
+• What might the crowd be missing that you see?
+• What might you be missing that the crowd sees?
+• Adjust for potential systematic biases in community
+"""
+
+        tier_optimization = self.tier_optimizations.get(model_tier, "")
+
+        prompt = f"""{self.base_directives}
+
+{task_directives}
+
+{tier_optimization}
+
+## FORECASTING QUESTION:
+{question_text}
+
+## BACKGROUND INFORMATION:
+{background_info}
+
+## RESOLUTION CRITERIA:
+{resolution_criteria}
+
+## FINE PRINT:
+{fine_print}
+
+## RESEARCH FINDINGS:
+{research}
+
+## REQUIRED OUTPUT FORMAT:
+1. Base rate analysis
+2. Scenario analysis (status quo, moderate change, disruption)
+3. Key factors that could affect outcome
+4. Uncertainty acknowledgment and potential blind spots
+5. Final calibrated probability with reasoning
+
+End with: "Probability: XX% (Confidence: Low/Medium/High)"
+"""
+        return prompt.strip()
+    def get_multiple_choice_prompt(self, question_text: str, options: List[str],
+                                  background_info: str, resolution_criteria: str,
+                                  fine_print: str, research: str, model_tier: str = "full") -> str:
+        """Generate multiple choice prompt with probability distribution guidance."""
+        task_directives = """
+## MULTIPLE CHOICE PROBABILITY DISTRIBUTION:
+
+### PROBABILITY DISTRIBUTION GUIDANCE:
+• Probabilities must sum to 100% across all options
+• Avoid extreme confidence (0% or 100%) unless overwhelming evidence
+• Reserve 5-15% probability for unexpected outcomes
+• Consider that the "most likely" option often has <50% probability
+
+### EVIDENCE-BASED ASSESSMENT:
+• Evaluate each option against available evidence
+• Consider historical patterns and precedents for each option
+• Account for base rates and typical outcomes in similar situations
+• Weight recent vs. historical evidence appropriately
+
+### UNCERTAINTY CALIBRATION:
+• Acknowledge which options you're most/least confident about
+• Consider interaction effects between options
+• Account for potential systematic biases in your reasoning
+• Leave room for "black swan" or unexpected developments
+"""
+
+        tier_optimization = self.tier_optimizations.get(model_tier, "")
+        options_str = "\n".join([f"• {option}" for option in options])
+
+        prompt = f"""{self.base_directives}
+
+{task_directives}
+
+{tier_optimization}
+
+## FORECASTING QUESTION:
+{question_text}
+
+## OPTIONS:
+{options_str}
+
+## BACKGROUND INFORMATION:
+{background_info}
+
+## RESOLUTION CRITERIA:
+{resolution_criteria}
+
+## FINE PRINT:
+{fine_print}
+
+## RESEARCH FINDINGS:
+{research}
+
+## REQUIRED OUTPUT FORMAT:
+1. Analysis of each option with supporting evidence
+2. Consideration of base rates and historical patterns
+3. Uncertainty acknowledgment and potential surprises
+4. Final probability distribution with reasoning
+
+End with probabilities in format:
+{chr(10).join([f'"{option}": XX%' for option in options])}
+(Probabilities must sum to 100%)
+"""
+        return prompt.strip()
+    def get_numeric_forecast_prompt(self, question_text: str, background_info: str,
+                                   resolution_criteria: str, fine_print: str,
+                                   research: str, unit_of_measure: Optional[str] = None,
+                                   lower_bound: Optional[float] = None,
+                                   upper_bound: Optional[float] = None,
+                                   model_tier: str = "full") -> str:
+        """Generate numeric forecasting prompt with advanced uncertainty quantification."""
+        task_directives = """
+## NUMERIC FORECASTING WITH UNCERTAINTY QUANTIFICATION:
+
+### SCENARIO-BASED ESTIMATION:
+• Status Quo Scenario: Current trends continue unchanged
+• Moderate Change Scenario: Expected developments occur
+• Disruption Scenario: Significant unexpected changes
+• Assign probability weights to each scenario
+
+### WIDE CONFIDENCE INTERVALS:
+• Account for unknown unknowns with wider intervals
+• Consider that most predictions are overconfident
+• Use historical forecast accuracy as calibration guide
+• Remember: it's better to be roughly right than precisely wrong
+
+### HISTORICAL DATA ANCHORING:
+• What do historical patterns suggest?
+• How variable have similar metrics been in the past?
+• Are there cyclical patterns or trends to consider?
+• What expert opinions or forecasts are available?
+
+### UNCERTAINTY ACKNOWLEDGMENT:
+• Identify key factors that could drive outcomes higher/lower
+• Acknowledge data limitations and measurement challenges
+• Consider potential black swan events or regime changes
+• Note confidence level in different parts of the distribution
+"""
+
+        tier_optimization = self.tier_optimizations.get(model_tier, "")
 
         bounds_info = ""
         if lower_bound is not None:
-            bounds_info += f"• Lower bound: {lower_bound}\n"
+            bounds_info += f"Lower bound: {lower_bound}\n"
         if upper_bound is not None:
-            bounds_info += f"• Upper bound: {upper_bound}\n"
+            bounds_info += f"Upper bound: {upper_bound}\n"
         if unit_of_measure:
-            bounds_info += f"• Units: {unit_of_measure}\n"
+            bounds_info += f"Units: {unit_of_measure}\n"
 
-        tier_specific = {
-            "nano": "• Focus on central estimate and basic range\n• Quick percentile assignment\n",
-            "mini": "• Consider multiple scenarios for range\n• Balanced uncertainty assessment\n",
-            "full": "• Comprehensive uncertainty quantification\n• Detailed percentile reasoning\n"
-        }
+        prompt = f"""{self.base_directives}
 
-        return clean_indents(f"""
-            You are an elite forecasting expert competing in the Metaculus AI Benchmark Tournament.
+{task_directives}
 
-            {AntiSlopPrompts.get_base_anti_slop_directives()}
+{tier_optimization}
 
-            # NUMERIC FORECASTING DIRECTIVES
-            • Provide wide confidence intervals to account for unknown unknowns
-            • Base estimates on quantitative evidence when available
-            • Consider multiple scenarios (low, medium, high outcomes)
-            • Remember: good forecasters are humble about numeric predictions
-            • Use reference class forecasting for similar quantities
-            {tier_specific.get(model_tier, "")}
+## FORECASTING QUESTION:
+{question_text}
 
-            **QUESTION**: {question_text}
+## BACKGROUND INFORMATION:
+{background_info}
 
-            **BACKGROUND**: {background_info}
+## RESOLUTION CRITERIA:
+{resolution_criteria}
 
-            **RESOLUTION CRITERIA**: {resolution_criteria}
+## FINE PRINT:
+{fine_print}
 
-            **FINE PRINT**: {fine_print}
+## CONSTRAINTS:
+{bounds_info}
 
-            {bounds_info}
+## RESEARCH FINDINGS:
+{research}
 
-            **RESEARCH FINDINGS**: {research}
+## REQUIRED OUTPUT FORMAT:
+1. Historical context and base rate analysis
+2. Scenario analysis with probability weights
+3. Key uncertainty factors and potential surprises
+4. Confidence assessment for different parts of distribution
+5. Final percentile estimates with reasoning
 
-            **TODAY'S DATE**: {datetime.now().strftime("%Y-%m-%d")}
+End with percentile estimates:
+Percentile 10: XX {unit_of_measure or ""}
+Percentile 20: XX {unit_of_measure or ""}
+Percentile 40: XX {unit_of_measure or ""}
+Percentile 60: XX {unit_of_measure or ""}
+Percentile 80: XX {unit_of_measure or ""}
+Percentile 90: XX {unit_of_measure or ""}
 
-            # ANALYSIS PROTOCOL
-            Before providing percentiles, analyze:
-
-            (a) **Time Horizon**: How much time until resolution?
-            (b) **Current Baseline**: What's the current value/status?
-            (c) **Trend Analysis**: What does current trend suggest?
-            (d) **Expert Expectations**: What do markets/experts predict?
-            (e) **Low Scenario**: What could cause unexpectedly low outcome?
-            (f) **High Scenario**: What could cause unexpectedly high outcome?
-            (g) **Reference Class**: What do similar historical cases suggest?
-
-            # UNCERTAINTY REMINDER
-            • Good forecasters set WIDE 90/10 confidence intervals
-            • Account for unknown unknowns and black swan events
-            • Consider that extreme outcomes happen more than expected
-            • Base ranges on evidence, not just intuition
-
-            **FINAL PERCENTILES** (in ascending order):
-            Percentile 10: XX
-            Percentile 20: XX
-            Percentile 40: XX
-            Percentile 60: XX
-            Percentile 80: XX
-            Percentile 90: XX
-
-            **Reasoning**: [Brief explanation of range and central estimate with evidence]
-        """)
-
-    @staticmethod
-    def get_validation_prompt(content: str, task_type: str) -> str:
-        """Enhanced validation prompt for quality checking responses."""
-
-        return clean_indents(f"""
-            You are a quality assurance expert for tournament forecasting with expertise in detecting
-            hallucinations, logical inconsistencies, and calibration issues.
-
-            # ENHANCED VALIDATION PROTOCOL
-
-            ## EVIDENCE VERIFICATION
-            • Check every factual claim for traceable source support
-            • Flag any statements that cannot be independently verified
-            • Identify potential hallucinations or fabricated information
-            • Verify that sources are credible and properly cited
-
-            ## LOGICAL CONSISTENCY ANALYSIS
-            • Ensure reasoning flows logically from premises to conclusions
-            • Check for internal contradictions or conflicting statements
-            • Verify that probability estimates align with supporting evidence
-            • Identify any gaps in reasoning or unsupported leaps
-
-            ## CALIBRATION ASSESSMENT
-            • Evaluate if confidence levels match evidence strength
-            • Check for overconfidence or underconfidence indicators
-            • Assess if uncertainty is appropriately acknowledged
-            • Verify tournament-appropriate probability ranges (avoid extremes)
-
-            **VALIDATION TASK**: Analyze this {task_type} response for quality and accuracy.
-
-            **CONTENT TO VALIDATE**:
-            {content}
-
-            **COMPREHENSIVE VALIDATION CHECKLIST**:
-
-            ✓ **Evidence Support**: Are all factual claims backed by credible sources?
-            ✓ **Source Quality**: Are citations complete and from reliable sources?
-            ✓ **Hallucination Check**: Any fabricated facts, dates, or quotes?
-            ✓ **Logical Flow**: Does reasoning progress coherently from evidence to conclusion?
-            ✓ **Internal Consistency**: Any contradictory statements or conflicting claims?
-            ✓ **Uncertainty Handling**: Is uncertainty appropriately acknowledged and quantified?
-            ✓ **Calibration**: Do confidence levels match evidence strength?
-            ✓ **Tournament Optimization**: Is response optimized for log scoring?
-
-            **VALIDATION OUTPUT**:
-            • **Status**: [VALID/NEEDS_REVISION/MAJOR_ISSUES]
-            • **Quality Score**: [1-10 scale with brief justification]
-            • **Critical Issues**: [Any serious problems requiring immediate attention]
-            • **Minor Issues**: [Suggestions for improvement]
-            • **Calibration Assessment**: [Overconfident/Well-calibrated/Underconfident]
-            • **Recommendations**: [Specific improvements for tournament performance]
-        """)
-
-    @staticmethod
-    def get_chain_of_verification_prompt(initial_response: str, task_type: str) -> str:
-        """Chain-of-Verification prompt for self-correction and improvement."""
-
-        return clean_indents(f"""
-            You are implementing Chain-of-Verification (CoVe) to improve response quality.
-            Your task is to verify and potentially revise the initial response for accuracy and quality.
-
-            # CHAIN-OF-VERIFICATION PROTOCOL
-
-            ## STEP 1: CLAIM IDENTIFICATION
-            • Identify all factual claims in the initial response
-            • Separate facts from opinions, interpretations, and predictions
-            • List claims that require verification
-
-            ## STEP 2: VERIFICATION PROCESS
-            • For each claim, ask: "Can I verify this with a credible source?"
-            • Check for potential hallucinations or unsupported statements
-            • Verify dates, numbers, quotes, and specific details
-
-            ## STEP 3: LOGICAL CONSISTENCY CHECK
-            • Ensure all reasoning steps follow logically
-            • Check for internal contradictions
-            • Verify that conclusions match the supporting evidence
-
-            ## STEP 4: CALIBRATION REVIEW
-            • Assess if confidence levels are appropriate
-            • Check for overconfidence or extreme probability assignments
-            • Ensure uncertainty is properly acknowledged
-
-            **INITIAL {task_type.upper()} RESPONSE**:
-            {initial_response}
-
-            **VERIFICATION ANALYSIS**:
-
-            **Factual Claims Identified**:
-            • [List key factual claims that need verification]
-
-            **Verification Results**:
-            • [For each claim: Verified/Unverified/Questionable with reasoning]
-
-            **Logical Consistency**:
-            • [Assessment of reasoning flow and internal consistency]
-
-            **Calibration Assessment**:
-            • [Evaluation of confidence levels and uncertainty handling]
-
-            **REVISED RESPONSE** (if needed):
-            [Provide improved version addressing any issues found, or state "No revisions needed" if original is satisfactory]
-
-            **IMPROVEMENT SUMMARY**:
-            • [Brief explanation of changes made and why]
-        """)
-
-    @staticmethod
-    def get_meta_reasoning_prompt(question_text: str, initial_forecast: str, model_tier: str = "full") -> str:
-        """Meta-reasoning prompt for second-order thinking about forecasting decisions."""
-
-        return clean_indents(f"""
-            You are applying meta-reasoning to improve forecasting accuracy through second-order thinking.
-            Consider not just what you think will happen, but why you might be wrong.
-
-            # META-REASONING PROTOCOL
-
-            ## COGNITIVE BIAS ANALYSIS
-            • What cognitive biases might be affecting this forecast?
-            • Am I anchoring too heavily on recent events or salient information?
-            • Could availability heuristic be skewing my probability assessment?
-            • Am I exhibiting overconfidence or confirmation bias?
-
-            ## PERSPECTIVE TAKING
-            • How would a skeptic argue against my forecast?
-            • What would someone with opposite views emphasize?
-            • What evidence am I potentially overlooking or underweighting?
-            • How might cultural or personal biases influence my reasoning?
-
-            ## REFERENCE CLASS ANALYSIS
-            • Am I using the most appropriate reference class?
-            • Should I consider a broader or narrower set of historical cases?
-            • How does this specific case differ from the typical reference class?
-            • What adjustments are needed for unique circumstances?
-
-            **ORIGINAL QUESTION**: {question_text}
-
-            **INITIAL FORECAST**: {initial_forecast}
-
-            **META-REASONING ANALYSIS**:
-
-            ## 1. BIAS IDENTIFICATION
-            **Potential Biases**:
-            • [Identify specific cognitive biases that might affect this forecast]
-            • [Explain how each bias could skew the probability estimate]
-
-            ## 2. CONTRARIAN PERSPECTIVE
-            **Skeptical Arguments**:
-            • [Present strongest arguments against the initial forecast]
-            • [Consider evidence or factors that might be underweighted]
-
-            ## 3. REFERENCE CLASS REFINEMENT
-            **Alternative Reference Classes**:
-            • [Consider different ways to categorize this question]
-            • [Assess if current reference class is most appropriate]
-
-            ## 4. UNCERTAINTY ANALYSIS
-            **Sources of Uncertainty**:
-            • [Identify key unknowns that could significantly impact outcome]
-            • [Assess if uncertainty is adequately reflected in probability]
-
-            **REFINED FORECAST** (if warranted):
-            • **Adjusted Probability**: [New probability if meta-reasoning suggests changes]
-            • **Confidence Level**: [Reassessed confidence with reasoning]
-            • **Key Changes**: [Explanation of any adjustments made]
-
-            **META-REASONING INSIGHTS**:
-            • [Key insights from second-order thinking process]
-            • [How this analysis improved the forecast quality]
-        """)
+Confidence Level: Low/Medium/High
+"""
+        return prompt.strip()
 
 
-# Global instance for easy access
+    def get_validation_prompt(self, content: str, task_type: str, model_tier: str = "nano") -> str:
+        """Generate validation prompt optimized for fast quality assurance."""
+        task_directives = """
+## VALIDATION TASK DIRECTIVES:
+• Verify factual accuracy of claims against known information
+• Check for logical consistency and coherence
+• Identify potential hallucinations or unsupported claims
+• Flag missing source citations where required
+• Assess uncertainty acknowledgment appropriateness
+• Provide binary assessment: VALID/INVALID with brief reasoning
+"""
+
+        tier_optimization = self.tier_optimizations.get(model_tier, "")
+
+        prompt = f"""{self.base_directives}
+
+{task_directives}
+
+{tier_optimization}
+
+## CONTENT TO VALIDATE:
+{content}
+
+## TASK TYPE: {task_type}
+
+## OUTPUT REQUIREMENTS:
+1. Overall assessment: VALID/INVALID
+2. Specific issues found (if any)
+3. Confidence in validation: Low/Medium/High
+
+Keep response concise and focused on validation criteria.
+"""
+        return prompt.strip()
+
+    def get_base_anti_slop_directives(self) -> str:
+        """Public method to get base anti-slop directives."""
+        return self.base_directives
+
+    def get_chain_of_verification_prompt(self, response: str, task_type: str) -> str:
+        """Generate Chain-of-Verification prompt for response validation."""
+        cov_prompt = f"""{self.base_directives}
+
+## CHAIN-OF-VERIFICATION PROTOCOL:
+
+### STEP 1: INITIAL RESPONSE ANALYSIS
+Review the following response and identify all factual claims:
+
+{response}
+
+### STEP 2: CLAIM VERIFICATION
+For each factual claim identified:
+• Verify against known information and sources
+• Check for logical consistency with other claims
+• Identify any potential contradictions or gaps
+• Flag claims that cannot be verified
+
+### STEP 3: EVIDENCE ASSESSMENT
+• Are all claims properly sourced and cited?
+• Do the sources support the specific claims made?
+• Are there any unsupported assertions or speculation?
+• Is the reasoning chain logically sound?
+
+### STEP 4: UNCERTAINTY EVALUATION
+• Are appropriate uncertainty qualifiers used?
+• Is confidence level appropriate for the evidence?
+• Are limitations and gaps acknowledged?
+• Could alternative interpretations exist?
+
+### STEP 5: REVISED OUTPUT
+Based on verification analysis, provide:
+1. Verification status: VERIFIED/NEEDS_REVISION/UNCERTAIN
+2. Specific issues found (if any)
+3. Recommended corrections or improvements
+4. Confidence assessment of the original response
+
+Task Type: {task_type}
+Focus verification on task-specific quality criteria.
+"""
+        return cov_prompt.strip()
+
+    def get_meta_reasoning_prompt(self, question: str, forecast: str) -> str:
+        """Generate meta-reasoning prompt for forecast quality assessment."""
+        meta_prompt = f"""{self.base_directives}
+
+## META-REASONING PROTOCOL:
+
+### ORIGINAL QUESTION:
+{question}
+
+### FORECAST TO ANALYZE:
+{forecast}
+
+### META-REASONING ANALYSIS:
+
+#### 1. REASONING QUALITY ASSESSMENT:
+• Is the reasoning chain logically sound?
+• Are all steps in the analysis clearly justified?
+• Are there any logical fallacies or biases present?
+• Does the conclusion follow from the premises?
+
+#### 2. EVIDENCE EVALUATION:
+• Is the evidence base comprehensive and relevant?
+• Are sources credible and properly cited?
+• Are there significant evidence gaps?
+• Is contradictory evidence acknowledged?
+
+#### 3. CALIBRATION ANALYSIS:
+• Is the confidence level appropriate for the evidence?
+• Are uncertainty bounds realistic?
+• Does the forecast show signs of overconfidence?
+• Are base rates and historical precedents considered?
+
+#### 4. ALTERNATIVE PERSPECTIVES:
+• What alternative viewpoints might exist?
+• What could make this forecast wrong?
+• Are there unconsidered scenarios or factors?
+• How might different experts disagree?
+
+#### 5. IMPROVEMENT RECOMMENDATIONS:
+• What additional evidence would strengthen the forecast?
+• How could the reasoning be made more robust?
+• What are the key uncertainty factors to monitor?
+• How should this forecast be updated over time?
+
+### OUTPUT REQUIREMENTS:
+1. Overall quality score (1-10)
+2. Key strengths of the forecast
+3. Main weaknesses or concerns
+4. Specific improvement recommendations
+5. Confidence in the meta-analysis
+"""
+        return meta_prompt.strip()
+
+    def adapt_prompt_for_model_capabilities(self, base_prompt: str, model_tier: str,
+                                          model_name: str) -> str:
+        """Dynamically adapt prompts based on specific OpenRouter model capabilities."""
+
+        # Model-specific adaptations based on known capabilities
+        if "gpt-5-nano" in model_name.lower():
+            # GPT-5 Nano optimizations
+            adaptations = """
+## GPT-5-NANO SPECIFIC OPTIMIZATIONS:
+• Use clear, structured instructions
+• Focus on essential validation and parsing tasks
+• Prioritize speed and accuracy over depth
+• Use simple, direct language patterns
+• Prefer bullet points over paragraph format
+"""
+        elif "gpt-5-mini" in model_name.lower():
+            # GPT-5 Mini optimizations
+            adaptations = """
+## GPT-5-MINI SPECIFIC OPTIMIZATIONS:
+• Leverage balanced reasoning capabilities for synthesis
+• Use analytical frameworks and structured thinking
+• Balance depth with token efficiency
+• Emphasize source integration and citation
+• Apply moderate complexity reasoning patterns
+"""
+        elif "gpt-5" in model_name.lower() and "mini" not in model_name.lower() and "nano" not in model_name.lower():
+            # GPT-5 Full optimizations
+            adaptations = """
+## GPT-5-FULL SPECIFIC OPTIMIZATIONS:
+• Utilize maximum reasoning and analysis capabilities
+• Apply sophisticated analytical frameworks
+• Consider multiple perspectives and meta-reasoning
+• Use advanced prompt engineering techniques
+• Integrate complex information with nuanced interpretation
+"""
+        elif "kimi" in model_name.lower() or "oss" in model_name.lower():
+            # Free model optimizations
+            adaptations = """
+## FREE MODEL OPTIMIZATIONS:
+• Keep instructions simple and clear
+• Focus on essential tasks only
+• Use straightforward language patterns
+• Minimize complexity to ensure reliability
+• Prioritize accuracy over sophistication
+"""
+        else:
+            # Default adaptations
+            adaptations = """
+## GENERAL MODEL OPTIMIZATIONS:
+• Use clear, structured instructions
+• Balance complexity with model capabilities
+• Focus on accuracy and reliability
+• Adapt reasoning depth to model strengths
+"""
+
+        # Insert adaptations after base directives
+        # Handle both with and without leading newline
+        base_directives_clean = self.base_directives.strip()
+        if base_directives_clean in base_prompt:
+            adapted_prompt = base_prompt.replace(
+                base_directives_clean,
+                f"{base_directives_clean}\n{adaptations}"
+            )
+        else:
+            # Fallback: just prepend adaptations
+            adapted_prompt = f"{adaptations}\n\n{base_prompt}"
+
+        return adapted_prompt
+
+    def get_enhanced_prompt_with_model_adaptation(self, prompt_type: str, model_tier: str,
+                                                 model_name: str, **kwargs) -> str:
+        """Get enhanced prompt with model-specific adaptations."""
+
+        # Get base prompt based on type
+        if prompt_type == "research":
+            base_prompt = self.get_research_prompt(
+                question_text=kwargs.get("question_text", ""),
+                model_tier=model_tier
+            )
+        elif prompt_type == "binary_forecast":
+            base_prompt = self.get_binary_forecast_prompt(
+                question_text=kwargs.get("question_text", ""),
+                background_info=kwargs.get("background_info", ""),
+                resolution_criteria=kwargs.get("resolution_criteria", ""),
+                fine_print=kwargs.get("fine_print", ""),
+                research=kwargs.get("research", ""),
+                model_tier=model_tier
+            )
+        elif prompt_type == "multiple_choice":
+            base_prompt = self.get_multiple_choice_prompt(
+                question_text=kwargs.get("question_text", ""),
+                options=kwargs.get("options", []),
+                background_info=kwargs.get("background_info", ""),
+                resolution_criteria=kwargs.get("resolution_criteria", ""),
+                fine_print=kwargs.get("fine_print", ""),
+                research=kwargs.get("research", ""),
+                model_tier=model_tier
+            )
+        elif prompt_type == "numeric_forecast":
+            base_prompt = self.get_numeric_forecast_prompt(
+                question_text=kwargs.get("question_text", ""),
+                background_info=kwargs.get("background_info", ""),
+                resolution_criteria=kwargs.get("resolution_criteria", ""),
+                fine_print=kwargs.get("fine_print", ""),
+                research=kwargs.get("research", ""),
+                unit_of_measure=kwargs.get("unit_of_measure"),
+                lower_bound=kwargs.get("lower_bound"),
+                upper_bound=kwargs.get("upper_bound"),
+                model_tier=model_tier
+            )
+        elif prompt_type == "validation":
+            base_prompt = self.get_validation_prompt(
+                content=kwargs.get("content", ""),
+                task_type=kwargs.get("task_type", ""),
+                model_tier=model_tier
+            )
+        else:
+            raise ValueError(f"Unknown prompt type: {prompt_type}")
+
+        # Apply model-specific adaptations
+        return self.adapt_prompt_for_model_capabilities(base_prompt, model_tier, model_name)
+
+
+# Global instance
 anti_slop_prompts = AntiSlopPrompts()

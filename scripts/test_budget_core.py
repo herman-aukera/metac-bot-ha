@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Set test environment variables if not set
 if not os.getenv("OPENROUTER_API_KEY"):
-    os.environ["OPENROUTER_API_KEY"] = "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"
+    os.environ["OPENROUTER_API_KEY"] = "dummy_openrouter_key_for_testing"
 
 if not os.getenv("METACULUS_TOKEN"):
     os.environ["METACULUS_TOKEN"] = "test_token_123"

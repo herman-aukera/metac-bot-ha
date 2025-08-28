@@ -1,19 +1,101 @@
-"""Reliability and fault tolerance infrastructure components."""
+"""
+Comprehensive error handling and recovery system for OpenRouter tri-model optimization.
 
-from .circuit_breaker import CircuitBreaker, CircuitBreakerState
-from .retry_manager import RetryManager, RetryPolicy
-from .health_monitor import HealthMonitor, HealthStatus
-from .auto_scaler import AutoScaler, ScalingPolicy
-from .graceful_degradation import GracefulDegradationManager
+This module provides a complete error handling and recovery infrastructure including:
+- Error classification and pattern recognition
+- Intelligent fallback strategies (model tier, cross-provider)
+- Emergency mode activation and management
+- Comprehensive error logging and alerting
+- Recovery orchestration and monitoring
+
+Key Components:
+- ErrorClassifier: Classifies errors and determines recovery strategies
+- ModelTierFallbackManager: Handles model tier fallbacks with performance preservation
+- CrossProviderFallbackManager: Manages cross-provider API fallbacks
+- EmergencyModeManager: Activates emergency mode for critical failures
+- ErrorLoggingAndAlertingSystem: Comprehensive error logging and alerting
+- ComprehensiveErrorRecoveryManager: Orchestrates all recovery strategies
+
+Usage:
+    from src.infrastructure.reliability import ComprehensiveErrorRecoveryManager
+
+    recovery_manager = ComprehensiveErrorRecoveryManager(
+        tri_model_router=router,
+        budget_manager=budget_manager
+    )
+
+    # Handle an error
+    result = await recovery_manager.recover_from_error(error, context)
+"""
+
+from .error_classification import (
+    ErrorClassifier,
+    ErrorRecoveryManager,
+    ErrorContext,
+    ErrorCategory,
+    ErrorSeverity,
+    RecoveryStrategy,
+    RecoveryAction,
+    ForecastingError,
+    ModelError,
+    BudgetError,
+    APIError,
+    QualityError
+)
+
+from .fallback_strategies import (
+    ModelTierFallbackManager,
+    CrossProviderFallbackManager,
+    EmergencyModeManager,
+    ErrorLoggingAndAlertingSystem,
+    IntelligentFallbackOrchestrator,
+    FallbackOption,
+    FallbackTier,
+    PerformanceLevel,
+    FallbackResult,
+    AlertConfig
+)
+
+from .comprehensive_error_recovery import (
+    ComprehensiveErrorRecoveryManager,
+    RecoveryConfiguration,
+    RecoveryResult
+)
 
 __all__ = [
-    "CircuitBreaker",
-    "CircuitBreakerState",
-    "RetryManager",
-    "RetryPolicy",
-    "HealthMonitor",
-    "HealthStatus",
-    "AutoScaler",
-    "ScalingPolicy",
-    "GracefulDegradationManager"
+    # Error Classification
+    'ErrorClassifier',
+    'ErrorRecoveryManager',
+    'ErrorContext',
+    'ErrorCategory',
+    'ErrorSeverity',
+    'RecoveryStrategy',
+    'RecoveryAction',
+    'ForecastingError',
+    'ModelError',
+    'BudgetError',
+    'APIError',
+    'QualityError',
+
+    # Fallback Strategies
+    'ModelTierFallbackManager',
+    'CrossProviderFallbackManager',
+    'EmergencyModeManager',
+    'ErrorLoggingAndAlertingSystem',
+    'IntelligentFallbackOrchestrator',
+    'FallbackOption',
+    'FallbackTier',
+    'PerformanceLevel',
+    'FallbackResult',
+    'AlertConfig',
+
+    # Comprehensive Recovery
+    'ComprehensiveErrorRecoveryManager',
+    'RecoveryConfiguration',
+    'RecoveryResult'
 ]
+
+# Version information
+__version__ = "1.0.0"
+__author__ = "OpenRouter Tri-Model Optimization Team"
+__description__ = "Comprehensive error handling and recovery system for tournament forecasting"

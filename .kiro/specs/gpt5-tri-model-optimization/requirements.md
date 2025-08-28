@@ -1,22 +1,22 @@
-# Requirements Document - GPT-5 Tri-Model Optimization with Anti-Slop Directives
+# Requirements Document - OpenRouter Tri-Model Optimization with Anti-Slop Directives
 
 ## Introduction
 
-This specification defines the requirements for optimizing the existing tri-model GPT-5 system with enhanced anti-slop directives to maximize tournament performance within the $100 budget constraint. The system will implement a strategic cost-performance triangle using GPT-5 nano, mini, and full variants with sophisticated prompt engineering and quality guards.
+This specification defines the requirements for optimizing the existing tri-model system with enhanced anti-slop directives to maximize tournament performance within the $100 budget constraint. The system will implement a strategic cost-performance triangle using OpenRouter's available models with sophisticated prompt engineering and quality guards, unified through a single API gateway approach.
 
 ## Requirements
 
-### Requirement 1: Enhanced GPT-5 Model Configuration
+### Requirement 1: OpenRouter Tri-Model Configuration
 
-**User Story:** As a tournament competitor, I want to use the most cost-effective GPT-5 model variants so that I can process 2000+ questions within the $100 budget instead of only 300 with GPT-5 full.
+**User Story:** As a tournament competitor, I want to use the most cost-effective model variants through OpenRouter so that I can process 5000+ questions within the $100 budget with unified billing and provider routing.
 
 #### Acceptance Criteria
 
-1. WHEN the system initializes THEN it SHALL configure GPT-5 nano ($0.05/1M tokens), GPT-5 mini ($0.25/1M tokens), and GPT-5 full ($1.50/1M tokens) models
-2. WHEN GPT-5 models are unavailable THEN the system SHALL fallback gracefully to GPT-4 variants with equivalent functionality
+1. WHEN the system initializes THEN it SHALL configure OpenRouter with base URL https://openrouter.ai/api/v1 and proper attribution headers
+2. WHEN models are configured THEN it SHALL use tier 1 (openai/gpt-5), tier 2 (openai/gpt-5-mini), and tier 3 (openai/gpt-5-nano) with correct pricing
 3. WHEN model selection occurs THEN the system SHALL choose the optimal model based on task type, complexity, and budget remaining
-4. WHEN budget utilization exceeds 95% THEN the system SHALL force GPT-5 nano usage for all tasks
-5. WHEN budget utilization is between 50-95% THEN the system SHALL prefer cheaper models when task complexity allows
+4. WHEN budget utilization exceeds 95% THEN the system SHALL fallback to free models (openai/gpt-oss-20b:free, moonshotai/kimi-k2:free)
+5. WHEN budget utilization is between 70-95% THEN the system SHALL prefer cheaper models when task complexity allows
 
 ### Requirement 2: Advanced Anti-Slop Quality Guard System
 
@@ -32,14 +32,14 @@ This specification defines the requirements for optimizing the existing tri-mode
 
 ### Requirement 3: Strategic Model Routing Optimization
 
-**User Story:** As a cost-conscious competitor, I want intelligent model routing that maximizes forecast quality per dollar spent so that I can achieve optimal tournament performance within budget constraints.
+**User Story:** As a cost-conscious competitor, I want intelligent model routing through OpenRouter that maximizes forecast quality per dollar spent so that I can achieve optimal tournament performance within budget constraints.
 
 #### Acceptance Criteria
 
-1. WHEN validation or parsing tasks are needed THEN the system SHALL route to GPT-5 nano for ultra-fast processing
-2. WHEN research synthesis is required THEN the system SHALL route to GPT-5 mini for balanced speed and intelligence
-3. WHEN final forecasting decisions are needed THEN the system SHALL route to GPT-5 full for maximum reasoning power
-4. WHEN content length is under 100 characters THEN the system SHALL automatically use GPT-5 nano regardless of task type
+1. WHEN validation or parsing tasks are needed THEN the system SHALL route to openai/gpt-5-nano ($0.05/1M tokens) for ultra-fast processing
+2. WHEN research synthesis is required THEN the system SHALL route to openai/gpt-5-mini ($0.25/1M tokens) for balanced speed and intelligence
+3. WHEN final forecasting decisions are needed THEN the system SHALL route to openai/gpt-5 ($1.50/1M tokens) for maximum reasoning power
+4. WHEN content length is under 100 characters THEN the system SHALL automatically use the cheapest tier regardless of task type
 5. WHEN complexity is assessed as "high" AND budget allows THEN the system SHALL upgrade model tier appropriately
 
 ### Requirement 4: Multi-Stage Validation Pipeline
@@ -48,11 +48,12 @@ This specification defines the requirements for optimizing the existing tri-mode
 
 #### Acceptance Criteria
 
-1. WHEN research is conducted THEN GPT-5 mini SHALL gather information with mandatory source citations
-2. WHEN research is completed THEN GPT-5 nano SHALL validate accuracy and flag potential hallucinations
-3. WHEN forecasting is performed THEN GPT-5 full SHALL make final predictions with calibration checks
-4. WHEN any response lacks citations THEN the system SHALL reject it and request revision
-5. WHEN uncertainty is not acknowledged appropriately THEN the system SHALL append uncertainty qualifiers
+1. WHEN research is conducted THEN the system SHALL prioritize AskNews API (100% free via METACULUSQ4) and use openai/gpt-5-mini for synthesis with mandatory source citations
+2. WHEN AskNews quota is exhausted THEN the system SHALL fallback to free models (openai/gpt-oss-20b:free, moonshotai/kimi-k2:free) for research synthesis
+3. WHEN research is completed THEN openai/gpt-5-nano SHALL validate accuracy and flag potential hallucinations
+4. WHEN forecasting is performed THEN openai/gpt-5 SHALL make final predictions with calibration checks
+5. WHEN any response lacks citations THEN the system SHALL reject it and request revision
+6. WHEN uncertainty is not acknowledged appropriately THEN the system SHALL append uncertainty qualifiers
 
 ### Requirement 5: Enhanced Prompt Engineering Templates
 
@@ -60,11 +61,11 @@ This specification defines the requirements for optimizing the existing tri-mode
 
 #### Acceptance Criteria
 
-1. WHEN research prompts are generated THEN they SHALL include structured output requirements and 48-hour news focus
+1. WHEN research prompts are generated THEN they SHALL include structured output requirements and 48-hour news focus with AskNews as primary source (free via METACULUSQ4 promo) and fallback to free models (openai/gpt-oss-20b:free, moonshotai/kimi-k2:free) when AskNews quota is exhausted
 2. WHEN binary forecasting prompts are created THEN they SHALL include scenario analysis, base rate consideration, and calibration instructions
 3. WHEN multiple choice prompts are generated THEN they SHALL include probability distribution guidance and unexpected outcome consideration
 4. WHEN numeric forecasting prompts are created THEN they SHALL include uncertainty quantification and wide confidence interval instructions
-5. WHEN any prompt is created THEN it SHALL include tier-specific optimization based on the selected GPT-5 variant
+5. WHEN any prompt is created THEN it SHALL include tier-specific optimization based on the selected GPT-5 model capabilities
 
 ### Requirement 6: Budget-Aware Operation Modes
 
@@ -72,11 +73,11 @@ This specification defines the requirements for optimizing the existing tri-mode
 
 #### Acceptance Criteria
 
-1. WHEN budget utilization is 0-50% THEN the system SHALL operate in normal mode with optimal model selection
-2. WHEN budget utilization is 50-80% THEN the system SHALL operate in conservative mode with cost-preferred selections
-3. WHEN budget utilization is 80-95% THEN the system SHALL operate in emergency mode with GPT-5 nano preference
-4. WHEN budget utilization exceeds 95% THEN the system SHALL operate in critical mode with GPT-5 nano only
-5. WHEN budget is exhausted THEN the system SHALL gracefully degrade to essential functions only
+1. WHEN budget utilization is 0-70% THEN the system SHALL operate in normal mode with optimal GPT-5 model selection
+2. WHEN budget utilization is 70-85% THEN the system SHALL operate in conservative mode with GPT-5 mini/nano preferred selections
+3. WHEN budget utilization is 85-95% THEN the system SHALL operate in emergency mode with free models preferred
+4. WHEN budget utilization exceeds 95% THEN the system SHALL operate in critical mode with free models only (openai/gpt-oss-20b:free, moonshotai/kimi-k2:free)
+5. WHEN budget is exhausted THEN the system SHALL gracefully degrade to free models with essential functions only
 
 ### Requirement 7: Tournament Compliance Integration
 
@@ -90,7 +91,19 @@ This specification defines the requirements for optimizing the existing tri-mode
 4. WHEN API failures occur THEN the system SHALL use intelligent fallback strategies without breaking tournament rules
 5. WHEN the system completes tasks THEN it SHALL provide comprehensive cost and performance reporting
 
-### Requirement 8: Performance Monitoring and Optimization
+### Requirement 8: OpenRouter Provider Configuration
+
+**User Story:** As a tournament participant, I want proper OpenRouter provider configuration so that I can benefit from provider routing, attribution, and unified billing.
+
+#### Acceptance Criteria
+
+1. WHEN the system initializes THEN it SHALL configure OpenRouter base URL as https://openrouter.ai/api/v1
+2. WHEN API calls are made THEN the system SHALL include HTTP-Referer and X-Title headers for attribution and ranking
+3. WHEN provider routing is needed THEN the system SHALL use OpenRouter's provider preferences (order, allow_fallbacks, sort)
+4. WHEN models are unavailable THEN the system SHALL leverage OpenRouter's automatic provider fallbacks
+5. WHEN cost optimization is needed THEN the system SHALL use OpenRouter's price-based load balancing and :floor shortcuts
+
+### Requirement 9: Performance Monitoring and Optimization
 
 **User Story:** As a performance-focused competitor, I want detailed monitoring of model selection effectiveness so that I can continuously optimize my tournament strategy.
 

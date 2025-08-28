@@ -20,8 +20,8 @@ Edit `.env` with your specific configuration:
 # Required - Replace with your actual Metaculus token
 METACULUS_TOKEN=your_actual_metaculus_token
 
-# Primary API Key - Already configured with provided OpenRouter key
-OPENROUTER_API_KEY=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
+# Primary API Key - Set your OpenRouter key here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # Budget Management - Pre-configured for $100 budget
 BUDGET_LIMIT=100.0

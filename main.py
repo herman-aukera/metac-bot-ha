@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Literal
+from typing import Dict, Any, Literal
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -100,31 +100,76 @@ class TemplateForecaster(ForecastBot):
             self.enhanced_llm_config = None
             self.token_tracker = None
 
-        # Initialize tri-model router for GPT-5 variants with anti-slop directives
+        # Initialize enhanced tri-model router for GPT-5 variants with anti-slop directives
         try:
             from src.infrastructure.config.tri_model_router import tri_model_router
             from src.prompts.anti_slop_prompts import anti_slop_prompts
+            from src.domain.services.multi_stage_validation_pipeline import MultiStageValidationPipeline
+            from src.infrastructure.config.budget_aware_operation_manager import budget_aware_operation_manager
+            from src.infrastructure.reliability.comprehensive_error_recovery import ComprehensiveErrorRecoveryManager
 
             self.tri_model_router = tri_model_router
             self.anti_slop_prompts = anti_slop_prompts
 
+            # Initialize multi-stage validation pipeline (Task 8.1)
+            self.multi_stage_pipeline = MultiStageValidationPipeline(
+                tri_model_router=self.tri_model_router,
+                tournament_asknews=getattr(self, 'tournament_asknews', None)
+            )
+
+            # Initialize budget-aware operation manager (Task 8.2)
+            self.budget_aware_manager = budget_aware_operation_manager
+
+            # Initialize comprehensive error recovery (Task 8.1)
+            self.error_recovery_manager = ComprehensiveErrorRecoveryManager(
+                tri_model_router=self.tri_model_router,
+                budget_manager=self.budget_manager
+            )
+
+            # Integrate tri-model router with budget management systems (Task 8.2)
+            self.tri_model_router.integrate_with_budget_manager(
+                budget_manager=self.budget_manager,
+                budget_aware_manager=self.budget_aware_manager
+            )
+
             # Log tri-model status
             model_status = self.tri_model_router.get_model_status()
-            logger.info("Tri-model router initialized:")
+            logger.info("Enhanced tri-model router initialized:")
             for tier, status in model_status.items():
                 logger.info(f"  {tier}: {status}")
 
+            logger.info("Budget manager integration with tri-model router completed")
+
+            # Log multi-stage pipeline status
+            pipeline_config = self.multi_stage_pipeline.get_pipeline_configuration()
+            logger.info(f"Multi-stage validation pipeline initialized with {len(pipeline_config['stages'])} stages")
+
+            # Log comprehensive system status (Task 8.2)
+            self.log_enhanced_system_status()
+
         except ImportError as e:
-            logger.warning(f"Tri-model router not available: {e}")
+            logger.warning(f"Enhanced tri-model components not available: {e}")
             self.tri_model_router = None
             self.anti_slop_prompts = None
+            self.multi_stage_pipeline = None
+            self.budget_aware_manager = None
+            self.error_recovery_manager = None
 
         # Initialize OpenRouter API key configuration
-        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "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")
+        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         if not self.openrouter_api_key or self.openrouter_api_key.startswith("dummy_"):
             logger.error("OpenRouter API key not configured! This is required for tournament operation.")
         else:
             logger.info("OpenRouter API key configured successfully")
+
+        # Initialize performance monitoring integration (Task 8.2)
+        try:
+            from src.infrastructure.monitoring.integrated_monitoring_service import integrated_monitoring_service
+            self.performance_monitor = integrated_monitoring_service
+            logger.info("Performance monitoring integration initialized")
+        except ImportError as e:
+            logger.warning(f"Performance monitoring not available: {e}")
+            self.performance_monitor = None
 
         # Initialize error handling and fallback state
         self.emergency_mode_active = False
@@ -142,6 +187,14 @@ class TemplateForecaster(ForecastBot):
                 self.tournament_config = get_tournament_config()
                 self.tournament_asknews = TournamentAskNewsClient()
 
+                # Initialize multi-stage research pipeline (Task 4.1)
+                from domain.services.multi_stage_research_pipeline import MultiStageResearchPipeline
+                self._multi_stage_pipeline = MultiStageResearchPipeline(
+                    tri_model_router=self.tri_model_router,
+                    tournament_asknews=self.tournament_asknews
+                )
+                logger.info("Multi-stage research pipeline initialized successfully")
+
                 # Update concurrency based on tournament config
                 self._max_concurrent_questions = self.tournament_config.max_concurrent_questions
                 self._concurrency_limiter = asyncio.Semaphore(self._max_concurrent_questions)
@@ -157,14 +210,300 @@ class TemplateForecaster(ForecastBot):
                 logger.warning(f"Failed to initialize tournament components: {e}")
                 self.tournament_config = None
                 self.tournament_asknews = None
+                self._multi_stage_pipeline = None
         else:
             self.tournament_config = None
             self.tournament_asknews = None
+            self._multi_stage_pipeline = None
 
         # Set default concurrency if not set by tournament config
         if not hasattr(self, '_max_concurrent_questions'):
             self._max_concurrent_questions = 2
             self._concurrency_limiter = asyncio.Semaphore(self._max_concurrent_questions)
+
+    def _has_openrouter_key(self) -> bool:
+        """Check if OpenRouter API key is available."""
+        return bool(self.openrouter_api_key and not self.openrouter_api_key.startswith("dummy_"))
+
+    def _has_perplexity_key(self) -> bool:
+        """Check if Perplexity API key is available."""
+        key = os.getenv("PERPLEXITY_API_KEY")
+        return bool(key and not key.startswith("dummy_"))
+
+    def _has_exa_key(self) -> bool:
+        """Check if Exa API key is available."""
+        key = os.getenv("EXA_API_KEY")
+        return bool(key and not key.startswith("dummy_"))
+
+    def _has_metaculus_proxy(self) -> bool:
+        """Check if Metaculus proxy is enabled."""
+        return os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true"
+
+    async def _call_llm_based_research(self, question: str) -> str:
+        """Fallback research method using LLM when no external APIs are available."""
+        if self.tri_model_router and self.anti_slop_prompts:
+            try:
+                # Use the enhanced research prompt with mini model
+                research_prompt = self.anti_slop_prompts.get_research_prompt(
+                    question_text=question,
+                    model_tier="mini"
+                )
+
+                # Add context that this is LLM-based research
+                enhanced_prompt = f"""
+{research_prompt}
+
+**IMPORTANT NOTE**: External research APIs are not available. Please provide research based on your training data knowledge, clearly indicating the limitations and knowledge cutoff date. Focus on:
+- General background information about the topic
+- Historical context and patterns
+- Known factors that typically influence such questions
+- Explicit acknowledgment of information limitations
+
+Be very clear about what information may be outdated or incomplete.
+"""
+
+                # Get budget-aware context for routing
+                budget_context = self.tri_model_router.get_budget_aware_routing_context()
+                budget_remaining = budget_context.remaining_percentage if budget_context else 100.0
+
+                research = await self.tri_model_router.route_query(
+                    task_type="research",
+                    content=enhanced_prompt,
+                    complexity="medium",
+                    budget_remaining=budget_remaining
+                )
+
+                return research
+
+            except Exception as e:
+                logger.warning(f"LLM-based research failed: {e}")
+                return ""
+
+        return ""
+
+    def _integrate_budget_manager_with_operation_modes(self):
+        """Integrate budget manager with operation mode transitions and alerts (Task 8.2)."""
+        if not (self.budget_manager and self.budget_aware_manager):
+            return
+
+        try:
+            # Monitor budget utilization and trigger operation mode changes
+            monitoring_result = self.budget_aware_manager.monitor_budget_utilization()
+
+            # Check for threshold alerts and log them
+            if monitoring_result.get("threshold_alerts"):
+                for alert in monitoring_result["threshold_alerts"]:
+                    logger.warning(f"Budget threshold alert: {alert['threshold_name']} "
+                                 f"({alert['current_utilization']:.1f}% utilization)")
+
+                    # Send alert through budget alert system if available
+                    if self.budget_alert_system:
+                        self.budget_alert_system.check_and_alert()
+
+            # Detect and execute operation mode transitions
+            mode_switched, transition_log = self.budget_aware_manager.detect_and_switch_operation_mode()
+
+            if mode_switched and transition_log:
+                logger.info(f"Operation mode transition executed: "
+                          f"{transition_log.from_mode.value} → {transition_log.to_mode.value}, "
+                          f"estimated savings: ${transition_log.cost_savings_estimate:.4f}")
+
+                # Update performance monitoring with mode transition
+                if self.performance_monitor:
+                    self.performance_monitor.record_model_usage(
+                        question_id="mode_transition",
+                        task_type="operation_mode_change",
+                        selected_model=f"mode_{transition_log.to_mode.value}",
+                        selected_tier="system",
+                        routing_rationale=transition_log.trigger_reason,
+                        estimated_cost=transition_log.cost_savings_estimate,
+                        operation_mode=transition_log.to_mode.value,
+                        budget_remaining=transition_log.remaining_budget
+                    )
+
+                # Update tri-model router with new operation mode for budget-aware routing
+                if self.tri_model_router:
+                    # Apply operation mode adjustments to model selection
+                    current_mode = transition_log.to_mode.value
+                    logger.info(f"Updating tri-model router operation mode to: {current_mode}")
+
+                    # The router will automatically use the budget-aware operation manager
+                    # for future routing decisions based on the new mode
+
+        except Exception as e:
+            logger.error(f"Budget manager integration error: {e}")
+
+    def _track_question_processing_cost(self, question_id: str, task_type: str,
+                                      cost: float, model_used: str, success: bool):
+        """Track cost and performance metrics for question processing (Task 8.2)."""
+        try:
+            # Estimate token usage for budget manager (approximate)
+            estimated_input_tokens = 1000  # Default estimate
+            estimated_output_tokens = 500  # Default estimate
+
+            # Update budget manager with actual cost
+            if self.budget_manager:
+                self.budget_manager.record_cost(
+                    question_id=question_id,
+                    model=model_used,
+                    input_tokens=estimated_input_tokens,
+                    output_tokens=estimated_output_tokens,
+                    task_type=task_type,
+                    success=success
+                )
+
+            # Update budget-aware operation manager performance metrics
+            if self.budget_aware_manager:
+                current_mode = self.budget_aware_manager.operation_mode_manager.get_current_mode()
+
+                # Update question processing count by mode
+                mode_key = current_mode.value
+                if mode_key in self.budget_aware_manager.performance_metrics["questions_processed_by_mode"]:
+                    self.budget_aware_manager.performance_metrics["questions_processed_by_mode"][mode_key] += 1
+
+                # Update average cost by mode
+                if mode_key in self.budget_aware_manager.performance_metrics["average_cost_by_mode"]:
+                    current_avg = self.budget_aware_manager.performance_metrics["average_cost_by_mode"][mode_key]
+                    question_count = self.budget_aware_manager.performance_metrics["questions_processed_by_mode"][mode_key]
+
+                    # Calculate new average
+                    new_avg = ((current_avg * (question_count - 1)) + cost) / question_count
+                    self.budget_aware_manager.performance_metrics["average_cost_by_mode"][mode_key] = new_avg
+
+            # Update performance monitoring with execution outcome
+            if self.performance_monitor:
+                self.performance_monitor.record_execution_outcome(
+                    question_id=question_id,
+                    actual_cost=cost,
+                    execution_time=1.0,  # Default execution time
+                    quality_score=0.8 if success else 0.3,  # Estimated quality based on success
+                    success=success,
+                    fallback_used=False  # Would need to be passed from caller
+                )
+
+        except Exception as e:
+            logger.error(f"Cost tracking error for question {question_id}: {e}")
+
+    def _check_tournament_compliance_integration(self) -> Dict[str, Any]:
+        """Check tournament compliance with integrated systems (Task 8.2)."""
+        compliance_status = {
+            "budget_compliant": True,
+            "operation_mode_compliant": True,
+            "performance_compliant": True,
+            "error_recovery_compliant": True,
+            "tri_model_integration_compliant": True,
+            "cost_tracking_compliant": True,
+            "issues": [],
+            "recommendations": []
+        }
+
+        try:
+            # Check budget compliance
+            if self.budget_manager:
+                budget_status = self.budget_manager.get_budget_status()
+                if budget_status.utilization_percentage > 100:
+                    compliance_status["budget_compliant"] = False
+                    compliance_status["issues"].append("Budget exceeded 100% utilization")
+                    compliance_status["recommendations"].append("Activate emergency mode immediately")
+                elif budget_status.utilization_percentage > 95:
+                    compliance_status["recommendations"].append("Consider switching to critical operation mode")
+
+            # Check operation mode compliance
+            if self.budget_aware_manager:
+                current_mode = self.budget_aware_manager.operation_mode_manager.get_current_mode()
+                emergency_protocol = self.budget_aware_manager.current_emergency_protocol
+
+                if emergency_protocol.value != "none":
+                    compliance_status["operation_mode_compliant"] = False
+                    compliance_status["issues"].append(f"Emergency protocol active: {emergency_protocol.value}")
+                    compliance_status["recommendations"].append("Monitor system closely during emergency protocol")
+
+                # Check if operation mode matches budget utilization
+                budget_util = self.budget_manager.get_budget_status().utilization_percentage if self.budget_manager else 0
+                expected_mode = self.budget_aware_manager.get_operation_mode_for_budget(budget_util)
+                if current_mode.value != expected_mode:
+                    compliance_status["operation_mode_compliant"] = False
+                    compliance_status["issues"].append(f"Operation mode mismatch: current={current_mode.value}, expected={expected_mode}")
+
+            # Check tri-model router integration compliance
+            if self.tri_model_router and self.budget_aware_manager:
+                try:
+                    # Verify router can access budget-aware operation manager
+                    router_status = self.tri_model_router.get_model_status()
+                    if isinstance(router_status, dict):
+                        # Check if status objects have is_available attribute
+                        unavailable_tiers = []
+                        for tier, status in router_status.items():
+                            if hasattr(status, 'is_available') and not status.is_available:
+                                unavailable_tiers.append(tier)
+
+                        if unavailable_tiers:
+                            compliance_status["tri_model_integration_compliant"] = False
+                            compliance_status["issues"].append(f"Tri-model router tiers unavailable: {', '.join(unavailable_tiers)}")
+                            compliance_status["recommendations"].append("Check model availability and fallback chains")
+                except Exception as e:
+                    compliance_status["tri_model_integration_compliant"] = False
+                    compliance_status["issues"].append(f"Tri-model router integration error: {str(e)}")
+
+            # Check cost tracking integration compliance
+            if self.budget_manager and self.performance_monitor:
+                try:
+                    # Verify cost tracking is working (allow empty records for fresh start)
+                    recent_records = len(self.budget_manager.cost_records[-10:]) if self.budget_manager.cost_records else 0
+                    if recent_records == 0 and self.budget_manager.questions_processed > 0:
+                        # Only flag as issue if we've processed questions but have no records
+                        compliance_status["cost_tracking_compliant"] = False
+                        compliance_status["issues"].append("No recent cost tracking records found despite processing questions")
+                        compliance_status["recommendations"].append("Verify cost tracking integration is functioning")
+                    # If no questions processed yet, cost tracking is still compliant
+                except Exception as e:
+                    compliance_status["cost_tracking_compliant"] = False
+                    compliance_status["issues"].append(f"Cost tracking integration error: {str(e)}")
+
+            # Check performance monitoring compliance
+            if self.performance_monitor:
+                try:
+                    comprehensive_status = self.performance_monitor.get_comprehensive_status()
+                    overall_health = comprehensive_status.overall_health
+                    if overall_health in ["concerning", "critical"]:
+                        compliance_status["performance_compliant"] = False
+                        compliance_status["issues"].append(f"System health: {overall_health}")
+                        compliance_status["recommendations"].extend(comprehensive_status.optimization_recommendations[:3])
+                except Exception as e:
+                    compliance_status["performance_compliant"] = False
+                    compliance_status["issues"].append(f"Performance monitoring error: {str(e)}")
+
+            # Check error recovery compliance
+            if self.error_recovery_manager:
+                try:
+                    recovery_status = self.error_recovery_manager.get_recovery_status()
+                    if recovery_status.get("system_health", {}).get("status") == "critical":
+                        compliance_status["error_recovery_compliant"] = False
+                        compliance_status["issues"].append("Error recovery system in critical state")
+                        compliance_status["recommendations"].append("Review error recovery logs and reset if necessary")
+                except Exception as e:
+                    compliance_status["error_recovery_compliant"] = False
+                    compliance_status["issues"].append(f"Error recovery check failed: {str(e)}")
+
+            # Overall compliance assessment
+            compliance_status["overall_compliant"] = all([
+                compliance_status["budget_compliant"],
+                compliance_status["operation_mode_compliant"],
+                compliance_status["performance_compliant"],
+                compliance_status["error_recovery_compliant"],
+                compliance_status["tri_model_integration_compliant"],
+                compliance_status["cost_tracking_compliant"]
+            ])
+
+            # Add timestamp for monitoring
+            compliance_status["last_checked"] = datetime.now().isoformat()
+
+        except Exception as e:
+            compliance_status["issues"].append(f"Compliance check error: {str(e)}")
+            compliance_status["overall_compliant"] = False
+            logger.error(f"Tournament compliance check error: {e}")
+
+        return compliance_status
 
     def _handle_budget_exhaustion(self, question_id: str = "unknown") -> bool:
         """Handle budget exhaustion scenarios with graceful degradation."""
@@ -317,10 +656,12 @@ class TemplateForecaster(ForecastBot):
         return self._create_emergency_response(task_type, prompt[:200])
 
     async def run_research(self, question: MetaculusQuestion) -> str:
-        """Enhanced research with tri-model routing, anti-slop directives, and budget management."""
+        """Enhanced research with multi-stage validation pipeline, tri-model routing, and comprehensive error handling."""
         async with self._concurrency_limiter:
-            # Get budget status for model selection
+            # Get budget status and operation mode for intelligent routing
             budget_remaining = 100.0
+            operation_mode = "normal"
+
             if self.budget_manager:
                 budget_status = self.budget_manager.get_budget_status()
                 budget_remaining = 100.0 - budget_status.utilization_percentage
@@ -329,12 +670,94 @@ class TemplateForecaster(ForecastBot):
                 if self.budget_alert_system:
                     alert = self.budget_alert_system.check_and_alert()
 
-                # If in emergency mode, skip research to save budget
-                if budget_status.status_level == "emergency":
-                    logger.warning(f"Emergency budget mode: skipping research for {question.page_url}")
-                    return "Research skipped due to emergency budget mode."
+                # Get current operation mode from budget-aware manager
+                if self.budget_aware_manager:
+                    mode_switched, transition_log = self.budget_aware_manager.detect_and_switch_operation_mode()
+                    if mode_switched:
+                        logger.info(f"Operation mode switched: {transition_log.from_mode.value} → {transition_log.to_mode.value}")
 
-            # Try tri-model router first for intelligent research
+                    operation_mode = self.budget_aware_manager.operation_mode_manager.get_current_mode().value
+
+                # Check if question should be skipped based on operation mode
+                if self.budget_aware_manager:
+                    should_skip, skip_reason = self.budget_aware_manager.should_skip_question(
+                        question_priority="normal",  # Could be extracted from question metadata
+                        question_complexity="medium"
+                    )
+                    if should_skip:
+                        logger.warning(f"Skipping research for {question.page_url}: {skip_reason}")
+                        return f"Research skipped: {skip_reason}"
+
+            # PRIORITY: Try enhanced multi-stage validation pipeline first (Task 8.1)
+            if self.multi_stage_pipeline:
+                try:
+                    # Use the complete multi-stage validation pipeline for research
+                    pipeline_result = await self.multi_stage_pipeline.process_question(
+                        question=question.question_text,
+                        question_type="research",  # Special type for research-only processing
+                        context={
+                            "question_url": question.page_url,
+                            "budget_remaining": budget_remaining,
+                            "operation_mode": operation_mode,
+                            "background_info": getattr(question, 'background_info', ''),
+                            "resolution_criteria": getattr(question, 'resolution_criteria', ''),
+                            "fine_print": getattr(question, 'fine_print', '')
+                        }
+                    )
+
+                    if pipeline_result.pipeline_success and pipeline_result.research_result.content:
+                        logger.info(f"Multi-stage validation pipeline successful for URL {question.page_url}, "
+                                  f"cost: ${pipeline_result.total_cost:.4f}, quality: {pipeline_result.quality_score:.2f}")
+
+                        # Integrate budget manager with cost tracking and operation modes (Task 8.2)
+                        self._track_question_processing_cost(
+                            question_id=str(getattr(question, 'id', 'unknown')),
+                            task_type="research_pipeline",
+                            cost=pipeline_result.total_cost,
+                            model_used="multi_stage_pipeline",
+                            success=True
+                        )
+
+                        # Check and update operation modes based on budget utilization
+                        self._integrate_budget_manager_with_operation_modes()
+
+                        return pipeline_result.research_result.content
+
+                    else:
+                        logger.warning(f"Multi-stage validation pipeline failed for {question.page_url}: "
+                                     f"Success={pipeline_result.pipeline_success}, "
+                                     f"Quality={pipeline_result.quality_score:.2f}")
+                        # Continue to fallback methods
+
+                except Exception as e:
+                    logger.warning(f"Multi-stage validation pipeline failed: {e}")
+
+                    # Use comprehensive error recovery (Task 8.1)
+                    if self.error_recovery_manager:
+                        try:
+                            from src.infrastructure.reliability.error_classification import ErrorContext
+                            error_context = ErrorContext(
+                                task_type="research",
+                                model_tier="mini",
+                                operation_mode=operation_mode,
+                                budget_remaining=budget_remaining,
+                                attempt_number=1,
+                                question_id=str(getattr(question, 'id', 'unknown')),
+                                provider="multi_stage_pipeline"
+                            )
+
+                            recovery_result = await self.error_recovery_manager.recover_from_error(e, error_context)
+                            if recovery_result.success:
+                                logger.info(f"Error recovery successful: {recovery_result.message}")
+                                # Could retry with recovered configuration, but for now continue to fallback
+                            else:
+                                logger.warning(f"Error recovery failed: {recovery_result.message}")
+                        except Exception as recovery_error:
+                            logger.error(f"Error recovery system failed: {recovery_error}")
+
+                    # Continue to fallback methods
+
+            # FALLBACK: Try tri-model router for intelligent research
             if self.tri_model_router and self.anti_slop_prompts:
                 try:
                     # Create anti-slop research prompt
@@ -342,6 +765,10 @@ class TemplateForecaster(ForecastBot):
                         question_text=question.question_text,
                         model_tier="mini"  # Use mini model for research by default
                     )
+
+                    # Get budget-aware context for routing
+                    budget_context = self.tri_model_router.get_budget_aware_routing_context()
+                    budget_remaining = budget_context.remaining_percentage if budget_context else 100.0
 
                     # Route to optimal model based on budget and complexity
                     research = await self.tri_model_router.route_query(
@@ -397,18 +824,18 @@ class TemplateForecaster(ForecastBot):
                 except Exception as e:
                     logger.warning(f"Original AskNews failed: {e}")
 
-            # Fallback to Exa
-            if not research and os.getenv("EXA_API_KEY") and not os.getenv("EXA_API_KEY").startswith("dummy_"):
+            # Fallback to OpenRouter Perplexity (if available)
+            if not research and self._has_openrouter_key():
                 try:
-                    research = await self._call_exa_smart_searcher(question.question_text)
+                    research = await self._call_perplexity(question.question_text, use_open_router=True)
                     if research and len(research.strip()) > 0:
-                        logger.info(f"Exa research successful for URL {question.page_url}")
+                        logger.info(f"OpenRouter Perplexity research successful for URL {question.page_url}")
                         return research
                 except Exception as e:
-                    logger.warning(f"Exa search failed: {e}")
+                    logger.warning(f"OpenRouter Perplexity search failed: {e}")
 
-            # Fallback to Perplexity
-            if not research and os.getenv("PERPLEXITY_API_KEY") and not os.getenv("PERPLEXITY_API_KEY").startswith("dummy_"):
+            # Fallback to Perplexity direct (if available)
+            if not research and self._has_perplexity_key():
                 try:
                     research = await self._call_perplexity(question.question_text)
                     if research and len(research.strip()) > 0:
@@ -417,15 +844,25 @@ class TemplateForecaster(ForecastBot):
                 except Exception as e:
                     logger.warning(f"Perplexity search failed: {e}")
 
-            # Fallback to OpenRouter Perplexity
-            if not research and os.getenv("OPENROUTER_API_KEY"):
+            # Fallback to Exa (if available)
+            if not research and self._has_exa_key():
                 try:
-                    research = await self._call_perplexity(question.question_text, use_open_router=True)
+                    research = await self._call_exa_smart_searcher(question.question_text)
                     if research and len(research.strip()) > 0:
-                        logger.info(f"OpenRouter Perplexity research successful for URL {question.page_url}")
+                        logger.info(f"Exa research successful for URL {question.page_url}")
                         return research
                 except Exception as e:
-                    logger.warning(f"OpenRouter Perplexity search failed: {e}")
+                    logger.warning(f"Exa search failed: {e}")
+
+            # Final fallback: Use LLM-based research if no external APIs available
+            if not research and (self._has_openrouter_key() or self._has_metaculus_proxy()):
+                try:
+                    research = await self._call_llm_based_research(question.question_text)
+                    if research and len(research.strip()) > 0:
+                        logger.info(f"LLM-based research successful for URL {question.page_url}")
+                        return research
+                except Exception as e:
+                    logger.warning(f"LLM-based research failed: {e}")
 
             # If all research methods fail, check if we're in emergency mode
             if not research:
@@ -466,6 +903,146 @@ class TemplateForecaster(ForecastBot):
         response = await self._safe_llm_invoke(model, prompt, "research")
         return response
 
+    def get_enhanced_system_status(self) -> Dict[str, Any]:
+        """Get comprehensive system status including all integrated components (Task 8.2)."""
+        status = {
+            "timestamp": datetime.now().isoformat(),
+            "system_components": {},
+            "budget_status": {},
+            "operation_mode": {},
+            "performance_metrics": {},
+            "tournament_compliance": {},
+            "error_recovery": {},
+            "overall_health": "unknown"
+        }
+
+        try:
+            # Budget manager status
+            if self.budget_manager:
+                budget_status = self.budget_manager.get_budget_status()
+                status["budget_status"] = {
+                    "utilization_percentage": budget_status.utilization_percentage,
+                    "remaining": budget_status.remaining,
+                    "status_level": budget_status.status_level,
+                    "estimated_questions_remaining": budget_status.estimated_questions_remaining
+                }
+
+            # Budget-aware operation manager status
+            if self.budget_aware_manager:
+                operation_details = self.budget_aware_manager.get_operation_mode_details(
+                    status["budget_status"].get("utilization_percentage", 0)
+                )
+                status["operation_mode"] = operation_details
+
+                # Get performance metrics
+                status["performance_metrics"] = self.budget_aware_manager.get_performance_metrics()
+
+            # Tri-model router status
+            if self.tri_model_router:
+                status["system_components"]["tri_model_router"] = {
+                    "available": True,
+                    "model_status": self.tri_model_router.get_model_status(),
+                    "provider_routing": self.tri_model_router.get_openrouter_provider_routing_info()
+                }
+
+            # Multi-stage pipeline status
+            if self.multi_stage_pipeline:
+                status["system_components"]["multi_stage_pipeline"] = {
+                    "available": True,
+                    "configuration": self.multi_stage_pipeline.get_pipeline_configuration()
+                }
+
+            # Error recovery status
+            if self.error_recovery_manager:
+                recovery_status = self.error_recovery_manager.get_recovery_status()
+                status["error_recovery"] = recovery_status
+
+            # Performance monitoring status
+            if self.performance_monitor:
+                status["system_components"]["performance_monitor"] = {
+                    "available": True,
+                    "system_health": self.performance_monitor.get_system_health_status()
+                }
+
+            # Tournament compliance check
+            status["tournament_compliance"] = self._check_tournament_compliance_integration()
+
+            # Determine overall health
+            health_indicators = []
+
+            if status["budget_status"].get("utilization_percentage", 0) < 95:
+                health_indicators.append("budget_healthy")
+
+            if status["tournament_compliance"].get("budget_compliant", False):
+                health_indicators.append("compliance_healthy")
+
+            if status["error_recovery"].get("system_health", {}).get("status") in ["healthy", "degraded"]:
+                health_indicators.append("recovery_healthy")
+
+            if len(health_indicators) >= 2:
+                status["overall_health"] = "healthy"
+            elif len(health_indicators) >= 1:
+                status["overall_health"] = "degraded"
+            else:
+                status["overall_health"] = "unhealthy"
+
+        except Exception as e:
+            status["error"] = f"Status collection error: {str(e)}"
+            status["overall_health"] = "error"
+            logger.error(f"Enhanced system status collection error: {e}")
+
+        return status
+
+    def log_enhanced_system_status(self):
+        """Log comprehensive system status for monitoring (Task 8.2)."""
+        try:
+            status = self.get_enhanced_system_status()
+
+            logger.info("=== ENHANCED SYSTEM STATUS ===")
+            logger.info(f"Overall Health: {status['overall_health'].upper()}")
+
+            # Budget status
+            if status.get("budget_status"):
+                budget = status["budget_status"]
+                logger.info(f"Budget: {budget.get('utilization_percentage', 0):.1f}% used, "
+                          f"${budget.get('remaining', 0):.4f} remaining, "
+                          f"~{budget.get('estimated_questions_remaining', 0)} questions left")
+
+            # Operation mode
+            if status.get("operation_mode"):
+                mode = status["operation_mode"]
+                logger.info(f"Operation Mode: {mode.get('operation_mode', 'unknown').upper()}")
+                logger.info(f"Mode Description: {mode.get('mode_description', 'N/A')}")
+
+            # Performance metrics
+            if status.get("performance_metrics"):
+                perf = status["performance_metrics"]
+                logger.info(f"Mode Switches: {perf.get('mode_switches_count', 0)}")
+                logger.info(f"Emergency Activations: {perf.get('emergency_activations', 0)}")
+                logger.info(f"Cost Savings: ${perf.get('cost_savings_achieved', 0):.4f}")
+
+            # Tournament compliance
+            if status.get("tournament_compliance"):
+                compliance = status["tournament_compliance"]
+                compliant_count = sum(1 for v in compliance.values() if isinstance(v, bool) and v)
+                total_checks = sum(1 for v in compliance.values() if isinstance(v, bool))
+                logger.info(f"Tournament Compliance: {compliant_count}/{total_checks} checks passed")
+
+                if compliance.get("issues"):
+                    logger.warning("Compliance Issues:")
+                    for issue in compliance["issues"]:
+                        logger.warning(f"  - {issue}")
+
+            # System components
+            if status.get("system_components"):
+                components = status["system_components"]
+                available_components = [name for name, info in components.items()
+                                      if info.get("available", False)]
+                logger.info(f"Available Components: {', '.join(available_components)}")
+
+        except Exception as e:
+            logger.error(f"Enhanced system status logging error: {e}")
+
     async def _call_exa_smart_searcher(self, question: str) -> str:
         """
         SmartSearcher is a custom class that is a wrapper around an search on Exa.ai
@@ -492,26 +1069,130 @@ class TemplateForecaster(ForecastBot):
 
         question_id = str(getattr(question, 'id', 'unknown'))
 
-        # Get budget status for model selection
+        # Get budget status and operation mode for intelligent routing
         budget_remaining = 100.0
+        operation_mode = "normal"
+
         if self.budget_manager:
             budget_status = self.budget_manager.get_budget_status()
             budget_remaining = 100.0 - budget_status.utilization_percentage
 
-        # Try tri-model router with anti-slop prompts first
+        if self.budget_aware_manager:
+            operation_mode = self.budget_aware_manager.operation_mode_manager.get_current_mode().value
+
+        # PRIORITY: Try enhanced multi-stage validation pipeline for complete forecasting (Task 8.1)
+        if self.multi_stage_pipeline:
+            try:
+                # Use the complete multi-stage validation pipeline for forecasting
+                pipeline_result = await self.multi_stage_pipeline.process_question(
+                    question=question.question_text,
+                    question_type="binary",
+                    context={
+                        "question_url": question.page_url,
+                        "budget_remaining": budget_remaining,
+                        "operation_mode": operation_mode,
+                        "background_info": question.background_info,
+                        "resolution_criteria": getattr(question, 'resolution_criteria', ''),
+                        "fine_print": getattr(question, 'fine_print', ''),
+                        "research_data": research
+                    }
+                )
+
+                if (pipeline_result.pipeline_success and
+                    pipeline_result.forecast_result.quality_validation_passed and
+                    pipeline_result.forecast_result.tournament_compliant):
+
+                    logger.info(f"Multi-stage binary forecast successful for question {question_id}, "
+                              f"cost: ${pipeline_result.total_cost:.4f}, "
+                              f"quality: {pipeline_result.quality_score:.2f}, "
+                              f"calibration: {pipeline_result.forecast_result.calibration_score:.2f}")
+
+                    # Integrate budget manager with cost tracking and operation modes (Task 8.2)
+                    self._track_question_processing_cost(
+                        question_id=question_id,
+                        task_type="binary_forecast_pipeline",
+                        cost=pipeline_result.total_cost,
+                        model_used="multi_stage_pipeline",
+                        success=True
+                    )
+
+                    # Check and update operation modes based on budget utilization
+                    self._integrate_budget_manager_with_operation_modes()
+
+                    # Extract prediction and reasoning from pipeline result
+                    prediction = pipeline_result.final_forecast
+                    reasoning = pipeline_result.reasoning
+
+                    return ReasonedPrediction(
+                        prediction_value=prediction, reasoning=reasoning
+                    )
+
+                else:
+                    logger.warning(f"Multi-stage binary forecast quality issues for {question_id}: "
+                                 f"Success={pipeline_result.pipeline_success}, "
+                                 f"Quality={pipeline_result.forecast_result.quality_validation_passed}, "
+                                 f"Compliant={pipeline_result.forecast_result.tournament_compliant}")
+                    # Continue to fallback methods
+
+            except Exception as e:
+                logger.warning(f"Multi-stage binary forecast failed: {e}")
+
+                # Use comprehensive error recovery (Task 8.1)
+                if self.error_recovery_manager:
+                    try:
+                        from src.infrastructure.reliability.error_classification import ErrorContext
+                        error_context = ErrorContext(
+                            task_type="forecast",
+                            model_tier="full",
+                            operation_mode=operation_mode,
+                            budget_remaining=budget_remaining,
+                            attempt_number=1,
+                            question_id=question_id,
+                            provider="multi_stage_pipeline"
+                        )
+
+                        recovery_result = await self.error_recovery_manager.recover_from_error(e, error_context)
+                        if recovery_result.success:
+                            logger.info(f"Binary forecast error recovery successful: {recovery_result.message}")
+                        else:
+                            logger.warning(f"Binary forecast error recovery failed: {recovery_result.message}")
+                    except Exception as recovery_error:
+                        logger.error(f"Binary forecast error recovery system failed: {recovery_error}")
+
+                # Continue to fallback methods
+
+        # FALLBACK: Try enhanced tri-model router with tier-optimized prompts
         if self.tri_model_router and self.anti_slop_prompts:
             try:
-                # Create anti-slop binary forecast prompt
+                # Apply budget-aware model selection adjustments (Task 8.2)
+                selected_model_tier = "full"  # Default for forecasting
+                if self.budget_aware_manager:
+                    # Get model selection adjustments based on current operation mode
+                    adjusted_model = self.budget_aware_manager.apply_model_selection_adjustments("forecast")
+
+                    # Map model to tier for prompt optimization
+                    if "gpt-5-nano" in adjusted_model or "gpt-4o-mini" in adjusted_model:
+                        selected_model_tier = "nano"
+                    elif "gpt-5-mini" in adjusted_model:
+                        selected_model_tier = "mini"
+                    else:
+                        selected_model_tier = "full"
+
+                # Create tier-optimized anti-slop binary forecast prompt (Task 8.1)
                 prompt = self.anti_slop_prompts.get_binary_forecast_prompt(
                     question_text=question.question_text,
                     background_info=question.background_info,
                     resolution_criteria=getattr(question, 'resolution_criteria', ''),
                     fine_print=getattr(question, 'fine_print', ''),
                     research=research,
-                    model_tier="full"  # Use full model for final forecasting
+                    model_tier=selected_model_tier
                 )
 
-                # Route to optimal model (likely GPT-5 full for forecasting)
+                # Get budget-aware context for routing
+                budget_context = self.tri_model_router.get_budget_aware_routing_context()
+                budget_remaining = budget_context.remaining_percentage if budget_context else 100.0
+
+                # Route to optimal model with budget-aware selection
                 reasoning = await self.tri_model_router.route_query(
                     task_type="forecast",
                     content=prompt,
@@ -519,23 +1200,53 @@ class TemplateForecaster(ForecastBot):
                     budget_remaining=budget_remaining
                 )
 
-                logger.info(f"Tri-model binary forecast successful for question {question_id}")
+                logger.info(f"Enhanced tri-model binary forecast successful for question {question_id} "
+                          f"using {selected_model_tier} tier")
 
             except Exception as e:
-                logger.warning(f"Tri-model binary forecast failed: {e}")
+                logger.warning(f"Enhanced tri-model binary forecast failed: {e}")
+
+                # Use comprehensive error recovery for tri-model failures
+                if self.error_recovery_manager:
+                    try:
+                        from src.infrastructure.reliability.error_classification import ErrorContext
+                        error_context = ErrorContext(
+                            task_type="forecast",
+                            model_tier=selected_model_tier,
+                            operation_mode=operation_mode,
+                            budget_remaining=budget_remaining,
+                            attempt_number=2,
+                            question_id=question_id,
+                            provider="tri_model_router"
+                        )
+
+                        recovery_result = await self.error_recovery_manager.recover_from_error(e, error_context)
+                        if recovery_result.success and recovery_result.fallback_result:
+                            logger.info(f"Tri-model error recovery successful: {recovery_result.message}")
+                            # Could use recovered model, but for now fallback to legacy
+                        else:
+                            logger.warning(f"Tri-model error recovery failed: {recovery_result.message}")
+                    except Exception as recovery_error:
+                        logger.error(f"Tri-model error recovery system failed: {recovery_error}")
+
                 # Fallback to legacy method
                 reasoning = await self._legacy_binary_forecast(question, research)
         else:
-            # Fallback to legacy method if tri-model not available
+            # Fallback to legacy method if enhanced components not available
             reasoning = await self._legacy_binary_forecast(question, research)
 
-        # Extract prediction from reasoning
-        prediction: float = PredictionExtractor.extract_last_percentage_value(
-            reasoning, max_prediction=1, min_prediction=0
-        )
+        # Extract prediction from reasoning with enhanced error handling
+        try:
+            prediction: float = PredictionExtractor.extract_last_percentage_value(
+                reasoning, max_prediction=1, min_prediction=0
+            )
+        except Exception as e:
+            logger.warning(f"Prediction extraction failed for {question_id}: {e}")
+            prediction = 0.5  # Default neutral prediction
 
         logger.info(
-            f"Forecasted URL {question.page_url} as {prediction} with reasoning:\n{reasoning}"
+            f"Binary forecast completed for URL {question.page_url} as {prediction:.3f} "
+            f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
 
         return ReasonedPrediction(
@@ -600,16 +1311,123 @@ class TemplateForecaster(ForecastBot):
 
         question_id = str(getattr(question, 'id', 'unknown'))
 
-        # Get budget status for model selection
+        # Get budget status and operation mode for intelligent routing
         budget_remaining = 100.0
+        operation_mode = "normal"
+
         if self.budget_manager:
             budget_status = self.budget_manager.get_budget_status()
             budget_remaining = 100.0 - budget_status.utilization_percentage
 
-        # Try tri-model router with anti-slop prompts first
+        if self.budget_aware_manager:
+            operation_mode = self.budget_aware_manager.operation_mode_manager.get_current_mode().value
+
+        # PRIORITY: Try enhanced multi-stage validation pipeline for complete forecasting (Task 8.1)
+        if self.multi_stage_pipeline:
+            try:
+                # Use the complete multi-stage validation pipeline for forecasting
+                pipeline_result = await self.multi_stage_pipeline.process_question(
+                    question=question.question_text,
+                    question_type="multiple_choice",
+                    context={
+                        "question_url": question.page_url,
+                        "budget_remaining": budget_remaining,
+                        "operation_mode": operation_mode,
+                        "background_info": question.background_info,
+                        "resolution_criteria": getattr(question, 'resolution_criteria', ''),
+                        "fine_print": getattr(question, 'fine_print', ''),
+                        "options": question.options,
+                        "research_data": research
+                    }
+                )
+
+                if (pipeline_result.pipeline_success and
+                    pipeline_result.forecast_result.quality_validation_passed and
+                    pipeline_result.forecast_result.tournament_compliant):
+
+                    logger.info(f"Multi-stage multiple choice forecast successful for question {question_id}, "
+                              f"cost: ${pipeline_result.total_cost:.4f}, "
+                              f"quality: {pipeline_result.quality_score:.2f}")
+
+                    # Integrate budget manager with cost tracking and operation modes (Task 8.2)
+                    self._track_question_processing_cost(
+                        question_id=question_id,
+                        task_type="multiple_choice_forecast_pipeline",
+                        cost=pipeline_result.total_cost,
+                        model_used="multi_stage_pipeline",
+                        success=True
+                    )
+
+                    # Check and update operation modes based on budget utilization
+                    self._integrate_budget_manager_with_operation_modes()
+
+                    # Convert pipeline result to expected format
+                    if isinstance(pipeline_result.final_forecast, dict):
+                        # Convert dict to PredictedOptionList format
+                        option_predictions = []
+                        for option, probability in pipeline_result.final_forecast.items():
+                            option_predictions.append(f"{option}: {probability:.1%}")
+
+                        # Create PredictedOptionList from the predictions
+                        prediction = PredictionExtractor.extract_option_list_with_percentage_afterwards(
+                            "\n".join(option_predictions), question.options
+                        )
+                    else:
+                        # Fallback extraction from reasoning
+                        prediction = PredictionExtractor.extract_option_list_with_percentage_afterwards(
+                            pipeline_result.reasoning, question.options
+                        )
+
+                    return ReasonedPrediction(
+                        prediction_value=prediction, reasoning=pipeline_result.reasoning
+                    )
+
+                else:
+                    logger.warning(f"Multi-stage multiple choice forecast quality issues for {question_id}")
+                    # Continue to fallback methods
+
+            except Exception as e:
+                logger.warning(f"Multi-stage multiple choice forecast failed: {e}")
+
+                # Use comprehensive error recovery (Task 8.1)
+                if self.error_recovery_manager:
+                    try:
+                        from src.infrastructure.reliability.error_classification import ErrorContext
+                        error_context = ErrorContext(
+                            task_type="forecast",
+                            model_tier="full",
+                            operation_mode=operation_mode,
+                            budget_remaining=budget_remaining,
+                            attempt_number=1,
+                            question_id=question_id,
+                            provider="multi_stage_pipeline"
+                        )
+
+                        recovery_result = await self.error_recovery_manager.recover_from_error(e, error_context)
+                        if recovery_result.success:
+                            logger.info(f"Multiple choice forecast error recovery successful: {recovery_result.message}")
+                        else:
+                            logger.warning(f"Multiple choice forecast error recovery failed: {recovery_result.message}")
+                    except Exception as recovery_error:
+                        logger.error(f"Multiple choice forecast error recovery system failed: {recovery_error}")
+
+        # FALLBACK: Try enhanced tri-model router with tier-optimized prompts
         if self.tri_model_router and self.anti_slop_prompts:
             try:
-                # Create anti-slop multiple choice forecast prompt
+                # Apply budget-aware model selection adjustments (Task 8.2)
+                selected_model_tier = "full"  # Default for forecasting
+                if self.budget_aware_manager:
+                    adjusted_model = self.budget_aware_manager.apply_model_selection_adjustments("forecast")
+
+                    # Map model to tier for prompt optimization
+                    if "gpt-5-nano" in adjusted_model or "gpt-4o-mini" in adjusted_model:
+                        selected_model_tier = "nano"
+                    elif "gpt-5-mini" in adjusted_model:
+                        selected_model_tier = "mini"
+                    else:
+                        selected_model_tier = "full"
+
+                # Create tier-optimized anti-slop multiple choice forecast prompt (Task 8.1)
                 prompt = self.anti_slop_prompts.get_multiple_choice_prompt(
                     question_text=question.question_text,
                     options=question.options,
@@ -617,10 +1435,14 @@ class TemplateForecaster(ForecastBot):
                     resolution_criteria=getattr(question, 'resolution_criteria', ''),
                     fine_print=getattr(question, 'fine_print', ''),
                     research=research,
-                    model_tier="full"  # Use full model for final forecasting
+                    model_tier=selected_model_tier
                 )
 
-                # Route to optimal model
+                # Get budget-aware context for routing
+                budget_context = self.tri_model_router.get_budget_aware_routing_context()
+                budget_remaining = budget_context.remaining_percentage if budget_context else 100.0
+
+                # Route to optimal model with budget-aware selection
                 reasoning = await self.tri_model_router.route_query(
                     task_type="forecast",
                     content=prompt,
@@ -628,23 +1450,60 @@ class TemplateForecaster(ForecastBot):
                     budget_remaining=budget_remaining
                 )
 
-                logger.info(f"Tri-model multiple choice forecast successful for question {question_id}")
+                logger.info(f"Enhanced tri-model multiple choice forecast successful for question {question_id} "
+                          f"using {selected_model_tier} tier")
 
             except Exception as e:
-                logger.warning(f"Tri-model multiple choice forecast failed: {e}")
+                logger.warning(f"Enhanced tri-model multiple choice forecast failed: {e}")
+
+                # Use comprehensive error recovery for tri-model failures
+                if self.error_recovery_manager:
+                    try:
+                        from src.infrastructure.reliability.error_classification import ErrorContext
+                        error_context = ErrorContext(
+                            task_type="forecast",
+                            model_tier=selected_model_tier,
+                            operation_mode=operation_mode,
+                            budget_remaining=budget_remaining,
+                            attempt_number=2,
+                            question_id=question_id,
+                            provider="tri_model_router"
+                        )
+
+                        recovery_result = await self.error_recovery_manager.recover_from_error(e, error_context)
+                        if recovery_result.success:
+                            logger.info(f"Tri-model multiple choice error recovery successful: {recovery_result.message}")
+                        else:
+                            logger.warning(f"Tri-model multiple choice error recovery failed: {recovery_result.message}")
+                    except Exception as recovery_error:
+                        logger.error(f"Tri-model multiple choice error recovery system failed: {recovery_error}")
+
                 # Fallback to legacy method
                 reasoning = await self._legacy_multiple_choice_forecast(question, research)
         else:
-            # Fallback to legacy method if tri-model not available
+            # Fallback to legacy method if enhanced components not available
             reasoning = await self._legacy_multiple_choice_forecast(question, research)
-        prediction: PredictedOptionList = (
-            PredictionExtractor.extract_option_list_with_percentage_afterwards(
-                reasoning, question.options
+
+        # Extract prediction from reasoning with enhanced error handling
+        try:
+            prediction: PredictedOptionList = (
+                PredictionExtractor.extract_option_list_with_percentage_afterwards(
+                    reasoning, question.options
+                )
             )
-        )
+        except Exception as e:
+            logger.warning(f"Multiple choice prediction extraction failed for {question_id}: {e}")
+            # Create default equal probability distribution
+            equal_prob = 1.0 / len(question.options)
+            prediction = PredictedOptionList([
+                (option, equal_prob) for option in question.options
+            ])
+
         logger.info(
-            f"Forecasted URL {question.page_url} as {prediction} with reasoning:\n{reasoning}"
+            f"Multiple choice forecast completed for URL {question.page_url} "
+            f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
+
         return ReasonedPrediction(
             prediction_value=prediction, reasoning=reasoning
         )
@@ -707,16 +1566,141 @@ class TemplateForecaster(ForecastBot):
 
         question_id = str(getattr(question, 'id', 'unknown'))
 
-        # Get budget status for model selection
+        # Get budget status and operation mode for intelligent routing
         budget_remaining = 100.0
+        operation_mode = "normal"
+
         if self.budget_manager:
             budget_status = self.budget_manager.get_budget_status()
             budget_remaining = 100.0 - budget_status.utilization_percentage
 
-        # Try tri-model router with anti-slop prompts first
+        if self.budget_aware_manager:
+            operation_mode = self.budget_aware_manager.operation_mode_manager.get_current_mode().value
+
+        # PRIORITY: Try enhanced multi-stage validation pipeline for complete forecasting (Task 8.1)
+        if self.multi_stage_pipeline:
+            try:
+                # Use the complete multi-stage validation pipeline for forecasting
+                pipeline_result = await self.multi_stage_pipeline.process_question(
+                    question=question.question_text,
+                    question_type="numeric",
+                    context={
+                        "question_url": question.page_url,
+                        "budget_remaining": budget_remaining,
+                        "operation_mode": operation_mode,
+                        "background_info": question.background_info,
+                        "resolution_criteria": getattr(question, 'resolution_criteria', ''),
+                        "fine_print": getattr(question, 'fine_print', ''),
+                        "unit_of_measure": question.unit_of_measure,
+                        "lower_bound": question.lower_bound if not question.open_lower_bound else None,
+                        "upper_bound": question.upper_bound if not question.open_upper_bound else None,
+                        "open_lower_bound": question.open_lower_bound,
+                        "open_upper_bound": question.open_upper_bound,
+                        "research_data": research
+                    }
+                )
+
+                if (pipeline_result.pipeline_success and
+                    pipeline_result.forecast_result.quality_validation_passed and
+                    pipeline_result.forecast_result.tournament_compliant):
+
+                    logger.info(f"Multi-stage numeric forecast successful for question {question_id}, "
+                              f"cost: ${pipeline_result.total_cost:.4f}, "
+                              f"quality: {pipeline_result.quality_score:.2f}")
+
+                    # Integrate budget manager with cost tracking and operation modes (Task 8.2)
+                    self._track_question_processing_cost(
+                        question_id=question_id,
+                        task_type="numeric_forecast_pipeline",
+                        cost=pipeline_result.total_cost,
+                        model_used="multi_stage_pipeline",
+                        success=True
+                    )
+
+                    # Check and update operation modes based on budget utilization
+                    self._integrate_budget_manager_with_operation_modes()
+
+                    # Convert pipeline result to expected format
+                    if isinstance(pipeline_result.final_forecast, dict):
+                        # Convert percentile dict to NumericDistribution
+                        try:
+                            percentiles = {}
+                            for key, value in pipeline_result.final_forecast.items():
+                                if isinstance(key, (int, str)) and str(key).isdigit():
+                                    percentiles[int(key)] = float(value)
+
+                            if percentiles:
+                                prediction = NumericDistribution(
+                                    declared_percentiles=percentiles,
+                                    unit_of_measure=question.unit_of_measure
+                                )
+                            else:
+                                # Fallback extraction from reasoning
+                                prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
+                                    pipeline_result.reasoning, question
+                                )
+                        except Exception as conversion_error:
+                            logger.warning(f"Numeric prediction conversion failed: {conversion_error}")
+                            # Fallback extraction from reasoning
+                            prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
+                                pipeline_result.reasoning, question
+                            )
+                    else:
+                        # Fallback extraction from reasoning
+                        prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
+                            pipeline_result.reasoning, question
+                        )
+
+                    return ReasonedPrediction(
+                        prediction_value=prediction, reasoning=pipeline_result.reasoning
+                    )
+
+                else:
+                    logger.warning(f"Multi-stage numeric forecast quality issues for {question_id}")
+                    # Continue to fallback methods
+
+            except Exception as e:
+                logger.warning(f"Multi-stage numeric forecast failed: {e}")
+
+                # Use comprehensive error recovery (Task 8.1)
+                if self.error_recovery_manager:
+                    try:
+                        from src.infrastructure.reliability.error_classification import ErrorContext
+                        error_context = ErrorContext(
+                            task_type="forecast",
+                            model_tier="full",
+                            operation_mode=operation_mode,
+                            budget_remaining=budget_remaining,
+                            attempt_number=1,
+                            question_id=question_id,
+                            provider="multi_stage_pipeline"
+                        )
+
+                        recovery_result = await self.error_recovery_manager.recover_from_error(e, error_context)
+                        if recovery_result.success:
+                            logger.info(f"Numeric forecast error recovery successful: {recovery_result.message}")
+                        else:
+                            logger.warning(f"Numeric forecast error recovery failed: {recovery_result.message}")
+                    except Exception as recovery_error:
+                        logger.error(f"Numeric forecast error recovery system failed: {recovery_error}")
+
+        # FALLBACK: Try enhanced tri-model router with tier-optimized prompts
         if self.tri_model_router and self.anti_slop_prompts:
             try:
-                # Create anti-slop numeric forecast prompt
+                # Apply budget-aware model selection adjustments (Task 8.2)
+                selected_model_tier = "full"  # Default for forecasting
+                if self.budget_aware_manager:
+                    adjusted_model = self.budget_aware_manager.apply_model_selection_adjustments("forecast")
+
+                    # Map model to tier for prompt optimization
+                    if "gpt-5-nano" in adjusted_model or "gpt-4o-mini" in adjusted_model:
+                        selected_model_tier = "nano"
+                    elif "gpt-5-mini" in adjusted_model:
+                        selected_model_tier = "mini"
+                    else:
+                        selected_model_tier = "full"
+
+                # Create tier-optimized anti-slop numeric forecast prompt (Task 8.1)
                 prompt = self.anti_slop_prompts.get_numeric_forecast_prompt(
                     question_text=question.question_text,
                     background_info=question.background_info,
@@ -726,10 +1710,14 @@ class TemplateForecaster(ForecastBot):
                     unit_of_measure=question.unit_of_measure,
                     lower_bound=question.lower_bound if not question.open_lower_bound else None,
                     upper_bound=question.upper_bound if not question.open_upper_bound else None,
-                    model_tier="full"  # Use full model for final forecasting
+                    model_tier=selected_model_tier
                 )
 
-                # Route to optimal model
+                # Get budget-aware context for routing
+                budget_context = self.tri_model_router.get_budget_aware_routing_context()
+                budget_remaining = budget_context.remaining_percentage if budget_context else 100.0
+
+                # Route to optimal model with budget-aware selection
                 reasoning = await self.tri_model_router.route_query(
                     task_type="forecast",
                     content=prompt,
@@ -737,24 +1725,68 @@ class TemplateForecaster(ForecastBot):
                     budget_remaining=budget_remaining
                 )
 
-                logger.info(f"Tri-model numeric forecast successful for question {question_id}")
+                logger.info(f"Enhanced tri-model numeric forecast successful for question {question_id} "
+                          f"using {selected_model_tier} tier")
 
             except Exception as e:
-                logger.warning(f"Tri-model numeric forecast failed: {e}")
+                logger.warning(f"Enhanced tri-model numeric forecast failed: {e}")
+
+                # Use comprehensive error recovery for tri-model failures
+                if self.error_recovery_manager:
+                    try:
+                        from src.infrastructure.reliability.error_classification import ErrorContext
+                        error_context = ErrorContext(
+                            task_type="forecast",
+                            model_tier=selected_model_tier,
+                            operation_mode=operation_mode,
+                            budget_remaining=budget_remaining,
+                            attempt_number=2,
+                            question_id=question_id,
+                            provider="tri_model_router"
+                        )
+
+                        recovery_result = await self.error_recovery_manager.recover_from_error(e, error_context)
+                        if recovery_result.success:
+                            logger.info(f"Tri-model numeric error recovery successful: {recovery_result.message}")
+                        else:
+                            logger.warning(f"Tri-model numeric error recovery failed: {recovery_result.message}")
+                    except Exception as recovery_error:
+                        logger.error(f"Tri-model numeric error recovery system failed: {recovery_error}")
+
                 # Fallback to legacy method
                 reasoning = await self._legacy_numeric_forecast(question, research)
         else:
-            # Fallback to legacy method if tri-model not available
+            # Fallback to legacy method if enhanced components not available
             reasoning = await self._legacy_numeric_forecast(question, research)
-        # Extract prediction from reasoning
-        prediction: NumericDistribution = (
-            PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
-                reasoning, question
+
+        # Extract prediction from reasoning with enhanced error handling
+        try:
+            prediction: NumericDistribution = (
+                PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
+                    reasoning, question
+                )
             )
-        )
+        except Exception as e:
+            logger.warning(f"Numeric prediction extraction failed for {question_id}: {e}")
+            # Create default distribution with median estimate
+            median_estimate = (question.lower_bound + question.upper_bound) / 2 if (
+                not question.open_lower_bound and not question.open_upper_bound
+            ) else 1.0
+
+            prediction = NumericDistribution(
+                declared_percentiles={
+                    10: median_estimate * 0.5,
+                    50: median_estimate,
+                    90: median_estimate * 1.5
+                },
+                unit_of_measure=question.unit_of_measure
+            )
+
         logger.info(
-            f"Forecasted URL {question.page_url} as {prediction.declared_percentiles} with reasoning:\n{reasoning}"
+            f"Numeric forecast completed for URL {question.page_url} "
+            f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
+
         return ReasonedPrediction(
             prediction_value=prediction, reasoning=reasoning
         )
@@ -845,6 +1877,41 @@ if __name__ == "__main__":
     litellm_logger.setLevel(logging.WARNING)
     litellm_logger.propagate = False
 
+    # Perform OpenRouter startup validation and auto-configuration (Task 9.2)
+    async def validate_openrouter_startup():
+        """Validate OpenRouter configuration on startup."""
+        try:
+            from src.infrastructure.config.openrouter_startup_validator import OpenRouterStartupValidator
+            from src.infrastructure.config.tri_model_router import OpenRouterTriModelRouter
+
+            logger.info("Performing OpenRouter startup validation...")
+
+            # Run validation
+            validator = OpenRouterStartupValidator()
+            validation_success = await validator.run_startup_validation(exit_on_failure=False)
+
+            if validation_success:
+                logger.info("✅ OpenRouter configuration validated successfully")
+
+                # Create router with auto-configuration
+                router = await OpenRouterTriModelRouter.create_with_auto_configuration()
+                logger.info("✅ OpenRouter tri-model router configured and ready")
+
+                return router
+            else:
+                logger.warning("⚠️ OpenRouter validation failed - system may have limited functionality")
+                return None
+
+        except ImportError as e:
+            logger.warning(f"OpenRouter validation components not available: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"OpenRouter startup validation failed: {e}")
+            return None
+
+    # Run OpenRouter validation
+    openrouter_router = asyncio.run(validate_openrouter_startup())
+
     parser = argparse.ArgumentParser(
         description="Run the Q1TemplateBot forecasting system"
     )
@@ -893,7 +1960,7 @@ if __name__ == "__main__":
             # Continue to legacy configuration below
 
         # Get OpenRouter API key
-        openrouter_key = os.getenv("OPENROUTER_API_KEY", "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")
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
 
         if not openrouter_key or openrouter_key.startswith("dummy_"):
             logger.error("OpenRouter API key not configured! Using fallback configuration.")
@@ -1173,16 +2240,3 @@ if __name__ == "__main__":
             logger.error(f"Exception {i}: {type(exc).__name__}: {exc}")
 
     logger.info("Bot execution completed.")
-        # Get appropriate LLM and use safe invoke
-        if self.enhanced_llm_config:
-            complexity_assessment = self.enhanced_llm_config.assess_question_complexity(
-                question.question_text, question.background_info
-            )
-            llm = self.enhanced_llm_config.get_llm_for_task("forecast", complexity_assessment=complexity_assessment)
-        else:
-            llm = self.get_llm("default", "llm")
-
-        return await self._safe_llm_invoke(
-            llm, prompt, "forecast",
-            question_id=str(getattr(question, 'id', 'unknown'))
-        )

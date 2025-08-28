@@ -9,6 +9,7 @@ from ..entities.question import Question
 from ..entities.research_report import ResearchReport, ResearchSource, ResearchQuality
 from ..value_objects.confidence import ConfidenceLevel
 from ..value_objects.time_range import TimeRange
+from .multi_stage_research_pipeline import MultiStageResearchPipeline
 
 
 logger = structlog.get_logger(__name__)
@@ -23,11 +24,21 @@ class ResearchService:
     into structured research reports.
     """
 
-    def __init__(self, search_client=None, llm_client=None):
+    def __init__(self, search_client=None, llm_client=None, tri_model_router=None, tournament_asknews=None):
         self.search_client = search_client
         self.llm_client = llm_client
+        self.tri_model_router = tri_model_router
+        self.tournament_asknews = tournament_asknews
+
+        # Initialize multi-stage research pipeline
+        self.multi_stage_pipeline = MultiStageResearchPipeline(
+            tri_model_router=tri_model_router,
+            tournament_asknews=tournament_asknews
+        )
+
         self.supported_providers = [
             "asknews",
+            "multi_stage_pipeline",  # New prioritized provider
             "exa",
             "perplexity",
             "duckduckgo",
@@ -38,6 +49,53 @@ class ResearchService:
             "medium": 0.6,
             "low": 0.4
         }
+
+    async def conduct_multi_stage_research(
+        self,
+        question: Question,
+        research_config: Optional[Dict[str, Any]] = None
+    ) -> ResearchReport:
+        """
+        Conduct research using the multi-stage pipeline (Task 4.1 implementation).
+
+        Prioritizes AskNews API with GPT-5-mini synthesis and quality validation.
+        """
+        logger.info(
+            "Starting multi-stage research pipeline",
+            question_id=str(question.id),
+            title=question.title
+        )
+
+        config = research_config or {}
+
+        try:
+            # Execute multi-stage research pipeline
+            pipeline_results = await self.multi_stage_pipeline.execute_research_pipeline(
+                question=question.title,
+                context={"question_id": str(question.id), "config": config}
+            )
+
+            if pipeline_results["success"]:
+                # Convert pipeline results to ResearchReport
+                research_report = self._convert_pipeline_results_to_report(question, pipeline_results)
+
+                logger.info(
+                    "Multi-stage research completed successfully",
+                    question_id=str(question.id),
+                    total_cost=pipeline_results["total_cost"],
+                    quality_score=pipeline_results["quality_metrics"].overall_quality if pipeline_results["quality_metrics"] else 0.0
+                )
+
+                return research_report
+            else:
+                # Fallback to comprehensive research if pipeline fails
+                logger.warning("Multi-stage pipeline failed, falling back to comprehensive research")
+                return await self.conduct_comprehensive_research(question, research_config)
+
+        except Exception as e:
+            logger.error("Multi-stage research failed", error=str(e))
+            # Fallback to comprehensive research
+            return await self.conduct_comprehensive_research(question, research_config)
 
     async def conduct_comprehensive_research(
         self,
@@ -448,6 +506,69 @@ class ResearchService:
     def get_supported_providers(self) -> List[str]:
         """Get list of supported research providers."""
         return self.supported_providers.copy()
+
+    def _convert_pipeline_results_to_report(self, question: Question, pipeline_results: Dict[str, Any]) -> ResearchReport:
+        """Convert multi-stage pipeline results to ResearchReport format."""
+
+        # Extract sources from pipeline stages
+        sources = []
+        for stage_name, stage_result in pipeline_results["stages"].items():
+            if stage_result.success and stage_result.sources_used:
+                for source_name in stage_result.sources_used:
+                    source = ResearchSource(
+                        url=f"pipeline://{stage_name}",
+                        title=f"{stage_name.replace('_', ' ').title()} - {source_name}",
+                        summary=f"Research from {stage_name} using {stage_result.model_used}",
+                        credibility_score=stage_result.quality_score,
+                        publish_date=datetime.now(timezone.utc),
+                        source_type="pipeline"
+                    )
+                    sources.append(source)
+
+        # Determine research quality based on pipeline metrics
+        quality_metrics = pipeline_results.get("quality_metrics")
+        if quality_metrics and quality_metrics.overall_quality >= self.quality_thresholds["high"]:
+            quality = ResearchQuality.HIGH
+        elif quality_metrics and quality_metrics.overall_quality >= self.quality_thresholds["medium"]:
+            quality = ResearchQuality.MEDIUM
+        else:
+            quality = ResearchQuality.LOW
+
+        # Extract key factors from gap detection
+        key_factors = []
+        gap_stage = pipeline_results["stages"].get("gap_detection")
+        if gap_stage and gap_stage.success:
+            key_factors = ["Multi-stage research pipeline", "AskNews integration", "GPT-5 synthesis"]
+
+        # Create executive summary
+        executive_summary = f"Multi-stage research conducted using AskNews API and GPT-5-mini synthesis. "
+        if quality_metrics:
+            executive_summary += f"Quality score: {quality_metrics.overall_quality:.2f}, "
+            executive_summary += f"Citations: {quality_metrics.citation_count}, "
+            executive_summary += f"Gaps identified: {len(quality_metrics.gaps_identified)}"
+
+        return ResearchReport.create_new(
+            question_id=question.id,
+            title=f"Multi-Stage Research: {question.title}",
+            executive_summary=executive_summary,
+            detailed_analysis=pipeline_results["final_research"],
+            sources=sources,
+            created_by="MultiStageResearchPipeline",
+            key_factors=key_factors,
+            base_rates={},
+            quality=quality,
+            confidence_level=quality_metrics.overall_quality if quality_metrics else 0.5,
+            research_methodology="multi_stage_pipeline,asknews,gpt5_synthesis",
+            reasoning_steps=[
+                "AskNews research execution",
+                "GPT-5-mini synthesis with citations",
+                "Quality validation",
+                "Gap detection and analysis"
+            ],
+            evidence_for=[],
+            evidence_against=[],
+            uncertainties=quality_metrics.gaps_identified if quality_metrics else []
+        )
 
     def get_quality_metrics(self, research_report: ResearchReport) -> Dict[str, Any]:
         """Get quality metrics for a research report."""

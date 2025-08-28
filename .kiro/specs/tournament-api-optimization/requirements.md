@@ -12,7 +12,7 @@ This document outlines the requirements for optimizing the Metaculus AI Forecast
 
 #### Acceptance Criteria
 
-1. WHEN configuring API keys THEN the system SHALL use the provided OpenRouter API key `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` as the primary LLM provider
+1. WHEN configuring API keys THEN the system SHALL use the provided OpenRouter API key as the primary LLM provider
 2. WHEN estimating costs THEN the system SHALL implement token counting and cost tracking to stay within the $100 budget limit
 3. WHEN selecting models THEN the system SHALL use GPT-4o for critical forecasting decisions and GPT-4o-mini for research summaries to optimize cost-performance ratio
 4. WHEN approaching budget limits THEN the system SHALL implement smart throttling to prevent overspending
