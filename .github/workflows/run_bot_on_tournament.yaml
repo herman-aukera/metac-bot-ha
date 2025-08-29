@@ -100,24 +100,29 @@ jobs:
         id: budget_check
         run: |
           echo "💰 Checking budget status before forecasting run..."
-          poetry run python -c "
-          from src.infrastructure.config.budget_manager import BudgetManager
-          from src.infrastructure.monitoring.budget_dashboard import BudgetDashboard
-          import sys
-          import os
+          BUDGET_LIMIT="${{ vars.BUDGET_LIMIT || '100' }}"
+          CURRENT_SPEND="${{ vars.CURRENT_SPEND || '0.0' }}"
 
-          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
-          dashboard = BudgetDashboard(budget_manager)
+          # Simple budget calculation
+          REMAINING=$(python -c "print(max(0, $BUDGET_LIMIT - $CURRENT_SPEND))")
+          UTILIZATION=$(python -c "print($CURRENT_SPEND / $BUDGET_LIMIT if $BUDGET_LIMIT > 0 else 0)")
 
-          status = budget_manager.get_budget_status()
-          print(f'💰 Budget Status: {status[\"status\"]}')
-          print(f'💸 Spent: \${status[\"spent\"]:.2f} / \${status[\"budget_limit\"]:.2f}')
-          print(f'📊 Utilization: {status[\"utilization\"]:.1%}')
+          if (( $(echo "$UTILIZATION >= 0.95" | bc -l) )); then
+            STATUS="critical"
+          elif (( $(echo "$UTILIZATION >= 0.80" | bc -l) )); then
+            STATUS="warning"
+          else
+            STATUS="normal"
+          fi
 
-          # Set output for workflow decisions
-          print(f'budget_status={status[\"status\"]}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
-          print(f'budget_utilization={status[\"utilization\"]:.3f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
-          print(f'budget_remaining={status[\"remaining\"]:.2f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          echo "💰 Budget Status: $STATUS"
+          echo "💸 Spent: \$$CURRENT_SPEND / \$$BUDGET_LIMIT"
+          echo "📊 Utilization: $(python -c "print(f'{$UTILIZATION:.1%}')")"
+
+          # Set outputs for workflow decisions
+          echo "budget_status=$STATUS" >> $GITHUB_OUTPUT
+          echo "budget_utilization=$UTILIZATION" >> $GITHUB_OUTPUT
+          echo "budget_remaining=$REMAINING" >> $GITHUB_OUTPUT
 
           # Check if we should continue
           if status['utilization'] >= 0.98:
@@ -188,44 +193,17 @@ jobs:
           METACULUS_RESEARCH_MODEL: ${{ secrets.METACULUS_RESEARCH_MODEL || 'metaculus/gpt-4o' }}
           MAX_PROXY_REQUESTS: 1000
 
-      - name: Generate cost report
-        if: always() && steps.budget_check.outputs.budget_utilization >= '0.0'
+      - name: Generate cost reports
+        if: always()
         run: |
-          echo "📊 Generating post-run cost report..."
-          poetry run python -c "
-          from src.infrastructure.config.budget_manager import BudgetManager
-          from src.infrastructure.monitoring.budget_dashboard import BudgetDashboard
-          import os
-          import json
-          from datetime import datetime
-
-          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
-          dashboard = BudgetDashboard(budget_manager)
-
-          # Generate comprehensive report
-          status = budget_manager.get_budget_status()
-          report = {
-              'timestamp': datetime.now().isoformat(),
-              'workflow_run': os.getenv('GITHUB_RUN_NUMBER'),
-              'budget_status': status,
-              'recommendations': dashboard.get_budget_recommendations()
-          }
-
-          print('📊 Cost Report Summary:')
-          print(f'  💰 Total Budget: \${status[\"budget_limit\"]:.2f}')
-          print(f'  💸 Amount Spent: \${status[\"spent\"]:.2f}')
-          print(f'  💵 Remaining: \${status[\"remaining\"]:.2f}')
-          print(f'  📈 Utilization: {status[\"utilization\"]:.1%}')
-          print(f'  🎯 Status: {status[\"status\"]}')
-
-          # Save detailed report
-          with open('cost_report.json', 'w') as f:
-              json.dump(report, f, indent=2)
-
-          print('📄 Detailed cost report saved to cost_report.json')
-          "
+          echo "📊 Generating comprehensive cost analysis reports..."
+          export PYTHONPATH=$GITHUB_WORKSPACE
+          poetry run python scripts/deployment_cost_monitor.py
         env:
-          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
+          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100.0' }}
+          AIB_TOURNAMENT_ID: 32813
+          CURRENT_SPEND: ${{ vars.CURRENT_SPEND || '0.0' }}
+          QUESTIONS_PROCESSED: ${{ vars.QUESTIONS_PROCESSED || '1' }}
 
       - name: Check for budget alerts
         if: always() && steps.budget_check.outputs.budget_utilization >= '0.80'

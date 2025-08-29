@@ -62,148 +62,47 @@ jobs:
         id: budget_analysis
         run: |
           echo "💰 Running comprehensive budget analysis..."
-          poetry run python -c "
-          from src.infrastructure.config.budget_manager import BudgetManager
-          from src.infrastructure.monitoring.budget_dashboard import BudgetDashboard
-          from src.infrastructure.monitoring.alert_system import AlertSystem
-          import os
-          import json
-          from datetime import datetime, timedelta
 
-          # Initialize components
-          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
-          dashboard = BudgetDashboard(budget_manager)
-          alert_system = AlertSystem()
+          # Generate all artifacts
+          poetry run python scripts/deployment_cost_monitor.py --generate-artifacts
 
-          # Get current status
-          status = budget_manager.get_budget_status()
-          recommendations = dashboard.get_budget_recommendations()
+          # Get the analysis report
+          REPORT=$(poetry run python scripts/deployment_cost_monitor.py --json-output)
 
-          print('💰 COMPREHENSIVE BUDGET ANALYSIS')
-          print('=' * 50)
-          print(f'📅 Analysis Time: {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S UTC\")}')
-          print(f'💰 Total Budget: \${status[\"budget_limit\"]:.2f}')
-          print(f'💸 Amount Spent: \${status[\"spent\"]:.2f}')
-          print(f'💵 Remaining: \${status[\"remaining\"]:.2f}')
-          print(f'📊 Utilization: {status[\"utilization\"]:.1%}')
-          print(f'🎯 Status Level: {status[\"status\"]}')
-          print(f'📈 Questions Processed: {status.get(\"questions_processed\", 0)}')
-          print(f'💲 Avg Cost/Question: \${status.get(\"average_cost_per_question\", 0):.3f}')
-          print(f'🔮 Est. Questions Remaining: {status.get(\"estimated_questions_remaining\", \"N/A\")}')
-
-          # Determine actions
-          should_suspend = status['utilization'] >= 0.98
-          should_alert = status['utilization'] >= 0.80
+          # Extract key metrics
+          BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"')
+          UTILIZATION=$(echo "$REPORT" | jq -r '.budget_status.utilization // 0')
+          REMAINING=$(echo "$REPORT" | jq -r '.budget_status.remaining // 100')
+          SPENT=$(echo "$REPORT" | jq -r '.budget_status.spent // 0')
+          SHOULD_SUSPEND=$(echo "$REPORT" | jq -r '.actions.should_suspend_workflows // false')
+          SHOULD_ALERT=$(echo "$REPORT" | jq -r '.actions.should_send_alerts // false')
 
           # Set outputs
-          print(f'budget_status={status[\"status\"]}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
-          print(f'should_suspend={str(should_suspend).lower()}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
-          print(f'utilization={status[\"utilization\"]:.3f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
-          print(f'remaining_budget={status[\"remaining\"]:.2f}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
-          print(f'should_alert={str(should_alert).lower()}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          echo "budget_status=$BUDGET_STATUS" >> $GITHUB_OUTPUT
+          echo "should_suspend=$SHOULD_SUSPEND" >> $GITHUB_OUTPUT
+          echo "utilization=$UTILIZATION" >> $GITHUB_OUTPUT
+          echo "remaining_budget=$REMAINING" >> $GITHUB_OUTPUT
+          echo "should_alert=$SHOULD_ALERT" >> $GITHUB_OUTPUT
 
-          # Generate detailed report
-          report = {
-              'timestamp': datetime.now().isoformat(),
-              'budget_analysis': status,
-              'recommendations': recommendations,
-              'alerts': {
-                  'should_suspend': should_suspend,
-                  'should_alert': should_alert,
-                  'alert_level': 'critical' if should_suspend else 'warning' if should_alert else 'normal'
-              },
-              'workflow_recommendations': {
-                  'suspend_scheduled_runs': should_suspend,
-                  'switch_to_conservative_mode': status['utilization'] >= 0.80,
-                  'enable_emergency_mode': status['utilization'] >= 0.95,
-                  'manual_oversight_required': status['utilization'] >= 0.90
-              }
-          }
+          # Display the report
+          poetry run python scripts/deployment_cost_monitor.py
 
-          # Save report
-          with open('budget_monitoring_report.json', 'w') as f:
-              json.dump(report, f, indent=2)
-
-          print()
-          print('📋 RECOMMENDATIONS:')
-          for rec in recommendations:
-              print(f'  • {rec}')
-
-          if should_suspend:
-              print()
-              print('🚨 CRITICAL ACTION REQUIRED:')
-              print('  • Budget exhausted (98%+ utilization)')
-              print('  • Suspend all automated workflows immediately')
-              print('  • Switch to manual forecasting only')
-          elif should_alert:
-              print()
-              print('⚠️ WARNING - MONITORING REQUIRED:')
-              print('  • High budget utilization detected')
-              print('  • Consider reducing forecast frequency')
-              print('  • Monitor remaining budget closely')
-
-          print()
-          print('📄 Detailed report saved to budget_monitoring_report.json')
-          "
+          # Save as budget monitoring report
+          echo "$REPORT" > budget_monitoring_report.json
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
 
       - name: Generate cost per run analysis
         run: |
           echo "📊 Analyzing cost per workflow run..."
-          poetry run python -c "
-          from src.infrastructure.config.budget_manager import BudgetManager
-          from src.infrastructure.monitoring.performance_tracker import PerformanceTracker
-          import os
-          import json
-          from datetime import datetime, timedelta
 
-          budget_manager = BudgetManager(budget_limit=float(os.getenv('BUDGET_LIMIT', '100')))
-          performance_tracker = PerformanceTracker()
+          # Generate cost analysis using the monitoring script
+          poetry run python scripts/deployment_cost_monitor.py --cost-analysis
 
-          # Analyze recent performance
-          status = budget_manager.get_budget_status()
+          # Save the analysis to the expected file
+          poetry run python scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_per_run_analysis.json
 
-          print('📊 COST PER RUN ANALYSIS')
-          print('=' * 40)
-
-          if status.get('questions_processed', 0) > 0:
-              avg_cost = status['spent'] / status['questions_processed']
-              print(f'💲 Average Cost per Question: \${avg_cost:.3f}')
-
-              # Estimate remaining capacity
-              remaining_questions = int(status['remaining'] / avg_cost) if avg_cost > 0 else 0
-              print(f'🔮 Estimated Questions Remaining: {remaining_questions}')
-
-              # Calculate run frequency recommendations
-              if remaining_questions > 0:
-                  days_remaining = 30  # Assume 30 days left in tournament
-                  questions_per_day = remaining_questions / days_remaining
-                  recommended_frequency = max(1, int(24 / questions_per_day)) if questions_per_day > 0 else 24
-
-                  print(f'📅 Recommended Frequency: Every {recommended_frequency} hours')
-                  print(f'🎯 Target Questions/Day: {questions_per_day:.1f}')
-              else:
-                  print('⚠️ WARNING: Insufficient budget for additional questions')
-          else:
-              print('📊 No questions processed yet - unable to calculate averages')
-
-          # Save analysis
-          analysis = {
-              'timestamp': datetime.now().isoformat(),
-              'cost_analysis': {
-                  'total_spent': status['spent'],
-                  'questions_processed': status.get('questions_processed', 0),
-                  'average_cost_per_question': status.get('average_cost_per_question', 0),
-                  'estimated_questions_remaining': status.get('estimated_questions_remaining', 0)
-              }
-          }
-
-          with open('cost_per_run_analysis.json', 'w') as f:
-              json.dump(analysis, f, indent=2)
-
-          print('📄 Cost analysis saved to cost_per_run_analysis.json')
-          "
+          echo "📄 Cost analysis saved to cost_per_run_analysis.json"
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
 

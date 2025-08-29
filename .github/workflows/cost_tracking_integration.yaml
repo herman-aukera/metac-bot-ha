@@ -64,6 +64,9 @@ jobs:
         run: |
           echo "📊 Running comprehensive cost analysis..."
 
+          # Generate all artifacts first
+          poetry run python scripts/deployment_cost_monitor.py --generate-artifacts
+
           # Run the monitoring script with JSON output
           REPORT=$(poetry run python scripts/deployment_cost_monitor.py --json-output)
 
