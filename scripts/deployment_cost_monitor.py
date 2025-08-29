@@ -17,8 +17,7 @@ from typing import Dict, List, Any, Optional
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -30,8 +29,8 @@ class DeploymentCostMonitor:
     """Self-contained deployment cost monitor for GitHub Actions."""
 
     def __init__(self):
-        self.budget_limit = float(os.getenv('BUDGET_LIMIT', '100.0'))
-        self.tournament_id = os.getenv('AIB_TOURNAMENT_ID', '32813')
+        self.budget_limit = float(os.getenv("BUDGET_LIMIT", "100.0"))
+        self.tournament_id = os.getenv("AIB_TOURNAMENT_ID", "32813")
         self.start_time = datetime.now()
 
         logger.info(f"Initialized cost monitor for tournament {self.tournament_id}")
@@ -40,7 +39,7 @@ class DeploymentCostMonitor:
     def get_current_spend(self) -> float:
         """Get current spending amount from environment variables."""
         # Get spend from environment variable or estimate based on runtime
-        current_spend = float(os.getenv('CURRENT_SPEND', '0.0'))
+        current_spend = float(os.getenv("CURRENT_SPEND", "0.0"))
 
         # If no spend recorded, estimate based on runtime (very conservative)
         if current_spend == 0.0:
@@ -61,7 +60,9 @@ class DeploymentCostMonitor:
     def calculate_burn_rate(self) -> float:
         """Calculate current burn rate (spend per hour)."""
         current_spend = self.get_current_spend()
-        hours_elapsed = max(1, (datetime.now() - self.start_time).total_seconds() / 3600)
+        hours_elapsed = max(
+            1, (datetime.now() - self.start_time).total_seconds() / 3600
+        )
         return current_spend / hours_elapsed
 
     def project_budget_exhaustion(self) -> Optional[datetime]:
@@ -86,7 +87,9 @@ class DeploymentCostMonitor:
         else:
             return "critical"
 
-    def _generate_recommendations(self, budget_utilization: float, burn_rate: float) -> List[str]:
+    def _generate_recommendations(
+        self, budget_utilization: float, burn_rate: float
+    ) -> List[str]:
         """Generate budget optimization recommendations."""
         recommendations = []
 
@@ -95,7 +98,9 @@ class DeploymentCostMonitor:
             recommendations.append("Reduce research depth to essential only")
             recommendations.append("Prioritize high-value questions")
         elif budget_utilization > 80:
-            recommendations.append("Switch to conservative mode (gpt-4o-mini preferred)")
+            recommendations.append(
+                "Switch to conservative mode (gpt-4o-mini preferred)"
+            )
             recommendations.append("Optimize prompt lengths")
             recommendations.append("Use AskNews API for free research")
         elif budget_utilization > 60:
@@ -117,7 +122,9 @@ class DeploymentCostMonitor:
         burn_rate = self.calculate_burn_rate()
         exhaustion_time = self.project_budget_exhaustion()
 
-        budget_utilization = (current_spend / self.budget_limit) * 100 if self.budget_limit > 0 else 0
+        budget_utilization = (
+            (current_spend / self.budget_limit) * 100 if self.budget_limit > 0 else 0
+        )
 
         report = {
             "timestamp": datetime.now().isoformat(),
@@ -126,15 +133,19 @@ class DeploymentCostMonitor:
                 "total_budget": self.budget_limit,
                 "current_spend": current_spend,
                 "remaining_budget": remaining_budget,
-                "budget_utilization_percent": budget_utilization
+                "budget_utilization_percent": budget_utilization,
             },
             "burn_rate_analysis": {
                 "hourly_burn_rate": burn_rate,
                 "daily_burn_rate": burn_rate * 24,
-                "projected_exhaustion": exhaustion_time.isoformat() if exhaustion_time else None
+                "projected_exhaustion": (
+                    exhaustion_time.isoformat() if exhaustion_time else None
+                ),
             },
             "operation_mode": self._determine_operation_mode(budget_utilization),
-            "recommendations": self._generate_recommendations(budget_utilization, burn_rate)
+            "recommendations": self._generate_recommendations(
+                budget_utilization, burn_rate
+            ),
         }
 
         return report
@@ -143,7 +154,7 @@ class DeploymentCostMonitor:
         """Estimate average cost per question."""
         current_spend = self.get_current_spend()
         # Estimate based on typical question processing
-        estimated_questions = max(1, int(os.getenv('QUESTIONS_PROCESSED', '1')))
+        estimated_questions = max(1, int(os.getenv("QUESTIONS_PROCESSED", "1")))
         return current_spend / estimated_questions
 
     def _estimate_questions_per_dollar(self) -> float:
@@ -162,7 +173,11 @@ class DeploymentCostMonitor:
     def _get_model_usage_stats(self) -> Dict[str, Any]:
         """Get model usage statistics from environment or use defaults."""
         # Get from environment variables if available, otherwise use smart defaults
-        budget_utilization = (self.get_current_spend() / self.budget_limit) * 100 if self.budget_limit > 0 else 0
+        budget_utilization = (
+            (self.get_current_spend() / self.budget_limit) * 100
+            if self.budget_limit > 0
+            else 0
+        )
 
         # Adjust model usage based on budget status
         if budget_utilization > 90:
@@ -171,7 +186,7 @@ class DeploymentCostMonitor:
                 "gpt_4o_usage_percent": 0,
                 "gpt_4o_mini_usage_percent": 5,
                 "gpt_4o_nano_usage_percent": 15,
-                "free_models_usage_percent": 80
+                "free_models_usage_percent": 80,
             }
         elif budget_utilization > 80:
             # Emergency mode - reduced premium usage
@@ -179,7 +194,7 @@ class DeploymentCostMonitor:
                 "gpt_4o_usage_percent": 5,
                 "gpt_4o_mini_usage_percent": 25,
                 "gpt_4o_nano_usage_percent": 40,
-                "free_models_usage_percent": 30
+                "free_models_usage_percent": 30,
             }
         elif budget_utilization > 60:
             # Conservative mode
@@ -187,7 +202,7 @@ class DeploymentCostMonitor:
                 "gpt_4o_usage_percent": 15,
                 "gpt_4o_mini_usage_percent": 50,
                 "gpt_4o_nano_usage_percent": 25,
-                "free_models_usage_percent": 10
+                "free_models_usage_percent": 10,
             }
         else:
             # Normal mode - optimal distribution
@@ -195,7 +210,7 @@ class DeploymentCostMonitor:
                 "gpt_4o_usage_percent": 25,
                 "gpt_4o_mini_usage_percent": 55,
                 "gpt_4o_nano_usage_percent": 15,
-                "free_models_usage_percent": 5
+                "free_models_usage_percent": 5,
             }
 
     def _identify_optimization_opportunities(self) -> List[str]:
@@ -204,7 +219,7 @@ class DeploymentCostMonitor:
             "Increase use of gpt-4o-mini for validation tasks",
             "Leverage AskNews API for free research",
             "Optimize prompt engineering for shorter responses",
-            "Implement smarter model routing based on question complexity"
+            "Implement smarter model routing based on question complexity",
         ]
         return opportunities
 
@@ -215,18 +230,24 @@ class DeploymentCostMonitor:
             "efficiency_metrics": {
                 "cost_per_question": self._estimate_cost_per_question(),
                 "questions_per_dollar": self._estimate_questions_per_dollar(),
-                "efficiency_score": self._calculate_efficiency_score()
+                "efficiency_score": self._calculate_efficiency_score(),
             },
             "model_usage": self._get_model_usage_stats(),
-            "optimization_opportunities": self._identify_optimization_opportunities()
+            "optimization_opportunities": self._identify_optimization_opportunities(),
         }
 
     def _get_immediate_actions(self, budget_utilization: float) -> List[str]:
         """Get immediate actions based on budget status."""
         if budget_utilization > 95:
-            return ["Switch to free models immediately", "Halt non-essential operations"]
+            return [
+                "Switch to free models immediately",
+                "Halt non-essential operations",
+            ]
         elif budget_utilization > 85:
-            return ["Activate emergency mode", "Use gpt-4o-mini only for critical tasks"]
+            return [
+                "Activate emergency mode",
+                "Use gpt-4o-mini only for critical tasks",
+            ]
         elif budget_utilization > 70:
             return ["Switch to conservative mode", "Reduce gpt-4o usage"]
         else:
@@ -237,7 +258,7 @@ class DeploymentCostMonitor:
         return [
             "Optimize prompt templates for efficiency",
             "Implement smarter question prioritization",
-            "Enhance model selection algorithms"
+            "Enhance model selection algorithms",
         ]
 
     def _get_strategic_actions(self) -> List[str]:
@@ -245,28 +266,30 @@ class DeploymentCostMonitor:
         return [
             "Develop more sophisticated cost prediction models",
             "Implement dynamic budget allocation",
-            "Create tournament phase-specific strategies"
+            "Create tournament phase-specific strategies",
         ]
 
-    def _get_model_routing_suggestions(self, budget_utilization: float) -> Dict[str, str]:
+    def _get_model_routing_suggestions(
+        self, budget_utilization: float
+    ) -> Dict[str, str]:
         """Get model routing suggestions based on budget status."""
         if budget_utilization > 90:
             return {
                 "research": "free models only",
                 "validation": "free models only",
-                "forecasting": "gpt-4o-mini (critical only)"
+                "forecasting": "gpt-4o-mini (critical only)",
             }
         elif budget_utilization > 80:
             return {
                 "research": "gpt-4o-mini + free models",
                 "validation": "gpt-4o-mini",
-                "forecasting": "gpt-4o-mini"
+                "forecasting": "gpt-4o-mini",
             }
         else:
             return {
                 "research": "gpt-4o-mini",
                 "validation": "gpt-4o-mini",
-                "forecasting": "gpt-4o"
+                "forecasting": "gpt-4o",
             }
 
     def generate_workflow_recommendations(self) -> Dict[str, Any]:
@@ -279,9 +302,11 @@ class DeploymentCostMonitor:
             "recommended_actions": {
                 "immediate": self._get_immediate_actions(budget_utilization),
                 "short_term": self._get_short_term_actions(budget_utilization),
-                "strategic": self._get_strategic_actions()
+                "strategic": self._get_strategic_actions(),
             },
-            "model_routing_suggestions": self._get_model_routing_suggestions(budget_utilization)
+            "model_routing_suggestions": self._get_model_routing_suggestions(
+                budget_utilization
+            ),
         }
 
     def save_reports(self) -> None:
@@ -297,7 +322,7 @@ class DeploymentCostMonitor:
                 "timestamp": datetime.now().isoformat(),
                 "cost": self.get_current_spend(),
                 "budget_remaining": self.get_remaining_budget(),
-                "operation_mode": cost_analysis["operation_mode"]
+                "operation_mode": cost_analysis["operation_mode"],
             }
 
             # Save reports
@@ -305,11 +330,11 @@ class DeploymentCostMonitor:
                 "cost_analysis_report.json": cost_analysis,
                 "cost_efficiency_report.json": efficiency_report,
                 "workflow_recommendations.json": workflow_recommendations,
-                "cost_tracking_entry.json": cost_tracking_entry
+                "cost_tracking_entry.json": cost_tracking_entry,
             }
 
             for filename, data in reports.items():
-                with open(filename, 'w') as f:
+                with open(filename, "w") as f:
                     json.dump(data, f, indent=2)
                 logger.info(f"Generated {filename}")
 
@@ -320,23 +345,23 @@ class DeploymentCostMonitor:
                 "budget_status": {
                     "total_budget": self.budget_limit,
                     "spent": self.get_current_spend(),
-                    "remaining": self.get_remaining_budget()
+                    "remaining": self.get_remaining_budget(),
                 },
                 "performance_metrics": {
                     "questions_per_dollar": self._estimate_questions_per_dollar(),
-                    "efficiency_score": self._calculate_efficiency_score()
-                }
+                    "efficiency_score": self._calculate_efficiency_score(),
+                },
             }
 
             # Save tournament-specific reports based on workflow
             tournament_files = {
                 "deadline_aware_cost_report.json": tournament_report,
                 "tournament_cost_report.json": tournament_report,
-                "quarterly_cup_cost_report.json": tournament_report
+                "quarterly_cup_cost_report.json": tournament_report,
             }
 
             for filename, data in tournament_files.items():
-                with open(filename, 'w') as f:
+                with open(filename, "w") as f:
                     json.dump(data, f, indent=2)
                 logger.info(f"Generated {filename}")
 
@@ -352,7 +377,7 @@ class DeploymentCostMonitor:
             "status": "fallback_mode",
             "error": "Could not generate full reports",
             "estimated_cost": self.get_current_spend(),
-            "budget_remaining": self.get_remaining_budget()
+            "budget_remaining": self.get_remaining_budget(),
         }
 
         fallback_files = [
@@ -362,12 +387,12 @@ class DeploymentCostMonitor:
             "cost_tracking_entry.json",
             "deadline_aware_cost_report.json",
             "tournament_cost_report.json",
-            "quarterly_cup_cost_report.json"
+            "quarterly_cup_cost_report.json",
         ]
 
         for filename in fallback_files:
             try:
-                with open(filename, 'w') as f:
+                with open(filename, "w") as f:
                     json.dump(fallback_data, f, indent=2)
                 logger.info(f"Generated fallback {filename}")
             except Exception as e:
@@ -385,7 +410,11 @@ def main():
         # Print summary
         current_spend = monitor.get_current_spend()
         remaining = monitor.get_remaining_budget()
-        utilization = (current_spend / monitor.budget_limit) * 100 if monitor.budget_limit > 0 else 0
+        utilization = (
+            (current_spend / monitor.budget_limit) * 100
+            if monitor.budget_limit > 0
+            else 0
+        )
 
         print(f"\\n=== Cost Monitor Summary ===")
         print(f"Current Spend: ${current_spend:.2f}")

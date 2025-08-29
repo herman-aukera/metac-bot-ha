@@ -6,40 +6,38 @@ Simple test script for OpenRouter configuration validation.
 import os
 from pathlib import Path
 
+
 def load_env_file():
     """Load environment variables from .env file."""
     env_file = Path(__file__).parent.parent / ".env"
     if env_file.exists():
-        with open(env_file, 'r') as f:
+        with open(env_file, "r") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key] = value
         print(f"✓ Loaded environment from {env_file}")
     else:
         print(f"⚠ No .env file found at {env_file}")
 
+
 # Load environment variables
 load_env_file()
+
 
 def test_environment_configuration():
     """Test that OpenRouter environment variables are properly configured."""
     print("🔧 Testing OpenRouter Environment Configuration")
     print("=" * 50)
 
-    required_vars = [
-        "OPENROUTER_API_KEY",
-        "DEFAULT_MODEL",
-        "MINI_MODEL",
-        "NANO_MODEL"
-    ]
+    required_vars = ["OPENROUTER_API_KEY", "DEFAULT_MODEL", "MINI_MODEL", "NANO_MODEL"]
 
     optional_vars = [
         "OPENROUTER_BASE_URL",
         "OPENROUTER_HTTP_REFERER",
         "OPENROUTER_APP_TITLE",
-        "FREE_FALLBACK_MODELS"
+        "FREE_FALLBACK_MODELS",
     ]
 
     all_good = True
@@ -63,6 +61,7 @@ def test_environment_configuration():
 
     return all_good
 
+
 def test_model_names():
     """Test that model names follow OpenRouter conventions."""
     print("\n📝 Testing Model Name Conventions")
@@ -71,13 +70,13 @@ def test_model_names():
     models = {
         "DEFAULT_MODEL": os.getenv("DEFAULT_MODEL"),
         "MINI_MODEL": os.getenv("MINI_MODEL"),
-        "NANO_MODEL": os.getenv("NANO_MODEL")
+        "NANO_MODEL": os.getenv("NANO_MODEL"),
     }
 
     expected_patterns = {
         "DEFAULT_MODEL": ["openai/gpt-4o", "openai/gpt-5"],
         "MINI_MODEL": ["openai/gpt-4o-mini", "openai/gpt-5-mini"],
-        "NANO_MODEL": ["meta-llama/llama-3.1-8b-instruct", "openai/gpt-5-nano"]
+        "NANO_MODEL": ["meta-llama/llama-3.1-8b-instruct", "openai/gpt-5-nano"],
     }
 
     all_good = True
@@ -92,10 +91,13 @@ def test_model_names():
         if "/" in model_name:
             print(f"  ✓ {model_var}: {model_name} (has provider prefix)")
         else:
-            print(f"  ⚠ {model_var}: {model_name} (missing provider prefix - should be like 'openai/model-name')")
+            print(
+                f"  ⚠ {model_var}: {model_name} (missing provider prefix - should be like 'openai/model-name')"
+            )
             all_good = False
 
     return all_good
+
 
 def test_openrouter_base_configuration():
     """Test OpenRouter base configuration."""
@@ -125,6 +127,7 @@ def test_openrouter_base_configuration():
 
     return True
 
+
 def test_free_fallback_models():
     """Test free fallback model configuration."""
     print("\n🆓 Testing Free Fallback Models")
@@ -148,6 +151,7 @@ def test_free_fallback_models():
 
     return True
 
+
 def test_pricing_awareness():
     """Test that we understand the pricing structure."""
     print("\n💰 OpenRouter Pricing Structure")
@@ -158,7 +162,7 @@ def test_pricing_awareness():
         "openai/gpt-4o-mini": {"input": "$0.15/1M", "output": "$0.60/1M"},
         "meta-llama/llama-3.1-8b-instruct": {"input": "$0.07/1M", "output": "$0.07/1M"},
         "openai/gpt-oss-20b:free": {"input": "Free", "output": "Free"},
-        "moonshotai/kimi-k2:free": {"input": "Free", "output": "Free"}
+        "moonshotai/kimi-k2:free": {"input": "Free", "output": "Free"},
     }
 
     print("  Expected Pricing (as of task specification):")
@@ -166,6 +170,7 @@ def test_pricing_awareness():
         print(f"    {model}: {prices['input']} in, {prices['output']} out")
 
     return True
+
 
 def main():
     """Run all configuration tests."""
@@ -177,7 +182,7 @@ def main():
         ("Model Name Conventions", test_model_names),
         ("OpenRouter Base Config", test_openrouter_base_configuration),
         ("Free Fallback Models", test_free_fallback_models),
-        ("Pricing Awareness", test_pricing_awareness)
+        ("Pricing Awareness", test_pricing_awareness),
     ]
 
     results = []
@@ -205,6 +210,8 @@ def main():
         print("❌ Some configuration issues found. Please review.")
         return 1
 
+
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

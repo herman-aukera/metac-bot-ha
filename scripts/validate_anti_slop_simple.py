@@ -7,22 +7,26 @@ Tests prompt structure and key components without complex imports.
 import os
 from pathlib import Path
 
+
 def read_anti_slop_file():
     """Read the anti-slop prompts file directly."""
-    file_path = Path(__file__).parent.parent / "src" / "prompts" / "anti_slop_prompts.py"
+    file_path = (
+        Path(__file__).parent.parent / "src" / "prompts" / "anti_slop_prompts.py"
+    )
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             content = f.read()
         return content
     except FileNotFoundError:
         print(f"✗ File not found: {file_path}")
         return None
 
+
 def test_enhanced_features():
     """Test for enhanced anti-slop features in the file."""
     print("Enhanced Anti-Slop Prompts Validation")
-    print("="*50)
+    print("=" * 50)
 
     content = read_anti_slop_file()
     if not content:
@@ -37,7 +41,7 @@ def test_enhanced_features():
         "Tournament Calibration": "TOURNAMENT CALIBRATION",
         "Systematic Analysis": "SYSTEMATIC ANALYSIS PROTOCOL",
         "Meta-Reasoning": "get_meta_reasoning_prompt",
-        "Validation Enhancement": "ENHANCED VALIDATION PROTOCOL"
+        "Validation Enhancement": "ENHANCED VALIDATION PROTOCOL",
     }
 
     print("\nEnhanced Features Check:")
@@ -56,7 +60,7 @@ def test_enhanced_features():
         "Base Rate": "base rate",
         "Overconfidence Mitigation": "overconfidence",
         "Scenario Analysis": "scenario analysis",
-        "Calibration Check": "Calibration Check"
+        "Calibration Check": "Calibration Check",
     }
 
     print("\nPrompt Engineering Techniques:")
@@ -77,11 +81,12 @@ def test_enhanced_features():
 
     return all_present
 
+
 def test_prompt_structure():
     """Test the overall structure and organization."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("PROMPT STRUCTURE ANALYSIS")
-    print("="*50)
+    print("=" * 50)
 
     content = read_anti_slop_file()
     if not content:
@@ -100,7 +105,7 @@ def test_prompt_structure():
         "get_numeric_forecast_prompt",
         "get_validation_prompt",
         "get_chain_of_verification_prompt",
-        "get_meta_reasoning_prompt"
+        "get_meta_reasoning_prompt",
     ]
 
     print("\nKey Methods Check:")
@@ -111,7 +116,7 @@ def test_prompt_structure():
             print(f"  ✗ {method} - MISSING")
 
     # Estimate total prompt content
-    lines = content.split('\n')
+    lines = content.split("\n")
     total_lines = len(lines)
     docstring_lines = sum(1 for line in lines if '"""' in line or "'''" in line)
 
@@ -121,11 +126,12 @@ def test_prompt_structure():
 
     return True
 
+
 def test_integration_readiness():
     """Test if prompts are ready for integration."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("INTEGRATION READINESS CHECK")
-    print("="*50)
+    print("=" * 50)
 
     content = read_anti_slop_file()
     if not content:
@@ -157,11 +163,12 @@ def test_integration_readiness():
 
     return True
 
+
 def print_summary():
     """Print validation summary."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("VALIDATION SUMMARY")
-    print("="*50)
+    print("=" * 50)
 
     print("\nEnhanced Anti-Slop Prompts Status:")
     print("  ✓ File structure validated")
@@ -187,6 +194,7 @@ def print_summary():
     print("  • Evidence requirements ensure transparency")
     print("  • Cost-performance optimized for $100 budget")
 
+
 def main():
     """Run validation tests."""
     try:
@@ -198,10 +206,10 @@ def main():
         print_summary()
 
         if success:
-            print("\n" + "="*50)
+            print("\n" + "=" * 50)
             print("✅ VALIDATION COMPLETED SUCCESSFULLY")
             print("Enhanced anti-slop prompts are ready!")
-            print("="*50)
+            print("=" * 50)
             return 0
         else:
             print("\n❌ Some validation checks failed")
@@ -210,6 +218,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Validation failed with error: {e}")
         return 1
+
 
 if __name__ == "__main__":
     exit(main())

@@ -8,16 +8,17 @@ import os
 import sys
 from pathlib import Path
 
+
 def test_environment_config():
     """Test environment configuration for GPT-5 models."""
     print("Testing GPT-5 Environment Configuration")
-    print("="*50)
+    print("=" * 50)
 
     # Check GPT-5 model configuration
     models = {
         "DEFAULT_MODEL": os.getenv("DEFAULT_MODEL", "gpt-5"),
         "MINI_MODEL": os.getenv("MINI_MODEL", "gpt-5-mini"),
-        "NANO_MODEL": os.getenv("NANO_MODEL", "gpt-5-nano")
+        "NANO_MODEL": os.getenv("NANO_MODEL", "gpt-5-nano"),
     }
 
     print("\nGPT-5 Model Configuration:")
@@ -35,26 +36,29 @@ def test_environment_config():
     budget_limit = os.getenv("BUDGET_LIMIT", "100.0")
     print(f"\nBudget Configuration:")
     print(f"  Budget Limit: ${budget_limit}")
-    print(f"  Conservative Threshold: {os.getenv('CONSERVATIVE_MODE_THRESHOLD', '0.80')}")
+    print(
+        f"  Conservative Threshold: {os.getenv('CONSERVATIVE_MODE_THRESHOLD', '0.80')}"
+    )
     print(f"  Emergency Threshold: {os.getenv('EMERGENCY_MODE_THRESHOLD', '0.95')}")
+
 
 def test_routing_logic():
     """Test routing logic without model initialization."""
     print("\n\nTesting Routing Logic")
-    print("="*50)
+    print("=" * 50)
 
     # Simulate routing decisions
     routing_strategy = {
         "validation": "nano",
         "simple": "nano",
         "research": "mini",
-        "forecast": "full"
+        "forecast": "full",
     }
 
     model_costs = {
-        "nano": 0.05,   # $0.05/1M tokens
-        "mini": 0.25,   # $0.25/1M tokens
-        "full": 1.50,   # $1.50/1M tokens
+        "nano": 0.05,  # $0.05/1M tokens
+        "mini": 0.25,  # $0.25/1M tokens
+        "full": 1.50,  # $1.50/1M tokens
     }
 
     def get_operation_mode(budget_remaining):
@@ -108,9 +112,10 @@ def test_routing_logic():
         print(f"  Selected Tier: {selected_tier.upper()}")
         print(f"  Cost per 1M tokens: ${model_costs[selected_tier]}")
 
+
 if __name__ == "__main__":
     test_environment_config()
     test_routing_logic()
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Simple tri-model test completed!")
-    print("="*50)
+    print("=" * 50)

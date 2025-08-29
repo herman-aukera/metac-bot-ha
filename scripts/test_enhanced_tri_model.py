@@ -28,17 +28,16 @@ except ImportError as e:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 async def test_model_initialization():
     """Test model initialization and status checking."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING MODEL INITIALIZATION")
-    print("="*60)
+    print("=" * 60)
 
     # Check model status
     status = tri_model_router.get_model_status()
@@ -55,16 +54,16 @@ async def test_model_initialization():
         print(f"  Available: {details['is_available']}")
         print(f"  Cost/1M tokens: ${details['cost_per_million_tokens']}")
         print(f"  Description: {details['description']}")
-        if details['error_message']:
+        if details["error_message"]:
             print(f"  Error: {details['error_message']}")
         print(f"  Fallback Chain: {details['fallback_chain']}")
 
 
 def test_routing_logic():
     """Test model routing logic across different scenarios."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING ROUTING LOGIC")
-    print("="*60)
+    print("=" * 60)
 
     test_scenarios = [
         # (task_type, complexity, content_length, budget_remaining, description)
@@ -72,34 +71,58 @@ def test_routing_logic():
         ("research", "medium", 500, 100.0, "Standard research with full budget"),
         ("forecast", "high", 1000, 100.0, "Complex forecasting with full budget"),
         ("forecast", "high", 1000, 75.0, "Complex forecasting with 75% budget"),
-        ("forecast", "high", 1000, 45.0, "Complex forecasting with 45% budget (conservative)"),
-        ("forecast", "high", 1000, 15.0, "Complex forecasting with 15% budget (emergency)"),
-        ("forecast", "high", 1000, 5.0, "Complex forecasting with 5% budget (critical)"),
+        (
+            "forecast",
+            "high",
+            1000,
+            45.0,
+            "Complex forecasting with 45% budget (conservative)",
+        ),
+        (
+            "forecast",
+            "high",
+            1000,
+            15.0,
+            "Complex forecasting with 15% budget (emergency)",
+        ),
+        (
+            "forecast",
+            "high",
+            1000,
+            5.0,
+            "Complex forecasting with 5% budget (critical)",
+        ),
         ("simple", None, 25, 50.0, "Very short simple task"),
         ("research", "minimal", 200, 85.0, "Simple research in emergency mode"),
     ]
 
     print("\nRouting Decisions:")
-    for task_type, complexity, content_length, budget_remaining, description in test_scenarios:
+    for (
+        task_type,
+        complexity,
+        content_length,
+        budget_remaining,
+        description,
+    ) in test_scenarios:
         model, tier = tri_model_router.choose_model(
             task_type=task_type,
             complexity=complexity,
             content_length=content_length,
-            budget_remaining=budget_remaining
+            budget_remaining=budget_remaining,
         )
 
         cost_estimate = tri_model_router.get_cost_estimate(
             task_type=task_type,
             content_length=content_length,
             complexity=complexity,
-            budget_remaining=budget_remaining
+            budget_remaining=budget_remaining,
         )
 
         explanation = tri_model_router.get_routing_explanation(
             task_type=task_type,
             complexity=complexity,
             content_length=content_length,
-            budget_remaining=budget_remaining
+            budget_remaining=budget_remaining,
         )
 
         print(f"\n{description}:")
@@ -110,9 +133,9 @@ def test_routing_logic():
 
 def test_operation_modes():
     """Test operation mode detection and adjustments."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING OPERATION MODES")
-    print("="*60)
+    print("=" * 60)
 
     budget_scenarios = [
         (100.0, "Full budget available"),
@@ -131,16 +154,18 @@ def test_operation_modes():
 
 async def test_model_health():
     """Test model health checking."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING MODEL HEALTH")
-    print("="*60)
+    print("=" * 60)
 
     print("\nChecking model health...")
     for tier in ["nano", "mini", "full"]:
         try:
             status = await tri_model_router.check_model_health(tier)
             if status.is_available:
-                response_time = f" ({status.response_time:.2f}s)" if status.response_time else ""
+                response_time = (
+                    f" ({status.response_time:.2f}s)" if status.response_time else ""
+                )
                 print(f"  {tier.upper()}: ✓ Healthy{response_time}")
             else:
                 print(f"  {tier.upper()}: ✗ Unhealthy - {status.error_message}")
@@ -150,9 +175,9 @@ async def test_model_health():
 
 def test_cost_calculations():
     """Test cost estimation accuracy."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING COST CALCULATIONS")
-    print("="*60)
+    print("=" * 60)
 
     # Get model costs
     costs = tri_model_router.get_model_costs()
@@ -175,27 +200,44 @@ def test_cost_calculations():
                 task_type=task_type,
                 content_length=content_length,
                 complexity=complexity,
-                budget_remaining=budget
+                budget_remaining=budget,
             )
             _, tier = tri_model_router.choose_model(
                 task_type=task_type,
                 complexity=complexity,
                 content_length=content_length,
-                budget_remaining=budget
+                budget_remaining=budget,
             )
-            print(f"  {task_type} ({content_length} chars, {budget}% budget): ${cost:.6f} ({tier})")
+            print(
+                f"  {task_type} ({content_length} chars, {budget}% budget): ${cost:.6f} ({tier})"
+            )
 
 
 async def test_routing_with_prompts():
     """Test actual routing with sample prompts."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING ROUTING WITH SAMPLE PROMPTS")
-    print("="*60)
+    print("=" * 60)
 
     sample_prompts = [
-        ("validation", "Check if this statement is accurate: The sky is blue.", "minimal", 90.0),
-        ("research", "Research recent developments in AI forecasting for tournament questions.", "medium", 70.0),
-        ("forecast", "Analyze this complex geopolitical question and provide a calibrated probability estimate.", "high", 40.0),
+        (
+            "validation",
+            "Check if this statement is accurate: The sky is blue.",
+            "minimal",
+            90.0,
+        ),
+        (
+            "research",
+            "Research recent developments in AI forecasting for tournament questions.",
+            "medium",
+            70.0,
+        ),
+        (
+            "forecast",
+            "Analyze this complex geopolitical question and provide a calibrated probability estimate.",
+            "high",
+            40.0,
+        ),
         ("simple", "Summarize: AI is advancing rapidly.", None, 20.0),
     ]
 
@@ -207,14 +249,14 @@ async def test_routing_with_prompts():
                 task_type=task_type,
                 complexity=complexity,
                 content_length=len(prompt),
-                budget_remaining=budget_remaining
+                budget_remaining=budget_remaining,
             )
 
             cost_estimate = tri_model_router.get_cost_estimate(
                 task_type=task_type,
                 content_length=len(prompt),
                 complexity=complexity,
-                budget_remaining=budget_remaining
+                budget_remaining=budget_remaining,
             )
 
             print(f"\n{task_type.upper()} Task:")
@@ -229,9 +271,9 @@ async def test_routing_with_prompts():
 
 def print_summary():
     """Print test summary and recommendations."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST SUMMARY AND RECOMMENDATIONS")
-    print("="*60)
+    print("=" * 60)
 
     print("\nEnhanced Tri-Model Router Features Tested:")
     print("  ✓ Model initialization with fallback chains")
@@ -257,9 +299,13 @@ def print_summary():
     print("  5. Review routing decisions periodically for optimization")
 
     print(f"\nConfiguration Status:")
-    print(f"  OpenRouter API Key: {'✓ Configured' if os.getenv('OPENROUTER_API_KEY') else '✗ Missing'}")
+    print(
+        f"  OpenRouter API Key: {'✓ Configured' if os.getenv('OPENROUTER_API_KEY') else '✗ Missing'}"
+    )
     print(f"  Budget Limit: ${os.getenv('BUDGET_LIMIT', 'Not set')}")
-    print(f"  GPT-5 Models: {os.getenv('DEFAULT_MODEL', 'gpt-5')} / {os.getenv('MINI_MODEL', 'gpt-5-mini')} / {os.getenv('NANO_MODEL', 'gpt-5-nano')}")
+    print(
+        f"  GPT-5 Models: {os.getenv('DEFAULT_MODEL', 'gpt-5')} / {os.getenv('MINI_MODEL', 'gpt-5-mini')} / {os.getenv('NANO_MODEL', 'gpt-5-nano')}"
+    )
 
 
 async def main():
@@ -277,13 +323,14 @@ async def main():
         await test_routing_with_prompts()
         print_summary()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ALL TESTS COMPLETED SUCCESSFULLY")
-        print("="*60)
+        print("=" * 60)
 
     except Exception as e:
         print(f"\n❌ Test failed with error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

@@ -23,6 +23,7 @@ if not os.getenv("METACULUS_TOKEN"):
 if not os.getenv("BUDGET_LIMIT"):
     os.environ["BUDGET_LIMIT"] = "100.0"
 
+
 def test_core_budget_functionality():
     """Test core budget management without LLM dependencies."""
     print("=== Testing Core Budget Management ===")
@@ -53,12 +54,16 @@ def test_core_budget_functionality():
         gpt4o_mini_cost = budget_manager.estimate_cost("gpt-4o-mini", 1000, 500)
         print(f"   GPT-4o cost (1000 in, 500 out): ${gpt4o_cost:.4f}")
         print(f"   GPT-4o-mini cost (1000 in, 500 out): ${gpt4o_mini_cost:.4f}")
-        print(f"   Cost savings with mini: {((gpt4o_cost - gpt4o_mini_cost) / gpt4o_cost * 100):.1f}%")
+        print(
+            f"   Cost savings with mini: {((gpt4o_cost - gpt4o_mini_cost) / gpt4o_cost * 100):.1f}%"
+        )
 
         # Test budget tracking
         print("4. Testing Budget Tracking...")
         initial_status = budget_manager.get_budget_status()
-        print(f"   Initial budget utilization: {initial_status.utilization_percentage:.2f}%")
+        print(
+            f"   Initial budget utilization: {initial_status.utilization_percentage:.2f}%"
+        )
 
         # Simulate some API calls
         for i in range(3):
@@ -68,14 +73,18 @@ def test_core_budget_functionality():
                 input_tokens=800,
                 output_tokens=400,
                 task_type="research" if i % 2 == 0 else "forecast",
-                success=True
+                success=True,
             )
             print(f"   Recorded cost for test-{i}: ${cost:.4f}")
 
         updated_status = budget_manager.get_budget_status()
-        print(f"   Updated budget utilization: {updated_status.utilization_percentage:.2f}%")
+        print(
+            f"   Updated budget utilization: {updated_status.utilization_percentage:.2f}%"
+        )
         print(f"   Questions processed: {updated_status.questions_processed}")
-        print(f"   Average cost per question: ${updated_status.average_cost_per_question:.4f}")
+        print(
+            f"   Average cost per question: ${updated_status.average_cost_per_question:.4f}"
+        )
 
         # Test budget alerts
         print("5. Testing Budget Alerts...")
@@ -94,7 +103,7 @@ def test_core_budget_functionality():
         print(f"   Models used: {list(breakdown['by_model'].keys())}")
         print(f"   Task types: {list(breakdown['by_task_type'].keys())}")
 
-        for model, data in breakdown['by_model'].items():
+        for model, data in breakdown["by_model"].items():
             print(f"   {model}: ${data['cost']:.4f} ({data['calls']} calls)")
 
         print("✓ Core Budget Management tests passed\n")
@@ -103,8 +112,10 @@ def test_core_budget_functionality():
     except Exception as e:
         print(f"❌ Core Budget Management test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def test_emergency_simulation():
     """Test emergency mode without LLM dependencies."""
@@ -120,7 +131,9 @@ def test_emergency_simulation():
         # Simulate high budget usage
         budget_manager.current_spend = budget_manager.budget_limit * 0.96
 
-        print(f"Simulated budget usage: {(budget_manager.current_spend / budget_manager.budget_limit) * 100:.1f}%")
+        print(
+            f"Simulated budget usage: {(budget_manager.current_spend / budget_manager.budget_limit) * 100:.1f}%"
+        )
 
         # Check status
         status = budget_manager.get_budget_status()
@@ -151,8 +164,10 @@ def test_emergency_simulation():
     except Exception as e:
         print(f"❌ Emergency Mode Simulation test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def test_model_selection_logic():
     """Test model selection logic without actual LLM creation."""
@@ -167,7 +182,7 @@ def test_model_selection_logic():
         config.model_configs = {
             "research": {"model": "openai/gpt-4o-mini", "cost_tier": "low"},
             "forecast": {"model": "openai/gpt-4o", "cost_tier": "high"},
-            "simple": {"model": "openai/gpt-4o-mini", "cost_tier": "low"}
+            "simple": {"model": "openai/gpt-4o-mini", "cost_tier": "low"},
         }
 
         # Test complexity assessment
@@ -207,8 +222,10 @@ def test_model_selection_logic():
     except Exception as e:
         print(f"❌ Model Selection Logic test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def main():
     """Run all core tests."""
@@ -229,6 +246,7 @@ def main():
         # Final status report
         try:
             from infrastructure.config.budget_manager import budget_manager
+
             print("\n=== Final Budget Status ===")
             budget_manager.log_budget_status()
 
@@ -239,6 +257,7 @@ def main():
     else:
         print("❌ Some core tests failed!")
         return 1
+
 
 if __name__ == "__main__":
     exit(main())

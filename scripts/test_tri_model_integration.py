@@ -38,20 +38,20 @@ async def test_tri_model_routing():
             "task_type": "validation",
             "content": "Is this statement correct: The sky is blue?",
             "complexity": "minimal",
-            "expected_tier": "nano"
+            "expected_tier": "nano",
         },
         {
             "task_type": "research",
             "content": "Research recent developments in AI safety regulations",
             "complexity": "medium",
-            "expected_tier": "mini"
+            "expected_tier": "mini",
         },
         {
             "task_type": "forecast",
             "content": "Will AGI be achieved by 2030? Consider multiple scenarios and base rates.",
             "complexity": "high",
-            "expected_tier": "full"
-        }
+            "expected_tier": "full",
+        },
     ]
 
     print("\n🧪 Testing Task Routing:")
@@ -64,7 +64,7 @@ async def test_tri_model_routing():
             task_type=test_case["task_type"],
             complexity=test_case["complexity"],
             content_length=len(test_case["content"]),
-            budget_remaining=75.0  # 75% budget remaining
+            budget_remaining=75.0,  # 75% budget remaining
         )
 
         print(f"Selected: {tier} model ({model.model})")
@@ -79,7 +79,7 @@ async def test_tri_model_routing():
         cost = tri_model_router.get_cost_estimate(
             task_type=test_case["task_type"],
             content_length=len(test_case["content"]),
-            complexity=test_case["complexity"]
+            complexity=test_case["complexity"],
         )
         print(f"Estimated cost: ${cost:.6f}")
 
@@ -93,11 +93,13 @@ async def test_anti_slop_prompts():
     # Test research prompt
     research_prompt = anti_slop_prompts.get_research_prompt(
         question_text="Will the US federal minimum wage increase in 2025?",
-        model_tier="mini"
+        model_tier="mini",
     )
 
     print("\n📚 Research Prompt Sample:")
-    print(research_prompt[:200] + "..." if len(research_prompt) > 200 else research_prompt)
+    print(
+        research_prompt[:200] + "..." if len(research_prompt) > 200 else research_prompt
+    )
 
     # Check for anti-slop directives
     anti_slop_indicators = [
@@ -105,13 +107,18 @@ async def test_anti_slop_prompts():
         "Think step-by-step",
         "Ground every claim",
         "cite sources",
-        "acknowledge uncertainty"
+        "acknowledge uncertainty",
     ]
 
-    found_indicators = [indicator for indicator in anti_slop_indicators
-                      if indicator.lower() in research_prompt.lower()]
+    found_indicators = [
+        indicator
+        for indicator in anti_slop_indicators
+        if indicator.lower() in research_prompt.lower()
+    ]
 
-    print(f"\n✅ Anti-slop indicators found: {len(found_indicators)}/{len(anti_slop_indicators)}")
+    print(
+        f"\n✅ Anti-slop indicators found: {len(found_indicators)}/{len(anti_slop_indicators)}"
+    )
     for indicator in found_indicators:
         print(f"  • {indicator}")
 
@@ -122,7 +129,7 @@ async def test_anti_slop_prompts():
         resolution_criteria="Resolves Yes if federal minimum wage increases by Dec 31, 2025.",
         fine_print="State minimum wages don't count.",
         research="Recent news suggests bipartisan support for gradual increases.",
-        model_tier="full"
+        model_tier="full",
     )
 
     print(f"\n🎯 Binary Forecast Prompt Length: {len(binary_prompt)} characters")
@@ -133,13 +140,18 @@ async def test_anti_slop_prompts():
         "base rate",
         "scenario",
         "calibrate",
-        "overconfidence"
+        "overconfidence",
     ]
 
-    found_forecast = [indicator for indicator in forecast_indicators
-                     if indicator.lower() in binary_prompt.lower()]
+    found_forecast = [
+        indicator
+        for indicator in forecast_indicators
+        if indicator.lower() in binary_prompt.lower()
+    ]
 
-    print(f"✅ Forecasting indicators found: {len(found_forecast)}/{len(forecast_indicators)}")
+    print(
+        f"✅ Forecasting indicators found: {len(found_forecast)}/{len(forecast_indicators)}"
+    )
 
 
 async def test_budget_aware_routing():
@@ -151,8 +163,11 @@ async def test_budget_aware_routing():
     test_scenarios = [
         {"budget": 90.0, "expected_behavior": "Normal mode - use optimal models"},
         {"budget": 60.0, "expected_behavior": "Normal mode - use optimal models"},
-        {"budget": 30.0, "expected_behavior": "Conservative mode - prefer cheaper models"},
-        {"budget": 10.0, "expected_behavior": "Emergency mode - force nano model"}
+        {
+            "budget": 30.0,
+            "expected_behavior": "Conservative mode - prefer cheaper models",
+        },
+        {"budget": 10.0, "expected_behavior": "Emergency mode - force nano model"},
     ]
 
     for scenario in test_scenarios:
@@ -164,7 +179,7 @@ async def test_budget_aware_routing():
             task_type="forecast",
             complexity="high",
             content_length=500,
-            budget_remaining=scenario["budget"]
+            budget_remaining=scenario["budget"],
         )
 
         print(f"Selected: {tier} model for forecasting")
@@ -174,7 +189,7 @@ async def test_budget_aware_routing():
             task_type="research",
             complexity="medium",
             content_length=300,
-            budget_remaining=scenario["budget"]
+            budget_remaining=scenario["budget"],
         )
 
         print(f"Selected: {tier} model for research")
@@ -196,7 +211,7 @@ async def test_integration_workflow():
             task_type="research",
             content=anti_slop_prompts.get_research_prompt(question_text, "mini"),
             complexity="medium",
-            budget_remaining=80.0
+            budget_remaining=80.0,
         )
         print(f"Research completed: {len(research_response)} characters")
 
@@ -204,9 +219,11 @@ async def test_integration_workflow():
         print("\n2️⃣ Validation Stage (GPT-5 Nano)")
         validation_response = await tri_model_router.route_query(
             task_type="validation",
-            content=anti_slop_prompts.get_validation_prompt(research_response[:500], "research"),
+            content=anti_slop_prompts.get_validation_prompt(
+                research_response[:500], "research"
+            ),
             complexity="minimal",
-            budget_remaining=78.0
+            budget_remaining=78.0,
         )
         print(f"Validation completed: {len(validation_response)} characters")
 
@@ -220,10 +237,10 @@ async def test_integration_workflow():
                 resolution_criteria="Resolves Yes if humans land on Mars by Dec 31, 2030.",
                 fine_print="Must be SpaceX mission, not other organizations.",
                 research=research_response[:200],  # Truncated for demo
-                model_tier="full"
+                model_tier="full",
             ),
             complexity="high",
-            budget_remaining=75.0
+            budget_remaining=75.0,
         )
         print(f"Forecast completed: {len(forecast_response)} characters")
 
@@ -231,7 +248,9 @@ async def test_integration_workflow():
 
         # Extract probability if present
         if "Probability:" in forecast_response:
-            prob_line = [line for line in forecast_response.split('\n') if 'Probability:' in line]
+            prob_line = [
+                line for line in forecast_response.split("\n") if "Probability:" in line
+            ]
             if prob_line:
                 print(f"🎯 Extracted prediction: {prob_line[0]}")
 

@@ -11,6 +11,7 @@ from pathlib import Path
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
+
     env_path = Path(__file__).parent.parent / ".env"
     if env_path.exists():
         load_dotenv(env_path)
@@ -20,10 +21,11 @@ try:
 except ImportError:
     print("⚠ python-dotenv not available, using system environment variables only")
 
+
 def test_api_key_availability():
     """Test which API keys are available and configured."""
     print("API Key Availability Test")
-    print("="*50)
+    print("=" * 50)
 
     # Check available API keys
     api_keys = {
@@ -55,19 +57,22 @@ def test_api_key_availability():
 
     return available_keys, unavailable_keys
 
+
 def test_research_capabilities():
     """Test research capabilities with available APIs."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("RESEARCH CAPABILITIES TEST")
-    print("="*50)
+    print("=" * 50)
 
     # Check which research methods will be available
     research_methods = []
 
     # AskNews
     if os.getenv("ASKNEWS_CLIENT_ID") and os.getenv("ASKNEWS_SECRET"):
-        if not (os.getenv("ASKNEWS_CLIENT_ID").startswith("dummy_") or
-                os.getenv("ASKNEWS_SECRET").startswith("dummy_")):
+        if not (
+            os.getenv("ASKNEWS_CLIENT_ID").startswith("dummy_")
+            or os.getenv("ASKNEWS_SECRET").startswith("dummy_")
+        ):
             research_methods.append("AskNews (Primary)")
 
     # OpenRouter Perplexity
@@ -98,17 +103,18 @@ def test_research_capabilities():
 
     return research_methods
 
+
 def test_model_configuration():
     """Test GPT-5 tri-model configuration."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("GPT-5 TRI-MODEL CONFIGURATION TEST")
-    print("="*50)
+    print("=" * 50)
 
     # Check model configuration
     models = {
         "GPT-5 Full": os.getenv("DEFAULT_MODEL", "gpt-5"),
         "GPT-5 Mini": os.getenv("MINI_MODEL", "gpt-5-mini"),
-        "GPT-5 Nano": os.getenv("NANO_MODEL", "gpt-5-nano")
+        "GPT-5 Nano": os.getenv("NANO_MODEL", "gpt-5-nano"),
     }
 
     print("\nConfigured Models:")
@@ -120,7 +126,7 @@ def test_model_configuration():
         "Research": os.getenv("PRIMARY_RESEARCH_MODEL", "openai/gpt-4o-mini"),
         "Forecast": os.getenv("PRIMARY_FORECAST_MODEL", "openai/gpt-4o"),
         "Simple": os.getenv("SIMPLE_TASK_MODEL", "openai/gpt-4o-mini"),
-        "Emergency": os.getenv("EMERGENCY_FALLBACK_MODEL", "openai/gpt-4o-mini")
+        "Emergency": os.getenv("EMERGENCY_FALLBACK_MODEL", "openai/gpt-4o-mini"),
     }
 
     print("\nFallback Models:")
@@ -136,11 +142,12 @@ def test_model_configuration():
 
     return models, fallback_models
 
+
 def test_budget_configuration():
     """Test budget management configuration."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("BUDGET MANAGEMENT CONFIGURATION TEST")
-    print("="*50)
+    print("=" * 50)
 
     budget_config = {
         "Budget Limit": f"${os.getenv('BUDGET_LIMIT', '100.0')}",
@@ -148,7 +155,7 @@ def test_budget_configuration():
         "Conservative Threshold": f"{float(os.getenv('CONSERVATIVE_MODE_THRESHOLD', '0.50')) * 100}%",
         "Emergency Threshold": f"{float(os.getenv('EMERGENCY_MODE_THRESHOLD', '0.80')) * 100}%",
         "Max Cost Per Question": f"${os.getenv('MAX_COST_PER_QUESTION', '2.00')}",
-        "Daily Budget Limit": f"${os.getenv('DAILY_BUDGET_LIMIT', '5.00')}"
+        "Daily Budget Limit": f"${os.getenv('DAILY_BUDGET_LIMIT', '5.00')}",
     }
 
     print("\nBudget Configuration:")
@@ -157,11 +164,12 @@ def test_budget_configuration():
 
     return budget_config
 
+
 def test_tournament_configuration():
     """Test tournament-specific configuration."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("TOURNAMENT CONFIGURATION TEST")
-    print("="*50)
+    print("=" * 50)
 
     tournament_config = {
         "Tournament Mode": os.getenv("TOURNAMENT_MODE", "true"),
@@ -171,7 +179,7 @@ def test_tournament_configuration():
         "Skip Previously Forecasted": os.getenv("SKIP_PREVIOUSLY_FORECASTED", "true"),
         "Max Research Reports": os.getenv("MAX_RESEARCH_REPORTS_PER_QUESTION", "1"),
         "Max Predictions Per Report": os.getenv("MAX_PREDICTIONS_PER_REPORT", "5"),
-        "Scheduling Frequency": f"{os.getenv('SCHEDULING_FREQUENCY_HOURS', '4')} hours"
+        "Scheduling Frequency": f"{os.getenv('SCHEDULING_FREQUENCY_HOURS', '4')} hours",
     }
 
     print("\nTournament Configuration:")
@@ -180,11 +188,12 @@ def test_tournament_configuration():
 
     return tournament_config
 
+
 def generate_recommendations():
     """Generate recommendations based on available API keys."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("OPTIMIZATION RECOMMENDATIONS")
-    print("="*50)
+    print("=" * 50)
 
     available_keys, unavailable_keys = test_api_key_availability()
 
@@ -220,7 +229,15 @@ def generate_recommendations():
         print("  • Direct OpenAI access not available (using OpenRouter instead)")
 
     print("\n🚀 TOURNAMENT READINESS:")
-    if all(key in available_keys for key in ["METACULUS_TOKEN", "OPENROUTER_API_KEY", "ASKNEWS_CLIENT_ID", "ASKNEWS_SECRET"]):
+    if all(
+        key in available_keys
+        for key in [
+            "METACULUS_TOKEN",
+            "OPENROUTER_API_KEY",
+            "ASKNEWS_CLIENT_ID",
+            "ASKNEWS_SECRET",
+        ]
+    ):
         print("  ✅ FULLY READY FOR TOURNAMENT!")
         print("  • All essential APIs available")
         print("  • Optimal cost-performance configuration")
@@ -228,6 +245,7 @@ def generate_recommendations():
         print("  • Budget management fully operational")
     else:
         print("  ⚠ Some optimizations missing but system will work")
+
 
 def main():
     """Run all tests and generate recommendations."""
@@ -245,17 +263,21 @@ def main():
         # Generate recommendations
         generate_recommendations()
 
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("✅ CONFIGURATION VALIDATION COMPLETED")
-        print("="*50)
+        print("=" * 50)
 
         print(f"\nSummary:")
         print(f"  • Available API keys: {len(available_keys)}/8")
         print(f"  • Research methods: {len(research_methods)}")
-        print(f"  • Tournament ready: {'Yes' if len(available_keys) >= 3 else 'Partial'}")
+        print(
+            f"  • Tournament ready: {'Yes' if len(available_keys) >= 3 else 'Partial'}"
+        )
 
         if len(available_keys) >= 3:
-            print(f"\n🎯 Your system is optimized and ready for tournament competition!")
+            print(
+                f"\n🎯 Your system is optimized and ready for tournament competition!"
+            )
         else:
             print(f"\n⚠ System will work but some features may be limited")
 
@@ -264,8 +286,10 @@ def main():
     except Exception as e:
         print(f"\n❌ Validation failed with error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
+
 
 if __name__ == "__main__":
     exit_code = main()

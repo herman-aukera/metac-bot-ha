@@ -42,7 +42,7 @@ class TestTemplateForecasterE2E:
     async def test_run_research(self, e2e_bot, mock_question):
         """Test the research functionality."""
         # Mock the research process
-        with patch.object(e2e_bot, 'get_llm') as mock_get_llm:
+        with patch.object(e2e_bot, "get_llm") as mock_get_llm:
             mock_llm = Mock()
             mock_llm.invoke.return_value = "Research findings: Recent AI progress suggests moderate probability of AGI by 2030..."
             mock_get_llm.return_value = mock_llm
@@ -61,12 +61,12 @@ class TestTemplateForecasterE2E:
     async def test_forecast_question_basic(self, e2e_bot, mock_question):
         """Test basic forecasting functionality."""
         # Mock the LLM response for forecasting
-        with patch.object(e2e_bot, 'get_llm') as mock_get_llm:
+        with patch.object(e2e_bot, "get_llm") as mock_get_llm:
             mock_llm = Mock()
             # Mock both research and forecasting calls
             mock_llm.invoke.side_effect = [
                 "Research findings: Recent AI progress suggests moderate probability...",
-                "0.35"  # Prediction value
+                "0.35",  # Prediction value
             ]
             mock_get_llm.return_value = mock_llm
 
@@ -81,25 +81,27 @@ class TestTemplateForecasterE2E:
 
             except Exception as e:
                 # If the method doesn't exist or has different signature, that's also valuable info
-                pytest.skip(f"forecast_question method not available or different signature: {e}")
+                pytest.skip(
+                    f"forecast_question method not available or different signature: {e}"
+                )
 
     @pytest.mark.asyncio
     @pytest.mark.e2e
     async def test_bot_initialization(self, e2e_bot):
         """Test that the bot initializes correctly with all components."""
         # Verify bot has expected attributes
-        assert hasattr(e2e_bot, 'run_research')
-        assert hasattr(e2e_bot, 'get_llm')
-        assert hasattr(e2e_bot, 'budget_manager')
-        assert hasattr(e2e_bot, 'token_tracker')
+        assert hasattr(e2e_bot, "run_research")
+        assert hasattr(e2e_bot, "get_llm")
+        assert hasattr(e2e_bot, "budget_manager")
+        assert hasattr(e2e_bot, "token_tracker")
 
         # Verify budget manager is initialized
         if e2e_bot.budget_manager:
-            assert hasattr(e2e_bot.budget_manager, 'get_remaining_budget')
+            assert hasattr(e2e_bot.budget_manager, "get_remaining_budget")
 
         # Verify token tracker is initialized
         if e2e_bot.token_tracker:
-            assert hasattr(e2e_bot.token_tracker, 'track_usage')
+            assert hasattr(e2e_bot.token_tracker, "track_usage")
 
     @pytest.mark.asyncio
     @pytest.mark.e2e
@@ -110,7 +112,7 @@ class TestTemplateForecasterE2E:
             assert llm is not None
 
             # Test basic LLM functionality with a simple prompt
-            with patch.object(llm, 'invoke') as mock_invoke:
+            with patch.object(llm, "invoke") as mock_invoke:
                 mock_invoke.return_value = "Test response"
 
                 response = llm.invoke("Test prompt")

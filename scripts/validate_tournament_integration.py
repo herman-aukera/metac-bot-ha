@@ -14,7 +14,9 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.infrastructure.config.settings import Config
-from src.infrastructure.external_apis.tournament_asknews_client import TournamentAskNewsClient
+from src.infrastructure.external_apis.tournament_asknews_client import (
+    TournamentAskNewsClient,
+)
 from src.infrastructure.external_apis.metaculus_proxy_client import MetaculusProxyClient
 from src.main import MetaculusForecastingBot
 
@@ -87,13 +89,16 @@ async def validate_tournament_integration():
     print("\n6. Testing Ensemble Forecast...")
     try:
         ensemble_result = await bot.forecast_question_ensemble(
-            12346,
-            ["chain_of_thought", "tree_of_thought"]
+            12346, ["chain_of_thought", "tree_of_thought"]
         )
         print(f"   ✅ Ensemble forecast completed")
-        print(f"   📊 Ensemble prediction: {ensemble_result['ensemble_forecast']['prediction']:.3f}")
+        print(
+            f"   📊 Ensemble prediction: {ensemble_result['ensemble_forecast']['prediction']:.3f}"
+        )
         print(f"   📊 Agents used: {len(ensemble_result['individual_forecasts'])}")
-        print(f"   📊 Consensus strength: {ensemble_result['metadata']['consensus_strength']:.3f}")
+        print(
+            f"   📊 Consensus strength: {ensemble_result['metadata']['consensus_strength']:.3f}"
+        )
     except Exception as e:
         print(f"   ❌ Ensemble forecast failed: {e}")
         return False
@@ -107,12 +112,16 @@ async def validate_tournament_integration():
         print(f"   📊 AskNews Final Stats:")
         print(f"      - Total requests: {final_asknews_stats['total_requests']}")
         print(f"      - Success rate: {final_asknews_stats['success_rate']:.1f}%")
-        print(f"      - Quota usage: {final_asknews_stats['quota_usage_percentage']:.1f}%")
+        print(
+            f"      - Quota usage: {final_asknews_stats['quota_usage_percentage']:.1f}%"
+        )
 
         print(f"   📊 Proxy Final Stats:")
         print(f"      - Total requests: {final_proxy_stats['total_requests']}")
         print(f"      - Fallback rate: {final_proxy_stats['fallback_rate']:.1f}%")
-        print(f"      - Credits used: {final_proxy_stats['estimated_credits_used']:.2f}")
+        print(
+            f"      - Credits used: {final_proxy_stats['estimated_credits_used']:.2f}"
+        )
 
     except Exception as e:
         print(f"   ⚠️  Resource summary warning: {e}")

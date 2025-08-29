@@ -14,6 +14,7 @@ from infrastructure.config.budget_alerts import budget_alert_system
 from infrastructure.config.token_tracker import token_tracker
 from infrastructure.config.api_keys import api_key_manager
 
+
 def test_budget_manager():
     """Test budget manager functionality."""
     print("=== Testing Budget Manager ===")
@@ -23,7 +24,9 @@ def test_budget_manager():
     print(f"Estimated cost for GPT-4o (1000 input, 500 output tokens): ${cost:.4f}")
 
     cost_mini = budget_manager.estimate_cost("gpt-4o-mini", 1000, 500)
-    print(f"Estimated cost for GPT-4o-mini (1000 input, 500 output tokens): ${cost_mini:.4f}")
+    print(
+        f"Estimated cost for GPT-4o-mini (1000 input, 500 output tokens): ${cost_mini:.4f}"
+    )
 
     # Test budget status
     status = budget_manager.get_budget_status()
@@ -41,7 +44,7 @@ def test_budget_manager():
         input_tokens=500,
         output_tokens=300,
         task_type="test",
-        success=True
+        success=True,
     )
     print(f"Recorded cost: ${recorded_cost:.4f}")
 
@@ -50,6 +53,7 @@ def test_budget_manager():
     print(f"Updated utilization: {updated_status.utilization_percentage:.1f}%")
 
     print("✓ Budget Manager tests passed\n")
+
 
 def test_token_tracker():
     """Test token tracker functionality."""
@@ -71,6 +75,7 @@ def test_token_tracker():
 
     print("✓ Token Tracker tests passed\n")
 
+
 def test_api_keys():
     """Test API key manager."""
     print("=== Testing API Key Manager ===")
@@ -79,9 +84,9 @@ def test_api_keys():
     validation = api_key_manager.validate_required_keys()
     print(f"Required keys valid: {validation['valid']}")
 
-    if validation['missing_keys']:
+    if validation["missing_keys"]:
         print("Missing keys:")
-        for key_info in validation['missing_keys']:
+        for key_info in validation["missing_keys"]:
             print(f"  - {key_info['key']}: {key_info['description']}")
 
     # Test getting OpenRouter key
@@ -92,6 +97,7 @@ def test_api_keys():
         print("OpenRouter key not configured")
 
     print("✓ API Key Manager tests passed\n")
+
 
 def test_budget_alerts():
     """Test budget alert system."""
@@ -118,6 +124,7 @@ def test_budget_alerts():
 
     print("✓ Budget Alert System tests passed\n")
 
+
 def main():
     """Run all tests."""
     print("Testing Budget Management System")
@@ -139,10 +146,12 @@ def main():
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     exit(main())

@@ -7,11 +7,14 @@ skipping expensive GPT-4o models entirely.
 
 import sys
 import os
-sys.path.append('.')
+
+sys.path.append(".")
 
 # Load environment variables
 from dotenv import load_dotenv
+
 load_dotenv()
+
 
 def test_environment_configuration():
     """Test that environment variables are set correctly for GPT-5 cost optimization."""
@@ -21,7 +24,7 @@ def test_environment_configuration():
     expected_models = {
         "DEFAULT_MODEL": "openai/gpt-5",
         "MINI_MODEL": "openai/gpt-5-mini",
-        "NANO_MODEL": "openai/gpt-5-nano"
+        "NANO_MODEL": "openai/gpt-5-nano",
     }
 
     for env_var, expected_value in expected_models.items():
@@ -43,17 +46,26 @@ def test_environment_configuration():
             print(f"❌ {model} missing")
 
     # Verify expensive models are NOT configured
-    expensive_models = ["openai/gpt-4o", "openai/gpt-4o-mini", "anthropic/claude-3-5-sonnet"]
+    expensive_models = [
+        "openai/gpt-4o",
+        "openai/gpt-4o-mini",
+        "anthropic/claude-3-5-sonnet",
+    ]
     print(f"\nVerifying expensive models are NOT in primary configuration:")
     all_passed = True
     for model in expensive_models:
-        if model not in [os.getenv("DEFAULT_MODEL"), os.getenv("MINI_MODEL"), os.getenv("NANO_MODEL")]:
+        if model not in [
+            os.getenv("DEFAULT_MODEL"),
+            os.getenv("MINI_MODEL"),
+            os.getenv("NANO_MODEL"),
+        ]:
             print(f"✅ {model} not in primary config (good!)")
         else:
             print(f"❌ {model} found in primary config (expensive!)")
             all_passed = False
 
     return all_passed
+
 
 def test_tri_model_router():
     """Test tri-model router configuration."""
@@ -65,17 +77,24 @@ def test_tri_model_router():
         # Test model configurations
         print("Model configurations:")
         expected_costs = {
-            "nano": (0.05, 0.05),    # GPT-5 Nano
-            "mini": (0.25, 0.25),    # GPT-5 Mini
-            "full": (1.50, 1.50)     # GPT-5 Full
+            "nano": (0.05, 0.05),  # GPT-5 Nano
+            "mini": (0.25, 0.25),  # GPT-5 Mini
+            "full": (1.50, 1.50),  # GPT-5 Full
         }
 
         for tier, (expected_input, expected_output) in expected_costs.items():
             config = tri_model_router.model_configs[tier]
-            if config.cost_per_million_input == expected_input and config.cost_per_million_output == expected_output:
-                print(f"✅ {tier}: {config.model_name} (${config.cost_per_million_input}/${config.cost_per_million_output})")
+            if (
+                config.cost_per_million_input == expected_input
+                and config.cost_per_million_output == expected_output
+            ):
+                print(
+                    f"✅ {tier}: {config.model_name} (${config.cost_per_million_input}/${config.cost_per_million_output})"
+                )
             else:
-                print(f"❌ {tier}: Expected ${expected_input}/${expected_output}, got ${config.cost_per_million_input}/${config.cost_per_million_output}")
+                print(
+                    f"❌ {tier}: Expected ${expected_input}/${expected_output}, got ${config.cost_per_million_input}/${config.cost_per_million_output}"
+                )
 
         # Test fallback chains
         print(f"\nFallback chains:")
@@ -84,8 +103,14 @@ def test_tri_model_router():
 
             # Verify GPT-5 models come first, free models are included, expensive models are skipped
             if tier == "full":
-                if chain[0] == "openai/gpt-5" and "moonshotai/kimi-k2:free" in chain and "openai/gpt-4o" not in chain:
-                    print(f"    ✅ Correct fallback order (GPT-5 → Free, skip expensive)")
+                if (
+                    chain[0] == "openai/gpt-5"
+                    and "moonshotai/kimi-k2:free" in chain
+                    and "openai/gpt-4o" not in chain
+                ):
+                    print(
+                        f"    ✅ Correct fallback order (GPT-5 → Free, skip expensive)"
+                    )
                 else:
                     print(f"    ❌ Incorrect fallback order")
 
@@ -104,6 +129,7 @@ def test_tri_model_router():
     except Exception as e:
         print(f"❌ Tri-model router test failed: {e}")
         return False
+
 
 def test_anti_slop_prompts():
     """Test anti-slop prompts with GPT-5 optimizations."""
@@ -126,15 +152,14 @@ def test_anti_slop_prompts():
             ("openai/gpt-5-nano", "GPT-5-NANO SPECIFIC"),
             ("openai/gpt-5-mini", "GPT-5-MINI SPECIFIC"),
             ("openai/gpt-5", "GPT-5-FULL SPECIFIC"),
-            ("moonshotai/kimi-k2:free", "FREE MODEL OPTIMIZATIONS")
+            ("moonshotai/kimi-k2:free", "FREE MODEL OPTIMIZATIONS"),
         ]
 
         for model_name, expected_text in test_models:
-            enhanced_prompt = anti_slop_prompts.get_enhanced_prompt_with_model_adaptation(
-                'research',
-                'nano',
-                model_name,
-                question_text='Test question'
+            enhanced_prompt = (
+                anti_slop_prompts.get_enhanced_prompt_with_model_adaptation(
+                    "research", "nano", model_name, question_text="Test question"
+                )
             )
             if expected_text in enhanced_prompt:
                 print(f"✅ {model_name}: Contains {expected_text}")
@@ -147,6 +172,7 @@ def test_anti_slop_prompts():
         print(f"❌ Anti-slop prompts test failed: {e}")
         return False
 
+
 def test_cost_analysis():
     """Test cost analysis for GPT-5 vs GPT-4o comparison."""
     print("\n=== COST ANALYSIS ===")
@@ -158,26 +184,38 @@ def test_cost_analysis():
         questions = 1000
         avg_tokens_per_question = 2000  # Conservative estimate
 
-        print(f"Cost analysis for {questions} questions ({avg_tokens_per_question} tokens each):")
+        print(
+            f"Cost analysis for {questions} questions ({avg_tokens_per_question} tokens each):"
+        )
 
         # GPT-5 costs
-        gpt5_costs = {
-            "nano": 0.05,
-            "mini": 0.25,
-            "full": 1.50
-        }
+        gpt5_costs = {"nano": 0.05, "mini": 0.25, "full": 1.50}
 
         # Simulate mixed usage (30% nano, 50% mini, 20% full)
         mixed_cost = (
-            (questions * 0.3 * avg_tokens_per_question * gpt5_costs["nano"] / 1_000_000) +
-            (questions * 0.5 * avg_tokens_per_question * gpt5_costs["mini"] / 1_000_000) +
-            (questions * 0.2 * avg_tokens_per_question * gpt5_costs["full"] / 1_000_000)
+            (questions * 0.3 * avg_tokens_per_question * gpt5_costs["nano"] / 1_000_000)
+            + (
+                questions
+                * 0.5
+                * avg_tokens_per_question
+                * gpt5_costs["mini"]
+                / 1_000_000
+            )
+            + (
+                questions
+                * 0.2
+                * avg_tokens_per_question
+                * gpt5_costs["full"]
+                / 1_000_000
+            )
         )
 
         print(f"GPT-5 mixed usage cost: ${mixed_cost:.2f}")
 
         # GPT-4o comparison (if we used expensive models)
-        gpt4o_cost = questions * avg_tokens_per_question * 10.0 / 1_000_000  # Average of $5-15
+        gpt4o_cost = (
+            questions * avg_tokens_per_question * 10.0 / 1_000_000
+        )  # Average of $5-15
         print(f"GPT-4o equivalent cost: ${gpt4o_cost:.2f}")
 
         savings = gpt4o_cost - mixed_cost
@@ -190,7 +228,9 @@ def test_cost_analysis():
         print(f"\nQuestions possible with $100 budget:")
         print(f"  GPT-5 cost-optimized: {questions_with_gpt5:,} questions")
         print(f"  GPT-4o expensive: {questions_with_gpt4o:,} questions")
-        print(f"  Improvement: {questions_with_gpt5/questions_with_gpt4o:.1f}x more questions")
+        print(
+            f"  Improvement: {questions_with_gpt5/questions_with_gpt4o:.1f}x more questions"
+        )
 
         if questions_with_gpt5 > 2000:
             print(f"✅ Achieves 2000+ questions target")
@@ -203,6 +243,7 @@ def test_cost_analysis():
         print(f"❌ Cost analysis failed: {e}")
         return False
 
+
 def main():
     """Run all tests."""
     print("GPT-5 COST-OPTIMIZED CONFIGURATION TEST")
@@ -212,7 +253,7 @@ def main():
         ("Environment Configuration", test_environment_configuration),
         ("Tri-Model Router", test_tri_model_router),
         ("Anti-Slop Prompts", test_anti_slop_prompts),
-        ("Cost Analysis", test_cost_analysis)
+        ("Cost Analysis", test_cost_analysis),
     ]
 
     results = []
@@ -239,7 +280,9 @@ def main():
     print(f"\nOverall: {passed}/{len(results)} tests passed")
 
     if passed == len(results):
-        print("\n🎉 ALL TESTS PASSED! GPT-5 cost-optimized configuration is working correctly.")
+        print(
+            "\n🎉 ALL TESTS PASSED! GPT-5 cost-optimized configuration is working correctly."
+        )
         print("The system will:")
         print("  • Use GPT-5 models for primary tasks")
         print("  • Fall back to free models when GPT-5 unavailable")
@@ -247,9 +290,12 @@ def main():
         print("  • Process 2000+ questions within $100 budget")
         print("  • Maintain tournament-winning quality with anti-slop directives")
     else:
-        print(f"\n⚠️  {len(results) - passed} tests failed. Please review the configuration.")
+        print(
+            f"\n⚠️  {len(results) - passed} tests failed. Please review the configuration."
+        )
 
     return passed == len(results)
+
 
 if __name__ == "__main__":
     success = main()

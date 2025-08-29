@@ -23,13 +23,15 @@ except ImportError:
     print("Import error - trying alternative import path")
     # Alternative import without relative imports
     import importlib.util
+
     spec = importlib.util.spec_from_file_location(
         "tri_model_router",
-        project_root / "src" / "infrastructure" / "config" / "tri_model_router.py"
+        project_root / "src" / "infrastructure" / "config" / "tri_model_router.py",
     )
     tri_model_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tri_model_module)
     OpenRouterTriModelRouter = tri_model_module.OpenRouterTriModelRouter
+
 
 def test_openrouter_configuration():
     """Test OpenRouter configuration and model setup."""
@@ -78,7 +80,7 @@ def test_openrouter_configuration():
     test_cases = [
         ("validation", 100, "minimal"),
         ("research", 500, "medium"),
-        ("forecast", 1000, "high")
+        ("forecast", 1000, "high"),
     ]
 
     for task_type, content_length, complexity in test_cases:
@@ -86,6 +88,7 @@ def test_openrouter_configuration():
         print(f"  {task_type} ({complexity}, {content_length} chars): ${cost:.6f}")
 
     return True
+
 
 async def test_model_availability():
     """Test model availability detection."""
@@ -112,6 +115,7 @@ async def test_model_availability():
         print(f"✗ Model availability test failed: {e}")
         return False
 
+
 def test_operation_modes():
     """Test operation mode switching."""
     print("\n⚙️ Testing Operation Mode Switching")
@@ -126,6 +130,7 @@ def test_operation_modes():
         print(f"  Budget {budget}% remaining → {mode} mode")
 
     return True
+
 
 def main():
     """Run all tests."""
@@ -161,7 +166,11 @@ def main():
     try:
         availability_result = asyncio.run(test_model_availability())
         results.append(availability_result)
-        print(f"✓ Model Availability Test passed" if availability_result else f"✗ Model Availability Test failed")
+        print(
+            f"✓ Model Availability Test passed"
+            if availability_result
+            else f"✗ Model Availability Test failed"
+        )
     except Exception as e:
         print(f"✗ Model Availability Test failed with error: {e}")
         results.append(False)
@@ -177,6 +186,7 @@ def main():
     else:
         print("❌ Some tests failed. Check configuration.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

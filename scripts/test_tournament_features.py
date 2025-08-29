@@ -14,7 +14,9 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.infrastructure.config.settings import Config
-from src.infrastructure.external_apis.tournament_asknews_client import TournamentAskNewsClient
+from src.infrastructure.external_apis.tournament_asknews_client import (
+    TournamentAskNewsClient,
+)
 from src.infrastructure.external_apis.metaculus_proxy_client import MetaculusProxyClient
 from src.main import MetaculusForecastingBot
 
@@ -37,8 +39,10 @@ async def test_tournament_features():
         print(f"   📊 Confidence: {result['forecast']['confidence']:.3f}")
 
         # Check for tournament optimizations in metadata
-        if 'error' in result['metadata']:
-            print(f"   ⚠️  Research error handled: {result['metadata']['error'][:50]}...")
+        if "error" in result["metadata"]:
+            print(
+                f"   ⚠️  Research error handled: {result['metadata']['error'][:50]}..."
+            )
         else:
             print(f"   ✅ Research completed successfully")
 
@@ -54,12 +58,18 @@ async def test_tournament_features():
 
         print(f"   ✅ Ensemble forecast successful")
         print(f"   📊 Agents used: {len(ensemble_result['individual_forecasts'])}")
-        print(f"   📊 Ensemble prediction: {ensemble_result['ensemble_forecast']['prediction']:.3f}")
-        print(f"   📊 Consensus strength: {ensemble_result['metadata']['consensus_strength']:.3f}")
+        print(
+            f"   📊 Ensemble prediction: {ensemble_result['ensemble_forecast']['prediction']:.3f}"
+        )
+        print(
+            f"   📊 Consensus strength: {ensemble_result['metadata']['consensus_strength']:.3f}"
+        )
 
         # Check individual agent results
-        for i, forecast in enumerate(ensemble_result['individual_forecasts']):
-            print(f"      Agent {i+1} ({forecast['agent']}): {forecast['prediction']:.3f}")
+        for i, forecast in enumerate(ensemble_result["individual_forecasts"]):
+            print(
+                f"      Agent {i+1} ({forecast['agent']}): {forecast['prediction']:.3f}"
+            )
 
     except Exception as e:
         print(f"   ❌ Ensemble forecast failed: {e}")
@@ -69,7 +79,9 @@ async def test_tournament_features():
     print("\n3. Testing Batch Processing...")
     try:
         question_ids = [12347, 12348, 12349]
-        batch_results = await bot.forecast_questions_batch(question_ids, "chain_of_thought")
+        batch_results = await bot.forecast_questions_batch(
+            question_ids, "chain_of_thought"
+        )
 
         successful = len([r for r in batch_results if "error" not in r])
         print(f"   ✅ Batch processing completed")
@@ -90,7 +102,9 @@ async def test_tournament_features():
         print(f"   ✅ Tournament mode completed")
         print(f"   📊 Tournament ID: {tournament_results['tournament_id']}")
         print(f"   📊 Total questions: {tournament_results['total_questions']}")
-        print(f"   📊 Successful forecasts: {tournament_results['successful_forecasts']}")
+        print(
+            f"   📊 Successful forecasts: {tournament_results['successful_forecasts']}"
+        )
         print(f"   📊 Success rate: {tournament_results['success_rate']:.1f}%")
 
     except Exception as e:
@@ -104,14 +118,18 @@ async def test_tournament_features():
         proxy_stats = bot.metaculus_proxy.get_usage_stats()
 
         print(f"   ✅ Resource management working")
-        print(f"   📊 AskNews quota usage: {asknews_stats['quota_usage_percentage']:.1f}%")
+        print(
+            f"   📊 AskNews quota usage: {asknews_stats['quota_usage_percentage']:.1f}%"
+        )
         print(f"   📊 AskNews success rate: {asknews_stats['success_rate']:.1f}%")
         print(f"   📊 Proxy requests: {proxy_stats['total_requests']}")
         print(f"   📊 Proxy fallback rate: {proxy_stats['fallback_rate']:.1f}%")
 
         # Check quota limits
-        if asknews_stats['quota_usage_percentage'] > 80:
-            print(f"   ⚠️  Warning: AskNews quota usage high ({asknews_stats['quota_usage_percentage']:.1f}%)")
+        if asknews_stats["quota_usage_percentage"] > 80:
+            print(
+                f"   ⚠️  Warning: AskNews quota usage high ({asknews_stats['quota_usage_percentage']:.1f}%)"
+            )
 
     except Exception as e:
         print(f"   ❌ Resource management failed: {e}")
@@ -124,11 +142,15 @@ async def test_tournament_features():
         fallback_result = await bot.forecast_question(999999, "chain_of_thought")
 
         print(f"   ✅ Fallback mechanisms working")
-        print(f"   📊 Fallback prediction: {fallback_result['forecast']['prediction']:.3f}")
+        print(
+            f"   📊 Fallback prediction: {fallback_result['forecast']['prediction']:.3f}"
+        )
 
         # Check if error was handled gracefully
-        if 'error' in fallback_result['metadata']:
-            print(f"   ✅ Error handled gracefully: {fallback_result['metadata']['error'][:50]}...")
+        if "error" in fallback_result["metadata"]:
+            print(
+                f"   ✅ Error handled gracefully: {fallback_result['metadata']['error'][:50]}..."
+            )
 
     except Exception as e:
         print(f"   ❌ Error handling failed: {e}")

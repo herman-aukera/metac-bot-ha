@@ -13,6 +13,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+
 def load_env_file():
     """Load environment variables from .env file."""
     env_file = project_root / ".env"
@@ -20,21 +21,22 @@ def load_env_file():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key] = value
+
 
 def test_openrouter_base_configuration():
     """Test OpenRouter base configuration."""
     print("🔧 OPENROUTER BASE CONFIGURATION TEST")
-    print("="*50)
+    print("=" * 50)
 
     # Check required OpenRouter configuration
     config_items = {
         "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY"),
         "OPENROUTER_BASE_URL": os.getenv("OPENROUTER_BASE_URL"),
         "OPENROUTER_HTTP_REFERER": os.getenv("OPENROUTER_HTTP_REFERER"),
-        "OPENROUTER_APP_TITLE": os.getenv("OPENROUTER_APP_TITLE")
+        "OPENROUTER_APP_TITLE": os.getenv("OPENROUTER_APP_TITLE"),
     }
 
     all_configured = True
@@ -44,21 +46,28 @@ def test_openrouter_base_configuration():
         if not value:
             all_configured = False
 
-    print(f"\nOpenRouter Configuration: {'✓ Complete' if all_configured else '✗ Incomplete'}")
+    print(
+        f"\nOpenRouter Configuration: {'✓ Complete' if all_configured else '✗ Incomplete'}"
+    )
     return all_configured
+
 
 def test_model_names():
     """Test corrected model names."""
     print("\n🤖 MODEL NAMES TEST")
-    print("="*50)
+    print("=" * 50)
 
     # Test actual model names from environment
     models = {
         "DEFAULT_MODEL": os.getenv("DEFAULT_MODEL", "openai/gpt-4o"),
         "MINI_MODEL": os.getenv("MINI_MODEL", "openai/gpt-4o-mini"),
         "NANO_MODEL": os.getenv("NANO_MODEL", "meta-llama/llama-3.1-8b-instruct"),
-        "FORECAST_MODEL": os.getenv("FORECAST_MODEL", "anthropic/claude-3-5-sonnet-20241022"),
-        "RESEARCH_MODEL": os.getenv("RESEARCH_MODEL", "perplexity/llama-3.1-sonar-large-128k-online")
+        "FORECAST_MODEL": os.getenv(
+            "FORECAST_MODEL", "anthropic/claude-3-5-sonnet-20241022"
+        ),
+        "RESEARCH_MODEL": os.getenv(
+            "RESEARCH_MODEL", "perplexity/llama-3.1-sonar-large-128k-online"
+        ),
     }
 
     print("Configured Models:")
@@ -78,10 +87,11 @@ def test_model_names():
             status = "✓" if is_free else "⚠"
             print(f"  {status} {model}")
 
+
 def test_pricing_awareness():
     """Test pricing configuration awareness."""
     print("\n💰 PRICING AWARENESS TEST")
-    print("="*50)
+    print("=" * 50)
 
     # Expected pricing for OpenRouter models (approximate)
     expected_pricing = {
@@ -89,7 +99,7 @@ def test_pricing_awareness():
         "openai/gpt-4o-mini": {"input": 0.15, "output": 0.60},
         "meta-llama/llama-3.1-8b-instruct": {"input": 0.07, "output": 0.07},
         "anthropic/claude-3-5-sonnet-20241022": {"input": 3.0, "output": 15.0},
-        "perplexity/llama-3.1-sonar-large-128k-online": {"input": 1.0, "output": 1.0}
+        "perplexity/llama-3.1-sonar-large-128k-online": {"input": 1.0, "output": 1.0},
     }
 
     print("Expected Pricing (per 1M tokens):")
@@ -105,10 +115,11 @@ def test_pricing_awareness():
     print(f"  Full tier (gpt-4o): $5-15/1M - Premium forecasting")
     print(f"  Free tier: $0/1M - Budget exhaustion fallback")
 
+
 def test_free_fallback_models():
     """Test free fallback model configuration."""
     print("\n🆓 FREE FALLBACK MODELS TEST")
-    print("="*50)
+    print("=" * 50)
 
     free_models_str = os.getenv("FREE_FALLBACK_MODELS", "")
     if not free_models_str:
@@ -118,10 +129,7 @@ def test_free_fallback_models():
     free_models = [model.strip() for model in free_models_str.split(",")]
 
     # Expected free models based on OpenRouter documentation
-    expected_free = [
-        "openai/gpt-oss-20b:free",
-        "moonshotai/kimi-k2:free"
-    ]
+    expected_free = ["openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free"]
 
     print("Configured Free Models:")
     all_correct = True
@@ -132,13 +140,16 @@ def test_free_fallback_models():
             print(f"  ⚠ {model} - Needs verification")
             all_correct = False
 
-    print(f"\nFree Models Configuration: {'✓ Correct' if all_correct else '⚠ Needs Review'}")
+    print(
+        f"\nFree Models Configuration: {'✓ Correct' if all_correct else '⚠ Needs Review'}"
+    )
     return all_correct
+
 
 def test_environment_configuration():
     """Test overall environment configuration."""
     print("\n🌍 ENVIRONMENT CONFIGURATION TEST")
-    print("="*50)
+    print("=" * 50)
 
     # Check budget configuration
     budget_limit = os.getenv("BUDGET_LIMIT", "100.0")
@@ -164,10 +175,11 @@ def test_environment_configuration():
     print(f"  Tournament ID: {tournament_id}")
     print(f"  Publish Reports: {publish_reports}")
 
+
 async def test_model_availability():
     """Test actual model availability via OpenRouter."""
     print("\n🔍 MODEL AVAILABILITY TEST")
-    print("="*50)
+    print("=" * 50)
 
     try:
         from src.infrastructure.config.tri_model_router import OpenRouterTriModelRouter
@@ -183,7 +195,9 @@ async def test_model_availability():
         available_count = sum(availability.values())
         total_count = len(availability)
 
-        print(f"\nAvailability Summary: {available_count}/{total_count} models available")
+        print(
+            f"\nAvailability Summary: {available_count}/{total_count} models available"
+        )
 
         if available_count == 0:
             print("⚠ WARNING: No models available - check API key and configuration")
@@ -198,10 +212,11 @@ async def test_model_availability():
         print(f"✗ Model availability test failed: {e}")
         return False
 
+
 def main():
     """Run all OpenRouter configuration tests."""
     print("🧪 OPENROUTER CONFIGURATION TEST SUITE")
-    print("="*60)
+    print("=" * 60)
 
     # Load environment
     load_env_file()
@@ -233,9 +248,9 @@ def main():
         results.append(("Model Availability", False))
 
     # Summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST SUMMARY")
-    print("="*60)
+    print("=" * 60)
 
     passed = 0
     for test_name, result in results:
@@ -253,6 +268,7 @@ def main():
         print("⚠ Some tests failed. Review configuration before deployment.")
 
     return passed == total
+
 
 if __name__ == "__main__":
     success = main()

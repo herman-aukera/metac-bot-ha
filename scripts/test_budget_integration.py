@@ -24,6 +24,7 @@ if not os.getenv("METACULUS_TOKEN"):
 if not os.getenv("BUDGET_LIMIT"):
     os.environ["BUDGET_LIMIT"] = "100.0"
 
+
 def test_enhanced_llm_config():
     """Test enhanced LLM configuration."""
     print("=== Testing Enhanced LLM Configuration ===")
@@ -45,15 +46,21 @@ def test_enhanced_llm_config():
         print(f"Details: {details}")
 
         # Test affordability check
-        can_afford, afford_details = enhanced_llm_config.can_afford_task(test_prompt, "forecast")
+        can_afford, afford_details = enhanced_llm_config.can_afford_task(
+            test_prompt, "forecast"
+        )
         print(f"Can afford forecast task: {can_afford}")
 
         # Test question complexity assessment
         simple_question = "Will it rain tomorrow?"
         complex_question = "What will be the geopolitical implications of the upcoming international trade negotiations on global economic stability?"
 
-        simple_complexity = enhanced_llm_config.assess_question_complexity(simple_question)
-        complex_complexity = enhanced_llm_config.assess_question_complexity(complex_question)
+        simple_complexity = enhanced_llm_config.assess_question_complexity(
+            simple_question
+        )
+        complex_complexity = enhanced_llm_config.assess_question_complexity(
+            complex_question
+        )
 
         print(f"Simple question complexity: {simple_complexity}")
         print(f"Complex question complexity: {complex_complexity}")
@@ -66,10 +73,12 @@ def test_enhanced_llm_config():
     except Exception as e:
         print(f"❌ Enhanced LLM Configuration test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     return True
+
 
 def test_budget_workflow():
     """Test complete budget workflow."""
@@ -89,13 +98,17 @@ def test_budget_workflow():
         """
 
         # Check if we can afford the task
-        can_afford, details = enhanced_llm_config.can_afford_task(research_prompt, "research")
+        can_afford, details = enhanced_llm_config.can_afford_task(
+            research_prompt, "research"
+        )
         print(f"Can afford research task: {can_afford}")
         print(f"Estimated cost: ${details['estimated_cost']:.4f}")
 
         if can_afford:
             # Simulate task completion
-            mock_response = "Based on recent Federal Reserve statements and economic indicators..."
+            mock_response = (
+                "Based on recent Federal Reserve statements and economic indicators..."
+            )
 
             # Record the task completion
             actual_cost = enhanced_llm_config.record_task_completion(
@@ -104,7 +117,7 @@ def test_budget_workflow():
                 response=mock_response,
                 task_type="research",
                 model_used=details["model"],
-                success=True
+                success=True,
             )
 
             print(f"Recorded actual cost: ${actual_cost:.4f}")
@@ -124,10 +137,12 @@ def test_budget_workflow():
     except Exception as e:
         print(f"❌ Budget Workflow test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     return True
+
 
 def test_emergency_mode_simulation():
     """Test emergency mode behavior."""
@@ -144,7 +159,9 @@ def test_emergency_mode_simulation():
         # Simulate high budget usage (96% used)
         budget_manager.current_spend = budget_manager.budget_limit * 0.96
 
-        print(f"Simulated budget usage: {(budget_manager.current_spend / budget_manager.budget_limit) * 100:.1f}%")
+        print(
+            f"Simulated budget usage: {(budget_manager.current_spend / budget_manager.budget_limit) * 100:.1f}%"
+        )
 
         # Test model selection in emergency mode
         status = budget_manager.get_budget_status()
@@ -156,6 +173,7 @@ def test_emergency_mode_simulation():
 
         # Test alert generation
         from infrastructure.config.budget_alerts import budget_alert_system
+
         alert = budget_alert_system.check_and_alert()
         if alert:
             print(f"Emergency alert: {alert.alert_type} - {alert.message}")
@@ -174,10 +192,12 @@ def test_emergency_mode_simulation():
     except Exception as e:
         print(f"❌ Emergency Mode Simulation test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     return True
+
 
 def main():
     """Run all integration tests."""
@@ -215,6 +235,7 @@ def main():
     else:
         print("❌ Some integration tests failed!")
         return 1
+
 
 if __name__ == "__main__":
     exit(main())

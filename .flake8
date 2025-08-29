@@ -1,0 +1,39 @@
+[flake8]
+max-line-length = 88
+ignore =
+    # Line length and formatting (handled by black)
+    E501, E203, W503, W291,
+    # Import issues (common in development)
+    F401, F403, F811, F841,
+    # String formatting (f-strings without placeholders are sometimes intentional)
+    F541,
+    # Exception handling (bare except sometimes needed for robustness)
+    E722,
+    # Comparison style (sometimes more readable)
+    E712,
+    # Import order (handled by isort)
+    E402,
+    # Arithmetic operators (sometimes more readable without spaces)
+    E226,
+    # Undefined names (handled by mypy)
+    F821,
+    # Whitespace issues
+    W293,
+    # Import shadowing (sometimes intentional)
+    F402
+per-file-ignores =
+    # Test files can have more relaxed rules
+    tests/*:F401,F403,F811,F841,E501,E203,W503,W291,F541,E722,E712,E402,E226,F821
+    # __init__.py files often have unused imports for re-exports
+    __init__.py:F401,F403
+    # Scripts can be more relaxed
+    scripts/*:F401,F403,F811,F841,E501,E203,W503,W291,F541,E722,E712,E402,E226,F821
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .env,
+    build,
+    dist,
+    *.egg-info,
+    migrations

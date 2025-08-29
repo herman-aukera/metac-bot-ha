@@ -26,38 +26,36 @@ async def test_basic_orchestrator_integration():
             "provider": "openai",
             "model": "gpt-4",
             "temperature": 0.3,
-            "api_key": "test-key"
+            "api_key": "test-key",
         },
-        "search": {
-            "provider": "multi_source",
-            "max_results": 10
-        },
+        "search": {"provider": "multi_source", "max_results": 10},
         "metaculus": {
             "base_url": "https://test.metaculus.com/api",
             "tournament_id": 12345,
-            "dry_run": True
+            "dry_run": True,
         },
         "pipeline": {
             "max_concurrent_questions": 2,
-            "default_agent_names": ["ensemble"]
+            "default_agent_names": ["ensemble"],
         },
-        "bot": {
-            "name": "TestBot",
-            "version": "1.0.0"
-        },
-        "logging": {
-            "level": "INFO"
-        }
+        "bot": {"name": "TestBot", "version": "1.0.0"},
+        "logging": {"level": "INFO"},
     }
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(config_data, f)
         config_path = f.name
 
     try:
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -116,10 +114,10 @@ async def test_config_manager_integration():
         # Create initial config
         config_data = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test"},
-            "bot": {"name": "TestBot", "version": "1.0.0"}
+            "bot": {"name": "TestBot", "version": "1.0.0"},
         }
 
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
         # Test config manager
@@ -127,7 +125,7 @@ async def test_config_manager_integration():
             config_paths=[str(config_file)],
             watch_directories=[str(config_dir)],
             enable_hot_reload=False,  # Disable for testing
-            validation_enabled=True
+            validation_enabled=True,
         )
 
         settings = await config_manager.initialize()
@@ -136,7 +134,7 @@ async def test_config_manager_integration():
 
         # Test manual reload
         config_data["bot"]["name"] = "UpdatedBot"
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
         new_settings = await config_manager.reload_configuration()
@@ -161,20 +159,32 @@ async def test_dependency_injection():
     config_data = {
         "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test"},
         "search": {"provider": "multi_source"},
-        "metaculus": {"base_url": "https://test.metaculus.com/api", "tournament_id": 12345},
-        "pipeline": {"max_concurrent_questions": 2, "default_agent_names": ["ensemble"]},
+        "metaculus": {
+            "base_url": "https://test.metaculus.com/api",
+            "tournament_id": 12345,
+        },
+        "pipeline": {
+            "max_concurrent_questions": 2,
+            "default_agent_names": ["ensemble"],
+        },
         "bot": {"name": "TestBot", "version": "1.0.0"},
-        "logging": {"level": "INFO"}
+        "logging": {"level": "INFO"},
     }
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(config_data, f)
         config_path = f.name
 
     try:
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -188,17 +198,33 @@ async def test_dependency_injection():
 
             # Verify dependency injection
             required_components = [
-                'settings', 'llm_client', 'search_client', 'metaculus_client',
-                'circuit_breaker', 'rate_limiter', 'health_monitor', 'retry_manager',
-                'reasoning_logger', 'dispatcher', 'forecast_service', 'ingestion_service',
-                'ensemble_service', 'forecasting_service', 'research_service',
-                'tournament_analytics', 'performance_tracking', 'calibration_service',
-                'risk_management_service', 'forecasting_pipeline'
+                "settings",
+                "llm_client",
+                "search_client",
+                "metaculus_client",
+                "circuit_breaker",
+                "rate_limiter",
+                "health_monitor",
+                "retry_manager",
+                "reasoning_logger",
+                "dispatcher",
+                "forecast_service",
+                "ingestion_service",
+                "ensemble_service",
+                "forecasting_service",
+                "research_service",
+                "tournament_analytics",
+                "performance_tracking",
+                "calibration_service",
+                "risk_management_service",
+                "forecasting_pipeline",
             ]
 
             for component in required_components:
                 assert hasattr(registry, component), f"Missing component: {component}"
-                assert getattr(registry, component) is not None, f"Component is None: {component}"
+                assert (
+                    getattr(registry, component) is not None
+                ), f"Component is None: {component}"
 
             print("✓ All required components are present")
 
@@ -230,6 +256,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Integration test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

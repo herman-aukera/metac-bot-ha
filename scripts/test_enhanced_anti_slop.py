@@ -12,16 +12,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
     from prompts.anti_slop_prompts import anti_slop_prompts
+
     print("✓ Successfully imported enhanced anti-slop prompts")
 except ImportError as e:
     print(f"✗ Import failed: {e}")
     sys.exit(1)
 
+
 def test_base_directives():
     """Test enhanced base anti-slop directives."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING ENHANCED BASE ANTI-SLOP DIRECTIVES")
-    print("="*60)
+    print("=" * 60)
 
     directives = anti_slop_prompts.get_base_anti_slop_directives()
 
@@ -36,7 +38,7 @@ def test_base_directives():
         "UNCERTAINTY ACKNOWLEDGMENT",
         "STRUCTURED OUTPUT",
         "TOURNAMENT CALIBRATION",
-        "QUALITY VERIFICATION CHECKLIST"
+        "QUALITY VERIFICATION CHECKLIST",
     ]
 
     print("\nKey Components Check:")
@@ -46,11 +48,12 @@ def test_base_directives():
         else:
             print(f"  ✗ {component} - MISSING")
 
+
 def test_research_prompt():
     """Test enhanced research prompt generation."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING ENHANCED RESEARCH PROMPT")
-    print("="*60)
+    print("=" * 60)
 
     sample_question = "Will GPT-5 be released by OpenAI before the end of 2025?"
 
@@ -73,11 +76,12 @@ def test_research_prompt():
         else:
             print(f"  ⚠ {tier} tier-specific optimization may be missing")
 
+
 def test_forecasting_prompt():
     """Test enhanced binary forecasting prompt."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING ENHANCED BINARY FORECASTING PROMPT")
-    print("="*60)
+    print("=" * 60)
 
     sample_data = {
         "question_text": "Will GPT-5 be released by OpenAI before the end of 2025?",
@@ -85,7 +89,7 @@ def test_forecasting_prompt():
         "resolution_criteria": "This question resolves positively if...",
         "fine_print": "Additional details...",
         "research": "Recent research findings indicate...",
-        "model_tier": "full"
+        "model_tier": "full",
     }
 
     prompt = anti_slop_prompts.get_binary_forecast_prompt(**sample_data)
@@ -101,7 +105,7 @@ def test_forecasting_prompt():
         "CALIBRATION & OVERCONFIDENCE MITIGATION",
         "SCENARIO ANALYSIS REQUIREMENTS",
         "SYSTEMATIC ANALYSIS PROTOCOL",
-        "Calibration Check"
+        "Calibration Check",
     ]
 
     print("\nAdvanced Features Check:")
@@ -111,11 +115,12 @@ def test_forecasting_prompt():
         else:
             print(f"  ✗ {feature} - MISSING")
 
+
 def test_validation_prompt():
     """Test enhanced validation prompt."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING ENHANCED VALIDATION PROMPT")
-    print("="*60)
+    print("=" * 60)
 
     sample_content = "Based on recent developments, there is a 75% probability..."
     task_type = "forecast"
@@ -132,7 +137,7 @@ def test_validation_prompt():
         "EVIDENCE VERIFICATION",
         "LOGICAL CONSISTENCY ANALYSIS",
         "CALIBRATION ASSESSMENT",
-        "COMPREHENSIVE VALIDATION CHECKLIST"
+        "COMPREHENSIVE VALIDATION CHECKLIST",
     ]
 
     print("\nValidation Features Check:")
@@ -142,18 +147,21 @@ def test_validation_prompt():
         else:
             print(f"  ✗ {feature} - MISSING")
 
+
 def test_new_methods():
     """Test new advanced prompt methods."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING NEW ADVANCED PROMPT METHODS")
-    print("="*60)
+    print("=" * 60)
 
     # Test Chain-of-Verification prompt
     print("\n1. Chain-of-Verification Prompt:")
     print("-" * 30)
 
     sample_response = "The probability is 80% based on recent market trends..."
-    cov_prompt = anti_slop_prompts.get_chain_of_verification_prompt(sample_response, "forecast")
+    cov_prompt = anti_slop_prompts.get_chain_of_verification_prompt(
+        sample_response, "forecast"
+    )
 
     print(cov_prompt[:400] + "..." if len(cov_prompt) > 400 else cov_prompt)
 
@@ -169,7 +177,9 @@ def test_new_methods():
     sample_question = "Will AI achieve AGI by 2030?"
     sample_forecast = "65% probability based on current progress..."
 
-    meta_prompt = anti_slop_prompts.get_meta_reasoning_prompt(sample_question, sample_forecast)
+    meta_prompt = anti_slop_prompts.get_meta_reasoning_prompt(
+        sample_question, sample_forecast
+    )
 
     print(meta_prompt[:400] + "..." if len(meta_prompt) > 400 else meta_prompt)
 
@@ -178,11 +188,12 @@ def test_new_methods():
     else:
         print("  ✗ Meta-reasoning protocol missing")
 
+
 def test_prompt_quality():
     """Test overall prompt quality and consistency."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING PROMPT QUALITY AND CONSISTENCY")
-    print("="*60)
+    print("=" * 60)
 
     # Generate multiple prompts and check consistency
     sample_question = "Test question for quality assessment"
@@ -213,11 +224,12 @@ def test_prompt_quality():
         else:
             print(f"  ✗ {name}: Anti-slop directives missing")
 
+
 def print_summary():
     """Print test summary and key improvements."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("ENHANCED ANTI-SLOP PROMPTS - TEST SUMMARY")
-    print("="*60)
+    print("=" * 60)
 
     print("\nKey Enhancements Implemented:")
     print("  ✓ Chain-of-Verification (CoVe) protocol for internal reasoning")
@@ -252,6 +264,7 @@ def print_summary():
     print("  4. Monitor validation scores for quality assurance")
     print("  5. Calibrate based on tournament feedback")
 
+
 def main():
     """Run all tests for enhanced anti-slop prompts."""
     print("Enhanced Anti-Slop Prompts Test Suite")
@@ -266,18 +279,20 @@ def main():
         test_prompt_quality()
         print_summary()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ALL TESTS COMPLETED SUCCESSFULLY")
         print("Enhanced anti-slop prompts are ready for tournament use!")
-        print("="*60)
+        print("=" * 60)
 
     except Exception as e:
         print(f"\n❌ Test failed with error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     exit_code = main()
