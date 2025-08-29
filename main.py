@@ -21,6 +21,7 @@ from forecasting_tools import (
     MultipleChoiceQuestion,
     NumericDistribution,
     NumericQuestion,
+    PredictedOption,
     PredictedOptionList,
     PredictionExtractor,
     ReasonedPrediction,
@@ -1494,10 +1495,13 @@ Be very clear about what information may be outdated or incomplete.
         except Exception as e:
             logger.warning(f"Multiple choice prediction extraction failed for {question_id}: {e}")
             # Create default equal probability distribution
+            from forecasting_tools import PredictedOption
             equal_prob = 1.0 / len(question.options)
-            prediction = PredictedOptionList([
-                (option, equal_prob) for option in question.options
-            ])
+            predicted_options = [
+                PredictedOption(option_name=option, probability=equal_prob)
+                for option in question.options
+            ]
+            prediction = PredictedOptionList(predicted_options=predicted_options)
 
         logger.info(
             f"Multiple choice forecast completed for URL {question.page_url} "
@@ -1630,9 +1634,18 @@ Be very clear about what information may be outdated or incomplete.
                                     percentiles[int(key)] = float(value)
 
                             if percentiles:
+                                from forecasting_tools.data_models.numeric_report import Percentile
+                                percentile_list = [
+                                    Percentile(percentile=float(p)/100.0, value=float(v))
+                                    for p, v in percentiles.items()
+                                ]
                                 prediction = NumericDistribution(
-                                    declared_percentiles=percentiles,
-                                    unit_of_measure=question.unit_of_measure
+                                    declared_percentiles=percentile_list,
+                                    open_upper_bound=question.open_upper_bound,
+                                    open_lower_bound=question.open_lower_bound,
+                                    upper_bound=question.upper_bound,
+                                    lower_bound=question.lower_bound,
+                                    zero_point=None
                                 )
                             else:
                                 # Fallback extraction from reasoning
@@ -1773,13 +1786,19 @@ Be very clear about what information may be outdated or incomplete.
                 not question.open_lower_bound and not question.open_upper_bound
             ) else 1.0
 
+            from forecasting_tools.data_models.numeric_report import Percentile
+            percentiles = [
+                Percentile(percentile=0.1, value=median_estimate * 0.5),
+                Percentile(percentile=0.5, value=median_estimate),
+                Percentile(percentile=0.9, value=median_estimate * 1.5)
+            ]
             prediction = NumericDistribution(
-                declared_percentiles={
-                    10: median_estimate * 0.5,
-                    50: median_estimate,
-                    90: median_estimate * 1.5
-                },
-                unit_of_measure=question.unit_of_measure
+                declared_percentiles=percentiles,
+                open_upper_bound=question.open_upper_bound,
+                open_lower_bound=question.open_lower_bound,
+                upper_bound=question.upper_bound,
+                lower_bound=question.lower_bound,
+                zero_point=None
             )
 
         logger.info(
