@@ -1,25 +1,27 @@
 """Competitive pressure testing for tournament conditions."""
 
-import pytest
 import asyncio
-import time
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
-from unittest.mock import Mock, AsyncMock, patch
-from dataclasses import dataclass
 import random
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.domain.entities.question import Question, QuestionType
-from src.domain.entities.forecast import Forecast
-from src.domain.value_objects.probability import Probability
-from src.domain.value_objects.confidence import Confidence
+import pytest
+
 from src.application.forecast_service import ForecastService
+from src.domain.entities.forecast import Forecast
+from src.domain.entities.question import Question, QuestionType
 from src.domain.services.ensemble_service import EnsembleService
+from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.probability import Probability
 
 
 @dataclass
 class CompetitivePressureTest:
     """Defines a competitive pressure test scenario."""
+
     name: str
     time_pressure_factor: float  # 0.1 = very tight, 1.0 = normal
     resource_pressure_factor: float  # 0.1 = very limited, 1.0 = normal
@@ -35,7 +37,9 @@ class CompetitivePressureTester:
         self.forecast_service = forecast_service
         self.baseline_performance = None
 
-    async def establish_baseline(self, questions: List[Dict[str, Any]]) -> Dict[str, float]:
+    async def establish_baseline(
+        self, questions: List[Dict[str, Any]]
+    ) -> Dict[str, float]:
         """Establish baseline performance under normal conditions."""
         start_time = time.time()
         forecasts = []
@@ -47,7 +51,7 @@ class CompetitivePressureTester:
                 forecast = await self.forecast_service.generate_forecast(
                     question=question,
                     agent_types=["chain_of_thought"],
-                    timeout=300  # Normal timeout
+                    timeout=300,  # Normal timeout
                 )
                 forecasts.append(forecast)
             except Exception as e:
@@ -57,17 +61,19 @@ class CompetitivePressureTester:
 
         self.baseline_performance = {
             "completion_rate": len(forecasts) / len(questions),
-            "avg_confidence": sum(f.confidence.value for f in forecasts) / len(forecasts) if forecasts else 0,
+            "avg_confidence": (
+                sum(f.confidence.value for f in forecasts) / len(forecasts)
+                if forecasts
+                else 0
+            ),
             "avg_execution_time": execution_time / len(questions),
-            "error_rate": (len(questions) - len(forecasts)) / len(questions)
+            "error_rate": (len(questions) - len(forecasts)) / len(questions),
         }
 
         return self.baseline_performance
 
     async def test_competitive_pressure(
-        self,
-        pressure_test: CompetitivePressureTest,
-        questions: List[Dict[str, Any]]
+        self, pressure_test: CompetitivePressureTest, questions: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Test system under competitive pressure conditions."""
         if not self.baseline_performance:
@@ -82,7 +88,9 @@ class CompetitivePressureTester:
         pressure_timeout = int(base_timeout * pressure_test.time_pressure_factor)
 
         # Apply resource pressure by limiting concurrent operations
-        semaphore = asyncio.Semaphore(max(1, int(5 * pressure_test.resource_pressure_factor)))
+        semaphore = asyncio.Semaphore(
+            max(1, int(5 * pressure_test.resource_pressure_factor))
+        )
 
         async def process_question_under_pressure(question_data):
             async with semaphore:
@@ -97,9 +105,9 @@ class CompetitivePressureTester:
                             question=question,
                             agent_types=["chain_of_thought"],
                             timeout=pressure_timeout,
-                            research_time_limit=research_time
+                            research_time_limit=research_time,
                         ),
-                        timeout=pressure_timeout
+                        timeout=pressure_timeout,
                     )
                     return forecast
 
@@ -115,7 +123,7 @@ class CompetitivePressureTester:
             # Concurrent processing adds pressure
             tasks = [
                 process_question_under_pressure(q)
-                for q in questions[:pressure_test.concurrent_questions]
+                for q in questions[: pressure_test.concurrent_questions]
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             forecasts = [r for r in results if isinstance(r, Forecast)]
@@ -131,10 +139,14 @@ class CompetitivePressureTester:
         # Calculate performance under pressure
         pressure_performance = {
             "completion_rate": len(forecasts) / len(questions),
-            "avg_confidence": sum(f.confidence.value for f in forecasts) / len(forecasts) if forecasts else 0,
+            "avg_confidence": (
+                sum(f.confidence.value for f in forecasts) / len(forecasts)
+                if forecasts
+                else 0
+            ),
             "avg_execution_time": execution_time / len(questions),
             "error_rate": len(errors) / len(questions),
-            "total_errors": len(errors)
+            "total_errors": len(errors),
         }
 
         # Calculate performance degradation
@@ -145,13 +157,14 @@ class CompetitivePressureTester:
             "pressure_factors": {
                 "time": pressure_test.time_pressure_factor,
                 "resource": pressure_test.resource_pressure_factor,
-                "accuracy": pressure_test.accuracy_pressure_factor
+                "accuracy": pressure_test.accuracy_pressure_factor,
             },
             "baseline_performance": self.baseline_performance,
             "pressure_performance": pressure_performance,
             "degradation": degradation,
-            "passed": degradation["overall"] <= pressure_test.expected_degradation_threshold,
-            "errors": errors
+            "passed": degradation["overall"]
+            <= pressure_test.expected_degradation_threshold,
+            "errors": errors,
         }
 
     def _create_question(self, question_data: Dict[str, Any]) -> Question:
@@ -164,10 +177,12 @@ class CompetitivePressureTester:
             close_time=datetime.fromisoformat(question_data["close_time"]),
             resolve_time=datetime.fromisoformat(question_data["resolve_time"]),
             categories=question_data.get("categories", []),
-            tags=question_data.get("tags", [])
+            tags=question_data.get("tags", []),
         )
 
-    def _calculate_degradation(self, pressure_performance: Dict[str, float]) -> Dict[str, float]:
+    def _calculate_degradation(
+        self, pressure_performance: Dict[str, float]
+    ) -> Dict[str, float]:
         """Calculate performance degradation compared to baseline."""
         if not self.baseline_performance:
             return {"overall": 1.0}
@@ -177,23 +192,35 @@ class CompetitivePressureTester:
         # Completion rate degradation (lower is worse)
         baseline_completion = self.baseline_performance["completion_rate"]
         pressure_completion = pressure_performance["completion_rate"]
-        degradation["completion_rate"] = max(0, (baseline_completion - pressure_completion) / baseline_completion) if baseline_completion > 0 else 0
+        degradation["completion_rate"] = (
+            max(0, (baseline_completion - pressure_completion) / baseline_completion)
+            if baseline_completion > 0
+            else 0
+        )
 
         # Confidence degradation (lower is worse)
         baseline_confidence = self.baseline_performance["avg_confidence"]
         pressure_confidence = pressure_performance["avg_confidence"]
-        degradation["confidence"] = max(0, (baseline_confidence - pressure_confidence) / baseline_confidence) if baseline_confidence > 0 else 0
+        degradation["confidence"] = (
+            max(0, (baseline_confidence - pressure_confidence) / baseline_confidence)
+            if baseline_confidence > 0
+            else 0
+        )
 
         # Error rate degradation (higher is worse)
         baseline_errors = self.baseline_performance["error_rate"]
         pressure_errors = pressure_performance["error_rate"]
-        degradation["error_rate"] = max(0, (pressure_errors - baseline_errors) / (1 - baseline_errors)) if baseline_errors < 1 else 1
+        degradation["error_rate"] = (
+            max(0, (pressure_errors - baseline_errors) / (1 - baseline_errors))
+            if baseline_errors < 1
+            else 1
+        )
 
         # Overall degradation (weighted average)
         degradation["overall"] = (
-            degradation["completion_rate"] * 0.4 +
-            degradation["confidence"] * 0.3 +
-            degradation["error_rate"] * 0.3
+            degradation["completion_rate"] * 0.4
+            + degradation["confidence"] * 0.3
+            + degradation["error_rate"] * 0.3
         )
 
         return degradation
@@ -220,7 +247,7 @@ class TestCompetitivePressure:
                 "close_time": "2025-12-01T00:00:00Z",
                 "resolve_time": "2026-12-31T00:00:00Z",
                 "categories": ["Technology", "Computing"],
-                "tags": ["quantum-computing", "breakthrough"]
+                "tags": ["quantum-computing", "breakthrough"],
             },
             {
                 "id": 4002,
@@ -230,7 +257,7 @@ class TestCompetitivePressure:
                 "close_time": "2026-12-01T00:00:00Z",
                 "resolve_time": "2027-12-31T00:00:00Z",
                 "categories": ["Energy", "Environment"],
-                "tags": ["renewable-energy", "global"]
+                "tags": ["renewable-energy", "global"],
             },
             {
                 "id": 4003,
@@ -240,22 +267,27 @@ class TestCompetitivePressure:
                 "close_time": "2027-12-01T00:00:00Z",
                 "resolve_time": "2028-12-31T00:00:00Z",
                 "categories": ["Transportation", "Technology"],
-                "tags": ["autonomous-vehicles", "mainstream"]
-            }
+                "tags": ["autonomous-vehicles", "mainstream"],
+            },
         ]
 
     @pytest.mark.asyncio
     async def test_time_pressure_effects(self, pressure_tester, test_questions):
         """Test effects of time pressure on forecasting performance."""
+
         # Mock forecast service with time-sensitive behavior
-        async def mock_time_sensitive_forecast(question, agent_types, timeout, **kwargs):
+        async def mock_time_sensitive_forecast(
+            question, agent_types, timeout, **kwargs
+        ):
             # Simulate processing time based on available time
             base_processing_time = 5.0
             actual_processing_time = min(base_processing_time, timeout * 0.8)
             await asyncio.sleep(actual_processing_time)
 
             # Quality decreases with time pressure
-            time_quality_factor = min(1.0, actual_processing_time / base_processing_time)
+            time_quality_factor = min(
+                1.0, actual_processing_time / base_processing_time
+            )
 
             return Forecast(
                 question_id=question.id,
@@ -264,7 +296,7 @@ class TestCompetitivePressure:
                 reasoning=f"Time-constrained analysis (quality={time_quality_factor:.2f})",
                 method="chain_of_thought",
                 sources=["time_limited_source"],
-                metadata={"processing_time": actual_processing_time}
+                metadata={"processing_time": actual_processing_time},
             )
 
         pressure_tester.forecast_service.generate_forecast = AsyncMock(
@@ -282,10 +314,12 @@ class TestCompetitivePressure:
                 resource_pressure_factor=1.0,
                 accuracy_pressure_factor=1.0,
                 concurrent_questions=1,
-                expected_degradation_threshold=0.3
+                expected_degradation_threshold=0.3,
             )
 
-            result = await pressure_tester.test_competitive_pressure(pressure_test, test_questions)
+            result = await pressure_tester.test_competitive_pressure(
+                pressure_test, test_questions
+            )
             results.append((time_factor, result))
 
         # Verify time pressure effects
@@ -299,7 +333,9 @@ class TestCompetitivePressure:
             assert next_degradation >= current_degradation - 0.1  # Allow some variance
 
             # Completion rate should decrease under higher pressure
-            current_completion = current_result["pressure_performance"]["completion_rate"]
+            current_completion = current_result["pressure_performance"][
+                "completion_rate"
+            ]
             next_completion = next_result["pressure_performance"]["completion_rate"]
             assert next_completion <= current_completion + 0.1
 
@@ -309,7 +345,9 @@ class TestCompetitivePressure:
         # Mock forecast service with resource-sensitive behavior
         call_count = 0
 
-        async def mock_resource_sensitive_forecast(question, agent_types, timeout, **kwargs):
+        async def mock_resource_sensitive_forecast(
+            question, agent_types, timeout, **kwargs
+        ):
             nonlocal call_count
             call_count += 1
 
@@ -326,7 +364,7 @@ class TestCompetitivePressure:
                 reasoning=f"Resource-constrained analysis (quality={resource_quality_factor:.2f})",
                 method="chain_of_thought",
                 sources=["resource_limited_source"],
-                metadata={"resource_usage": call_count}
+                metadata={"resource_usage": call_count},
             )
 
         pressure_tester.forecast_service.generate_forecast = AsyncMock(
@@ -340,24 +378,35 @@ class TestCompetitivePressure:
             resource_pressure_factor=0.3,  # High resource pressure
             accuracy_pressure_factor=1.0,
             concurrent_questions=3,  # Concurrent processing
-            expected_degradation_threshold=0.4
+            expected_degradation_threshold=0.4,
         )
 
-        result = await pressure_tester.test_competitive_pressure(pressure_test, test_questions)
+        result = await pressure_tester.test_competitive_pressure(
+            pressure_test, test_questions
+        )
 
         # Verify resource pressure handling
-        assert result["passed"] or result["degradation"]["overall"] <= 0.5  # Reasonable degradation
-        assert result["pressure_performance"]["completion_rate"] >= 0.6  # Minimum completion
+        assert (
+            result["passed"] or result["degradation"]["overall"] <= 0.5
+        )  # Reasonable degradation
+        assert (
+            result["pressure_performance"]["completion_rate"] >= 0.6
+        )  # Minimum completion
         assert len(result["errors"]) <= 2  # Limited errors
 
     @pytest.mark.asyncio
     async def test_accuracy_pressure_effects(self, pressure_tester, test_questions):
         """Test effects of accuracy pressure on forecasting performance."""
+
         # Mock forecast service with accuracy-sensitive behavior
-        async def mock_accuracy_sensitive_forecast(question, agent_types, timeout, research_time_limit=60, **kwargs):
+        async def mock_accuracy_sensitive_forecast(
+            question, agent_types, timeout, research_time_limit=60, **kwargs
+        ):
             # Simulate research quality based on time limit
             research_quality = min(1.0, research_time_limit / 60.0)
-            await asyncio.sleep(research_time_limit * 0.05)  # Proportional processing time
+            await asyncio.sleep(
+                research_time_limit * 0.05
+            )  # Proportional processing time
 
             # Accuracy pressure affects confidence more than prediction
             base_confidence = 0.8
@@ -370,7 +419,7 @@ class TestCompetitivePressure:
                 reasoning=f"Research-limited analysis (research_time={research_time_limit}s)",
                 method="chain_of_thought",
                 sources=["accuracy_pressure_source"],
-                metadata={"research_time": research_time_limit}
+                metadata={"research_time": research_time_limit},
             )
 
         pressure_tester.forecast_service.generate_forecast = AsyncMock(
@@ -387,14 +436,18 @@ class TestCompetitivePressure:
                 resource_pressure_factor=1.0,
                 accuracy_pressure_factor=accuracy_factor,
                 concurrent_questions=1,
-                expected_degradation_threshold=0.3
+                expected_degradation_threshold=0.3,
             )
 
-            result = await pressure_tester.test_competitive_pressure(pressure_test, test_questions)
+            result = await pressure_tester.test_competitive_pressure(
+                pressure_test, test_questions
+            )
 
             # Verify accuracy pressure effects
             if accuracy_factor < 0.5:  # High pressure
-                assert result["degradation"]["confidence"] >= 0.1  # Confidence should drop
+                assert (
+                    result["degradation"]["confidence"] >= 0.1
+                )  # Confidence should drop
 
             # System should still complete forecasts
             assert result["pressure_performance"]["completion_rate"] >= 0.8
@@ -402,8 +455,11 @@ class TestCompetitivePressure:
     @pytest.mark.asyncio
     async def test_combined_pressure_resilience(self, pressure_tester, test_questions):
         """Test system resilience under combined pressure factors."""
+
         # Mock forecast service with combined pressure effects
-        async def mock_combined_pressure_forecast(question, agent_types, timeout, research_time_limit=60, **kwargs):
+        async def mock_combined_pressure_forecast(
+            question, agent_types, timeout, research_time_limit=60, **kwargs
+        ):
             # All pressure factors combined
             time_factor = min(1.0, timeout / 300.0)
             research_factor = min(1.0, research_time_limit / 60.0)
@@ -424,7 +480,7 @@ class TestCompetitivePressure:
                 reasoning=f"Combined pressure analysis (quality={combined_quality:.2f})",
                 method="chain_of_thought",
                 sources=["combined_pressure_source"],
-                metadata={"combined_quality": combined_quality}
+                metadata={"combined_quality": combined_quality},
             )
 
         pressure_tester.forecast_service.generate_forecast = AsyncMock(
@@ -434,23 +490,31 @@ class TestCompetitivePressure:
         # Test extreme combined pressure
         extreme_pressure_test = CompetitivePressureTest(
             name="Extreme Combined Pressure",
-            time_pressure_factor=0.2,    # Very tight time
-            resource_pressure_factor=0.3, # Limited resources
-            accuracy_pressure_factor=0.2, # High stakes, low research time
+            time_pressure_factor=0.2,  # Very tight time
+            resource_pressure_factor=0.3,  # Limited resources
+            accuracy_pressure_factor=0.2,  # High stakes, low research time
             concurrent_questions=2,
-            expected_degradation_threshold=0.6  # Higher threshold for extreme conditions
+            expected_degradation_threshold=0.6,  # Higher threshold for extreme conditions
         )
 
-        result = await pressure_tester.test_competitive_pressure(extreme_pressure_test, test_questions)
+        result = await pressure_tester.test_competitive_pressure(
+            extreme_pressure_test, test_questions
+        )
 
         # Verify system survives extreme pressure
-        assert result["pressure_performance"]["completion_rate"] >= 0.5  # At least half complete
-        assert result["degradation"]["overall"] <= 0.8  # Significant but not total degradation
+        assert (
+            result["pressure_performance"]["completion_rate"] >= 0.5
+        )  # At least half complete
+        assert (
+            result["degradation"]["overall"] <= 0.8
+        )  # Significant but not total degradation
         assert len(result["errors"]) <= len(test_questions)  # Errors are contained
 
         # System should maintain some level of functionality
         if result["pressure_performance"]["completion_rate"] > 0:
-            assert result["pressure_performance"]["avg_confidence"] >= 0.3  # Minimum confidence
+            assert (
+                result["pressure_performance"]["avg_confidence"] >= 0.3
+            )  # Minimum confidence
 
     @pytest.mark.asyncio
     async def test_pressure_recovery_patterns(self, pressure_tester, test_questions):
@@ -477,7 +541,7 @@ class TestCompetitivePressure:
                 reasoning=f"Recovery analysis (call={call_count}, recovery={recovery_factor:.2f})",
                 method="chain_of_thought",
                 sources=["recovery_source"],
-                metadata={"recovery_factor": recovery_factor}
+                metadata={"recovery_factor": recovery_factor},
             )
 
         pressure_tester.forecast_service.generate_forecast = AsyncMock(
@@ -491,10 +555,12 @@ class TestCompetitivePressure:
             resource_pressure_factor=0.5,
             accuracy_pressure_factor=0.5,
             concurrent_questions=1,
-            expected_degradation_threshold=0.4
+            expected_degradation_threshold=0.4,
         )
 
-        result = await pressure_tester.test_competitive_pressure(recovery_test, test_questions)
+        result = await pressure_tester.test_competitive_pressure(
+            recovery_test, test_questions
+        )
 
         # Verify recovery behavior
         assert result["pressure_performance"]["completion_rate"] >= 0.8  # Good recovery

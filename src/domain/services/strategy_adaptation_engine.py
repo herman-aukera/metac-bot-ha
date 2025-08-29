@@ -1,28 +1,29 @@
 """Strategy adaptation engine for dynamic optimization and competitive positioning."""
 
-from typing import List, Dict, Any, Optional, Tuple, Set
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
-import statistics
 import math
-from uuid import UUID
+import statistics
 from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
+from uuid import UUID
+
 import structlog
 
 from ..entities.forecast import Forecast, ForecastStatus
-from ..entities.prediction import Prediction, PredictionMethod, PredictionConfidence
+from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
 from ..entities.question import Question, QuestionType
-from ..value_objects.tournament_strategy import TournamentStrategy, QuestionPriority
-from .performance_analyzer import PerformanceAnalyzer, ImprovementOpportunity
-from .pattern_detector import PatternDetector, DetectedPattern, AdaptationRecommendation
-
+from ..value_objects.tournament_strategy import QuestionPriority, TournamentStrategy
+from .pattern_detector import AdaptationRecommendation, DetectedPattern, PatternDetector
+from .performance_analyzer import ImprovementOpportunity, PerformanceAnalyzer
 
 logger = structlog.get_logger(__name__)
 
 
 class AdaptationTrigger(Enum):
     """Types of triggers that can initiate strategy adaptation."""
+
     PERFORMANCE_DECLINE = "performance_decline"
     PATTERN_DETECTION = "pattern_detection"
     COMPETITIVE_PRESSURE = "competitive_pressure"
@@ -37,6 +38,7 @@ class AdaptationTrigger(Enum):
 
 class OptimizationObjective(Enum):
     """Optimization objectives for strategy adaptation."""
+
     MAXIMIZE_ACCURACY = "maximize_accuracy"
     MINIMIZE_BRIER_SCORE = "minimize_brier_score"
     IMPROVE_CALIBRATION = "improve_calibration"
@@ -50,6 +52,7 @@ class OptimizationObjective(Enum):
 @dataclass
 class AdaptationContext:
     """Context information for strategy adaptation decisions."""
+
     trigger: AdaptationTrigger
     trigger_data: Dict[str, Any]
     current_performance: Dict[str, float]
@@ -65,6 +68,7 @@ class AdaptationContext:
 @dataclass
 class StrategyAdjustment:
     """Represents a specific strategy adjustment."""
+
     adjustment_type: str
     target_component: str  # What part of the strategy to adjust
     current_value: Any
@@ -82,6 +86,7 @@ class StrategyAdjustment:
 @dataclass
 class AdaptationPlan:
     """Comprehensive adaptation plan with multiple adjustments."""
+
     plan_id: str
     objective: OptimizationObjective
     context: AdaptationContext
@@ -102,6 +107,7 @@ class AdaptationPlan:
 @dataclass
 class AdaptationResult:
     """Result of implementing an adaptation plan."""
+
     plan_id: str
     implementation_status: str
     adjustments_applied: List[str]
@@ -123,7 +129,11 @@ class StrategyAdaptationEngine:
     adjustment, competitive positioning, and tournament-specific adaptation.
     """
 
-    def __init__(self, performance_analyzer: PerformanceAnalyzer, pattern_detector: PatternDetector):
+    def __init__(
+        self,
+        performance_analyzer: PerformanceAnalyzer,
+        pattern_detector: PatternDetector,
+    ):
         self.performance_analyzer = performance_analyzer
         self.pattern_detector = pattern_detector
 
@@ -133,7 +143,9 @@ class StrategyAdaptationEngine:
         self.current_strategy: Optional[TournamentStrategy] = None
 
         # Configuration
-        self.adaptation_threshold = 0.05  # Minimum performance change to trigger adaptation
+        self.adaptation_threshold = (
+            0.05  # Minimum performance change to trigger adaptation
+        )
         self.confidence_threshold = 0.7  # Minimum confidence for adaptation decisions
         self.max_concurrent_adaptations = 3
         self.adaptation_cooldown_hours = 24
@@ -144,7 +156,7 @@ class StrategyAdaptationEngine:
             OptimizationObjective.MINIMIZE_BRIER_SCORE: 0.25,
             OptimizationObjective.IMPROVE_CALIBRATION: 0.2,
             OptimizationObjective.INCREASE_TOURNAMENT_RANKING: 0.15,
-            OptimizationObjective.OPTIMIZE_RESOURCE_EFFICIENCY: 0.1
+            OptimizationObjective.OPTIMIZE_RESOURCE_EFFICIENCY: 0.1,
         }
 
         # Strategy components that can be adapted
@@ -157,14 +169,14 @@ class StrategyAdaptationEngine:
             "submission_timing",
             "research_depth",
             "risk_tolerance",
-            "competitive_positioning"
+            "competitive_positioning",
         ]
 
     def evaluate_adaptation_need(
         self,
         recent_forecasts: List[Forecast],
         ground_truth: Optional[List[bool]] = None,
-        tournament_context: Optional[Dict[str, Any]] = None
+        tournament_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate whether strategy adaptation is needed based on current performance.
@@ -181,16 +193,20 @@ class StrategyAdaptationEngine:
             "Evaluating adaptation need",
             forecast_count=len(recent_forecasts),
             has_ground_truth=ground_truth is not None,
-            evaluation_timestamp=datetime.utcnow()
+            evaluation_timestamp=datetime.utcnow(),
         )
 
         # Analyze current performance
         if ground_truth:
-            performance_analysis = self.performance_analyzer.analyze_resolved_predictions(
-                recent_forecasts, ground_truth
+            performance_analysis = (
+                self.performance_analyzer.analyze_resolved_predictions(
+                    recent_forecasts, ground_truth
+                )
             )
         else:
-            performance_analysis = {"overall_metrics": {"accuracy": 0.5, "brier_score": 0.25}}
+            performance_analysis = {
+                "overall_metrics": {"accuracy": 0.5, "brier_score": 0.25}
+            }
 
         # Detect patterns that might indicate adaptation needs
         questions = []  # Would need to be provided or retrieved
@@ -204,7 +220,9 @@ class StrategyAdaptationEngine:
         )
 
         # Assess adaptation urgency
-        urgency_score = self._calculate_adaptation_urgency(triggers, performance_analysis)
+        urgency_score = self._calculate_adaptation_urgency(
+            triggers, performance_analysis
+        )
 
         # Generate adaptation recommendations
         recommendations = self._generate_adaptation_recommendations(
@@ -219,20 +237,24 @@ class StrategyAdaptationEngine:
             "performance_summary": performance_analysis.get("overall_metrics", {}),
             "pattern_summary": {
                 "significant_patterns": pattern_analysis.get("significant_patterns", 0),
-                "high_impact_patterns": len([
-                    p for p in pattern_analysis.get("detected_patterns", [])
-                    if p.get("strength", 0) > 0.2
-                ])
+                "high_impact_patterns": len(
+                    [
+                        p
+                        for p in pattern_analysis.get("detected_patterns", [])
+                        if p.get("strength", 0) > 0.2
+                    ]
+                ),
             },
             "adaptation_recommendations": recommendations,
-            "next_evaluation_recommended": datetime.utcnow() + timedelta(hours=self.adaptation_cooldown_hours)
+            "next_evaluation_recommended": datetime.utcnow()
+            + timedelta(hours=self.adaptation_cooldown_hours),
         }
 
         logger.info(
             "Adaptation evaluation completed",
             adaptation_needed=evaluation_results["adaptation_needed"],
             urgency_score=urgency_score,
-            triggers_count=len(triggers)
+            triggers_count=len(triggers),
         )
 
         return evaluation_results
@@ -241,7 +263,7 @@ class StrategyAdaptationEngine:
         self,
         objective: OptimizationObjective,
         context: AdaptationContext,
-        constraints: Optional[Dict[str, Any]] = None
+        constraints: Optional[Dict[str, Any]] = None,
     ) -> AdaptationPlan:
         """
         Create a comprehensive adaptation plan for strategy optimization.
@@ -258,13 +280,15 @@ class StrategyAdaptationEngine:
             "Creating adaptation plan",
             objective=objective.value,
             trigger=context.trigger.value,
-            plan_timestamp=datetime.utcnow()
+            plan_timestamp=datetime.utcnow(),
         )
 
         plan_id = f"adaptation_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 
         # Generate strategy adjustments based on objective and context
-        adjustments = self._generate_strategy_adjustments(objective, context, constraints)
+        adjustments = self._generate_strategy_adjustments(
+            objective, context, constraints
+        )
 
         # Optimize adjustment sequence
         implementation_sequence = self._optimize_implementation_sequence(adjustments)
@@ -295,7 +319,7 @@ class StrategyAdaptationEngine:
             risk_assessment=risk_assessment,
             success_criteria=success_criteria,
             monitoring_schedule=monitoring_schedule,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
         logger.info(
@@ -303,7 +327,7 @@ class StrategyAdaptationEngine:
             plan_id=plan_id,
             adjustments_count=len(adjustments),
             expected_impact=total_expected_impact,
-            plan_confidence=plan_confidence
+            plan_confidence=plan_confidence,
         )
 
         return adaptation_plan
@@ -312,7 +336,7 @@ class StrategyAdaptationEngine:
         self,
         plan: AdaptationPlan,
         current_strategy: TournamentStrategy,
-        dry_run: bool = False
+        dry_run: bool = False,
     ) -> AdaptationResult:
         """
         Implement an adaptation plan to modify the current strategy.
@@ -330,7 +354,7 @@ class StrategyAdaptationEngine:
             plan_id=plan.plan_id,
             dry_run=dry_run,
             adjustments_count=len(plan.adjustments),
-            implementation_timestamp=datetime.utcnow()
+            implementation_timestamp=datetime.utcnow(),
         )
 
         # Record performance before adaptation
@@ -343,14 +367,23 @@ class StrategyAdaptationEngine:
 
         # Implement adjustments in sequence
         for adjustment_id in plan.implementation_sequence:
-            adjustment = next((adj for adj in plan.adjustments if adj.target_component == adjustment_id), None)
+            adjustment = next(
+                (
+                    adj
+                    for adj in plan.adjustments
+                    if adj.target_component == adjustment_id
+                ),
+                None,
+            )
             if not adjustment:
                 continue
 
             try:
                 if not dry_run:
                     # Apply the adjustment
-                    success = self._apply_strategy_adjustment(adjustment, current_strategy)
+                    success = self._apply_strategy_adjustment(
+                        adjustment, current_strategy
+                    )
                     if success:
                         adjustments_applied.append(adjustment_id)
                         if adjustment.rollback_plan:
@@ -363,17 +396,29 @@ class StrategyAdaptationEngine:
                     logger.info(f"Simulated application of {adjustment_id}")
 
             except Exception as e:
-                implementation_errors.append(f"Error applying {adjustment_id}: {str(e)}")
+                implementation_errors.append(
+                    f"Error applying {adjustment_id}: {str(e)}"
+                )
                 logger.error(
                     "Adjustment implementation failed",
                     adjustment_id=adjustment_id,
-                    error=str(e)
+                    error=str(e),
                 )
 
         # Calculate implementation results
-        performance_after = self._capture_current_performance(current_strategy) if not dry_run else performance_before
-        actual_impact = self._calculate_actual_impact(performance_before, performance_after)
-        success_rate = len(adjustments_applied) / len(plan.adjustments) if plan.adjustments else 0.0
+        performance_after = (
+            self._capture_current_performance(current_strategy)
+            if not dry_run
+            else performance_before
+        )
+        actual_impact = self._calculate_actual_impact(
+            performance_before, performance_after
+        )
+        success_rate = (
+            len(adjustments_applied) / len(plan.adjustments)
+            if plan.adjustments
+            else 0.0
+        )
 
         # Generate lessons learned
         lessons_learned = self._extract_lessons_learned(
@@ -402,8 +447,8 @@ class StrategyAdaptationEngine:
             metadata={
                 "dry_run": dry_run,
                 "implementation_errors": implementation_errors,
-                "expected_impact": plan.total_expected_impact
-            }
+                "expected_impact": plan.total_expected_impact,
+            },
         )
 
         # Store result in history
@@ -416,7 +461,7 @@ class StrategyAdaptationEngine:
             plan_id=plan.plan_id,
             status=status,
             success_rate=success_rate,
-            actual_impact=actual_impact
+            actual_impact=actual_impact,
         )
 
         return adaptation_result
@@ -425,7 +470,7 @@ class StrategyAdaptationEngine:
         self,
         tournament_context: Dict[str, Any],
         current_strategy: TournamentStrategy,
-        competitive_intelligence: Optional[Dict[str, Any]] = None
+        competitive_intelligence: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Optimize strategy for competitive tournament positioning.
@@ -442,7 +487,7 @@ class StrategyAdaptationEngine:
             "Optimizing tournament positioning",
             tournament_id=tournament_context.get("tournament_id", "unknown"),
             current_ranking=tournament_context.get("current_ranking"),
-            optimization_timestamp=datetime.utcnow()
+            optimization_timestamp=datetime.utcnow(),
         )
 
         # Analyze current competitive position
@@ -482,14 +527,14 @@ class StrategyAdaptationEngine:
             ),
             "implementation_priority": self._calculate_implementation_priority(
                 positioning_adjustments, tournament_context
-            )
+            ),
         }
 
         logger.info(
             "Tournament positioning optimization completed",
             opportunities_count=len(opportunities),
             adjustments_count=len(positioning_adjustments),
-            expected_improvement=optimization_results["expected_ranking_improvement"]
+            expected_improvement=optimization_results["expected_ranking_improvement"],
         )
 
         return optimization_results
@@ -498,7 +543,7 @@ class StrategyAdaptationEngine:
         self,
         performance_analysis: Dict[str, Any],
         pattern_analysis: Dict[str, Any],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[AdaptationTrigger]:
         """Identify triggers that indicate adaptation is needed."""
         triggers = []
@@ -528,9 +573,7 @@ class StrategyAdaptationEngine:
         return triggers
 
     def _calculate_adaptation_urgency(
-        self,
-        triggers: List[AdaptationTrigger],
-        performance_analysis: Dict[str, Any]
+        self, triggers: List[AdaptationTrigger], performance_analysis: Dict[str, Any]
     ) -> float:
         """Calculate urgency score for adaptation."""
         base_urgency = 0.0
@@ -541,7 +584,7 @@ class StrategyAdaptationEngine:
             AdaptationTrigger.CALIBRATION_DRIFT: 0.25,
             AdaptationTrigger.COMPETITIVE_PRESSURE: 0.2,
             AdaptationTrigger.PATTERN_DETECTION: 0.15,
-            AdaptationTrigger.TOURNAMENT_PHASE_CHANGE: 0.1
+            AdaptationTrigger.TOURNAMENT_PHASE_CHANGE: 0.1,
         }
 
         for trigger in triggers:
@@ -564,47 +607,53 @@ class StrategyAdaptationEngine:
         triggers: List[AdaptationTrigger],
         performance_analysis: Dict[str, Any],
         pattern_analysis: Dict[str, Any],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """Generate specific adaptation recommendations."""
         recommendations = []
 
         for trigger in triggers:
             if trigger == AdaptationTrigger.PERFORMANCE_DECLINE:
-                recommendations.append({
-                    "type": "performance_improvement",
-                    "priority": "high",
-                    "actions": [
-                        "Review and optimize method selection",
-                        "Increase ensemble diversity",
-                        "Enhance research quality"
-                    ],
-                    "expected_impact": 0.1
-                })
+                recommendations.append(
+                    {
+                        "type": "performance_improvement",
+                        "priority": "high",
+                        "actions": [
+                            "Review and optimize method selection",
+                            "Increase ensemble diversity",
+                            "Enhance research quality",
+                        ],
+                        "expected_impact": 0.1,
+                    }
+                )
 
             elif trigger == AdaptationTrigger.CALIBRATION_DRIFT:
-                recommendations.append({
-                    "type": "calibration_adjustment",
-                    "priority": "medium",
-                    "actions": [
-                        "Recalibrate confidence levels",
-                        "Implement temperature scaling",
-                        "Add calibration feedback loops"
-                    ],
-                    "expected_impact": 0.08
-                })
+                recommendations.append(
+                    {
+                        "type": "calibration_adjustment",
+                        "priority": "medium",
+                        "actions": [
+                            "Recalibrate confidence levels",
+                            "Implement temperature scaling",
+                            "Add calibration feedback loops",
+                        ],
+                        "expected_impact": 0.08,
+                    }
+                )
 
             elif trigger == AdaptationTrigger.COMPETITIVE_PRESSURE:
-                recommendations.append({
-                    "type": "competitive_positioning",
-                    "priority": "high",
-                    "actions": [
-                        "Adjust question prioritization",
-                        "Optimize submission timing",
-                        "Exploit identified market gaps"
-                    ],
-                    "expected_impact": 0.12
-                })
+                recommendations.append(
+                    {
+                        "type": "competitive_positioning",
+                        "priority": "high",
+                        "actions": [
+                            "Adjust question prioritization",
+                            "Optimize submission timing",
+                            "Exploit identified market gaps",
+                        ],
+                        "expected_impact": 0.12,
+                    }
+                )
 
         return recommendations
 
@@ -612,13 +661,16 @@ class StrategyAdaptationEngine:
         self,
         objective: OptimizationObjective,
         context: AdaptationContext,
-        constraints: Optional[Dict[str, Any]]
+        constraints: Optional[Dict[str, Any]],
     ) -> List[StrategyAdjustment]:
         """Generate specific strategy adjustments based on objective and context."""
         adjustments = []
 
         # Method preference adjustments
-        if objective in [OptimizationObjective.MAXIMIZE_ACCURACY, OptimizationObjective.MINIMIZE_BRIER_SCORE]:
+        if objective in [
+            OptimizationObjective.MAXIMIZE_ACCURACY,
+            OptimizationObjective.MINIMIZE_BRIER_SCORE,
+        ]:
             method_adjustment = self._create_method_adjustment(context)
             if method_adjustment:
                 adjustments.append(method_adjustment)
@@ -649,7 +701,9 @@ class StrategyAdaptationEngine:
 
         return adjustments
 
-    def _create_method_adjustment(self, context: AdaptationContext) -> Optional[StrategyAdjustment]:
+    def _create_method_adjustment(
+        self, context: AdaptationContext
+    ) -> Optional[StrategyAdjustment]:
         """Create method preference adjustment."""
         # Analyze method performance from context
         performance_data = context.current_performance
@@ -659,18 +713,28 @@ class StrategyAdaptationEngine:
             return StrategyAdjustment(
                 adjustment_type="method_preference",
                 target_component="method_preferences",
-                current_value={"ensemble": 0.3, "chain_of_thought": 0.4, "tree_of_thought": 0.3},
-                proposed_value={"ensemble": 0.5, "chain_of_thought": 0.3, "tree_of_thought": 0.2},
+                current_value={
+                    "ensemble": 0.3,
+                    "chain_of_thought": 0.4,
+                    "tree_of_thought": 0.3,
+                },
+                proposed_value={
+                    "ensemble": 0.5,
+                    "chain_of_thought": 0.3,
+                    "tree_of_thought": 0.2,
+                },
                 rationale="Increase ensemble usage to improve accuracy",
                 expected_impact=0.08,
                 confidence=0.7,
                 implementation_priority=0.8,
-                success_metrics=["accuracy_improvement", "brier_score_reduction"]
+                success_metrics=["accuracy_improvement", "brier_score_reduction"],
             )
 
         return None
 
-    def _create_ensemble_adjustment(self, context: AdaptationContext) -> Optional[StrategyAdjustment]:
+    def _create_ensemble_adjustment(
+        self, context: AdaptationContext
+    ) -> Optional[StrategyAdjustment]:
         """Create ensemble weight adjustment."""
         return StrategyAdjustment(
             adjustment_type="ensemble_weights",
@@ -681,10 +745,12 @@ class StrategyAdaptationEngine:
             expected_impact=0.05,
             confidence=0.6,
             implementation_priority=0.6,
-            success_metrics=["ensemble_performance_improvement"]
+            success_metrics=["ensemble_performance_improvement"],
         )
 
-    def _create_calibration_adjustment(self, context: AdaptationContext) -> Optional[StrategyAdjustment]:
+    def _create_calibration_adjustment(
+        self, context: AdaptationContext
+    ) -> Optional[StrategyAdjustment]:
         """Create calibration adjustment."""
         return StrategyAdjustment(
             adjustment_type="confidence_calibration",
@@ -695,44 +761,65 @@ class StrategyAdaptationEngine:
             expected_impact=0.06,
             confidence=0.8,
             implementation_priority=0.7,
-            success_metrics=["calibration_error_reduction"]
+            success_metrics=["calibration_error_reduction"],
         )
 
-    def _create_resource_adjustment(self, context: AdaptationContext) -> Optional[StrategyAdjustment]:
+    def _create_resource_adjustment(
+        self, context: AdaptationContext
+    ) -> Optional[StrategyAdjustment]:
         """Create resource allocation adjustment."""
         return StrategyAdjustment(
             adjustment_type="resource_allocation",
             target_component="resource_allocation",
-            current_value={"research_time": 0.4, "analysis_time": 0.3, "validation_time": 0.3},
-            proposed_value={"research_time": 0.5, "analysis_time": 0.3, "validation_time": 0.2},
+            current_value={
+                "research_time": 0.4,
+                "analysis_time": 0.3,
+                "validation_time": 0.3,
+            },
+            proposed_value={
+                "research_time": 0.5,
+                "analysis_time": 0.3,
+                "validation_time": 0.2,
+            },
             rationale="Increase research time to improve prediction quality",
             expected_impact=0.07,
             confidence=0.6,
             implementation_priority=0.5,
-            success_metrics=["research_quality_improvement"]
+            success_metrics=["research_quality_improvement"],
         )
 
-    def _create_positioning_adjustment(self, context: AdaptationContext) -> Optional[StrategyAdjustment]:
+    def _create_positioning_adjustment(
+        self, context: AdaptationContext
+    ) -> Optional[StrategyAdjustment]:
         """Create competitive positioning adjustment."""
         return StrategyAdjustment(
             adjustment_type="competitive_positioning",
             target_component="competitive_positioning",
             current_value={"question_focus": "balanced", "timing_strategy": "early"},
-            proposed_value={"question_focus": "specialized", "timing_strategy": "optimal"},
+            proposed_value={
+                "question_focus": "specialized",
+                "timing_strategy": "optimal",
+            },
             rationale="Focus on specialized questions for competitive advantage",
             expected_impact=0.1,
             confidence=0.7,
             implementation_priority=0.9,
-            success_metrics=["tournament_ranking_improvement"]
+            success_metrics=["tournament_ranking_improvement"],
         )
 
-    def _optimize_implementation_sequence(self, adjustments: List[StrategyAdjustment]) -> List[str]:
+    def _optimize_implementation_sequence(
+        self, adjustments: List[StrategyAdjustment]
+    ) -> List[str]:
         """Optimize the sequence of implementing adjustments."""
         # Sort by implementation priority
-        sorted_adjustments = sorted(adjustments, key=lambda x: x.implementation_priority, reverse=True)
+        sorted_adjustments = sorted(
+            adjustments, key=lambda x: x.implementation_priority, reverse=True
+        )
         return [adj.target_component for adj in sorted_adjustments]
 
-    def _calculate_plan_confidence(self, adjustments: List[StrategyAdjustment], context: AdaptationContext) -> float:
+    def _calculate_plan_confidence(
+        self, adjustments: List[StrategyAdjustment], context: AdaptationContext
+    ) -> float:
         """Calculate overall confidence in the adaptation plan."""
         if not adjustments:
             return 0.0
@@ -745,25 +832,27 @@ class StrategyAdaptationEngine:
 
         return weighted_confidence / total_impact if total_impact > 0 else 0.0
 
-    def _estimate_implementation_time(self, adjustments: List[StrategyAdjustment]) -> timedelta:
+    def _estimate_implementation_time(
+        self, adjustments: List[StrategyAdjustment]
+    ) -> timedelta:
         """Estimate time required to implement all adjustments."""
         # Simple heuristic: each adjustment takes 1-4 hours based on complexity
         base_hours = len(adjustments) * 2  # 2 hours per adjustment on average
         return timedelta(hours=base_hours)
 
-    def _calculate_resource_requirements(self, adjustments: List[StrategyAdjustment]) -> Dict[str, Any]:
+    def _calculate_resource_requirements(
+        self, adjustments: List[StrategyAdjustment]
+    ) -> Dict[str, Any]:
         """Calculate resource requirements for implementing adjustments."""
         return {
             "computational_resources": "medium",
             "human_oversight_hours": len(adjustments) * 0.5,
             "testing_time_hours": len(adjustments) * 1.0,
-            "rollback_preparation_hours": len(adjustments) * 0.25
+            "rollback_preparation_hours": len(adjustments) * 0.25,
         }
 
     def _assess_adaptation_risks(
-        self,
-        adjustments: List[StrategyAdjustment],
-        context: AdaptationContext
+        self, adjustments: List[StrategyAdjustment], context: AdaptationContext
     ) -> Dict[str, float]:
         """Assess risks associated with the adaptation plan."""
         return {
@@ -771,13 +860,11 @@ class StrategyAdaptationEngine:
             "implementation_failure_risk": 0.1,
             "unintended_consequences_risk": 0.15,
             "rollback_difficulty_risk": 0.1,
-            "competitive_disadvantage_risk": 0.05
+            "competitive_disadvantage_risk": 0.05,
         }
 
     def _define_success_criteria(
-        self,
-        objective: OptimizationObjective,
-        adjustments: List[StrategyAdjustment]
+        self, objective: OptimizationObjective, adjustments: List[StrategyAdjustment]
     ) -> List[str]:
         """Define success criteria for the adaptation plan."""
         criteria = []
@@ -795,20 +882,20 @@ class StrategyAdaptationEngine:
 
         return list(set(criteria))  # Remove duplicates
 
-    def _create_monitoring_schedule(self, adjustments: List[StrategyAdjustment]) -> Dict[str, Any]:
+    def _create_monitoring_schedule(
+        self, adjustments: List[StrategyAdjustment]
+    ) -> Dict[str, Any]:
         """Create monitoring schedule for tracking adaptation success."""
         return {
             "immediate_check": "24 hours after implementation",
             "short_term_review": "1 week after implementation",
             "medium_term_review": "1 month after implementation",
             "performance_metrics_frequency": "daily",
-            "rollback_decision_point": "72 hours after implementation"
+            "rollback_decision_point": "72 hours after implementation",
         }
 
     def _apply_strategy_adjustment(
-        self,
-        adjustment: StrategyAdjustment,
-        strategy: TournamentStrategy
+        self, adjustment: StrategyAdjustment, strategy: TournamentStrategy
     ) -> bool:
         """Apply a specific strategy adjustment."""
         try:
@@ -817,31 +904,31 @@ class StrategyAdaptationEngine:
             logger.info(
                 "Applied strategy adjustment",
                 adjustment_type=adjustment.adjustment_type,
-                target_component=adjustment.target_component
+                target_component=adjustment.target_component,
             )
             return True
         except Exception as e:
             logger.error(
                 "Failed to apply strategy adjustment",
                 adjustment_type=adjustment.adjustment_type,
-                error=str(e)
+                error=str(e),
             )
             return False
 
-    def _capture_current_performance(self, strategy: TournamentStrategy) -> Dict[str, float]:
+    def _capture_current_performance(
+        self, strategy: TournamentStrategy
+    ) -> Dict[str, float]:
         """Capture current performance metrics."""
         # This would capture actual performance metrics
         return {
             "accuracy": 0.65,
             "brier_score": 0.22,
             "calibration_error": 0.08,
-            "tournament_ranking": 15.0
+            "tournament_ranking": 15.0,
         }
 
     def _calculate_actual_impact(
-        self,
-        performance_before: Dict[str, float],
-        performance_after: Dict[str, float]
+        self, performance_before: Dict[str, float], performance_after: Dict[str, float]
     ) -> float:
         """Calculate actual impact of adaptation."""
         # Simple metric: improvement in accuracy
@@ -854,7 +941,7 @@ class StrategyAdaptationEngine:
         plan: AdaptationPlan,
         adjustments_applied: List[str],
         implementation_errors: List[str],
-        actual_impact: float
+        actual_impact: float,
     ) -> List[str]:
         """Extract lessons learned from adaptation implementation."""
         lessons = []
@@ -865,7 +952,9 @@ class StrategyAdaptationEngine:
             lessons.append("Adaptation underperformed expectations")
 
         if implementation_errors:
-            lessons.append(f"Implementation challenges: {len(implementation_errors)} errors encountered")
+            lessons.append(
+                f"Implementation challenges: {len(implementation_errors)} errors encountered"
+            )
 
         if len(adjustments_applied) == len(plan.adjustments):
             lessons.append("All planned adjustments successfully implemented")
@@ -876,7 +965,7 @@ class StrategyAdaptationEngine:
         self,
         tournament_context: Dict[str, Any],
         current_strategy: TournamentStrategy,
-        competitive_intelligence: Optional[Dict[str, Any]]
+        competitive_intelligence: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Analyze current competitive position in tournament."""
         return {
@@ -884,13 +973,11 @@ class StrategyAdaptationEngine:
             "ranking_trend": "stable",
             "competitive_gaps": ["question_type_specialization", "timing_optimization"],
             "competitive_advantages": ["ensemble_methods", "calibration_quality"],
-            "market_position": "middle_tier"
+            "market_position": "middle_tier",
         }
 
     def _identify_positioning_opportunities(
-        self,
-        competitive_analysis: Dict[str, Any],
-        tournament_context: Dict[str, Any]
+        self, competitive_analysis: Dict[str, Any], tournament_context: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """Identify opportunities for better competitive positioning."""
         opportunities = []
@@ -898,20 +985,24 @@ class StrategyAdaptationEngine:
         # Example opportunities based on competitive gaps
         gaps = competitive_analysis.get("competitive_gaps", [])
         if "question_type_specialization" in gaps:
-            opportunities.append({
-                "type": "specialization",
-                "description": "Focus on specific question types where we have advantage",
-                "potential_impact": 0.15,
-                "implementation_difficulty": 0.6
-            })
+            opportunities.append(
+                {
+                    "type": "specialization",
+                    "description": "Focus on specific question types where we have advantage",
+                    "potential_impact": 0.15,
+                    "implementation_difficulty": 0.6,
+                }
+            )
 
         if "timing_optimization" in gaps:
-            opportunities.append({
-                "type": "timing",
-                "description": "Optimize submission timing for competitive advantage",
-                "potential_impact": 0.08,
-                "implementation_difficulty": 0.3
-            })
+            opportunities.append(
+                {
+                    "type": "timing",
+                    "description": "Optimize submission timing for competitive advantage",
+                    "potential_impact": 0.08,
+                    "implementation_difficulty": 0.3,
+                }
+            )
 
         return opportunities
 
@@ -919,29 +1010,33 @@ class StrategyAdaptationEngine:
         self,
         opportunities: List[Dict[str, Any]],
         current_strategy: TournamentStrategy,
-        tournament_context: Dict[str, Any]
+        tournament_context: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         """Generate specific positioning adjustments."""
         adjustments = []
 
         for opportunity in opportunities:
             if opportunity["type"] == "specialization":
-                adjustments.append({
-                    "type": "question_focus",
-                    "description": "Increase focus on binary questions",
-                    "current_allocation": 0.33,
-                    "proposed_allocation": 0.5,
-                    "expected_impact": opportunity["potential_impact"]
-                })
+                adjustments.append(
+                    {
+                        "type": "question_focus",
+                        "description": "Increase focus on binary questions",
+                        "current_allocation": 0.33,
+                        "proposed_allocation": 0.5,
+                        "expected_impact": opportunity["potential_impact"],
+                    }
+                )
 
             elif opportunity["type"] == "timing":
-                adjustments.append({
-                    "type": "submission_timing",
-                    "description": "Shift to optimal timing window",
-                    "current_strategy": "early_submission",
-                    "proposed_strategy": "optimal_window",
-                    "expected_impact": opportunity["potential_impact"]
-                })
+                adjustments.append(
+                    {
+                        "type": "submission_timing",
+                        "description": "Shift to optimal timing window",
+                        "current_strategy": "early_submission",
+                        "proposed_strategy": "optimal_window",
+                        "expected_impact": opportunity["potential_impact"],
+                    }
+                )
 
         return adjustments
 
@@ -949,31 +1044,26 @@ class StrategyAdaptationEngine:
         self,
         tournament_context: Dict[str, Any],
         current_strategy: TournamentStrategy,
-        opportunities: List[Dict[str, Any]]
+        opportunities: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Optimize resource allocation for tournament performance."""
         return {
             "research_allocation": {
                 "high_value_questions": 0.6,
                 "medium_value_questions": 0.3,
-                "low_value_questions": 0.1
+                "low_value_questions": 0.1,
             },
-            "method_allocation": {
-                "ensemble_methods": 0.5,
-                "individual_methods": 0.5
-            },
+            "method_allocation": {"ensemble_methods": 0.5, "individual_methods": 0.5},
             "time_allocation": {
                 "research": 0.4,
                 "analysis": 0.3,
                 "validation": 0.2,
-                "submission": 0.1
-            }
+                "submission": 0.1,
+            },
         }
 
     def _optimize_submission_timing(
-        self,
-        tournament_context: Dict[str, Any],
-        competitive_analysis: Dict[str, Any]
+        self, tournament_context: Dict[str, Any], competitive_analysis: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Optimize submission timing strategy."""
         return {
@@ -981,29 +1071,35 @@ class StrategyAdaptationEngine:
             "early_submission_threshold": 0.8,  # Submit early if confidence > 0.8
             "optimal_window_start": "48_hours_before_deadline",
             "optimal_window_end": "12_hours_before_deadline",
-            "last_minute_threshold": 0.9  # Only submit last minute if confidence > 0.9
+            "last_minute_threshold": 0.9,  # Only submit last minute if confidence > 0.9
         }
 
     def _estimate_ranking_improvement(
         self,
         positioning_adjustments: List[Dict[str, Any]],
-        competitive_analysis: Dict[str, Any]
+        competitive_analysis: Dict[str, Any],
     ) -> float:
         """Estimate expected ranking improvement from positioning adjustments."""
-        total_impact = sum(adj.get("expected_impact", 0) for adj in positioning_adjustments)
+        total_impact = sum(
+            adj.get("expected_impact", 0) for adj in positioning_adjustments
+        )
         current_ranking = competitive_analysis.get("current_ranking", 50)
 
         # Simple heuristic: each 0.1 impact improves ranking by 5 positions
         ranking_improvement = total_impact * 50
-        return min(ranking_improvement, current_ranking - 1)  # Can't improve beyond rank 1
+        return min(
+            ranking_improvement, current_ranking - 1
+        )  # Can't improve beyond rank 1
 
     def _calculate_implementation_priority(
         self,
         positioning_adjustments: List[Dict[str, Any]],
-        tournament_context: Dict[str, Any]
+        tournament_context: Dict[str, Any],
     ) -> str:
         """Calculate implementation priority for positioning adjustments."""
-        total_impact = sum(adj.get("expected_impact", 0) for adj in positioning_adjustments)
+        total_impact = sum(
+            adj.get("expected_impact", 0) for adj in positioning_adjustments
+        )
 
         if total_impact > 0.2:
             return "high"
@@ -1017,7 +1113,7 @@ class StrategyAdaptationEngine:
         return {
             "type": trigger.value,
             "description": f"Adaptation trigger: {trigger.value}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     def get_adaptation_history(self, days: int = 30) -> Dict[str, Any]:
@@ -1025,20 +1121,37 @@ class StrategyAdaptationEngine:
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
         recent_adaptations = [
-            result for result in self.adaptation_history
+            result
+            for result in self.adaptation_history
             if result.timestamp >= cutoff_date
         ]
 
         return {
             "period_days": days,
             "total_adaptations": len(recent_adaptations),
-            "successful_adaptations": len([r for r in recent_adaptations if r.implementation_status == "successful"]),
-            "average_impact": statistics.mean([r.actual_impact for r in recent_adaptations]) if recent_adaptations else 0.0,
-            "adaptation_frequency": len(recent_adaptations) / max(1, days) * 7,  # Per week
-            "most_common_adjustments": self._get_most_common_adjustments(recent_adaptations)
+            "successful_adaptations": len(
+                [
+                    r
+                    for r in recent_adaptations
+                    if r.implementation_status == "successful"
+                ]
+            ),
+            "average_impact": (
+                statistics.mean([r.actual_impact for r in recent_adaptations])
+                if recent_adaptations
+                else 0.0
+            ),
+            "adaptation_frequency": len(recent_adaptations)
+            / max(1, days)
+            * 7,  # Per week
+            "most_common_adjustments": self._get_most_common_adjustments(
+                recent_adaptations
+            ),
         }
 
-    def _get_most_common_adjustments(self, adaptations: List[AdaptationResult]) -> Dict[str, int]:
+    def _get_most_common_adjustments(
+        self, adaptations: List[AdaptationResult]
+    ) -> Dict[str, int]:
         """Get most common types of adjustments from adaptation history."""
         adjustment_counts = defaultdict(int)
 
@@ -1051,16 +1164,31 @@ class StrategyAdaptationEngine:
     def get_current_strategy_status(self) -> Dict[str, Any]:
         """Get current strategy status and recent adaptations."""
         return {
-            "strategy_last_updated": self.current_strategy.created_at if self.current_strategy else None,
+            "strategy_last_updated": (
+                self.current_strategy.created_at if self.current_strategy else None
+            ),
             "active_adaptations": len(self.active_plans),
-            "recent_adaptation_count": len([
-                r for r in self.adaptation_history
-                if r.timestamp >= datetime.utcnow() - timedelta(days=7)
-            ]),
-            "adaptation_cooldown_remaining": max(0, (
-                self.adaptation_history[-1].timestamp + timedelta(hours=self.adaptation_cooldown_hours) - datetime.utcnow()
-            ).total_seconds() / 3600) if self.adaptation_history else 0,
-            "strategy_performance_trend": self._calculate_strategy_performance_trend()
+            "recent_adaptation_count": len(
+                [
+                    r
+                    for r in self.adaptation_history
+                    if r.timestamp >= datetime.utcnow() - timedelta(days=7)
+                ]
+            ),
+            "adaptation_cooldown_remaining": (
+                max(
+                    0,
+                    (
+                        self.adaptation_history[-1].timestamp
+                        + timedelta(hours=self.adaptation_cooldown_hours)
+                        - datetime.utcnow()
+                    ).total_seconds()
+                    / 3600,
+                )
+                if self.adaptation_history
+                else 0
+            ),
+            "strategy_performance_trend": self._calculate_strategy_performance_trend(),
         }
 
     def _calculate_strategy_performance_trend(self) -> str:

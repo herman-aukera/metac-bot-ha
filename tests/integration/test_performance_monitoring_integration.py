@@ -3,17 +3,21 @@ Integration tests for performance monitoring and analytics components.
 Tests the complete monitoring pipeline and analytics functionality.
 """
 
-import pytest
 import asyncio
 import time
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
+import pytest
+
+from src.infrastructure.monitoring.integrated_monitoring_service import (
+    IntegratedMonitoringService,
+)
 from src.infrastructure.monitoring.model_performance_tracker import (
-    ModelPerformanceTracker, ModelSelectionRecord
+    ModelPerformanceTracker,
+    ModelSelectionRecord,
 )
 from src.infrastructure.monitoring.optimization_analytics import OptimizationAnalytics
-from src.infrastructure.monitoring.integrated_monitoring_service import IntegratedMonitoringService
 from src.infrastructure.monitoring.performance_tracker import PerformanceTracker
 
 
@@ -35,7 +39,7 @@ class TestModelPerformanceTracker:
             routing_rationale="Complex forecasting task requires maximum reasoning",
             estimated_cost=0.05,
             operation_mode="normal",
-            budget_remaining=75.0
+            budget_remaining=75.0,
         )
 
         assert record.question_id == "test-123"
@@ -57,7 +61,7 @@ class TestModelPerformanceTracker:
             selected_model="openai/gpt-5-mini",
             selected_tier="mini",
             routing_rationale="Research synthesis task",
-            estimated_cost=0.02
+            estimated_cost=0.02,
         )
 
         # Then update with outcome
@@ -67,7 +71,7 @@ class TestModelPerformanceTracker:
             execution_time=45.5,
             quality_score=0.85,
             success=True,
-            fallback_used=False
+            fallback_used=False,
         )
 
         assert success is True
@@ -91,8 +95,12 @@ class TestModelPerformanceTracker:
         ]
 
         for qid, task, model, tier, est_cost, actual_cost, quality in test_records:
-            self.tracker.record_model_selection(qid, task, model, tier, "test", est_cost)
-            self.tracker.update_selection_outcome(qid, actual_cost, 30.0, quality, True, False)
+            self.tracker.record_model_selection(
+                qid, task, model, tier, "test", est_cost
+            )
+            self.tracker.update_selection_outcome(
+                qid, actual_cost, 30.0, quality, True, False
+            )
 
         breakdown = self.tracker.get_cost_breakdown(24)
 
@@ -120,12 +128,18 @@ class TestModelPerformanceTracker:
         ]
 
         for i, (qid, cost, time, quality, success, fallback) in enumerate(test_records):
-            self.tracker.record_model_selection(qid, "test", "test-model", "mini", "test", cost)
-            self.tracker.update_selection_outcome(qid, cost, time, quality, success, fallback)
+            self.tracker.record_model_selection(
+                qid, "test", "test-model", "mini", "test", cost
+            )
+            self.tracker.update_selection_outcome(
+                qid, cost, time, quality, success, fallback
+            )
 
         metrics = self.tracker.get_quality_metrics(24)
 
-        assert metrics.avg_quality_score == pytest.approx(0.816667, rel=1e-3)  # (0.8+0.75+0.9)/3
+        assert metrics.avg_quality_score == pytest.approx(
+            0.816667, rel=1e-3
+        )  # (0.8+0.75+0.9)/3
         assert metrics.success_rate == 0.75  # 3/4
         assert metrics.fallback_rate == 0.25  # 1/4
         assert metrics.avg_execution_time == 27.5  # (30+25+20+35)/4
@@ -135,16 +149,25 @@ class TestModelPerformanceTracker:
         # Add records for competitiveness analysis
         for i in range(10):
             qid = f"comp-test-{i}"
-            self.tracker.record_model_selection(qid, "forecast", "test-model", "mini", "test", 0.02)
+            self.tracker.record_model_selection(
+                qid, "forecast", "test-model", "mini", "test", 0.02
+            )
             self.tracker.update_selection_outcome(qid, 0.02, 30.0, 0.8, True, False)
 
         indicators = self.tracker.get_tournament_competitiveness_indicators(100.0, 24)
 
         assert indicators.cost_efficiency_score == 50.0  # 10 questions / 0.2 total cost
-        assert indicators.quality_efficiency_score == 40.0  # 0.8 quality / 0.02 avg cost
+        assert (
+            indicators.quality_efficiency_score == 40.0
+        )  # 0.8 quality / 0.02 avg cost
         assert indicators.budget_utilization_rate == 0.2  # 0.2 / 100.0
         assert indicators.projected_questions_remaining == 4990  # (100-0.2) / 0.02
-        assert indicators.competitiveness_level in ["excellent", "good", "concerning", "critical"]
+        assert indicators.competitiveness_level in [
+            "excellent",
+            "good",
+            "concerning",
+            "critical",
+        ]
 
 
 class TestOptimizationAnalytics:
@@ -161,14 +184,16 @@ class TestOptimizationAnalytics:
         # Add records with different tier efficiencies
         test_data = [
             ("nano", 0.005, 5),  # Very efficient
-            ("mini", 0.02, 3),   # Moderately efficient
-            ("full", 0.05, 2),   # Less efficient but higher quality
+            ("mini", 0.02, 3),  # Moderately efficient
+            ("full", 0.05, 2),  # Less efficient but higher quality
         ]
 
         for tier, cost, count in test_data:
             for i in range(count):
                 qid = f"{tier}-{i}"
-                self.tracker.record_model_selection(qid, "test", f"model-{tier}", tier, "test", cost)
+                self.tracker.record_model_selection(
+                    qid, "test", f"model-{tier}", tier, "test", cost
+                )
                 self.tracker.update_selection_outcome(qid, cost, 30.0, 0.8, True, False)
 
         analysis = self.analytics.analyze_cost_effectiveness(24)
@@ -188,13 +213,15 @@ class TestOptimizationAnalytics:
         test_records = [
             (0.005, 0.6),  # Low cost, low quality
             (0.02, 0.75),  # Medium cost, medium quality
-            (0.05, 0.9),   # High cost, high quality
+            (0.05, 0.9),  # High cost, high quality
             (0.08, 0.95),  # Very high cost, very high quality
         ]
 
         for i, (cost, quality) in enumerate(test_records):
             qid = f"corr-{i}"
-            self.tracker.record_model_selection(qid, "test", "test-model", "test", "test", cost)
+            self.tracker.record_model_selection(
+                qid, "test", "test-model", "test", "test", cost
+            )
             self.tracker.update_selection_outcome(qid, cost, 30.0, quality, True, False)
 
         # Add more records to meet minimum sample requirement
@@ -202,7 +229,9 @@ class TestOptimizationAnalytics:
             qid = f"extra-{i}"
             cost = 0.02 + (i * 0.001)
             quality = 0.7 + (i * 0.01)
-            self.tracker.record_model_selection(qid, "test", "test-model", "test", "test", cost)
+            self.tracker.record_model_selection(
+                qid, "test", "test-model", "test", "test", cost
+            )
             self.tracker.update_selection_outcome(qid, cost, 30.0, quality, True, False)
 
         analysis = self.analytics.analyze_performance_correlations(24)
@@ -238,15 +267,17 @@ class TestOptimizationAnalytics:
         """Test budget optimization suggestions."""
         # Add records with suboptimal allocation
         inefficient_records = [
-            ("full", 0.08, 2),   # Expensive tier used frequently
-            ("mini", 0.02, 1),   # Efficient tier used less
+            ("full", 0.08, 2),  # Expensive tier used frequently
+            ("mini", 0.02, 1),  # Efficient tier used less
             ("nano", 0.005, 1),  # Most efficient tier used least
         ]
 
         for tier, cost, count in inefficient_records:
             for i in range(count):
                 qid = f"opt-{tier}-{i}"
-                self.tracker.record_model_selection(qid, "test", f"model-{tier}", tier, "test", cost)
+                self.tracker.record_model_selection(
+                    qid, "test", f"model-{tier}", tier, "test", cost
+                )
                 self.tracker.update_selection_outcome(qid, cost, 30.0, 0.8, True, False)
 
         suggestions = self.analytics.generate_budget_optimization_suggestions(100.0, 24)
@@ -273,7 +304,7 @@ class TestIntegratedMonitoringService:
             model_tracker=model_tracker,
             analytics=analytics,
             perf_tracker=perf_tracker,
-            cost_monitor=None
+            cost_monitor=None,
         )
 
     def test_record_model_usage(self):
@@ -286,7 +317,7 @@ class TestIntegratedMonitoringService:
             routing_rationale="Complex analysis required",
             estimated_cost=0.05,
             operation_mode="normal",
-            budget_remaining=80.0
+            budget_remaining=80.0,
         )
 
         # Check that the record was created
@@ -303,7 +334,7 @@ class TestIntegratedMonitoringService:
             selected_model="openai/gpt-5-mini",
             selected_tier="mini",
             routing_rationale="Research synthesis",
-            estimated_cost=0.02
+            estimated_cost=0.02,
         )
 
         # Then record outcome
@@ -315,7 +346,7 @@ class TestIntegratedMonitoringService:
             success=True,
             fallback_used=False,
             forecast_value=0.75,
-            confidence=0.8
+            confidence=0.8,
         )
 
         # Check that both trackers were updated
@@ -341,14 +372,14 @@ class TestIntegratedMonitoringService:
                 selected_model="openai/gpt-5-mini",
                 selected_tier="mini",
                 routing_rationale="Test",
-                estimated_cost=0.02
+                estimated_cost=0.02,
             )
             self.monitoring.record_execution_outcome(
                 question_id=qid,
                 actual_cost=0.02,
                 execution_time=30.0,
                 quality_score=0.8,
-                success=True
+                success=True,
             )
 
         status = self.monitoring.get_comprehensive_status(100.0)
@@ -362,8 +393,7 @@ class TestIntegratedMonitoringService:
     def test_strategic_recommendations_generation(self):
         """Test strategic recommendations generation."""
         recommendations = self.monitoring.generate_strategic_recommendations(
-            budget_used_percentage=45.0,
-            total_budget=100.0
+            budget_used_percentage=45.0, total_budget=100.0
         )
 
         assert "tournament_phase_strategy" in recommendations
@@ -386,14 +416,14 @@ class TestIntegratedMonitoringService:
                 selected_model="openai/gpt-5",
                 selected_tier="full",
                 routing_rationale="Expensive test",
-                estimated_cost=0.1  # High cost
+                estimated_cost=0.1,  # High cost
             )
             self.monitoring.record_execution_outcome(
                 question_id=qid,
                 actual_cost=0.1,
                 execution_time=60.0,
                 quality_score=0.5,  # Low quality
-                success=True
+                success=True,
             )
 
         alerts = self.monitoring.check_alerts_and_thresholds()
@@ -401,7 +431,7 @@ class TestIntegratedMonitoringService:
         # Should have some alerts due to low efficiency
         assert isinstance(alerts, list)
 
-    @patch('threading.Thread')
+    @patch("threading.Thread")
     def test_monitoring_service_lifecycle(self, mock_thread):
         """Test monitoring service start/stop lifecycle."""
         # Test starting monitoring
@@ -422,14 +452,14 @@ class TestIntegratedMonitoringService:
             selected_model="openai/gpt-5-mini",
             selected_tier="mini",
             routing_rationale="Export test",
-            estimated_cost=0.02
+            estimated_cost=0.02,
         )
         self.monitoring.record_execution_outcome(
             question_id="export-test",
             actual_cost=0.02,
             execution_time=30.0,
             quality_score=0.8,
-            success=True
+            success=True,
         )
 
         export_data = self.monitoring.export_monitoring_data(24)
@@ -457,7 +487,7 @@ async def test_monitoring_integration_workflow():
         model_tracker=model_tracker,
         analytics=analytics,
         perf_tracker=perf_tracker,
-        cost_monitor=None
+        cost_monitor=None,
     )
 
     # Simulate a complete question processing workflow
@@ -472,7 +502,7 @@ async def test_monitoring_integration_workflow():
         routing_rationale="Complex forecasting requires maximum reasoning capability",
         estimated_cost=0.05,
         operation_mode="normal",
-        budget_remaining=85.0
+        budget_remaining=85.0,
     )
 
     # 2. Simulate processing time
@@ -487,7 +517,7 @@ async def test_monitoring_integration_workflow():
         success=True,
         fallback_used=False,
         forecast_value=0.75,
-        confidence=0.85
+        confidence=0.85,
     )
 
     # 4. Get comprehensive status

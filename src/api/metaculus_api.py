@@ -1,28 +1,37 @@
 """
 Client for interacting with the Metaculus API.
 """
+
 import os
+from typing import Any, Dict, List
+
 import httpx
-from typing import List, Dict, Any
 
 METACULUS_API_BASE_URL = "https://www.metaculus.com/api2"
+
 
 class MetaculusAPI:
     def __init__(self, token: str | None = None):
         self.token = token or os.getenv("METACULUS_TOKEN")
         if not self.token:
-            raise ValueError("Metaculus API token not provided or found in METACULUS_TOKEN env var.")
-        
+            raise ValueError(
+                "Metaculus API token not provided or found in METACULUS_TOKEN env var."
+            )
+
         self.headers = {
             "Authorization": f"Token {self.token}",
             "Content-Type": "application/json",
         }
-        self.client = httpx.AsyncClient(base_url=METACULUS_API_BASE_URL, headers=self.headers)
+        self.client = httpx.AsyncClient(
+            base_url=METACULUS_API_BASE_URL, headers=self.headers
+        )
 
     async def close(self):
         await self.client.aclose()
 
-    async def fetch_questions(self, params: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
+    async def fetch_questions(
+        self, params: Dict[str, Any] | None = None
+    ) -> List[Dict[str, Any]]:
         """
         Fetch questions from Metaculus.
         Example params: {"status": "open", "order_by": "-activity", "project": <project_id>}
@@ -32,28 +41,38 @@ class MetaculusAPI:
             response.raise_for_status()
             # Assuming the API returns a list of questions directly or under a 'results' key
             data = response.json()
-            return data.get('results', data) if isinstance(data, dict) else data
+            return data.get("results", data) if isinstance(data, dict) else data
         except httpx.HTTPStatusError as e:
-            print(f"HTTP error fetching questions: {e.response.status_code} - {e.response.text}")
+            print(
+                f"HTTP error fetching questions: {e.response.status_code} - {e.response.text}"
+            )
             raise
         except httpx.RequestError as e:
             print(f"Request error fetching questions: {e}")
             raise
 
-    async def submit_prediction(self, question_id: int, prediction_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def submit_prediction(
+        self, question_id: int, prediction_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Submit a prediction for a given question.
         Example prediction_data for binary: {"prediction": 0.75, "void": false}
         """
         try:
-            response = await self.client.post(f"/questions/{question_id}/predict/", json=prediction_data)
+            response = await self.client.post(
+                f"/questions/{question_id}/predict/", json=prediction_data
+            )
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            print(f"HTTP error submitting prediction for question {question_id}: {e.response.status_code} - {e.response.text}")
+            print(
+                f"HTTP error submitting prediction for question {question_id}: {e.response.status_code} - {e.response.text}"
+            )
             raise
         except httpx.RequestError as e:
-            print(f"Request error submitting prediction for question {question_id}: {e}")
+            print(
+                f"Request error submitting prediction for question {question_id}: {e}"
+            )
             raise
 
     async def get_question_detail(self, question_id: int) -> Dict[str, Any]:
@@ -65,11 +84,14 @@ class MetaculusAPI:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            print(f"HTTP error fetching question {question_id}: {e.response.status_code} - {e.response.text}")
+            print(
+                f"HTTP error fetching question {question_id}: {e.response.status_code} - {e.response.text}"
+            )
             raise
         except httpx.RequestError as e:
             print(f"Request error fetching question {question_id}: {e}")
             raise
+
 
 # Example usage (optional, for direct testing)
 async def example_main():
@@ -78,12 +100,16 @@ async def example_main():
     try:
         print("Fetching open questions...")
         # You might want to filter by project or other criteria
-        questions = await api.fetch_questions({"status": "open", "limit": 5, "order_by": "-activity"})
+        questions = await api.fetch_questions(
+            {"status": "open", "limit": 5, "order_by": "-activity"}
+        )
         if questions:
             print(f"Fetched {len(questions)} questions.")
             for q in questions:
-                print(f"- ID: {q['id']}, Title: {q['title_short'] if 'title_short' in q else q['title']}")
-            
+                print(
+                    f"- ID: {q['id']}, Title: {q['title_short'] if 'title_short' in q else q['title']}"
+                )
+
             # Example: Fetch detail for the first question
             # first_q_id = questions[0]['id']
             # print(f"\nFetching details for question {first_q_id}...")
@@ -106,8 +132,10 @@ async def example_main():
     finally:
         await api.close()
 
+
 if __name__ == "__main__":
     # import asyncio
     # asyncio.run(example_main())
-    print("MetaculusAPI class defined. Uncomment example_main and asyncio import to run example.")
-
+    print(
+        "MetaculusAPI class defined. Uncomment example_main and asyncio import to run example."
+    )

@@ -1,14 +1,19 @@
 """
 Tests for prompt optimization and token usage efficiency.
 """
-import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
 
-from src.prompts.calibrated_forecasting_prompts import CalibratedForecastingPrompts, CalibrationPromptManager
+from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import pytest
+
 from src.domain.entities.question import Question, QuestionType
 from src.domain.entities.research_report import ResearchReport
 from src.infrastructure.config.token_tracker import TokenTracker
+from src.prompts.calibrated_forecasting_prompts import (
+    CalibratedForecastingPrompts,
+    CalibrationPromptManager,
+)
 
 
 class TestPromptOptimization:
@@ -28,7 +33,9 @@ class TestPromptOptimization:
 
     def test_basic_calibrated_prompt_efficiency(self):
         """Test basic calibrated prompt token efficiency."""
-        research_summary = "Recent AI developments show rapid progress in large language models."
+        research_summary = (
+            "Recent AI developments show rapid progress in large language models."
+        )
 
         # Generate prompt
         prompt = self.prompts.generate_basic_calibrated_prompt(
@@ -47,9 +54,12 @@ class TestPromptOptimization:
         assert "CONFIDENCE" in prompt
         assert "overconfidence" in prompt.lower()
         assert "probability" in prompt.lower()
+
     def test_scenario_analysis_prompt_structure(self):
         """Test scenario analysis prompt structure and efficiency."""
-        research_summary = "Market analysis shows mixed signals for technology adoption."
+        research_summary = (
+            "Market analysis shows mixed signals for technology adoption."
+        )
 
         # Generate scenario analysis prompt
         prompt = self.prompts.generate_scenario_analysis_prompt(
@@ -86,7 +96,9 @@ class TestPromptOptimization:
 
         # Count tokens for efficiency
         token_count = self.token_tracker.count_tokens(prompt, "gpt-4o-mini")
-        assert token_count < 600, f"Overconfidence prompt too long: {token_count} tokens"
+        assert (
+            token_count < 600
+        ), f"Overconfidence prompt too long: {token_count} tokens"
 
     def test_prompt_selection_optimization(self):
         """Test optimal prompt selection based on question characteristics."""
@@ -95,33 +107,36 @@ class TestPromptOptimization:
             {
                 "question_complexity": "simple",
                 "available_research": "limited",
-                "expected_prompt_type": "basic_calibrated"
+                "expected_prompt_type": "basic_calibrated",
             },
             {
                 "question_complexity": "complex",
                 "available_research": "comprehensive",
-                "expected_prompt_type": "scenario_analysis"
+                "expected_prompt_type": "scenario_analysis",
             },
             {
                 "question_complexity": "medium",
                 "available_research": "moderate",
-                "expected_prompt_type": "overconfidence_reduction"
-            }
+                "expected_prompt_type": "overconfidence_reduction",
+            },
         ]
 
         for case in test_cases:
             selected_prompt = self.prompt_manager.select_optimal_prompt(
                 complexity=case["question_complexity"],
                 research_quality=case["available_research"],
-                budget_constraint="normal"
+                budget_constraint="normal",
             )
 
             # Verify appropriate prompt selection
             assert selected_prompt is not None
             assert isinstance(selected_prompt, str)
+
     def test_token_usage_comparison(self):
         """Test token usage comparison between different prompt types."""
-        research_summary = "Comprehensive research data with multiple data points and analysis."
+        research_summary = (
+            "Comprehensive research data with multiple data points and analysis."
+        )
 
         # Generate different prompt types
         basic_prompt = self.prompts.generate_basic_calibrated_prompt(
@@ -136,12 +151,20 @@ class TestPromptOptimization:
 
         # Count tokens for each
         basic_tokens = self.token_tracker.count_tokens(basic_prompt, "gpt-4o-mini")
-        scenario_tokens = self.token_tracker.count_tokens(scenario_prompt, "gpt-4o-mini")
-        overconfidence_tokens = self.token_tracker.count_tokens(overconfidence_prompt, "gpt-4o-mini")
+        scenario_tokens = self.token_tracker.count_tokens(
+            scenario_prompt, "gpt-4o-mini"
+        )
+        overconfidence_tokens = self.token_tracker.count_tokens(
+            overconfidence_prompt, "gpt-4o-mini"
+        )
 
         # Verify expected token hierarchy
-        assert basic_tokens < scenario_tokens, "Basic prompt should be shorter than scenario"
-        assert basic_tokens < overconfidence_tokens, "Basic prompt should be shorter than overconfidence"
+        assert (
+            basic_tokens < scenario_tokens
+        ), "Basic prompt should be shorter than scenario"
+        assert (
+            basic_tokens < overconfidence_tokens
+        ), "Basic prompt should be shorter than overconfidence"
 
         # All should be within reasonable bounds
         for tokens in [basic_tokens, scenario_tokens, overconfidence_tokens]:
@@ -154,14 +177,14 @@ class TestPromptOptimization:
         budget_prompt = self.prompt_manager.select_optimal_prompt(
             complexity="complex",
             research_quality="comprehensive",
-            budget_constraint="tight"
+            budget_constraint="tight",
         )
 
         # Test normal budget selection
         normal_prompt = self.prompt_manager.select_optimal_prompt(
             complexity="complex",
             research_quality="comprehensive",
-            budget_constraint="normal"
+            budget_constraint="normal",
         )
 
         # Budget-constrained should prefer shorter prompts
@@ -169,7 +192,9 @@ class TestPromptOptimization:
         normal_tokens = self.token_tracker.count_tokens(normal_prompt, "gpt-4o-mini")
 
         # Budget version should be more concise
-        assert budget_tokens <= normal_tokens, "Budget prompt should not be longer than normal"
+        assert (
+            budget_tokens <= normal_tokens
+        ), "Budget prompt should not be longer than normal"
 
     def teardown_method(self):
         """Clean up test environment."""

@@ -2,15 +2,16 @@
 Real-time budget utilization dashboard for tournament API optimization.
 Provides comprehensive cost and usage monitoring with alert system.
 """
-import logging
-import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
-from pathlib import Path
 
-from ..config.budget_manager import budget_manager, BudgetStatus
-from ..config.cost_monitor import cost_monitor, CostAlert
+import json
+import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from ..config.budget_manager import BudgetStatus, budget_manager
+from ..config.cost_monitor import CostAlert, cost_monitor
 from ..config.token_tracker import token_tracker
 
 logger = logging.getLogger(__name__)
@@ -19,9 +20,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BudgetAlert:
     """Budget-specific alert for threshold breaches."""
+
     timestamp: datetime
     alert_type: str  # "budget_threshold", "cost_spike", "efficiency_drop"
-    severity: str    # "info", "warning", "critical"
+    severity: str  # "info", "warning", "critical"
     message: str
     current_value: float
     threshold_value: float
@@ -31,7 +33,7 @@ class BudgetAlert:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
+        data["timestamp"] = self.timestamp.isoformat()
         return data
 
 
@@ -53,6 +55,7 @@ class BudgetDashboard:
         self.dashboard_file.parent.mkdir(parents=True, exist_ok=True)
 
         logger.info("Budget dashboard initialized")
+
     def get_real_time_status(self) -> Dict[str, Any]:
         """Get comprehensive real-time budget and usage status."""
         budget_status = self.budget_manager.get_budget_status()
@@ -70,7 +73,7 @@ class BudgetDashboard:
                 "questions_processed": budget_status.questions_processed,
                 "avg_cost_per_question": budget_status.average_cost_per_question,
                 "estimated_questions_remaining": budget_status.estimated_questions_remaining,
-                "last_updated": budget_status.last_updated.isoformat()
+                "last_updated": budget_status.last_updated.isoformat(),
             },
             "usage": {
                 "total_calls": usage_summary["total_calls"],
@@ -78,15 +81,22 @@ class BudgetDashboard:
                 "total_tokens": usage_summary["total_tokens"],
                 "total_cost": usage_summary["total_cost"],
                 "by_model": usage_summary["by_model"],
-                "by_task_type": usage_summary["by_task_type"]
+                "by_task_type": usage_summary["by_task_type"],
             },
             "breakdown": cost_breakdown,
             "alerts": self._get_active_alerts(),
-            "recommendations": self._get_optimization_recommendations()
+            "recommendations": self._get_optimization_recommendations(),
         }
 
-    def track_question_cost(self, question_id: str, model: str, task_type: str,
-                           prompt: str, response: str, success: bool = True) -> Dict[str, Any]:
+    def track_question_cost(
+        self,
+        question_id: str,
+        model: str,
+        task_type: str,
+        prompt: str,
+        response: str,
+        success: bool = True,
+    ) -> Dict[str, Any]:
         """Track cost for a specific question with real-time monitoring."""
         # Use cost monitor for comprehensive tracking
         tracking_result = self.cost_monitor.track_api_call_with_monitoring(
@@ -105,12 +115,13 @@ class BudgetDashboard:
             "tokens": {
                 "input": tracking_result["input_tokens"],
                 "output": tracking_result["output_tokens"],
-                "total": tracking_result["total_tokens"]
+                "total": tracking_result["total_tokens"],
             },
             "budget_remaining": self.budget_manager.get_budget_status().remaining,
             "utilization_percent": self.budget_manager.get_budget_status().utilization_percentage,
-            "alerts_triggered": len(self._get_recent_alerts())
+            "alerts_triggered": len(self._get_recent_alerts()),
         }
+
     def _check_budget_alerts(self, question_id: str, cost: float):
         """Check for budget threshold breaches and trigger alerts."""
         budget_status = self.budget_manager.get_budget_status()
@@ -118,7 +129,9 @@ class BudgetDashboard:
 
         # Check budget thresholds
         for threshold in self.budget_thresholds:
-            if utilization >= threshold and not self._has_recent_threshold_alert(threshold):
+            if utilization >= threshold and not self._has_recent_threshold_alert(
+                threshold
+            ):
                 severity = self._get_alert_severity(threshold)
                 alert = BudgetAlert(
                     timestamp=datetime.now(),
@@ -128,7 +141,7 @@ class BudgetDashboard:
                     current_value=utilization,
                     threshold_value=threshold,
                     recommendation=self._get_threshold_recommendation(threshold),
-                    question_id=question_id
+                    question_id=question_id,
                 )
                 self._trigger_alert(alert)
 
@@ -138,7 +151,8 @@ class BudgetDashboard:
     def _check_cost_spike(self, question_id: str, current_cost: float):
         """Check for unusual cost spikes."""
         recent_costs = [
-            record.estimated_cost for record in self.budget_manager.cost_records[-10:]
+            record.estimated_cost
+            for record in self.budget_manager.cost_records[-10:]
             if record.success and record.question_id != question_id
         ]
 
@@ -153,7 +167,7 @@ class BudgetDashboard:
                     current_value=current_cost,
                     threshold_value=avg_cost * self.cost_spike_multiplier,
                     recommendation="Review prompt length and model selection for this question",
-                    question_id=question_id
+                    question_id=question_id,
                 )
                 self._trigger_alert(alert)
 
@@ -172,9 +186,12 @@ class BudgetDashboard:
             0.5: "Monitor usage closely and consider optimizing model selection",
             0.75: "Switch to more cost-efficient models for non-critical tasks",
             0.85: "Enable conservative mode and reduce forecast frequency",
-            0.95: "URGENT: Enable emergency mode - critical budget threshold reached"
+            0.95: "URGENT: Enable emergency mode - critical budget threshold reached",
         }
-        return recommendations.get(threshold, "Review budget allocation and usage patterns")
+        return recommendations.get(
+            threshold, "Review budget allocation and usage patterns"
+        )
+
     def _trigger_alert(self, alert: BudgetAlert):
         """Trigger a budget alert with logging and persistence."""
         logger.warning(f"BUDGET ALERT [{alert.severity.upper()}]: {alert.message}")
@@ -196,7 +213,7 @@ class BudgetDashboard:
             # Load existing alerts
             alerts = []
             if alerts_file.exists():
-                with open(alerts_file, 'r') as f:
+                with open(alerts_file, "r") as f:
                     data = json.load(f)
                     alerts = data.get("alerts", [])
 
@@ -207,11 +224,12 @@ class BudgetDashboard:
             alerts = alerts[-100:]
 
             # Save back
-            with open(alerts_file, 'w') as f:
-                json.dump({
-                    "alerts": alerts,
-                    "last_updated": datetime.now().isoformat()
-                }, f, indent=2)
+            with open(alerts_file, "w") as f:
+                json.dump(
+                    {"alerts": alerts, "last_updated": datetime.now().isoformat()},
+                    f,
+                    indent=2,
+                )
 
         except Exception as e:
             logger.error(f"Failed to save budget alert: {e}")
@@ -223,7 +241,7 @@ class BudgetDashboard:
             if not alerts_file.exists():
                 return False
 
-            with open(alerts_file, 'r') as f:
+            with open(alerts_file, "r") as f:
                 data = json.load(f)
                 alerts = data.get("alerts", [])
 
@@ -231,15 +249,18 @@ class BudgetDashboard:
 
             for alert_data in alerts:
                 alert_time = datetime.fromisoformat(alert_data["timestamp"])
-                if (alert_time >= cutoff_time and
-                    alert_data["alert_type"] == "budget_threshold" and
-                    abs(alert_data["threshold_value"] - threshold) < 0.01):
+                if (
+                    alert_time >= cutoff_time
+                    and alert_data["alert_type"] == "budget_threshold"
+                    and abs(alert_data["threshold_value"] - threshold) < 0.01
+                ):
                     return True
 
         except Exception as e:
             logger.error(f"Error checking recent alerts: {e}")
 
         return False
+
     def _get_active_alerts(self) -> List[Dict[str, Any]]:
         """Get currently active alerts."""
         return self._get_recent_alerts(hours=24)
@@ -251,7 +272,7 @@ class BudgetDashboard:
             if not alerts_file.exists():
                 return []
 
-            with open(alerts_file, 'r') as f:
+            with open(alerts_file, "r") as f:
                 data = json.load(f)
                 alerts = data.get("alerts", [])
 
@@ -277,13 +298,19 @@ class BudgetDashboard:
 
         # Budget-based recommendations
         if budget_status.utilization_percentage > 90:
-            recommendations.append("CRITICAL: Switch to GPT-4o-mini immediately for all tasks")
+            recommendations.append(
+                "CRITICAL: Switch to GPT-4o-mini immediately for all tasks"
+            )
             recommendations.append("Reduce forecast frequency to absolute minimum")
         elif budget_status.utilization_percentage > 80:
-            recommendations.append("HIGH: Use GPT-4o-mini for research, GPT-4o only for final forecasts")
+            recommendations.append(
+                "HIGH: Use GPT-4o-mini for research, GPT-4o only for final forecasts"
+            )
             recommendations.append("Implement aggressive prompt optimization")
         elif budget_status.utilization_percentage > 60:
-            recommendations.append("MEDIUM: Consider model optimization for non-critical tasks")
+            recommendations.append(
+                "MEDIUM: Consider model optimization for non-critical tasks"
+            )
 
         # Usage pattern recommendations
         if usage_summary["success_rate"] < 0.9:
@@ -292,7 +319,9 @@ class BudgetDashboard:
         # Cost efficiency recommendations
         avg_cost = budget_status.spent / max(budget_status.questions_processed, 1)
         if avg_cost > 0.5:  # $0.50 per question
-            recommendations.append("High cost per question - optimize prompts and model selection")
+            recommendations.append(
+                "High cost per question - optimize prompts and model selection"
+            )
 
         return recommendations
 
@@ -306,11 +335,11 @@ class BudgetDashboard:
                     "total_questions": self.budget_manager.questions_processed,
                     "total_spent": self.budget_manager.current_spend,
                     "utilization": self.budget_manager.get_budget_status().utilization_percentage,
-                    "active_alerts": len(self._get_active_alerts())
-                }
+                    "active_alerts": len(self._get_active_alerts()),
+                },
             }
 
-            with open(self.dashboard_file, 'w') as f:
+            with open(self.dashboard_file, "w") as f:
                 json.dump(dashboard_data, f, indent=2)
 
         except Exception as e:

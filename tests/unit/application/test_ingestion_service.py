@@ -3,12 +3,19 @@ Unit tests for IngestionService application component.
 Tests JSON parsing, validation, and error handling.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+
 from src.application.ingestion_service import (
-    IngestionService, ValidationLevel, IngestionStats, IngestionError, ValidationError, ParseError
+    IngestionError,
+    IngestionService,
+    IngestionStats,
+    ParseError,
+    ValidationError,
+    ValidationLevel,
 )
-from src.domain.entities.question import Question, QuestionType, QuestionStatus
+from src.domain.entities.question import Question, QuestionStatus, QuestionType
 
 
 class TestIngestionService:
@@ -28,7 +35,7 @@ class TestIngestionService:
             "type": "binary",
             "url": "https://example.com/123",
             "close_time": "2024-12-31T23:59:59Z",
-            "status": "open"
+            "status": "open",
         }
 
         # Act
@@ -56,7 +63,7 @@ class TestIngestionService:
             "url": "https://example.com/124",
             "close_time": "2024-12-31T23:59:59Z",
             "choices": ["Sunny", "Rainy", "Cloudy"],
-            "status": "open"
+            "status": "open",
         }
 
         # Act
@@ -82,7 +89,7 @@ class TestIngestionService:
             "close_time": "2024-12-31T23:59:59Z",
             "min_value": -10.0,
             "max_value": 50.0,
-            "status": "open"
+            "status": "open",
         }
 
         # Act
@@ -107,7 +114,7 @@ class TestIngestionService:
                 "type": "binary",
                 "url": "https://example.com/123",
                 "close_time": "2024-12-31T23:59:59Z",
-                "status": "open"
+                "status": "open",
             },
             {
                 "id": 124,
@@ -117,8 +124,8 @@ class TestIngestionService:
                 "url": "https://example.com/124",
                 "close_time": "2024-12-31T23:59:59Z",
                 "choices": ["A", "B", "C"],
-                "status": "open"
-            }
+                "status": "open",
+            },
         ]
 
         # Act
@@ -143,14 +150,14 @@ class TestIngestionService:
                 "type": "binary",
                 "url": "https://example.com/123",
                 "close_time": "2024-12-31T23:59:59Z",
-                "status": "open"
+                "status": "open",
             },
             {
                 # Missing required fields
                 "id": 124,
                 "title": "",  # Empty title
-                "description": "Invalid question"
-            }
+                "description": "Invalid question",
+            },
         ]
 
         # Act
@@ -189,7 +196,7 @@ class TestIngestionService:
                 "type": "binary",
                 "url": "https://example.com/123",
                 "close_time": "2024-12-31T23:59:59Z",
-                "status": "open"
+                "status": "open",
             },
             {
                 "id": 124,
@@ -200,13 +207,13 @@ class TestIngestionService:
                 "close_time": "2024-12-31T23:59:59Z",
                 "min_value": 0,
                 "max_value": 100,
-                "status": "open"
+                "status": "open",
             },
             {
                 # Invalid question - malformed data that will cause parsing failure
                 "id": "not_a_number",  # Invalid ID type that will cause parsing error
-                "title": "Invalid Question"
-            }
+                "title": "Invalid Question",
+            },
         ]
 
         # Act
@@ -230,7 +237,7 @@ class TestIngestionService:
             "url": "https://example.com/123",
             "close_time": "2024-12-31T23:59:59Z",
             "categories": ["Politics", "Economics"],
-            "status": "open"
+            "status": "open",
         }
 
         # Act
@@ -238,7 +245,10 @@ class TestIngestionService:
 
         # Assert
         assert result is not None
-        assert set(result.categories) == {"Politics", "Economics"}  # Categories as set (order not guaranteed)
+        assert set(result.categories) == {
+            "Politics",
+            "Economics",
+        }  # Categories as set (order not guaranteed)
 
     def test_parse_question_with_resolve_time(self):
         """Test parsing question with resolve time."""
@@ -251,7 +261,7 @@ class TestIngestionService:
             "url": "https://example.com/123",
             "close_time": "2024-12-31T23:59:59Z",
             "resolve_time": "2024-01-15T12:00:00Z",
-            "status": "resolved"
+            "status": "resolved",
         }
 
         # Act
@@ -276,7 +286,7 @@ class TestIngestionService:
             "type": "binary",
             "url": "https://example.com/test",
             "close_time": "2024-12-31T23:59:59Z",
-            "status": "open"
+            "status": "open",
         }
 
         # Act & Assert
@@ -293,7 +303,7 @@ class TestIngestionService:
             "type": "binary",
             "url": "https://example.com/test",
             "close_time": "2024-12-31T23:59:59Z",
-            "status": "open"
+            "status": "open",
         }
 
         # Act
@@ -313,7 +323,7 @@ class TestIngestionService:
             "type": "invalid_type",
             "url": "https://example.com/123",
             "close_time": "2024-12-31T23:59:59Z",
-            "status": "open"
+            "status": "open",
         }
 
         # Act
@@ -333,7 +343,7 @@ class TestIngestionService:
             "type": "binary",
             "url": "https://example.com/123",
             "close_time": "2024-12-31T23:59:59Z",
-            "status": "invalid_status"
+            "status": "invalid_status",
         }
 
         # Act
@@ -351,7 +361,7 @@ class TestIngestionService:
             "id": 123,
             "title": "Minimal validation",
             "description": "Very basic question",
-            "type": "binary"
+            "type": "binary",
             # Missing many optional fields
         }
 
@@ -388,7 +398,7 @@ class TestValidationLevels:
         service = IngestionService(validation_level=ValidationLevel.STRICT)
         minimal_data = {
             "id": 123,
-            "title": "Minimal"
+            "title": "Minimal",
             # Missing many required fields
         }
 
@@ -404,7 +414,7 @@ class TestValidationLevels:
             "id": 123,
             "title": "Minimal with some fields",
             "description": "Basic description",
-            "type": "binary"
+            "type": "binary",
         }
 
         # Act
@@ -418,11 +428,7 @@ class TestValidationLevels:
         """Test that minimal validation is very permissive."""
         # Arrange
         service = IngestionService(validation_level=ValidationLevel.MINIMAL)
-        basic_data = {
-            "id": 123,
-            "title": "Very minimal",
-            "type": "binary"
-        }
+        basic_data = {"id": 123, "title": "Very minimal", "type": "binary"}
 
         # Act
         result = service.parse_question(basic_data)
@@ -460,7 +466,7 @@ class TestErrorHandling:
             "type": "binary",
             "url": "https://example.com/123",
             "close_time": "2024-12-31T23:59:59Z",
-            "status": "open"
+            "status": "open",
         }
 
         # Act & Assert
@@ -478,7 +484,7 @@ class TestErrorHandling:
             "type": "binary",
             "url": "https://example.com/123",
             "close_time": "not-a-datetime",
-            "status": "open"
+            "status": "open",
         }
 
         # Act

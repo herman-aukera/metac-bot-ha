@@ -1,19 +1,19 @@
 """Ensemble service for coordinating multiple forecasting agents."""
 
-from typing import List, Dict, Any, Optional, Tuple, Callable
-from uuid import UUID
-import statistics
 import math
+import statistics
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Tuple
+from uuid import UUID
+
 import structlog
 
-from ..entities.question import Question
-from ..entities.prediction import Prediction, PredictionMethod, PredictionConfidence
 from ..entities.forecast import Forecast
+from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
+from ..entities.question import Question
 from ..entities.research_report import ResearchReport
-from ..value_objects.probability import Probability
 from ..value_objects.confidence import ConfidenceLevel
-
+from ..value_objects.probability import Probability
 
 logger = structlog.get_logger(__name__)
 
@@ -39,14 +39,14 @@ class EnsembleService:
             "stacked_generalization",
             "dynamic_selection",
             "outlier_robust_mean",
-            "entropy_weighted"
+            "entropy_weighted",
         ]
         self.supported_agent_types = [
             "chain_of_thought",
             "tree_of_thought",
             "react",
             "auto_cot",
-            "self_consistency"
+            "self_consistency",
         ]
 
         # Performance tracking for dynamic method selection
@@ -58,14 +58,14 @@ class EnsembleService:
             "best_recent": self._select_best_recent_method,
             "ensemble_of_methods": self._select_ensemble_of_methods,
             "adaptive_threshold": self._select_adaptive_threshold_method,
-            "diversity_based": self._select_diversity_based_method
+            "diversity_based": self._select_diversity_based_method,
         }
 
     def aggregate_predictions(
         self,
         predictions: List[Prediction],
         method: str = "weighted_average",
-        weights: Optional[List[float]] = None
+        weights: Optional[List[float]] = None,
     ) -> Prediction:
         """
         Aggregate multiple predictions into a single ensemble prediction.
@@ -92,11 +92,15 @@ class EnsembleService:
             "Aggregating predictions",
             count=len(predictions),
             method=method,
-            question_id=str(question_id)
+            question_id=str(question_id),
         )
 
         # Extract probability values from result attribute
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if not probabilities:
             raise ValueError("No valid binary probabilities found in predictions")
@@ -154,7 +158,9 @@ class EnsembleService:
             reasoning=ensemble_reasoning,
             method=PredictionMethod.ENSEMBLE,
             created_by=f"EnsembleService-{method}",
-            research_report_id=predictions[0].research_report_id,  # Use first prediction's research report
+            research_report_id=predictions[
+                0
+            ].research_report_id,  # Use first prediction's research report
             method_metadata={
                 "aggregation_method": method,
                 "input_predictions_count": len(predictions),
@@ -162,21 +168,27 @@ class EnsembleService:
                 "confidence_range": {
                     "min": min(p.get_confidence_score() for p in predictions),
                     "max": max(p.get_confidence_score() for p in predictions),
-                    "mean": statistics.mean(p.get_confidence_score() for p in predictions)
+                    "mean": statistics.mean(
+                        p.get_confidence_score() for p in predictions
+                    ),
                 },
                 "probability_range": {
                     "min": min(probabilities),
                     "max": max(probabilities),
-                    "std": statistics.stdev(probabilities) if len(probabilities) > 1 else 0.0
-                }
-            }
+                    "std": (
+                        statistics.stdev(probabilities)
+                        if len(probabilities) > 1
+                        else 0.0
+                    ),
+                },
+            },
         )
 
         logger.info(
             "Ensemble prediction created",
             probability=aggregated_prob,
             confidence=ensemble_confidence.value,
-            method=method
+            method=method,
         )
 
         return ensemble_prediction
@@ -221,20 +233,24 @@ class EnsembleService:
         return statistics.mean(trimmed_values)
 
     def _calculate_ensemble_confidence(
-        self,
-        predictions: List[Prediction],
-        method: str
+        self, predictions: List[Prediction], method: str
     ) -> PredictionConfidence:
         """Calculate confidence level for ensemble prediction."""
 
         confidences = [p.get_confidence_score() for p in predictions]
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         # Base confidence from individual predictions
         mean_confidence = statistics.mean(confidences)
 
         # Adjustment based on agreement between predictions
-        prob_variance = statistics.variance(probabilities) if len(probabilities) > 1 else 0.0
+        prob_variance = (
+            statistics.variance(probabilities) if len(probabilities) > 1 else 0.0
+        )
 
         # Higher agreement (lower variance) increases ensemble confidence
         agreement_bonus = max(0, 0.05 - prob_variance)
@@ -246,7 +262,9 @@ class EnsembleService:
         # Sample size bonus - more predictions generally increase confidence
         sample_bonus = min(0.02, len(predictions) * 0.002)
 
-        ensemble_confidence = mean_confidence + agreement_bonus + diversity_bonus + sample_bonus
+        ensemble_confidence = (
+            mean_confidence + agreement_bonus + diversity_bonus + sample_bonus
+        )
         ensemble_confidence = max(0.0, min(1.0, ensemble_confidence))
 
         # Convert numeric confidence to enum
@@ -262,40 +280,55 @@ class EnsembleService:
             return PredictionConfidence.VERY_LOW
 
     def _create_ensemble_reasoning(
-        self,
-        predictions: List[Prediction],
-        method: str,
-        final_probability: float
+        self, predictions: List[Prediction], method: str, final_probability: float
     ) -> str:
         """Create reasoning explanation for ensemble prediction."""
 
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
         agent_names = [p.created_by for p in predictions]
 
         reasoning = f"Ensemble prediction using {method} aggregation of {len(predictions)} predictions.\n\n"
 
         reasoning += "Individual predictions:\n"
         for i, pred in enumerate(predictions):
-            prob_val = pred.result.binary_probability if pred.result.binary_probability is not None else 0.5
+            prob_val = (
+                pred.result.binary_probability
+                if pred.result.binary_probability is not None
+                else 0.5
+            )
             conf_val = pred.get_confidence_score()
-            reasoning += f"- {pred.created_by}: {prob_val:.3f} (confidence: {conf_val:.2f})\n"
+            reasoning += (
+                f"- {pred.created_by}: {prob_val:.3f} (confidence: {conf_val:.2f})\n"
+            )
 
         reasoning += f"\nStatistics:\n"
         reasoning += f"- Mean: {statistics.mean(probabilities):.3f}\n"
         reasoning += f"- Median: {statistics.median(probabilities):.3f}\n"
 
         if len(probabilities) > 1:
-            reasoning += f"- Standard deviation: {statistics.stdev(probabilities):.3f}\n"
-            reasoning += f"- Range: {min(probabilities):.3f} - {max(probabilities):.3f}\n"
+            reasoning += (
+                f"- Standard deviation: {statistics.stdev(probabilities):.3f}\n"
+            )
+            reasoning += (
+                f"- Range: {min(probabilities):.3f} - {max(probabilities):.3f}\n"
+            )
 
         reasoning += f"\nFinal ensemble probability: {final_probability:.3f}\n"
 
         # Add interpretation based on agreement
-        prob_variance = statistics.variance(probabilities) if len(probabilities) > 1 else 0.0
+        prob_variance = (
+            statistics.variance(probabilities) if len(probabilities) > 1 else 0.0
+        )
         if prob_variance < 0.005:
             reasoning += "\nHigh agreement between predictions increases confidence in ensemble result."
         elif prob_variance > 0.05:
-            reasoning += "\nLow agreement between predictions suggests higher uncertainty."
+            reasoning += (
+                "\nLow agreement between predictions suggests higher uncertainty."
+            )
         else:
             reasoning += "\nModerate agreement between predictions."
 
@@ -305,7 +338,7 @@ class EnsembleService:
         self,
         ensemble_predictions: List[Prediction],
         individual_predictions: List[List[Prediction]],
-        ground_truth: Optional[List[bool]] = None
+        ground_truth: Optional[List[bool]] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate ensemble performance against individual predictions.
@@ -320,13 +353,21 @@ class EnsembleService:
         """
 
         if len(ensemble_predictions) != len(individual_predictions):
-            raise ValueError("Ensemble and individual predictions lists must have same length")
+            raise ValueError(
+                "Ensemble and individual predictions lists must have same length"
+            )
 
         metrics = {
             "ensemble_count": len(ensemble_predictions),
-            "average_input_predictions": statistics.mean(len(preds) for preds in individual_predictions),
-            "diversity_metrics": self._calculate_diversity_metrics(individual_predictions),
-            "confidence_metrics": self._calculate_confidence_metrics(ensemble_predictions),
+            "average_input_predictions": statistics.mean(
+                len(preds) for preds in individual_predictions
+            ),
+            "diversity_metrics": self._calculate_diversity_metrics(
+                individual_predictions
+            ),
+            "confidence_metrics": self._calculate_confidence_metrics(
+                ensemble_predictions
+            ),
         }
 
         if ground_truth:
@@ -341,8 +382,7 @@ class EnsembleService:
         return metrics
 
     def _calculate_diversity_metrics(
-        self,
-        individual_predictions: List[List[Prediction]]
+        self, individual_predictions: List[List[Prediction]]
     ) -> Dict[str, float]:
         """Calculate diversity metrics for prediction sets."""
 
@@ -351,7 +391,11 @@ class EnsembleService:
 
         for pred_set in individual_predictions:
             if len(pred_set) > 1:
-                probs = [p.result.binary_probability for p in pred_set if p.result.binary_probability is not None]
+                probs = [
+                    p.result.binary_probability
+                    for p in pred_set
+                    if p.result.binary_probability is not None
+                ]
                 if len(probs) > 1:
                     all_variances.append(statistics.variance(probs))
                     all_ranges.append(max(probs) - min(probs))
@@ -359,12 +403,15 @@ class EnsembleService:
         return {
             "mean_variance": statistics.mean(all_variances) if all_variances else 0.0,
             "mean_range": statistics.mean(all_ranges) if all_ranges else 0.0,
-            "high_diversity_fraction": sum(1 for v in all_variances if v > 0.05) / len(all_variances) if all_variances else 0.0
+            "high_diversity_fraction": (
+                sum(1 for v in all_variances if v > 0.05) / len(all_variances)
+                if all_variances
+                else 0.0
+            ),
         }
 
     def _calculate_confidence_metrics(
-        self,
-        ensemble_predictions: List[Prediction]
+        self, ensemble_predictions: List[Prediction]
     ) -> Dict[str, float]:
         """Calculate confidence metrics for ensemble predictions."""
 
@@ -372,21 +419,26 @@ class EnsembleService:
 
         return {
             "mean_confidence": statistics.mean(confidences),
-            "confidence_std": statistics.stdev(confidences) if len(confidences) > 1 else 0.0,
-            "high_confidence_fraction": sum(1 for c in confidences if c > 0.8) / len(confidences)
+            "confidence_std": (
+                statistics.stdev(confidences) if len(confidences) > 1 else 0.0
+            ),
+            "high_confidence_fraction": sum(1 for c in confidences if c > 0.8)
+            / len(confidences),
         }
 
     def _calculate_accuracy_metrics(
-        self,
-        predictions: List[Prediction],
-        ground_truth: List[bool]
+        self, predictions: List[Prediction], ground_truth: List[bool]
     ) -> Dict[str, float]:
         """Calculate accuracy metrics against ground truth."""
 
         # Brier score
         brier_scores = []
         for pred, truth in zip(predictions, ground_truth):
-            prob = pred.result.binary_probability if pred.result.binary_probability is not None else 0.5
+            prob = (
+                pred.result.binary_probability
+                if pred.result.binary_probability is not None
+                else 0.5
+            )
             actual = 1.0 if truth else 0.0
             brier_scores.append((prob - actual) ** 2)
 
@@ -396,9 +448,16 @@ class EnsembleService:
         return {
             "brier_score": statistics.mean(brier_scores),
             "mean_absolute_error": statistics.mean(
-                abs((pred.result.binary_probability if pred.result.binary_probability is not None else 0.5) - (1.0 if truth else 0.0))
+                abs(
+                    (
+                        pred.result.binary_probability
+                        if pred.result.binary_probability is not None
+                        else 0.5
+                    )
+                    - (1.0 if truth else 0.0)
+                )
                 for pred, truth in zip(predictions, ground_truth)
-            )
+            ),
         }
 
     def get_supported_methods(self) -> List[str]:
@@ -418,7 +477,9 @@ class EnsembleService:
 
         if "weights" in config:
             weights = config["weights"]
-            if not isinstance(weights, list) or not all(isinstance(w, (int, float)) for w in weights):
+            if not isinstance(weights, list) or not all(
+                isinstance(w, (int, float)) for w in weights
+            ):
                 return False
 
         if "min_predictions" in config:
@@ -437,7 +498,11 @@ class EnsembleService:
         This method analyzes the reasoning chains of predictions and weights them
         based on logical consistency, evidence quality, and reasoning depth.
         """
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if not probabilities:
             return 0.5
@@ -481,21 +546,56 @@ class EnsembleService:
         length_score = min(1.0, len(reasoning) / 1000.0)
 
         # Evidence indicators
-        evidence_indicators = ["according to", "research shows", "data indicates", "study found", "evidence suggests"]
-        evidence_score = sum(0.1 for indicator in evidence_indicators if indicator.lower() in reasoning.lower())
+        evidence_indicators = [
+            "according to",
+            "research shows",
+            "data indicates",
+            "study found",
+            "evidence suggests",
+        ]
+        evidence_score = sum(
+            0.1
+            for indicator in evidence_indicators
+            if indicator.lower() in reasoning.lower()
+        )
         evidence_score = min(0.5, evidence_score)
 
         # Logical structure indicators
-        structure_indicators = ["therefore", "because", "however", "furthermore", "in contrast", "on the other hand"]
-        structure_score = sum(0.05 for indicator in structure_indicators if indicator.lower() in reasoning.lower())
+        structure_indicators = [
+            "therefore",
+            "because",
+            "however",
+            "furthermore",
+            "in contrast",
+            "on the other hand",
+        ]
+        structure_score = sum(
+            0.05
+            for indicator in structure_indicators
+            if indicator.lower() in reasoning.lower()
+        )
         structure_score = min(0.3, structure_score)
 
         # Uncertainty acknowledgment (good reasoning acknowledges uncertainty)
-        uncertainty_indicators = ["uncertain", "unclear", "might", "could", "possibly", "likely", "probably"]
-        uncertainty_score = sum(0.02 for indicator in uncertainty_indicators if indicator.lower() in reasoning.lower())
+        uncertainty_indicators = [
+            "uncertain",
+            "unclear",
+            "might",
+            "could",
+            "possibly",
+            "likely",
+            "probably",
+        ]
+        uncertainty_score = sum(
+            0.02
+            for indicator in uncertainty_indicators
+            if indicator.lower() in reasoning.lower()
+        )
         uncertainty_score = min(0.2, uncertainty_score)
 
-        total_score = length_score + evidence_score + structure_score + uncertainty_score
+        total_score = (
+            length_score + evidence_score + structure_score + uncertainty_score
+        )
 
         return min(1.0, total_score)
 
@@ -506,7 +606,11 @@ class EnsembleService:
         Strong consensus among high-quality predictions increases confidence,
         while disagreement suggests more uncertainty.
         """
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if len(probabilities) < 2:
             return 0.0
@@ -530,7 +634,11 @@ class EnsembleService:
         Bayesian Model Averaging that weights predictions based on their likelihood
         and incorporates prior beliefs about agent performance.
         """
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if not probabilities:
             return 0.5
@@ -544,10 +652,14 @@ class EnsembleService:
             # Historical performance adjustment
             agent_name = pred.created_by
             if agent_name in self.agent_performance_history:
-                recent_performance = self.agent_performance_history[agent_name][-10:]  # Last 10 predictions
+                recent_performance = self.agent_performance_history[agent_name][
+                    -10:
+                ]  # Last 10 predictions
                 if recent_performance:
                     performance_factor = statistics.mean(recent_performance)
-                    confidence_likelihood *= (0.5 + performance_factor)  # Scale by performance
+                    confidence_likelihood *= (
+                        0.5 + performance_factor
+                    )  # Scale by performance
 
             likelihoods.append(confidence_likelihood)
 
@@ -565,7 +677,11 @@ class EnsembleService:
         Stacked generalization (stacking) that learns optimal combination weights
         based on prediction patterns and performance.
         """
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if not probabilities:
             return 0.5
@@ -612,28 +728,40 @@ class EnsembleService:
         Dynamic selection that chooses the best aggregation method based on
         prediction characteristics and historical performance.
         """
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if not probabilities:
             return 0.5
 
         # Analyze prediction characteristics
         variance = statistics.variance(probabilities) if len(probabilities) > 1 else 0.0
-        confidence_spread = max([p.get_confidence_score() for p in predictions]) - min([p.get_confidence_score() for p in predictions])
+        confidence_spread = max([p.get_confidence_score() for p in predictions]) - min(
+            [p.get_confidence_score() for p in predictions]
+        )
 
         # Select method based on characteristics
         if variance < 0.01:  # High agreement - use confidence weighting
             return self._confidence_weighted_aggregation(predictions)
         elif variance > 0.1:  # High disagreement - use robust methods
             return self._outlier_robust_mean(probabilities)
-        elif confidence_spread > 0.4:  # High confidence variation - use confidence weighting
+        elif (
+            confidence_spread > 0.4
+        ):  # High confidence variation - use confidence weighting
             return self._confidence_weighted_aggregation(predictions)
         else:  # Default to meta-reasoning
             return self._meta_reasoning_aggregation(predictions)
 
     def _confidence_weighted_aggregation(self, predictions: List[Prediction]) -> float:
         """Helper method for confidence-weighted aggregation."""
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
         confidence_weights = [p.get_confidence_score() for p in predictions]
         return self._weighted_average(probabilities, confidence_weights)
 
@@ -672,7 +800,11 @@ class EnsembleService:
         Entropy-weighted aggregation that considers the information content
         of each prediction based on its entropy.
         """
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if not probabilities:
             return 0.5
@@ -710,9 +842,7 @@ class EnsembleService:
     # ===== AGGREGATION METHOD SELECTION =====
 
     def select_optimal_aggregation_method(
-        self,
-        predictions: List[Prediction],
-        selection_strategy: str = "best_recent"
+        self, predictions: List[Prediction], selection_strategy: str = "best_recent"
     ) -> str:
         """
         Select the optimal aggregation method based on prediction characteristics
@@ -726,7 +856,9 @@ class EnsembleService:
             Name of the selected aggregation method
         """
         if selection_strategy not in self.method_selectors:
-            logger.warning(f"Unknown selection strategy: {selection_strategy}, using best_recent")
+            logger.warning(
+                f"Unknown selection strategy: {selection_strategy}, using best_recent"
+            )
             selection_strategy = "best_recent"
 
         return self.method_selectors[selection_strategy](predictions)
@@ -760,7 +892,11 @@ class EnsembleService:
 
     def _select_adaptive_threshold_method(self, predictions: List[Prediction]) -> str:
         """Select method based on adaptive thresholds for prediction characteristics."""
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if not probabilities:
             return "simple_average"
@@ -782,7 +918,11 @@ class EnsembleService:
 
     def _select_diversity_based_method(self, predictions: List[Prediction]) -> str:
         """Select method based on prediction diversity."""
-        probabilities = [p.result.binary_probability for p in predictions if p.result.binary_probability is not None]
+        probabilities = [
+            p.result.binary_probability
+            for p in predictions
+            if p.result.binary_probability is not None
+        ]
 
         if len(probabilities) < 2:
             return "simple_average"
@@ -814,9 +954,13 @@ class EnsembleService:
 
         # Keep only recent history (last 50 predictions)
         if len(self.method_performance_history[method]) > 50:
-            self.method_performance_history[method] = self.method_performance_history[method][-50:]
+            self.method_performance_history[method] = self.method_performance_history[
+                method
+            ][-50:]
 
-    def update_agent_performance(self, agent_name: str, performance_score: float) -> None:
+    def update_agent_performance(
+        self, agent_name: str, performance_score: float
+    ) -> None:
         """
         Update performance history for an agent.
 
@@ -831,7 +975,9 @@ class EnsembleService:
 
         # Keep only recent history (last 50 predictions)
         if len(self.agent_performance_history[agent_name]) > 50:
-            self.agent_performance_history[agent_name] = self.agent_performance_history[agent_name][-50:]
+            self.agent_performance_history[agent_name] = self.agent_performance_history[
+                agent_name
+            ][-50:]
 
     def get_method_performance_summary(self) -> Dict[str, Dict[str, float]]:
         """
@@ -846,9 +992,15 @@ class EnsembleService:
             if history:
                 summary[method] = {
                     "mean_performance": statistics.mean(history),
-                    "recent_performance": statistics.mean(history[-10:]) if len(history) >= 10 else statistics.mean(history),
-                    "performance_std": statistics.stdev(history) if len(history) > 1 else 0.0,
-                    "prediction_count": len(history)
+                    "recent_performance": (
+                        statistics.mean(history[-10:])
+                        if len(history) >= 10
+                        else statistics.mean(history)
+                    ),
+                    "performance_std": (
+                        statistics.stdev(history) if len(history) > 1 else 0.0
+                    ),
+                    "prediction_count": len(history),
                 }
 
         return summary

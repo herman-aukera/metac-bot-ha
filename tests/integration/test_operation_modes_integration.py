@@ -1,33 +1,36 @@
 """
 Integration tests for operation modes with enhanced LLM configuration.
 """
-import pytest
+
 from unittest.mock import Mock, patch
 
-from src.infrastructure.config.operation_modes import OperationMode
+import pytest
+
 from src.infrastructure.config.enhanced_llm_config import EnhancedLLMConfig
+from src.infrastructure.config.operation_modes import OperationMode
 
 
 class TestOperationModesIntegration:
     """Test operation modes integration with enhanced LLM config."""
 
-    @patch('src.infrastructure.config.enhanced_llm_config.api_key_manager')
-    @patch('src.infrastructure.config.enhanced_llm_config.budget_manager')
-    @patch('src.infrastructure.config.enhanced_llm_config.operation_mode_manager')
-    def test_llm_config_uses_operation_modes(self, mock_operation_manager, mock_budget, mock_api_keys):
+    @patch("src.infrastructure.config.enhanced_llm_config.api_key_manager")
+    @patch("src.infrastructure.config.enhanced_llm_config.budget_manager")
+    @patch("src.infrastructure.config.enhanced_llm_config.operation_mode_manager")
+    def test_llm_config_uses_operation_modes(
+        self, mock_operation_manager, mock_budget, mock_api_keys
+    ):
         """Test that enhanced LLM config integrates with operation modes."""
         # Setup mocks
         mock_api_keys.get_api_key.return_value = "test-key"
         mock_budget.get_budget_status.return_value = Mock(
-            utilization_percentage=50.0,
-            status_level="normal"
+            utilization_percentage=50.0, status_level="normal"
         )
         mock_operation_manager.check_and_update_mode.return_value = (False, None)
         mock_operation_manager.get_model_for_task.return_value = "openai/gpt-4o-mini"
         mock_operation_manager.get_processing_limits.return_value = {
             "max_retries": 2,
             "timeout_seconds": 60,
-            "enable_complexity_analysis": True
+            "enable_complexity_analysis": True,
         }
         mock_operation_manager.current_mode = OperationMode.NORMAL
 
@@ -39,31 +42,37 @@ class TestOperationModesIntegration:
 
         # Verify operation mode manager was called
         mock_operation_manager.check_and_update_mode.assert_called_once()
-        mock_operation_manager.get_model_for_task.assert_called_once_with("research", None)
+        mock_operation_manager.get_model_for_task.assert_called_once_with(
+            "research", None
+        )
         mock_operation_manager.get_processing_limits.assert_called_once()
 
-    @patch('src.infrastructure.config.enhanced_llm_config.api_key_manager')
-    @patch('src.infrastructure.config.enhanced_llm_config.budget_manager')
-    @patch('src.infrastructure.config.enhanced_llm_config.operation_mode_manager')
-    def test_mode_change_during_task_request(self, mock_operation_manager, mock_budget, mock_api_keys):
+    @patch("src.infrastructure.config.enhanced_llm_config.api_key_manager")
+    @patch("src.infrastructure.config.enhanced_llm_config.budget_manager")
+    @patch("src.infrastructure.config.enhanced_llm_config.operation_mode_manager")
+    def test_mode_change_during_task_request(
+        self, mock_operation_manager, mock_budget, mock_api_keys
+    ):
         """Test automatic mode change during task request."""
         # Setup mocks
         mock_api_keys.get_api_key.return_value = "test-key"
         mock_budget.get_budget_status.return_value = Mock(
-            utilization_percentage=85.0,
-            status_level="conservative"
+            utilization_percentage=85.0, status_level="conservative"
         )
 
         # Mock mode change
         mock_transition = Mock()
         mock_transition.from_mode.value = "normal"
         mock_transition.to_mode.value = "conservative"
-        mock_operation_manager.check_and_update_mode.return_value = (True, mock_transition)
+        mock_operation_manager.check_and_update_mode.return_value = (
+            True,
+            mock_transition,
+        )
         mock_operation_manager.get_model_for_task.return_value = "openai/gpt-4o-mini"
         mock_operation_manager.get_processing_limits.return_value = {
             "max_retries": 2,
             "timeout_seconds": 60,
-            "enable_complexity_analysis": True
+            "enable_complexity_analysis": True,
         }
         mock_operation_manager.current_mode = OperationMode.CONSERVATIVE
 
@@ -74,8 +83,8 @@ class TestOperationModesIntegration:
         # Verify mode change was detected and handled
         mock_operation_manager.check_and_update_mode.assert_called_once()
 
-    @patch('src.infrastructure.config.enhanced_llm_config.api_key_manager')
-    @patch('src.infrastructure.config.enhanced_llm_config.operation_mode_manager')
+    @patch("src.infrastructure.config.enhanced_llm_config.api_key_manager")
+    @patch("src.infrastructure.config.enhanced_llm_config.operation_mode_manager")
     def test_question_processing_check(self, mock_operation_manager, mock_api_keys):
         """Test question processing check integration."""
         # Setup mocks
@@ -92,8 +101,8 @@ class TestOperationModesIntegration:
         assert reason == "Can process"
         mock_operation_manager.can_process_question.assert_called_once_with("high")
 
-    @patch('src.infrastructure.config.enhanced_llm_config.api_key_manager')
-    @patch('src.infrastructure.config.enhanced_llm_config.operation_mode_manager')
+    @patch("src.infrastructure.config.enhanced_llm_config.api_key_manager")
+    @patch("src.infrastructure.config.enhanced_llm_config.operation_mode_manager")
     def test_configuration_status_logging(self, mock_operation_manager, mock_api_keys):
         """Test configuration status logging includes operation modes."""
         # Setup mocks

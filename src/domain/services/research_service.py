@@ -1,16 +1,16 @@
 """Research service for coordinating information gathering activities."""
 
-from typing import List, Dict, Any, Optional
-from uuid import UUID
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
 import structlog
 
 from ..entities.question import Question
-from ..entities.research_report import ResearchReport, ResearchSource, ResearchQuality
+from ..entities.research_report import ResearchQuality, ResearchReport, ResearchSource
 from ..value_objects.confidence import ConfidenceLevel
 from ..value_objects.time_range import TimeRange
 from .multi_stage_research_pipeline import MultiStageResearchPipeline
-
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +24,13 @@ class ResearchService:
     into structured research reports.
     """
 
-    def __init__(self, search_client=None, llm_client=None, tri_model_router=None, tournament_asknews=None):
+    def __init__(
+        self,
+        search_client=None,
+        llm_client=None,
+        tri_model_router=None,
+        tournament_asknews=None,
+    ):
         self.search_client = search_client
         self.llm_client = llm_client
         self.tri_model_router = tri_model_router
@@ -32,8 +38,7 @@ class ResearchService:
 
         # Initialize multi-stage research pipeline
         self.multi_stage_pipeline = MultiStageResearchPipeline(
-            tri_model_router=tri_model_router,
-            tournament_asknews=tournament_asknews
+            tri_model_router=tri_model_router, tournament_asknews=tournament_asknews
         )
 
         self.supported_providers = [
@@ -42,18 +47,12 @@ class ResearchService:
             "exa",
             "perplexity",
             "duckduckgo",
-            "manual"
+            "manual",
         ]
-        self.quality_thresholds = {
-            "high": 0.8,
-            "medium": 0.6,
-            "low": 0.4
-        }
+        self.quality_thresholds = {"high": 0.8, "medium": 0.6, "low": 0.4}
 
     async def conduct_multi_stage_research(
-        self,
-        question: Question,
-        research_config: Optional[Dict[str, Any]] = None
+        self, question: Question, research_config: Optional[Dict[str, Any]] = None
     ) -> ResearchReport:
         """
         Conduct research using the multi-stage pipeline (Task 4.1 implementation).
@@ -63,34 +62,46 @@ class ResearchService:
         logger.info(
             "Starting multi-stage research pipeline",
             question_id=str(question.id),
-            title=question.title
+            title=question.title,
         )
 
         config = research_config or {}
 
         try:
             # Execute multi-stage research pipeline
-            pipeline_results = await self.multi_stage_pipeline.execute_research_pipeline(
-                question=question.title,
-                context={"question_id": str(question.id), "config": config}
+            pipeline_results = (
+                await self.multi_stage_pipeline.execute_research_pipeline(
+                    question=question.title,
+                    context={"question_id": str(question.id), "config": config},
+                )
             )
 
             if pipeline_results["success"]:
                 # Convert pipeline results to ResearchReport
-                research_report = self._convert_pipeline_results_to_report(question, pipeline_results)
+                research_report = self._convert_pipeline_results_to_report(
+                    question, pipeline_results
+                )
 
                 logger.info(
                     "Multi-stage research completed successfully",
                     question_id=str(question.id),
                     total_cost=pipeline_results["total_cost"],
-                    quality_score=pipeline_results["quality_metrics"].overall_quality if pipeline_results["quality_metrics"] else 0.0
+                    quality_score=(
+                        pipeline_results["quality_metrics"].overall_quality
+                        if pipeline_results["quality_metrics"]
+                        else 0.0
+                    ),
                 )
 
                 return research_report
             else:
                 # Fallback to comprehensive research if pipeline fails
-                logger.warning("Multi-stage pipeline failed, falling back to comprehensive research")
-                return await self.conduct_comprehensive_research(question, research_config)
+                logger.warning(
+                    "Multi-stage pipeline failed, falling back to comprehensive research"
+                )
+                return await self.conduct_comprehensive_research(
+                    question, research_config
+                )
 
         except Exception as e:
             logger.error("Multi-stage research failed", error=str(e))
@@ -98,9 +109,7 @@ class ResearchService:
             return await self.conduct_comprehensive_research(question, research_config)
 
     async def conduct_comprehensive_research(
-        self,
-        question: Question,
-        research_config: Optional[Dict[str, Any]] = None
+        self, question: Question, research_config: Optional[Dict[str, Any]] = None
     ) -> ResearchReport:
         """
         Conduct comprehensive research for a question using multiple approaches.
@@ -115,7 +124,7 @@ class ResearchService:
         logger.info(
             "Starting comprehensive research",
             question_id=str(question.id),
-            title=question.title
+            title=question.title,
         )
 
         config = research_config or {}
@@ -132,9 +141,7 @@ class ResearchService:
 
             # Step 2: Gather information from multiple sources
             for area in research_areas:
-                sources = await self._gather_sources_for_area(
-                    question, area, config
-                )
+                sources = await self._gather_sources_for_area(question, area, config)
                 all_sources.extend(sources)
 
             # Step 3: Analyze and validate sources
@@ -164,18 +171,22 @@ class ResearchService:
                 base_rates=base_rates,
                 quality=quality,
                 confidence_level=synthesis.get("confidence_level", 0.7),
-                research_methodology=", ".join(synthesis.get("methods_used", ["web_search", "source_validation", "synthesis"])),
+                research_methodology=", ".join(
+                    synthesis.get(
+                        "methods_used", ["web_search", "source_validation", "synthesis"]
+                    )
+                ),
                 reasoning_steps=synthesis.get("reasoning_steps", []),
                 evidence_for=synthesis.get("evidence_for", []),
                 evidence_against=synthesis.get("evidence_against", []),
-                uncertainties=synthesis.get("uncertainties", [])
+                uncertainties=synthesis.get("uncertainties", []),
             )
 
             logger.info(
                 "Research completed successfully",
                 sources_count=len(validated_sources),
                 quality=quality.value,
-                confidence=research_report.confidence_level
+                confidence=research_report.confidence_level,
             )
 
             return research_report
@@ -201,7 +212,7 @@ class ResearchService:
             "current status",
             "expert opinions",
             "market indicators",
-            "policy implications"
+            "policy implications",
         ]
 
         # Add question-specific areas based on content
@@ -209,32 +220,42 @@ class ResearchService:
         specific_areas = []
 
         # Technology questions
-        if any(term in question_text for term in ["ai", "technology", "software", "tech"]):
+        if any(
+            term in question_text for term in ["ai", "technology", "software", "tech"]
+        ):
             specific_areas.extend(["technology adoption", "innovation metrics"])
 
         # Economic questions
-        if any(term in question_text for term in ["economy", "gdp", "market", "finance"]):
+        if any(
+            term in question_text for term in ["economy", "gdp", "market", "finance"]
+        ):
             specific_areas.extend(["economic indicators", "financial metrics"])
 
         # Political questions
-        if any(term in question_text for term in ["election", "policy", "government", "political"]):
+        if any(
+            term in question_text
+            for term in ["election", "policy", "government", "political"]
+        ):
             specific_areas.extend(["polling data", "political analysis"])
 
         # Health/medical questions
-        if any(term in question_text for term in ["health", "medical", "disease", "pandemic"]):
+        if any(
+            term in question_text
+            for term in ["health", "medical", "disease", "pandemic"]
+        ):
             specific_areas.extend(["medical research", "health statistics"])
 
         # Climate/environmental questions
-        if any(term in question_text for term in ["climate", "environment", "energy", "carbon"]):
+        if any(
+            term in question_text
+            for term in ["climate", "environment", "energy", "carbon"]
+        ):
             specific_areas.extend(["climate data", "environmental metrics"])
 
         return base_areas + specific_areas
 
     async def _gather_sources_for_area(
-        self,
-        question: Question,
-        research_area: str,
-        config: Dict[str, Any]
+        self, question: Question, research_area: str, config: Dict[str, Any]
     ) -> List[ResearchSource]:
         """
         Gather sources for a specific research area.
@@ -252,13 +273,15 @@ class ResearchService:
             summary=f"Information about {research_area} relevant to the question.",
             credibility_score=0.7,
             publish_date=datetime.now(),
-            source_type="web"
+            source_type="web",
         )
         sources.append(mock_source)
 
         return sources
 
-    def _validate_and_score_sources(self, sources: List[ResearchSource]) -> List[ResearchSource]:
+    def _validate_and_score_sources(
+        self, sources: List[ResearchSource]
+    ) -> List[ResearchSource]:
         """
         Validate and score the credibility of research sources.
 
@@ -285,7 +308,7 @@ class ResearchService:
                 summary=source.summary,
                 credibility_score=credibility_score,
                 publish_date=source.publish_date,
-                source_type=source.source_type
+                source_type=source.source_type,
             )
 
             # Only include sources above minimum threshold
@@ -302,14 +325,27 @@ class ResearchService:
         domain = source.url.split("//")[-1].split("/")[0] if source.url else ""
 
         high_credibility_domains = [
-            "arxiv.org", "nature.com", "science.org", "pubmed.gov",
-            "census.gov", "worldbank.org", "imf.org", "oecd.org",
-            "who.int", "cdc.gov", "fda.gov"
+            "arxiv.org",
+            "nature.com",
+            "science.org",
+            "pubmed.gov",
+            "census.gov",
+            "worldbank.org",
+            "imf.org",
+            "oecd.org",
+            "who.int",
+            "cdc.gov",
+            "fda.gov",
         ]
 
         medium_credibility_domains = [
-            "reuters.com", "bbc.com", "economist.com", "ft.com",
-            "wsj.com", "nytimes.com", "bloomberg.com"
+            "reuters.com",
+            "bbc.com",
+            "economist.com",
+            "ft.com",
+            "wsj.com",
+            "nytimes.com",
+            "bloomberg.com",
         ]
 
         if any(d in domain for d in high_credibility_domains):
@@ -328,9 +364,7 @@ class ResearchService:
         return min(1.0, score)
 
     def _extract_key_factors(
-        self,
-        question: Question,
-        sources: List[ResearchSource]
+        self, question: Question, sources: List[ResearchSource]
     ) -> List[str]:
         """Extract key factors that could influence the forecast."""
         # In a real implementation, this would use NLP to extract
@@ -341,15 +375,13 @@ class ResearchService:
             "Current trends",
             "Expert consensus",
             "Market dynamics",
-            "Regulatory environment"
+            "Regulatory environment",
         ]
 
         return base_factors
 
     def _extract_base_rates(
-        self,
-        question: Question,
-        sources: List[ResearchSource]
+        self, question: Question, sources: List[ResearchSource]
     ) -> Dict[str, float]:
         """Extract relevant base rates from research sources."""
         # In a real implementation, this would analyze sources
@@ -358,7 +390,7 @@ class ResearchService:
         return {
             "historical_frequency": 0.3,
             "similar_events": 0.25,
-            "expert_estimates": 0.4
+            "expert_estimates": 0.4,
         }
 
     def _synthesize_research_findings(
@@ -366,12 +398,14 @@ class ResearchService:
         question: Question,
         sources: List[ResearchSource],
         key_factors: List[str],
-        base_rates: Dict[str, float]
+        base_rates: Dict[str, float],
     ) -> Dict[str, Any]:
         """Synthesize research findings into coherent analysis."""
 
         # Calculate overall confidence based on source quality
-        avg_credibility = sum(s.credibility_score for s in sources) / len(sources) if sources else 0.5
+        avg_credibility = (
+            sum(s.credibility_score for s in sources) / len(sources) if sources else 0.5
+        )
 
         executive_summary = (
             f"Research conducted on '{question.title}' identified {len(key_factors)} "
@@ -409,14 +443,12 @@ class ResearchService:
             "limitations": [
                 "Limited to available online sources",
                 "Automated synthesis may miss nuanced insights",
-                "Source credibility assessment is algorithmic"
-            ]
+                "Source credibility assessment is algorithmic",
+            ],
         }
 
     def _assess_research_quality(
-        self,
-        sources: List[ResearchSource],
-        synthesis: Dict[str, Any]
+        self, sources: List[ResearchSource], synthesis: Dict[str, Any]
     ) -> ResearchQuality:
         """Assess the overall quality of the research."""
 
@@ -431,8 +463,9 @@ class ResearchService:
             return ResearchQuality.HIGH
 
         # Medium quality: decent sources or good sources but fewer
-        elif (avg_credibility >= self.quality_thresholds["medium"] and source_count >= 3) or \
-             (avg_credibility >= self.quality_thresholds["high"] and source_count >= 2):
+        elif (
+            avg_credibility >= self.quality_thresholds["medium"] and source_count >= 3
+        ) or (avg_credibility >= self.quality_thresholds["high"] and source_count >= 2):
             return ResearchQuality.MEDIUM
 
         # Low quality: few sources or low credibility
@@ -448,9 +481,7 @@ class ResearchService:
         return None
 
     def _create_fallback_research_report(
-        self,
-        question: Question,
-        error_message: str
+        self, question: Question, error_message: str
     ) -> ResearchReport:
         """Create a minimal research report when research fails."""
 
@@ -466,10 +497,18 @@ class ResearchService:
             quality=ResearchQuality.LOW,
             confidence_level=0.2,
             research_methodology="fallback",
-            reasoning_steps=["Research failure", "No external sources", "Minimal analysis"],
+            reasoning_steps=[
+                "Research failure",
+                "No external sources",
+                "Minimal analysis",
+            ],
             evidence_for=[],
             evidence_against=[],
-            uncertainties=["Research failure", "No external sources", "Minimal analysis"]
+            uncertainties=[
+                "Research failure",
+                "No external sources",
+                "Minimal analysis",
+            ],
         )
 
     def validate_research_config(self, config: Dict[str, Any]) -> bool:
@@ -481,7 +520,7 @@ class ResearchService:
             "min_credibility_threshold",
             "search_timeout",
             "preferred_providers",
-            "date_range"
+            "date_range",
         ]
 
         # Check for unknown fields
@@ -507,7 +546,9 @@ class ResearchService:
         """Get list of supported research providers."""
         return self.supported_providers.copy()
 
-    def _convert_pipeline_results_to_report(self, question: Question, pipeline_results: Dict[str, Any]) -> ResearchReport:
+    def _convert_pipeline_results_to_report(
+        self, question: Question, pipeline_results: Dict[str, Any]
+    ) -> ResearchReport:
         """Convert multi-stage pipeline results to ResearchReport format."""
 
         # Extract sources from pipeline stages
@@ -521,15 +562,21 @@ class ResearchService:
                         summary=f"Research from {stage_name} using {stage_result.model_used}",
                         credibility_score=stage_result.quality_score,
                         publish_date=datetime.now(timezone.utc),
-                        source_type="pipeline"
+                        source_type="pipeline",
                     )
                     sources.append(source)
 
         # Determine research quality based on pipeline metrics
         quality_metrics = pipeline_results.get("quality_metrics")
-        if quality_metrics and quality_metrics.overall_quality >= self.quality_thresholds["high"]:
+        if (
+            quality_metrics
+            and quality_metrics.overall_quality >= self.quality_thresholds["high"]
+        ):
             quality = ResearchQuality.HIGH
-        elif quality_metrics and quality_metrics.overall_quality >= self.quality_thresholds["medium"]:
+        elif (
+            quality_metrics
+            and quality_metrics.overall_quality >= self.quality_thresholds["medium"]
+        ):
             quality = ResearchQuality.MEDIUM
         else:
             quality = ResearchQuality.LOW
@@ -538,14 +585,22 @@ class ResearchService:
         key_factors = []
         gap_stage = pipeline_results["stages"].get("gap_detection")
         if gap_stage and gap_stage.success:
-            key_factors = ["Multi-stage research pipeline", "AskNews integration", "GPT-5 synthesis"]
+            key_factors = [
+                "Multi-stage research pipeline",
+                "AskNews integration",
+                "GPT-5 synthesis",
+            ]
 
         # Create executive summary
         executive_summary = f"Multi-stage research conducted using AskNews API and GPT-5-mini synthesis. "
         if quality_metrics:
-            executive_summary += f"Quality score: {quality_metrics.overall_quality:.2f}, "
+            executive_summary += (
+                f"Quality score: {quality_metrics.overall_quality:.2f}, "
+            )
             executive_summary += f"Citations: {quality_metrics.citation_count}, "
-            executive_summary += f"Gaps identified: {len(quality_metrics.gaps_identified)}"
+            executive_summary += (
+                f"Gaps identified: {len(quality_metrics.gaps_identified)}"
+            )
 
         return ResearchReport.create_new(
             question_id=question.id,
@@ -557,17 +612,19 @@ class ResearchService:
             key_factors=key_factors,
             base_rates={},
             quality=quality,
-            confidence_level=quality_metrics.overall_quality if quality_metrics else 0.5,
+            confidence_level=(
+                quality_metrics.overall_quality if quality_metrics else 0.5
+            ),
             research_methodology="multi_stage_pipeline,asknews,gpt5_synthesis",
             reasoning_steps=[
                 "AskNews research execution",
                 "GPT-5-mini synthesis with citations",
                 "Quality validation",
-                "Gap detection and analysis"
+                "Gap detection and analysis",
             ],
             evidence_for=[],
             evidence_against=[],
-            uncertainties=quality_metrics.gaps_identified if quality_metrics else []
+            uncertainties=quality_metrics.gaps_identified if quality_metrics else [],
         )
 
     def get_quality_metrics(self, research_report: ResearchReport) -> Dict[str, Any]:
@@ -576,7 +633,8 @@ class ResearchService:
         source_count = len(research_report.sources)
         avg_credibility = (
             sum(s.credibility_score for s in research_report.sources) / source_count
-            if source_count > 0 else 0.0
+            if source_count > 0
+            else 0.0
         )
 
         return {
@@ -587,5 +645,6 @@ class ResearchService:
             "key_factors_count": len(research_report.key_factors),
             "base_rates_count": len(research_report.base_rates),
             "has_reasoning_steps": len(research_report.reasoning_steps) > 0,
-            "has_evidence": len(research_report.evidence_for) > 0 or len(research_report.evidence_against) > 0
+            "has_evidence": len(research_report.evidence_for) > 0
+            or len(research_report.evidence_against) > 0,
         }

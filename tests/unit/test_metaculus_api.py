@@ -3,9 +3,11 @@ Unit tests for MetaculusAPI infrastructure component.
 Tests the mock API client functionality and error handling.
 """
 
-import pytest
 from unittest.mock import Mock, patch
-from src.infrastructure.metaculus_api import MetaculusAPI, APIConfig, MetaculusAPIError
+
+import pytest
+
+from src.infrastructure.metaculus_api import APIConfig, MetaculusAPI, MetaculusAPIError
 
 
 class TestMetaculusAPI:
@@ -19,9 +21,7 @@ class TestMetaculusAPI:
     def test_init_with_custom_config(self):
         """Test MetaculusAPI initialization with custom config."""
         custom_config = APIConfig(
-            base_url="https://custom.api.com",
-            timeout=60,
-            max_retries=5
+            base_url="https://custom.api.com", timeout=60, max_retries=5
         )
         api = MetaculusAPI(config=custom_config)
         assert api.config.base_url == "https://custom.api.com"
@@ -39,7 +39,9 @@ class TestMetaculusAPI:
     def test_fetch_questions_success(self):
         """Test successful fetch_questions call returns dummy data."""
         # Act
-        result = self.api.fetch_questions(limit=10, status="open", category="technology")
+        result = self.api.fetch_questions(
+            limit=10, status="open", category="technology"
+        )
 
         # Assert
         assert isinstance(result, list)
@@ -129,12 +131,12 @@ class TestMetaculusAPI:
         """Test that dummy data is properly generated."""
         # Act
         api = MetaculusAPI()
-        
+
         # Assert - should have some dummy data
-        assert hasattr(api, '_dummy_data')
+        assert hasattr(api, "_dummy_data")
         assert isinstance(api._dummy_data, list)
         assert len(api._dummy_data) > 0
-        
+
         # Check structure of first dummy question
         if api._dummy_data:
             question = api._dummy_data[0]

@@ -1,9 +1,10 @@
 """Unit tests for Question domain entity."""
 
-import pytest
 from datetime import datetime, timedelta, timezone
 
-from src.domain.entities.question import Question, QuestionType, QuestionStatus
+import pytest
+
+from src.domain.entities.question import Question, QuestionStatus, QuestionType
 
 
 def test_can_create_binary_question():
@@ -15,9 +16,9 @@ def test_can_create_binary_question():
         question_type=QuestionType.BINARY,
         url="https://example.com/question/123",
         close_time=datetime.now(timezone.utc) + timedelta(days=7),
-        categories=["weather"]
+        categories=["weather"],
     )
-    
+
     assert question.question_type == QuestionType.BINARY
     assert question.title == "Will it rain tomorrow?"
     assert question.metaculus_id == 123
@@ -34,9 +35,9 @@ def test_is_resolved_false_when_no_resolution():
         question_type=QuestionType.BINARY,
         url="https://example.com/question/123",
         close_time=datetime.now(timezone.utc) + timedelta(days=7),
-        categories=["weather"]
+        categories=["weather"],
     )
-    
+
     assert not question.is_resolved()
 
 
@@ -50,7 +51,7 @@ def test_is_resolved_true_when_resolution_in_past():
         url="https://example.com/question/123",
         close_time=datetime.now(timezone.utc) - timedelta(days=1),
         categories=["weather"],
-        resolve_time=datetime.now(timezone.utc) - timedelta(hours=1)  # Past resolution
+        resolve_time=datetime.now(timezone.utc) - timedelta(hours=1),  # Past resolution
     )
-    
+
     assert question.is_resolved()

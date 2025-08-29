@@ -1,22 +1,27 @@
 """Tests for DynamicWeightAdjuster service."""
 
-import pytest
 from datetime import datetime, timedelta
-from uuid import uuid4
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
+import pytest
+
+from src.domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+)
+from src.domain.entities.question import Question
 from src.domain.services.dynamic_weight_adjuster import (
-    DynamicWeightAdjuster,
-    PerformanceRecord,
     AgentPerformanceProfile,
+    DynamicWeightAdjuster,
     EnsembleComposition,
     PerformanceMetric,
-    WeightAdjustmentStrategy
+    PerformanceRecord,
+    WeightAdjustmentStrategy,
 )
-from src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence
-from src.domain.entities.question import Question
-from src.domain.value_objects.probability import Probability
 from src.domain.value_objects.confidence import ConfidenceLevel
+from src.domain.value_objects.probability import Probability
 
 
 class TestDynamicWeightAdjuster:
@@ -28,7 +33,7 @@ class TestDynamicWeightAdjuster:
         return DynamicWeightAdjuster(
             lookback_window=20,
             min_predictions_for_weight=3,
-            performance_decay_factor=0.95
+            performance_decay_factor=0.95,
         )
 
     @pytest.fixture
@@ -42,7 +47,7 @@ class TestDynamicWeightAdjuster:
             close_time=datetime.now() + timedelta(days=30),
             resolve_time=datetime.now() + timedelta(days=60),
             question_type="binary",
-            url="https://example.com/question"
+            url="https://example.com/question",
         )
 
     @pytest.fixture
@@ -55,10 +60,9 @@ class TestDynamicWeightAdjuster:
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Test reasoning",
             confidence=PredictionConfidence(
-                level=ConfidenceLevel.MEDIUM,
-                factors=["factor1", "factor2"]
+                level=ConfidenceLevel.MEDIUM, factors=["factor1", "factor2"]
             ),
-            result=Mock(binary_probability=0.7)
+            result=Mock(binary_probability=0.7),
         )
 
     def test_record_performance_basic(self, adjuster, sample_prediction):
@@ -118,7 +122,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.04,  # Good score
                 accuracy=1.0,
                 confidence_score=0.8,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -134,7 +138,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.49,  # Poor score
                 accuracy=0.0,
                 confidence_score=0.3,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -166,7 +170,7 @@ class TestDynamicWeightAdjuster:
                     brier_score=base_score,
                     accuracy=1.0 if base_score < 0.25 else 0.0,
                     confidence_score=0.8,
-                    method=PredictionMethod.CHAIN_OF_THOUGHT
+                    method=PredictionMethod.CHAIN_OF_THOUGHT,
                 )
                 adjuster.performance_records.append(record)
 
@@ -201,7 +205,7 @@ class TestDynamicWeightAdjuster:
                     brier_score=base_score,
                     accuracy=1.0 if base_score < 0.25 else 0.0,
                     confidence_score=0.7 + (i * 0.05),
-                    method=PredictionMethod.CHAIN_OF_THOUGHT
+                    method=PredictionMethod.CHAIN_OF_THOUGHT,
                 )
                 adjuster.performance_records.append(record)
 
@@ -234,7 +238,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.09,
                 accuracy=1.0,
                 confidence_score=0.8,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -250,7 +254,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.04,
                 accuracy=1.0,
                 confidence_score=0.9,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -265,7 +269,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.64,
                 accuracy=0.0,
                 confidence_score=0.3,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -278,8 +282,7 @@ class TestDynamicWeightAdjuster:
 
         # Simulate rebalancing trigger
         needs_rebalancing = any(
-            adjuster.detect_performance_degradation(agent)[0]
-            for agent in agents
+            adjuster.detect_performance_degradation(agent)[0] for agent in agents
         )
 
         assert needs_rebalancing
@@ -289,7 +292,10 @@ class TestDynamicWeightAdjuster:
 
         # The degrading agent should have lower weight
         if "degrading_agent" in composition.agent_weights:
-            assert composition.agent_weights["degrading_agent"] < initial_weights["degrading_agent"]
+            assert (
+                composition.agent_weights["degrading_agent"]
+                < initial_weights["degrading_agent"]
+            )
 
     def test_real_time_agent_selection(self, adjuster):
         """Test real-time agent selection based on current performance."""
@@ -297,10 +303,10 @@ class TestDynamicWeightAdjuster:
 
         # Create different performance characteristics
         performance_data = {
-            "fast_agent": (0.20, 0.8, 0.7),      # moderate accuracy, high confidence
-            "slow_agent": (0.18, 0.6, 0.9),      # good accuracy, lower confidence
+            "fast_agent": (0.20, 0.8, 0.7),  # moderate accuracy, high confidence
+            "slow_agent": (0.18, 0.6, 0.9),  # good accuracy, lower confidence
             "accurate_agent": (0.12, 0.9, 0.8),  # high accuracy, high confidence
-            "inaccurate_agent": (0.35, 0.4, 0.5) # poor accuracy, low confidence
+            "inaccurate_agent": (0.35, 0.4, 0.5),  # poor accuracy, low confidence
         }
 
         for agent, (brier, accuracy, confidence) in performance_data.items():
@@ -315,7 +321,7 @@ class TestDynamicWeightAdjuster:
                     brier_score=brier,
                     accuracy=accuracy,
                     confidence_score=confidence,
-                    method=PredictionMethod.CHAIN_OF_THOUGHT
+                    method=PredictionMethod.CHAIN_OF_THOUGHT,
                 )
                 adjuster.performance_records.append(record)
 
@@ -350,7 +356,7 @@ class TestDynamicWeightAdjuster:
                     brier_score=0.16,
                     accuracy=1.0,
                     confidence_score=0.7,
-                    method=PredictionMethod.CHAIN_OF_THOUGHT
+                    method=PredictionMethod.CHAIN_OF_THOUGHT,
                 )
                 adjuster.performance_records.append(record)
 
@@ -388,7 +394,7 @@ class TestDynamicWeightAdjuster:
                     brier_score=base_score,
                     accuracy=1.0 if base_score < 0.25 else 0.0,
                     confidence_score=0.8,
-                    method=PredictionMethod.CHAIN_OF_THOUGHT
+                    method=PredictionMethod.CHAIN_OF_THOUGHT,
                 )
                 adjuster.performance_records.append(record)
 
@@ -400,7 +406,7 @@ class TestDynamicWeightAdjuster:
             WeightAdjustmentStrategy.LINEAR_DECAY,
             WeightAdjustmentStrategy.THRESHOLD_BASED,
             WeightAdjustmentStrategy.RELATIVE_RANKING,
-            WeightAdjustmentStrategy.ADAPTIVE_LEARNING_RATE
+            WeightAdjustmentStrategy.ADAPTIVE_LEARNING_RATE,
         ]
 
         for strategy in strategies:
@@ -428,7 +434,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.04,
                 accuracy=1.0,
                 confidence_score=0.9,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -444,7 +450,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.64,
                 accuracy=0.0,
                 confidence_score=0.3,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -463,9 +469,13 @@ class TestDynamicWeightAdjuster:
 
         # Create performance data with different quality levels
         performance_data = {
-            "excellent_agent": (0.10, 1.0, 0.9),  # Low Brier, high accuracy, high confidence
-            "good_agent": (0.20, 0.8, 0.7),       # Moderate performance
-            "poor_agent": (0.45, 0.2, 0.4),       # Poor performance
+            "excellent_agent": (
+                0.10,
+                1.0,
+                0.9,
+            ),  # Low Brier, high accuracy, high confidence
+            "good_agent": (0.20, 0.8, 0.7),  # Moderate performance
+            "poor_agent": (0.45, 0.2, 0.4),  # Poor performance
         }
 
         for agent, (brier, accuracy, confidence) in performance_data.items():
@@ -480,7 +490,7 @@ class TestDynamicWeightAdjuster:
                     brier_score=brier,
                     accuracy=accuracy,
                     confidence_score=confidence,
-                    method=PredictionMethod.CHAIN_OF_THOUGHT
+                    method=PredictionMethod.CHAIN_OF_THOUGHT,
                 )
                 adjuster.performance_records.append(record)
 
@@ -491,7 +501,9 @@ class TestDynamicWeightAdjuster:
 
         # Should select the best performing agents
         assert "excellent_agent" in selected
-        assert "poor_agent" not in selected or len(selected) == len(agents)  # Only if all agents needed
+        assert "poor_agent" not in selected or len(selected) == len(
+            agents
+        )  # Only if all agents needed
 
     def test_trigger_automatic_rebalancing(self, adjuster):
         """Test automatic rebalancing trigger."""
@@ -510,7 +522,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.64,
                 accuracy=0.0,
                 confidence_score=0.3,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -526,7 +538,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.04,
                 accuracy=1.0,
                 confidence_score=0.9,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -535,7 +547,9 @@ class TestDynamicWeightAdjuster:
             adjuster._update_agent_profile(agent)
 
         # Test automatic rebalancing
-        new_composition = adjuster.trigger_automatic_rebalancing(current_agents, available_agents)
+        new_composition = adjuster.trigger_automatic_rebalancing(
+            current_agents, available_agents
+        )
 
         assert new_composition is not None
         assert isinstance(new_composition, EnsembleComposition)
@@ -557,7 +571,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.49,
                 accuracy=0.0,
                 confidence_score=0.4,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 
@@ -573,7 +587,7 @@ class TestDynamicWeightAdjuster:
                 brier_score=0.04,
                 accuracy=1.0,
                 confidence_score=0.9,
-                method=PredictionMethod.CHAIN_OF_THOUGHT
+                method=PredictionMethod.CHAIN_OF_THOUGHT,
             )
             adjuster.performance_records.append(record)
 

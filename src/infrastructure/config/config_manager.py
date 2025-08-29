@@ -1,19 +1,23 @@
 """
 Advanced configuration management system with hot-reloading and validation.
 """
+
 import asyncio
-import logging
-from typing import Dict, Any, Optional, Callable, List, Set
-from pathlib import Path
-from datetime import datetime, timezone
-from dataclasses import dataclass, field
-from enum import Enum
 import json
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Set
+
 import yaml
+
 # File watching imports - optional dependency
 try:
-    from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
+
     WATCHDOG_AVAILABLE = True
 except ImportError:
     Observer = None
@@ -21,13 +25,14 @@ except ImportError:
     WATCHDOG_AVAILABLE = False
 import structlog
 
-from .settings import Settings, Config
+from .settings import Config, Settings
 
 logger = structlog.get_logger(__name__)
 
 
 class ConfigChangeType(Enum):
     """Types of configuration changes."""
+
     CREATED = "created"
     MODIFIED = "modified"
     DELETED = "deleted"
@@ -37,6 +42,7 @@ class ConfigChangeType(Enum):
 @dataclass
 class ConfigChangeEvent:
     """Configuration change event."""
+
     change_type: ConfigChangeType
     file_path: Path
     timestamp: datetime
@@ -47,6 +53,7 @@ class ConfigChangeEvent:
 @dataclass
 class ConfigValidationResult:
     """Result of configuration validation."""
+
     is_valid: bool
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -55,7 +62,7 @@ class ConfigValidationResult:
 class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object):
     """File system event handler for configuration changes."""
 
-    def __init__(self, config_manager: 'ConfigManager'):
+    def __init__(self, config_manager: "ConfigManager"):
         self.config_manager = config_manager
         self.logger = structlog.get_logger(__name__)
 
@@ -65,8 +72,7 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
             self.logger.info("Configuration file modified", path=event.src_path)
             asyncio.create_task(
                 self.config_manager._handle_config_change(
-                    ConfigChangeType.MODIFIED,
-                    Path(event.src_path)
+                    ConfigChangeType.MODIFIED, Path(event.src_path)
                 )
             )
 
@@ -76,8 +82,7 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
             self.logger.info("Configuration file created", path=event.src_path)
             asyncio.create_task(
                 self.config_manager._handle_config_change(
-                    ConfigChangeType.CREATED,
-                    Path(event.src_path)
+                    ConfigChangeType.CREATED, Path(event.src_path)
                 )
             )
 
@@ -87,30 +92,29 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
             self.logger.info("Configuration file deleted", path=event.src_path)
             asyncio.create_task(
                 self.config_manager._handle_config_change(
-                    ConfigChangeType.DELETED,
-                    Path(event.src_path)
+                    ConfigChangeType.DELETED, Path(event.src_path)
                 )
             )
 
     def on_moved(self, event):
         """Handle file move events."""
         if not event.is_directory and (
-            self._is_config_file(event.src_path) or
-            self._is_config_file(event.dest_path)
+            self._is_config_file(event.src_path)
+            or self._is_config_file(event.dest_path)
         ):
-            self.logger.info("Configuration file moved",
-                           src=event.src_path, dest=event.dest_path)
+            self.logger.info(
+                "Configuration file moved", src=event.src_path, dest=event.dest_path
+            )
             asyncio.create_task(
                 self.config_manager._handle_config_change(
-                    ConfigChangeType.MOVED,
-                    Path(event.dest_path)
+                    ConfigChangeType.MOVED, Path(event.dest_path)
                 )
             )
 
     def _is_config_file(self, file_path: str) -> bool:
         """Check if file is a configuration file."""
         path = Path(file_path)
-        return path.suffix.lower() in {'.yaml', '.yml', '.json', '.toml'}
+        return path.suffix.lower() in {".yaml", ".yml", ".json", ".toml"}
 
 
 class ConfigManager:
@@ -123,7 +127,7 @@ class ConfigManager:
         config_paths: Optional[List[Path]] = None,
         watch_directories: Optional[List[Path]] = None,
         enable_hot_reload: bool = True,
-        validation_enabled: bool = True
+        validation_enabled: bool = True,
     ):
         """
         Initialize configuration manager.
@@ -162,17 +166,21 @@ class ConfigManager:
 
     def _setup_default_validation_rules(self) -> None:
         """Setup default configuration validation rules."""
-        self.validation_rules.update({
-            'llm.temperature': lambda x: 0.0 <= x <= 2.0,
-            'llm.max_tokens': lambda x: x is None or (isinstance(x, int) and x > 0),
-            'llm.rate_limit_rpm': lambda x: isinstance(x, int) and x > 0,
-            'search.max_results': lambda x: isinstance(x, int) and 1 <= x <= 100,
-            'search.timeout': lambda x: isinstance(x, (int, float)) and x > 0,
-            'pipeline.max_concurrent_questions': lambda x: isinstance(x, int) and 1 <= x <= 50,
-            'pipeline.batch_delay_seconds': lambda x: isinstance(x, (int, float)) and x >= 0,
-            'bot.min_confidence_threshold': lambda x: 0.0 <= x <= 1.0,
-            'ensemble.confidence_threshold': lambda x: 0.0 <= x <= 1.0,
-        })
+        self.validation_rules.update(
+            {
+                "llm.temperature": lambda x: 0.0 <= x <= 2.0,
+                "llm.max_tokens": lambda x: x is None or (isinstance(x, int) and x > 0),
+                "llm.rate_limit_rpm": lambda x: isinstance(x, int) and x > 0,
+                "search.max_results": lambda x: isinstance(x, int) and 1 <= x <= 100,
+                "search.timeout": lambda x: isinstance(x, (int, float)) and x > 0,
+                "pipeline.max_concurrent_questions": lambda x: isinstance(x, int)
+                and 1 <= x <= 50,
+                "pipeline.batch_delay_seconds": lambda x: isinstance(x, (int, float))
+                and x >= 0,
+                "bot.min_confidence_threshold": lambda x: 0.0 <= x <= 1.0,
+                "ensemble.confidence_threshold": lambda x: 0.0 <= x <= 1.0,
+            }
+        )
 
     async def initialize(self) -> Settings:
         """Initialize configuration manager and load initial configuration."""
@@ -193,7 +201,7 @@ class ConfigManager:
                 "Configuration manager initialized",
                 config_paths=len(self.config_paths),
                 watch_directories=len(self.watch_directories),
-                hot_reload_enabled=self.enable_hot_reload
+                hot_reload_enabled=self.enable_hot_reload,
             )
 
             return self.current_settings
@@ -219,14 +227,19 @@ class ConfigManager:
                     )
 
                 except Exception as e:
-                    logger.error(f"Failed to load config file {config_path}", error=str(e))
+                    logger.error(
+                        f"Failed to load config file {config_path}", error=str(e)
+                    )
                     continue
 
         # Create Settings instance
         if merged_config:
             # Create temporary config file for Settings.load_from_yaml
             import tempfile
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".yaml", delete=False
+            ) as f:
                 yaml.dump(merged_config, f)
                 temp_path = f.name
 
@@ -242,7 +255,9 @@ class ConfigManager:
         if self.validation_enabled:
             validation_result = await self._validate_configuration(settings)
             if not validation_result.is_valid:
-                logger.error("Configuration validation failed", errors=validation_result.errors)
+                logger.error(
+                    "Configuration validation failed", errors=validation_result.errors
+                )
                 # Notify validation listeners
                 for listener in self.validation_listeners:
                     try:
@@ -255,10 +270,10 @@ class ConfigManager:
     async def _load_config_file(self, config_path: Path) -> Dict[str, Any]:
         """Load configuration from a single file."""
         try:
-            with open(config_path, 'r') as f:
-                if config_path.suffix.lower() in {'.yaml', '.yml'}:
+            with open(config_path, "r") as f:
+                if config_path.suffix.lower() in {".yaml", ".yml"}:
                     return yaml.safe_load(f) or {}
-                elif config_path.suffix.lower() == '.json':
+                elif config_path.suffix.lower() == ".json":
                     return json.load(f)
                 else:
                     logger.warning(f"Unsupported config file format: {config_path}")
@@ -267,19 +282,27 @@ class ConfigManager:
             logger.error(f"Failed to load config file {config_path}", error=str(e))
             return {}
 
-    def _merge_configs(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_configs(
+        self, base: Dict[str, Any], override: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Recursively merge configuration dictionaries."""
         result = base.copy()
 
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = self._merge_configs(result[key], value)
             else:
                 result[key] = value
 
         return result
 
-    async def _validate_configuration(self, settings: Settings) -> ConfigValidationResult:
+    async def _validate_configuration(
+        self, settings: Settings
+    ) -> ConfigValidationResult:
         """Validate configuration against defined rules."""
         errors = []
         warnings = []
@@ -302,16 +325,11 @@ class ConfigManager:
         await self._perform_custom_validations(settings, errors, warnings)
 
         return ConfigValidationResult(
-            is_valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
+            is_valid=len(errors) == 0, errors=errors, warnings=warnings
         )
 
     async def _perform_custom_validations(
-        self,
-        settings: Settings,
-        errors: List[str],
-        warnings: List[str]
+        self, settings: Settings, errors: List[str], warnings: List[str]
     ) -> None:
         """Perform custom validation logic."""
         # Validate API keys are present for enabled services
@@ -319,7 +337,9 @@ class ConfigManager:
             errors.append("OpenAI API key is required when using OpenAI provider")
 
         if settings.search.provider == "serpapi" and not settings.search.serpapi_key:
-            warnings.append("SerpAPI key not configured, search functionality may be limited")
+            warnings.append(
+                "SerpAPI key not configured, search functionality may be limited"
+            )
 
         # Validate ensemble configuration
         if settings.ensemble.min_agents > len(settings.ensemble.agent_weights):
@@ -331,7 +351,7 @@ class ConfigManager:
 
     def _get_nested_value(self, config: Dict[str, Any], path: str) -> Any:
         """Get nested value from configuration dictionary."""
-        keys = path.split('.')
+        keys = path.split(".")
         current = config
 
         for key in keys:
@@ -358,9 +378,7 @@ class ConfigManager:
             for watch_dir in self.watch_directories:
                 if watch_dir.exists():
                     self.observer.schedule(
-                        self.file_handler,
-                        str(watch_dir),
-                        recursive=True
+                        self.file_handler, str(watch_dir), recursive=True
                     )
                     logger.info(f"Watching directory for config changes: {watch_dir}")
 
@@ -371,16 +389,16 @@ class ConfigManager:
             logger.error("Failed to start file watching", error=str(e))
 
     async def _handle_config_change(
-        self,
-        change_type: ConfigChangeType,
-        file_path: Path
+        self, change_type: ConfigChangeType, file_path: Path
     ) -> None:
         """Handle configuration file changes."""
         logger.info(f"Handling config change: {change_type.value}", path=str(file_path))
 
         try:
             # Store old configuration
-            old_config = self.current_settings.__dict__.copy() if self.current_settings else None
+            old_config = (
+                self.current_settings.__dict__.copy() if self.current_settings else None
+            )
 
             # Reload configuration
             new_settings = await self._load_configuration()
@@ -391,7 +409,7 @@ class ConfigManager:
                 file_path=file_path,
                 timestamp=datetime.now(timezone.utc),
                 old_config=old_config,
-                new_config=new_settings.__dict__.copy()
+                new_config=new_settings.__dict__.copy(),
             )
 
             # Update current settings
@@ -404,12 +422,19 @@ class ConfigManager:
             # Notify listeners
             await self._notify_change_listeners(change_event)
 
-            logger.info("Configuration reloaded successfully",
-                       change_type=change_type.value, path=str(file_path))
+            logger.info(
+                "Configuration reloaded successfully",
+                change_type=change_type.value,
+                path=str(file_path),
+            )
 
         except Exception as e:
-            logger.error("Failed to handle config change",
-                        change_type=change_type.value, path=str(file_path), error=str(e))
+            logger.error(
+                "Failed to handle config change",
+                change_type=change_type.value,
+                path=str(file_path),
+                error=str(e),
+            )
 
     async def _notify_change_listeners(self, change_event: ConfigChangeEvent) -> None:
         """Notify all registered change listeners."""
@@ -422,18 +447,24 @@ class ConfigManager:
             except Exception as e:
                 logger.error("Change listener failed", error=str(e))
 
-    def add_change_listener(self, listener: Callable[[ConfigChangeEvent], None]) -> None:
+    def add_change_listener(
+        self, listener: Callable[[ConfigChangeEvent], None]
+    ) -> None:
         """Add a configuration change listener."""
         self.change_listeners.append(listener)
         logger.info("Configuration change listener added")
 
-    def remove_change_listener(self, listener: Callable[[ConfigChangeEvent], None]) -> None:
+    def remove_change_listener(
+        self, listener: Callable[[ConfigChangeEvent], None]
+    ) -> None:
         """Remove a configuration change listener."""
         if listener in self.change_listeners:
             self.change_listeners.remove(listener)
             logger.info("Configuration change listener removed")
 
-    def add_validation_listener(self, listener: Callable[[ConfigValidationResult], None]) -> None:
+    def add_validation_listener(
+        self, listener: Callable[[ConfigValidationResult], None]
+    ) -> None:
         """Add a configuration validation listener."""
         self.validation_listeners.append(listener)
         logger.info("Configuration validation listener added")
@@ -448,7 +479,9 @@ class ConfigManager:
         logger.info("Manual configuration reload requested")
 
         try:
-            old_config = self.current_settings.__dict__.copy() if self.current_settings else None
+            old_config = (
+                self.current_settings.__dict__.copy() if self.current_settings else None
+            )
             new_settings = await self._load_configuration()
 
             # Create change event
@@ -457,7 +490,7 @@ class ConfigManager:
                 file_path=Path("manual_reload"),
                 timestamp=datetime.now(timezone.utc),
                 old_config=old_config,
-                new_config=new_settings.__dict__.copy()
+                new_config=new_settings.__dict__.copy(),
             )
 
             self.current_settings = new_settings
@@ -489,11 +522,17 @@ class ConfigManager:
             "validation_enabled": self.validation_enabled,
             "config_paths": [str(p) for p in self.config_paths],
             "watch_directories": [str(p) for p in self.watch_directories],
-            "last_reload_time": self.last_reload_time.isoformat() if self.last_reload_time else None,
+            "last_reload_time": (
+                self.last_reload_time.isoformat() if self.last_reload_time else None
+            ),
             "change_listeners": len(self.change_listeners),
             "validation_listeners": len(self.validation_listeners),
             "config_history_count": len(self.config_history),
-            "file_watching_active": self.observer is not None and self.observer.is_alive() if WATCHDOG_AVAILABLE else False
+            "file_watching_active": (
+                self.observer is not None and self.observer.is_alive()
+                if WATCHDOG_AVAILABLE
+                else False
+            ),
         }
 
     async def shutdown(self) -> None:
@@ -526,7 +565,7 @@ def create_config_manager(
     config_paths: Optional[List[str]] = None,
     watch_directories: Optional[List[str]] = None,
     enable_hot_reload: bool = True,
-    validation_enabled: bool = True
+    validation_enabled: bool = True,
 ) -> ConfigManager:
     """Factory function to create configuration manager."""
     paths = [Path(p) for p in config_paths] if config_paths else []
@@ -536,5 +575,5 @@ def create_config_manager(
         config_paths=paths,
         watch_directories=watch_dirs,
         enable_hot_reload=enable_hot_reload,
-        validation_enabled=validation_enabled
+        validation_enabled=validation_enabled,
     )

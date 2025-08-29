@@ -2,15 +2,16 @@
 Comprehensive cost monitoring and budget utilization tracking.
 Integrates TokenTracker and BudgetManager for real-time cost analysis.
 """
-import logging
+
 import json
+import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional, Tuple
 
-from .token_tracker import TokenTracker, token_tracker
 from .budget_manager import BudgetManager, budget_manager
+from .token_tracker import TokenTracker, token_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +19,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CostAlert:
     """Alert for budget or cost threshold breaches."""
+
     timestamp: datetime
     alert_type: str  # "budget_threshold", "cost_spike", "efficiency_drop"
-    severity: str    # "info", "warning", "critical"
+    severity: str  # "info", "warning", "critical"
     message: str
     current_value: float
     threshold_value: float
@@ -29,14 +31,16 @@ class CostAlert:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
+        data["timestamp"] = self.timestamp.isoformat()
         return data
 
 
 class CostMonitor:
     """Comprehensive cost monitoring and budget utilization tracking."""
 
-    def __init__(self, token_tracker: TokenTracker = None, budget_manager: BudgetManager = None):
+    def __init__(
+        self, token_tracker: TokenTracker = None, budget_manager: BudgetManager = None
+    ):
         """Initialize cost monitor with tracker and budget manager."""
         self.token_tracker = token_tracker or token_tracker
         self.budget_manager = budget_manager or budget_manager
@@ -53,9 +57,16 @@ class CostMonitor:
 
         self._load_existing_alerts()
 
-    def track_api_call_with_monitoring(self, question_id: str, model: str, task_type: str,
-                                     prompt: str, response: str, success: bool = True,
-                                     actual_cost: Optional[float] = None) -> Dict[str, Any]:
+    def track_api_call_with_monitoring(
+        self,
+        question_id: str,
+        model: str,
+        task_type: str,
+        prompt: str,
+        response: str,
+        success: bool = True,
+        actual_cost: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """Track API call with comprehensive monitoring and alerting."""
         # Count tokens
         input_tokens = self.token_tracker.count_tokens(prompt, model)
@@ -63,7 +74,13 @@ class CostMonitor:
 
         # Track in token tracker
         token_record = self.token_tracker.track_api_call(
-            question_id, model, task_type, input_tokens, output_tokens, success, actual_cost
+            question_id,
+            model,
+            task_type,
+            input_tokens,
+            output_tokens,
+            success,
+            actual_cost,
         )
 
         # Record in budget manager
@@ -81,7 +98,7 @@ class CostMonitor:
             "output_tokens": output_tokens,
             "total_tokens": input_tokens + output_tokens,
             "estimated_cost": token_record.estimated_cost,
-            "success": success
+            "success": success,
         }
 
     def get_comprehensive_status(self) -> Dict[str, Any]:
@@ -100,7 +117,7 @@ class CostMonitor:
                 "status_level": budget_status.status_level,
                 "questions_processed": budget_status.questions_processed,
                 "avg_cost_per_question": budget_status.average_cost_per_question,
-                "estimated_questions_remaining": budget_status.estimated_questions_remaining
+                "estimated_questions_remaining": budget_status.estimated_questions_remaining,
             },
             "tokens": {
                 "total_calls": usage_summary["total_calls"],
@@ -108,13 +125,17 @@ class CostMonitor:
                 "total_cost": usage_summary["total_cost"],
                 "success_rate": usage_summary["success_rate"],
                 "by_model": usage_summary["by_model"],
-                "by_task_type": usage_summary["by_task_type"]
+                "by_task_type": usage_summary["by_task_type"],
             },
             "efficiency": efficiency_metrics,
             "alerts": {
-                "active_alerts": len([a for a in self.alerts if self._is_alert_recent(a)]),
-                "recent_alerts": [a.to_dict() for a in self.alerts[-5:]]  # Last 5 alerts
-            }
+                "active_alerts": len(
+                    [a for a in self.alerts if self._is_alert_recent(a)]
+                ),
+                "recent_alerts": [
+                    a.to_dict() for a in self.alerts[-5:]
+                ],  # Last 5 alerts
+            },
         }
 
     def _check_for_alerts(self):
@@ -132,20 +153,25 @@ class CostMonitor:
             if utilization >= threshold:
                 # Check if we already alerted for this threshold recently
                 recent_threshold_alerts = [
-                    a for a in self.alerts
+                    a
+                    for a in self.alerts
                     if a.alert_type == "budget_threshold"
                     and abs(a.threshold_value - threshold) < 0.01
                     and self._is_alert_recent(a, hours=24)
                 ]
 
                 if not recent_threshold_alerts:
-                    severity = "critical" if threshold >= 0.95 else "warning" if threshold >= 0.85 else "info"
+                    severity = (
+                        "critical"
+                        if threshold >= 0.95
+                        else "warning" if threshold >= 0.85 else "info"
+                    )
 
                     recommendations = {
                         0.5: "Monitor usage closely and consider optimizing model selection",
                         0.75: "Switch to more cost-efficient models for non-critical tasks",
                         0.85: "Enable conservative mode and reduce forecast frequency",
-                        0.95: "Enable emergency mode - critical budget threshold reached"
+                        0.95: "Enable emergency mode - critical budget threshold reached",
                     }
 
                     alert = CostAlert(
@@ -155,11 +181,15 @@ class CostMonitor:
                         message=f"Budget utilization reached {threshold:.0%}",
                         current_value=utilization,
                         threshold_value=threshold,
-                        recommendation=recommendations.get(threshold, "Review budget allocation")
+                        recommendation=recommendations.get(
+                            threshold, "Review budget allocation"
+                        ),
                     )
 
                     self.alerts.append(alert)
-                    logger.warning(f"BUDGET ALERT: {alert.message} - {alert.recommendation}")
+                    logger.warning(
+                        f"BUDGET ALERT: {alert.message} - {alert.recommendation}"
+                    )
 
     def _check_cost_spikes(self):
         """Check for unusual cost spikes in recent API calls."""
@@ -178,9 +208,9 @@ class CostMonitor:
         if latest_cost > avg_cost * self.cost_spike_threshold:
             # Check if we already alerted for cost spikes recently
             recent_spike_alerts = [
-                a for a in self.alerts
-                if a.alert_type == "cost_spike"
-                and self._is_alert_recent(a, hours=1)
+                a
+                for a in self.alerts
+                if a.alert_type == "cost_spike" and self._is_alert_recent(a, hours=1)
             ]
 
             if not recent_spike_alerts:
@@ -191,7 +221,7 @@ class CostMonitor:
                     message=f"Cost spike detected: ${latest_cost:.4f} vs avg ${avg_cost:.4f}",
                     current_value=latest_cost,
                     threshold_value=avg_cost * self.cost_spike_threshold,
-                    recommendation="Review recent API calls for unusually long prompts or responses"
+                    recommendation="Review recent API calls for unusually long prompts or responses",
                 )
 
                 self.alerts.append(alert)
@@ -203,23 +233,32 @@ class CostMonitor:
             return  # Need enough data for trend analysis
 
         # Compare recent efficiency to historical average
-        all_records = [r for r in self.token_tracker.usage_records if r.success and r.estimated_cost > 0]
+        all_records = [
+            r
+            for r in self.token_tracker.usage_records
+            if r.success and r.estimated_cost > 0
+        ]
         if len(all_records) < 20:
             return
 
         # Historical efficiency (tokens per dollar)
-        historical_efficiency = sum(r.total_tokens / r.estimated_cost for r in all_records[:-10]) / len(all_records[:-10])
+        historical_efficiency = sum(
+            r.total_tokens / r.estimated_cost for r in all_records[:-10]
+        ) / len(all_records[:-10])
 
         # Recent efficiency
         recent_records = all_records[-10:]
-        recent_efficiency = sum(r.total_tokens / r.estimated_cost for r in recent_records) / len(recent_records)
+        recent_efficiency = sum(
+            r.total_tokens / r.estimated_cost for r in recent_records
+        ) / len(recent_records)
 
         efficiency_ratio = recent_efficiency / historical_efficiency
 
         if efficiency_ratio < self.efficiency_drop_threshold:
             # Check if we already alerted for efficiency drops recently
             recent_efficiency_alerts = [
-                a for a in self.alerts
+                a
+                for a in self.alerts
                 if a.alert_type == "efficiency_drop"
                 and self._is_alert_recent(a, hours=6)
             ]
@@ -231,8 +270,9 @@ class CostMonitor:
                     severity="warning",
                     message=f"Cost efficiency dropped {(1-efficiency_ratio):.1%}",
                     current_value=recent_efficiency,
-                    threshold_value=historical_efficiency * self.efficiency_drop_threshold,
-                    recommendation="Review model selection and prompt optimization strategies"
+                    threshold_value=historical_efficiency
+                    * self.efficiency_drop_threshold,
+                    recommendation="Review model selection and prompt optimization strategies",
                 )
 
                 self.alerts.append(alert)
@@ -253,10 +293,14 @@ class CostMonitor:
 
         # Budget-based recommendations
         if budget_status.utilization_percentage > 85:
-            recommendations.append("URGENT: Switch to GPT-4o-mini for all non-critical tasks")
+            recommendations.append(
+                "URGENT: Switch to GPT-4o-mini for all non-critical tasks"
+            )
             recommendations.append("Reduce forecast frequency to conserve budget")
         elif budget_status.utilization_percentage > 75:
-            recommendations.append("Use GPT-4o-mini for research tasks, GPT-4o only for final forecasts")
+            recommendations.append(
+                "Use GPT-4o-mini for research tasks, GPT-4o only for final forecasts"
+            )
             recommendations.append("Implement more aggressive prompt optimization")
 
         # Model efficiency recommendations
@@ -264,20 +308,28 @@ class CostMonitor:
             most_expensive = max(
                 efficiency_metrics["model_efficiency"].items(),
                 key=lambda x: x[1]["cost_per_token"],
-                default=(None, None)
+                default=(None, None),
             )
 
             if most_expensive[0] and most_expensive[1]["cost_per_token"] > 0.0001:
-                recommendations.append(f"Consider reducing usage of {most_expensive[0]} - highest cost per token")
+                recommendations.append(
+                    f"Consider reducing usage of {most_expensive[0]} - highest cost per token"
+                )
 
         # Success rate recommendations
         if usage_summary["success_rate"] < 0.9:
-            recommendations.append("Investigate API call failures - low success rate detected")
+            recommendations.append(
+                "Investigate API call failures - low success rate detected"
+            )
 
         # Token efficiency recommendations
-        avg_tokens_per_call = usage_summary["total_tokens"]["total"] / max(usage_summary["total_calls"], 1)
+        avg_tokens_per_call = usage_summary["total_tokens"]["total"] / max(
+            usage_summary["total_calls"], 1
+        )
         if avg_tokens_per_call > 3000:
-            recommendations.append("Optimize prompts to reduce token usage - current average is high")
+            recommendations.append(
+                "Optimize prompts to reduce token usage - current average is high"
+            )
 
         return recommendations
 
@@ -289,22 +341,32 @@ class CostMonitor:
 
         # Budget status
         budget = status["budget"]
-        logger.info(f"Budget: ${budget['spent']:.4f} / ${budget['total']:.2f} "
-                   f"({budget['utilization_percent']:.1f}%) - {budget['status_level'].upper()}")
-        logger.info(f"Questions: {budget['questions_processed']} processed, "
-                   f"~{budget['estimated_questions_remaining']} remaining")
+        logger.info(
+            f"Budget: ${budget['spent']:.4f} / ${budget['total']:.2f} "
+            f"({budget['utilization_percent']:.1f}%) - {budget['status_level'].upper()}"
+        )
+        logger.info(
+            f"Questions: {budget['questions_processed']} processed, "
+            f"~{budget['estimated_questions_remaining']} remaining"
+        )
 
         # Token usage
         tokens = status["tokens"]
-        logger.info(f"API Calls: {tokens['total_calls']} ({tokens['success_rate']:.1%} success)")
-        logger.info(f"Tokens: {tokens['total_tokens']['total']:,} total "
-                   f"(${tokens['total_cost']:.4f} estimated)")
+        logger.info(
+            f"API Calls: {tokens['total_calls']} ({tokens['success_rate']:.1%} success)"
+        )
+        logger.info(
+            f"Tokens: {tokens['total_tokens']['total']:,} total "
+            f"(${tokens['total_cost']:.4f} estimated)"
+        )
 
         # Recent alerts
         if status["alerts"]["active_alerts"] > 0:
             logger.warning(f"Active Alerts: {status['alerts']['active_alerts']}")
             for alert_data in status["alerts"]["recent_alerts"]:
-                logger.warning(f"  - {alert_data['severity'].upper()}: {alert_data['message']}")
+                logger.warning(
+                    f"  - {alert_data['severity'].upper()}: {alert_data['message']}"
+                )
 
         # Optimization recommendations
         recommendations = self.get_optimization_recommendations()
@@ -318,10 +380,10 @@ class CostMonitor:
         try:
             data = {
                 "alerts": [alert.to_dict() for alert in self.alerts],
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
 
-            with open(self.alerts_file, 'w') as f:
+            with open(self.alerts_file, "w") as f:
                 json.dump(data, f, indent=2)
 
         except Exception as e:
@@ -331,7 +393,7 @@ class CostMonitor:
         """Load existing alerts if available."""
         try:
             if self.alerts_file.exists():
-                with open(self.alerts_file, 'r') as f:
+                with open(self.alerts_file, "r") as f:
                     data = json.load(f)
 
                 alerts_data = data.get("alerts", [])
@@ -343,7 +405,7 @@ class CostMonitor:
                         message=alert["message"],
                         current_value=alert["current_value"],
                         threshold_value=alert["threshold_value"],
-                        recommendation=alert["recommendation"]
+                        recommendation=alert["recommendation"],
                     )
                     for alert in alerts_data
                 ]

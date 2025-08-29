@@ -6,24 +6,26 @@ evidence quality weighting, conflict resolution strategies, and coherent conclus
 synthesis with uncertainty documentation.
 """
 
-from typing import List, Dict, Any, Optional, Tuple, Set
+import statistics
+from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import structlog
-from abc import ABC, abstractmethod
-import statistics
-from collections import defaultdict
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from .authoritative_source_manager import AuthoritativeSource, CredibilityFactor
-from ..entities.research_report import ResearchSource
+import structlog
+
 from ..entities.question import Question
+from ..entities.research_report import ResearchSource
+from .authoritative_source_manager import AuthoritativeSource, CredibilityFactor
 
 logger = structlog.get_logger(__name__)
 
 
 class ConflictType(Enum):
     """Types of conflicts between sources."""
+
     DIRECT_CONTRADICTION = "direct_contradiction"
     PARTIAL_DISAGREEMENT = "partial_disagreement"
     METHODOLOGICAL_DIFFERENCE = "methodological_difference"
@@ -35,6 +37,7 @@ class ConflictType(Enum):
 
 class ResolutionStrategy(Enum):
     """Strategies for resolving conflicts."""
+
     CREDIBILITY_WEIGHTED = "credibility_weighted"
     CONSENSUS_BASED = "consensus_based"
     RECENCY_PRIORITIZED = "recency_prioritized"
@@ -46,6 +49,7 @@ class ResolutionStrategy(Enum):
 
 class UncertaintyLevel(Enum):
     """Levels of uncertainty in conclusions."""
+
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
@@ -55,6 +59,7 @@ class UncertaintyLevel(Enum):
 @dataclass
 class EvidenceConflict:
     """Represents a conflict between sources."""
+
     conflict_id: str
     conflict_type: ConflictType
     sources: List[AuthoritativeSource]
@@ -72,6 +77,7 @@ class EvidenceConflict:
 @dataclass
 class SynthesizedConclusion:
     """Represents a synthesized conclusion from multiple sources."""
+
     conclusion_text: str
     confidence_level: float
     uncertainty_level: UncertaintyLevel
@@ -88,6 +94,7 @@ class SynthesizedConclusion:
 @dataclass
 class KnowledgeGap:
     """Represents an identified knowledge gap."""
+
     gap_id: str
     description: str
     gap_type: str
@@ -102,9 +109,7 @@ class ConflictResolutionStrategy(ABC):
 
     @abstractmethod
     def resolve_conflict(
-        self,
-        conflict: EvidenceConflict,
-        context: Dict[str, Any]
+        self, conflict: EvidenceConflict, context: Dict[str, Any]
     ) -> Tuple[str, float, List[str]]:
         """
         Resolve a conflict and return conclusion, confidence, and uncertainty factors.
@@ -124,9 +129,7 @@ class CredibilityWeightedStrategy(ConflictResolutionStrategy):
     """Resolve conflicts by weighting sources based on credibility scores."""
 
     def resolve_conflict(
-        self,
-        conflict: EvidenceConflict,
-        context: Dict[str, Any]
+        self, conflict: EvidenceConflict, context: Dict[str, Any]
     ) -> Tuple[str, float, List[str]]:
         """Resolve conflict using credibility-weighted approach."""
 
@@ -137,7 +140,7 @@ class CredibilityWeightedStrategy(ConflictResolutionStrategy):
             return (
                 "Unable to resolve conflict due to insufficient credibility data",
                 0.1,
-                ["No credible sources available"]
+                ["No credible sources available"],
             )
 
         # Group sources by their claims/positions
@@ -145,7 +148,11 @@ class CredibilityWeightedStrategy(ConflictResolutionStrategy):
         claim_sources = defaultdict(list)
 
         for i, source in enumerate(conflict.sources):
-            claim = conflict.conflicting_claims[i] if i < len(conflict.conflicting_claims) else f"Position {i+1}"
+            claim = (
+                conflict.conflicting_claims[i]
+                if i < len(conflict.conflicting_claims)
+                else f"Position {i+1}"
+            )
             claim_weights[claim] += source.credibility_score
             claim_sources[claim].append(source)
 
@@ -159,7 +166,9 @@ class CredibilityWeightedStrategy(ConflictResolutionStrategy):
         # Identify uncertainty factors
         uncertainty_factors = []
         if dominant_weight < 0.7:
-            uncertainty_factors.append("Significant disagreement among credible sources")
+            uncertainty_factors.append(
+                "Significant disagreement among credible sources"
+            )
         if len(claim_weights) > 2:
             uncertainty_factors.append("Multiple conflicting positions identified")
 
@@ -175,9 +184,7 @@ class ConsensusBasedStrategy(ConflictResolutionStrategy):
     """Resolve conflicts by finding consensus among sources."""
 
     def resolve_conflict(
-        self,
-        conflict: EvidenceConflict,
-        context: Dict[str, Any]
+        self, conflict: EvidenceConflict, context: Dict[str, Any]
     ) -> Tuple[str, float, List[str]]:
         """Resolve conflict using consensus-based approach."""
 
@@ -186,7 +193,11 @@ class ConsensusBasedStrategy(ConflictResolutionStrategy):
         claim_sources = defaultdict(list)
 
         for i, source in enumerate(conflict.sources):
-            claim = conflict.conflicting_claims[i] if i < len(conflict.conflicting_claims) else f"Position {i+1}"
+            claim = (
+                conflict.conflicting_claims[i]
+                if i < len(conflict.conflicting_claims)
+                else f"Position {i+1}"
+            )
             claim_counts[claim] += 1
             claim_sources[claim].append(source)
 
@@ -217,9 +228,7 @@ class EvidenceTriangulationStrategy(ConflictResolutionStrategy):
     """Resolve conflicts through evidence triangulation and synthesis."""
 
     def resolve_conflict(
-        self,
-        conflict: EvidenceConflict,
-        context: Dict[str, Any]
+        self, conflict: EvidenceConflict, context: Dict[str, Any]
     ) -> Tuple[str, float, List[str]]:
         """Resolve conflict using evidence triangulation."""
 
@@ -227,7 +236,7 @@ class EvidenceTriangulationStrategy(ConflictResolutionStrategy):
         evidence_types = defaultdict(list)
 
         for source in conflict.sources:
-            if hasattr(source, 'source_type'):
+            if hasattr(source, "source_type"):
                 evidence_types[source.source_type.value].append(source)
 
         # Look for convergent evidence across different types
@@ -238,15 +247,17 @@ class EvidenceTriangulationStrategy(ConflictResolutionStrategy):
         claim_type_support = defaultdict(set)
 
         for i, source in enumerate(conflict.sources):
-            claim = conflict.conflicting_claims[i] if i < len(conflict.conflicting_claims) else f"Position {i+1}"
-            if hasattr(source, 'source_type'):
+            claim = (
+                conflict.conflicting_claims[i]
+                if i < len(conflict.conflicting_claims)
+                else f"Position {i+1}"
+            )
+            if hasattr(source, "source_type"):
                 claim_type_support[claim].add(source.source_type.value)
 
         # Find claims with broadest evidence type support
         best_supported_claim = max(
-            claim_type_support.items(),
-            key=lambda x: len(x[1]),
-            default=(None, set())
+            claim_type_support.items(), key=lambda x: len(x[1]), default=(None, set())
         )
 
         if best_supported_claim[0] and len(best_supported_claim[1]) > 1:
@@ -254,11 +265,15 @@ class EvidenceTriangulationStrategy(ConflictResolutionStrategy):
             conclusion = f"Triangulated evidence supports: {best_supported_claim[0]}"
         else:
             confidence = 0.4
-            conclusion = "Evidence triangulation reveals insufficient convergent support"
+            conclusion = (
+                "Evidence triangulation reveals insufficient convergent support"
+            )
             uncertainty_factors.append("Limited evidence type diversity")
 
         if len(evidence_types) < 2:
-            uncertainty_factors.append("Insufficient evidence type diversity for triangulation")
+            uncertainty_factors.append(
+                "Insufficient evidence type diversity for triangulation"
+            )
 
         return conclusion, confidence, uncertainty_factors
 
@@ -277,20 +292,20 @@ class ConflictResolver:
         self.resolution_strategies = {
             ResolutionStrategy.CREDIBILITY_WEIGHTED: CredibilityWeightedStrategy(),
             ResolutionStrategy.CONSENSUS_BASED: ConsensusBasedStrategy(),
-            ResolutionStrategy.EVIDENCE_TRIANGULATION: EvidenceTriangulationStrategy()
+            ResolutionStrategy.EVIDENCE_TRIANGULATION: EvidenceTriangulationStrategy(),
         }
 
         # Thresholds for conflict detection
         self.conflict_detection_thresholds = {
             "credibility_difference": 0.3,
             "temporal_gap_days": 365,
-            "methodology_variance": 0.4
+            "methodology_variance": 0.4,
         }
 
     def detect_conflicts(
         self,
         sources: List[AuthoritativeSource],
-        question_context: Optional[Question] = None
+        question_context: Optional[Question] = None,
     ) -> List[EvidenceConflict]:
         """
         Detect conflicts between sources.
@@ -305,7 +320,7 @@ class ConflictResolver:
         logger.info(
             "Detecting conflicts between sources",
             source_count=len(sources),
-            question_id=str(question_context.id) if question_context else None
+            question_id=str(question_context.id) if question_context else None,
         )
 
         conflicts = []
@@ -325,14 +340,13 @@ class ConflictResolver:
         logger.info(
             "Conflict detection completed",
             conflicts_found=len(conflicts),
-            conflict_types=[c.conflict_type.value for c in conflicts]
+            conflict_types=[c.conflict_type.value for c in conflicts],
         )
 
         return conflicts
 
     def _detect_conclusion_conflicts(
-        self,
-        sources: List[AuthoritativeSource]
+        self, sources: List[AuthoritativeSource]
     ) -> List[EvidenceConflict]:
         """Detect direct contradictions in source conclusions."""
         conflicts = []
@@ -340,7 +354,14 @@ class ConflictResolver:
         # Simple keyword-based conflict detection
         # In a real implementation, this would use NLP for semantic analysis
         positive_indicators = ["will", "likely", "increase", "positive", "yes", "true"]
-        negative_indicators = ["will not", "unlikely", "decrease", "negative", "no", "false"]
+        negative_indicators = [
+            "will not",
+            "unlikely",
+            "decrease",
+            "negative",
+            "no",
+            "false",
+        ]
 
         positive_sources = []
         negative_sources = []
@@ -348,8 +369,12 @@ class ConflictResolver:
         for source in sources:
             summary_lower = source.summary.lower()
 
-            positive_score = sum(1 for indicator in positive_indicators if indicator in summary_lower)
-            negative_score = sum(1 for indicator in negative_indicators if indicator in summary_lower)
+            positive_score = sum(
+                1 for indicator in positive_indicators if indicator in summary_lower
+            )
+            negative_score = sum(
+                1 for indicator in negative_indicators if indicator in summary_lower
+            )
 
             if positive_score > negative_score:
                 positive_sources.append(source)
@@ -362,17 +387,21 @@ class ConflictResolver:
                 conflict_id="",
                 conflict_type=ConflictType.DIRECT_CONTRADICTION,
                 sources=positive_sources + negative_sources,
-                conflicting_claims=["Positive/Affirmative position", "Negative/Contrary position"],
-                severity=min(1.0, (len(positive_sources) + len(negative_sources)) / len(sources)),
-                description="Direct contradiction in source conclusions"
+                conflicting_claims=[
+                    "Positive/Affirmative position",
+                    "Negative/Contrary position",
+                ],
+                severity=min(
+                    1.0, (len(positive_sources) + len(negative_sources)) / len(sources)
+                ),
+                description="Direct contradiction in source conclusions",
             )
             conflicts.append(conflict)
 
         return conflicts
 
     def _detect_methodological_conflicts(
-        self,
-        sources: List[AuthoritativeSource]
+        self, sources: List[AuthoritativeSource]
     ) -> List[EvidenceConflict]:
         """Detect conflicts due to methodological differences."""
         conflicts = []
@@ -389,17 +418,19 @@ class ConflictResolver:
                     conflict_id="",
                     conflict_type=ConflictType.METHODOLOGICAL_DIFFERENCE,
                     sources=high_quality + low_quality,
-                    conflicting_claims=["High methodology quality conclusion", "Low methodology quality conclusion"],
+                    conflicting_claims=[
+                        "High methodology quality conclusion",
+                        "Low methodology quality conclusion",
+                    ],
                     severity=0.6,
-                    description="Methodological quality differences leading to conflicting conclusions"
+                    description="Methodological quality differences leading to conflicting conclusions",
                 )
                 conflicts.append(conflict)
 
         return conflicts
 
     def _detect_temporal_conflicts(
-        self,
-        sources: List[AuthoritativeSource]
+        self, sources: List[AuthoritativeSource]
     ) -> List[EvidenceConflict]:
         """Detect temporal inconsistencies between sources."""
         conflicts = []
@@ -427,18 +458,19 @@ class ConflictResolver:
                         conflict_id="",
                         conflict_type=ConflictType.TEMPORAL_INCONSISTENCY,
                         sources=[older_source, newer_source],
-                        conflicting_claims=[f"Earlier position ({older_source.publish_date.year})",
-                                          f"Later position ({newer_source.publish_date.year})"],
+                        conflicting_claims=[
+                            f"Earlier position ({older_source.publish_date.year})",
+                            f"Later position ({newer_source.publish_date.year})",
+                        ],
                         severity=0.5,
-                        description=f"Temporal inconsistency with {days_diff} days gap"
+                        description=f"Temporal inconsistency with {days_diff} days gap",
                     )
                     conflicts.append(conflict)
 
         return conflicts
 
     def _detect_credibility_conflicts(
-        self,
-        sources: List[AuthoritativeSource]
+        self, sources: List[AuthoritativeSource]
     ) -> List[EvidenceConflict]:
         """Detect conflicts due to credibility disparities."""
         conflicts = []
@@ -451,18 +483,28 @@ class ConflictResolver:
         max_credibility = max(credibility_scores)
         min_credibility = min(credibility_scores)
 
-        if max_credibility - min_credibility > self.conflict_detection_thresholds["credibility_difference"]:
-            high_cred_sources = [s for s in sources if s.credibility_score > max_credibility - 0.1]
-            low_cred_sources = [s for s in sources if s.credibility_score < min_credibility + 0.1]
+        if (
+            max_credibility - min_credibility
+            > self.conflict_detection_thresholds["credibility_difference"]
+        ):
+            high_cred_sources = [
+                s for s in sources if s.credibility_score > max_credibility - 0.1
+            ]
+            low_cred_sources = [
+                s for s in sources if s.credibility_score < min_credibility + 0.1
+            ]
 
             if high_cred_sources and low_cred_sources:
                 conflict = EvidenceConflict(
                     conflict_id="",
                     conflict_type=ConflictType.DATA_QUALITY_DISPARITY,
                     sources=high_cred_sources + low_cred_sources,
-                    conflicting_claims=["High credibility sources", "Low credibility sources"],
+                    conflicting_claims=[
+                        "High credibility sources",
+                        "Low credibility sources",
+                    ],
                     severity=max_credibility - min_credibility,
-                    description="Significant credibility disparity between sources"
+                    description="Significant credibility disparity between sources",
                 )
                 conflicts.append(conflict)
 
@@ -471,7 +513,7 @@ class ConflictResolver:
     def resolve_conflicts(
         self,
         conflicts: List[EvidenceConflict],
-        resolution_strategy: Optional[ResolutionStrategy] = None
+        resolution_strategy: Optional[ResolutionStrategy] = None,
     ) -> List[EvidenceConflict]:
         """
         Resolve detected conflicts using specified or automatic strategy selection.
@@ -486,7 +528,7 @@ class ConflictResolver:
         logger.info(
             "Resolving conflicts",
             conflict_count=len(conflicts),
-            strategy=resolution_strategy.value if resolution_strategy else "auto"
+            strategy=resolution_strategy.value if resolution_strategy else "auto",
         )
 
         resolved_conflicts = []
@@ -503,9 +545,10 @@ class ConflictResolver:
                 strategy_instance = self.resolution_strategies[selected_strategy]
 
                 try:
-                    conclusion, confidence, uncertainty_factors = strategy_instance.resolve_conflict(
-                        conflict,
-                        {"strategy": selected_strategy}
+                    conclusion, confidence, uncertainty_factors = (
+                        strategy_instance.resolve_conflict(
+                            conflict, {"strategy": selected_strategy}
+                        )
                     )
 
                     # Update conflict with resolution
@@ -519,7 +562,7 @@ class ConflictResolver:
                         "Conflict resolved",
                         conflict_id=conflict.conflict_id,
                         strategy=selected_strategy.value,
-                        confidence=confidence
+                        confidence=confidence,
                     )
 
                 except Exception as e:
@@ -527,19 +570,21 @@ class ConflictResolver:
                         "Failed to resolve conflict",
                         conflict_id=conflict.conflict_id,
                         strategy=selected_strategy.value,
-                        error=str(e)
+                        error=str(e),
                     )
                     resolved_conflicts.append(conflict)  # Add unresolved
             else:
                 logger.warning(
                     "Unknown resolution strategy",
-                    strategy=selected_strategy.value if selected_strategy else None
+                    strategy=selected_strategy.value if selected_strategy else None,
                 )
                 resolved_conflicts.append(conflict)  # Add unresolved
 
         return resolved_conflicts
 
-    def _select_resolution_strategy(self, conflict: EvidenceConflict) -> ResolutionStrategy:
+    def _select_resolution_strategy(
+        self, conflict: EvidenceConflict
+    ) -> ResolutionStrategy:
         """Automatically select the best resolution strategy for a conflict."""
 
         # Strategy selection based on conflict type and characteristics
@@ -568,7 +613,7 @@ class ConflictResolver:
         self,
         sources: List[AuthoritativeSource],
         resolved_conflicts: List[EvidenceConflict],
-        question_context: Optional[Question] = None
+        question_context: Optional[Question] = None,
     ) -> SynthesizedConclusion:
         """
         Synthesize a coherent conclusion from sources and resolved conflicts.
@@ -585,7 +630,7 @@ class ConflictResolver:
             "Synthesizing conclusion",
             source_count=len(sources),
             resolved_conflicts=len(resolved_conflicts),
-            question_id=str(question_context.id) if question_context else None
+            question_id=str(question_context.id) if question_context else None,
         )
 
         # Separate sources into supporting and conflicting
@@ -593,7 +638,9 @@ class ConflictResolver:
         for conflict in resolved_conflicts:
             conflicting_source_urls.update(s.url for s in conflict.sources)
 
-        supporting_sources = [s for s in sources if s.url not in conflicting_source_urls]
+        supporting_sources = [
+            s for s in sources if s.url not in conflicting_source_urls
+        ]
         conflicting_sources = [s for s in sources if s.url in conflicting_source_urls]
 
         # Calculate evidence weight distribution
@@ -601,7 +648,11 @@ class ConflictResolver:
         weight_distribution = {}
 
         for source in sources:
-            weight = source.credibility_score / total_credibility if total_credibility > 0 else 1.0 / len(sources)
+            weight = (
+                source.credibility_score / total_credibility
+                if total_credibility > 0
+                else 1.0 / len(sources)
+            )
             weight_distribution[source.url] = weight
 
         # Determine overall confidence level
@@ -615,15 +666,15 @@ class ConflictResolver:
 
         # Determine uncertainty level
         uncertainty_level = self._calculate_uncertainty_level(
-            overall_confidence,
-            len(resolved_conflicts),
-            len(sources)
+            overall_confidence, len(resolved_conflicts), len(sources)
         )
 
         # Identify uncertainty factors
         uncertainty_factors = []
         if resolved_conflicts:
-            uncertainty_factors.append(f"{len(resolved_conflicts)} conflicts identified and resolved")
+            uncertainty_factors.append(
+                f"{len(resolved_conflicts)} conflicts identified and resolved"
+            )
 
         if len(supporting_sources) < len(sources) * 0.7:
             uncertainty_factors.append("Significant proportion of sources in conflict")
@@ -633,10 +684,7 @@ class ConflictResolver:
 
         # Generate conclusion text
         conclusion_text = self._generate_conclusion_text(
-            sources,
-            resolved_conflicts,
-            overall_confidence,
-            question_context
+            sources, resolved_conflicts, overall_confidence, question_context
         )
 
         # Select primary resolution strategy used
@@ -659,23 +707,20 @@ class ConflictResolver:
             evidence_weight_distribution=weight_distribution,
             uncertainty_factors=uncertainty_factors,
             knowledge_gaps=[gap.description for gap in knowledge_gaps],
-            synthesis_methodology=f"Conflict resolution with {len(resolved_conflicts)} conflicts resolved"
+            synthesis_methodology=f"Conflict resolution with {len(resolved_conflicts)} conflicts resolved",
         )
 
         logger.info(
             "Conclusion synthesis completed",
             confidence=overall_confidence,
             uncertainty_level=uncertainty_level.value,
-            knowledge_gaps=len(knowledge_gaps)
+            knowledge_gaps=len(knowledge_gaps),
         )
 
         return synthesis
 
     def _calculate_uncertainty_level(
-        self,
-        confidence: float,
-        conflict_count: int,
-        source_count: int
+        self, confidence: float, conflict_count: int, source_count: int
     ) -> UncertaintyLevel:
         """Calculate uncertainty level based on various factors."""
 
@@ -690,9 +735,7 @@ class ConflictResolver:
             return UncertaintyLevel.VERY_HIGH
 
     def _identify_knowledge_gaps(
-        self,
-        sources: List[AuthoritativeSource],
-        conflicts: List[EvidenceConflict]
+        self, sources: List[AuthoritativeSource], conflicts: List[EvidenceConflict]
     ) -> List[KnowledgeGap]:
         """Identify knowledge gaps from source analysis."""
 
@@ -700,50 +743,70 @@ class ConflictResolver:
 
         # Gap 1: Insufficient recent sources
         recent_sources = [
-            s for s in sources
+            s
+            for s in sources
             if s.publish_date and (datetime.utcnow() - s.publish_date).days <= 365
         ]
 
         if len(recent_sources) < len(sources) * 0.5:
-            gaps.append(KnowledgeGap(
-                gap_id="recency_gap",
-                description="Insufficient recent sources - most evidence is outdated",
-                gap_type="temporal",
-                severity=0.7,
-                potential_sources=["Recent academic papers", "Current expert opinions"],
-                research_suggestions=["Search for more recent publications", "Consult current experts"],
-                impact_on_conclusion=0.6
-            ))
+            gaps.append(
+                KnowledgeGap(
+                    gap_id="recency_gap",
+                    description="Insufficient recent sources - most evidence is outdated",
+                    gap_type="temporal",
+                    severity=0.7,
+                    potential_sources=[
+                        "Recent academic papers",
+                        "Current expert opinions",
+                    ],
+                    research_suggestions=[
+                        "Search for more recent publications",
+                        "Consult current experts",
+                    ],
+                    impact_on_conclusion=0.6,
+                )
+            )
 
         # Gap 2: Limited source diversity
         source_types = set()
         for source in sources:
-            if hasattr(source, 'source_type'):
+            if hasattr(source, "source_type"):
                 source_types.add(source.source_type.value)
 
         if len(source_types) < 3:
-            gaps.append(KnowledgeGap(
-                gap_id="diversity_gap",
-                description="Limited source type diversity",
-                gap_type="methodological",
-                severity=0.5,
-                potential_sources=["Government data", "Industry reports", "Academic studies"],
-                research_suggestions=["Expand search to different source types"],
-                impact_on_conclusion=0.4
-            ))
+            gaps.append(
+                KnowledgeGap(
+                    gap_id="diversity_gap",
+                    description="Limited source type diversity",
+                    gap_type="methodological",
+                    severity=0.5,
+                    potential_sources=[
+                        "Government data",
+                        "Industry reports",
+                        "Academic studies",
+                    ],
+                    research_suggestions=["Expand search to different source types"],
+                    impact_on_conclusion=0.4,
+                )
+            )
 
         # Gap 3: Unresolved conflicts
         unresolved_conflicts = [c for c in conflicts if not c.resolution_strategy]
         if unresolved_conflicts:
-            gaps.append(KnowledgeGap(
-                gap_id="conflict_resolution_gap",
-                description=f"{len(unresolved_conflicts)} conflicts remain unresolved",
-                gap_type="analytical",
-                severity=0.8,
-                potential_sources=["Additional expert opinions", "Meta-analyses"],
-                research_suggestions=["Seek additional authoritative sources", "Consult domain experts"],
-                impact_on_conclusion=0.7
-            ))
+            gaps.append(
+                KnowledgeGap(
+                    gap_id="conflict_resolution_gap",
+                    description=f"{len(unresolved_conflicts)} conflicts remain unresolved",
+                    gap_type="analytical",
+                    severity=0.8,
+                    potential_sources=["Additional expert opinions", "Meta-analyses"],
+                    research_suggestions=[
+                        "Seek additional authoritative sources",
+                        "Consult domain experts",
+                    ],
+                    impact_on_conclusion=0.7,
+                )
+            )
 
         return gaps
 
@@ -752,7 +815,7 @@ class ConflictResolver:
         sources: List[AuthoritativeSource],
         resolved_conflicts: List[EvidenceConflict],
         confidence: float,
-        question_context: Optional[Question] = None
+        question_context: Optional[Question] = None,
     ) -> str:
         """Generate coherent conclusion text."""
 
@@ -767,38 +830,48 @@ class ConflictResolver:
         elif confidence >= 0.6:
             conclusion_parts.append("Based on moderate evidence with some uncertainty,")
         else:
-            conclusion_parts.append("Based on limited evidence with significant uncertainty,")
+            conclusion_parts.append(
+                "Based on limited evidence with significant uncertainty,"
+            )
 
         # Add main conclusion (simplified)
         if question_context:
             conclusion_parts.append(f"regarding {question_context.title}:")
 
         # Synthesize from highest credibility sources
-        top_sources = sorted(sources, key=lambda x: x.credibility_score, reverse=True)[:3]
+        top_sources = sorted(sources, key=lambda x: x.credibility_score, reverse=True)[
+            :3
+        ]
 
         if top_sources:
-            conclusion_parts.append(f"The most credible sources suggest {top_sources[0].summary[:100]}...")
+            conclusion_parts.append(
+                f"The most credible sources suggest {top_sources[0].summary[:100]}..."
+            )
 
         # Add conflict resolution information
         if resolved_conflicts:
-            conclusion_parts.append(f"After resolving {len(resolved_conflicts)} conflicts in the evidence,")
-            conclusion_parts.append("the synthesis indicates convergence toward this position.")
+            conclusion_parts.append(
+                f"After resolving {len(resolved_conflicts)} conflicts in the evidence,"
+            )
+            conclusion_parts.append(
+                "the synthesis indicates convergence toward this position."
+            )
 
         return " ".join(conclusion_parts)
 
     def get_conflict_resolution_report(
-        self,
-        conflicts: List[EvidenceConflict],
-        synthesis: SynthesizedConclusion
+        self, conflicts: List[EvidenceConflict], synthesis: SynthesizedConclusion
     ) -> Dict[str, Any]:
         """Generate a comprehensive conflict resolution report."""
 
         return {
             "summary": {
                 "total_conflicts": len(conflicts),
-                "resolved_conflicts": len([c for c in conflicts if c.resolution_strategy]),
+                "resolved_conflicts": len(
+                    [c for c in conflicts if c.resolution_strategy]
+                ),
                 "overall_confidence": synthesis.confidence_level,
-                "uncertainty_level": synthesis.uncertainty_level.value
+                "uncertainty_level": synthesis.uncertainty_level.value,
             },
             "conflicts": [
                 {
@@ -806,9 +879,13 @@ class ConflictResolver:
                     "type": conflict.conflict_type.value,
                     "severity": conflict.severity,
                     "sources_involved": len(conflict.sources),
-                    "resolution_strategy": conflict.resolution_strategy.value if conflict.resolution_strategy else None,
+                    "resolution_strategy": (
+                        conflict.resolution_strategy.value
+                        if conflict.resolution_strategy
+                        else None
+                    ),
                     "resolution_confidence": conflict.resolution_confidence,
-                    "description": conflict.description
+                    "description": conflict.description,
                 }
                 for conflict in conflicts
             ],
@@ -817,32 +894,41 @@ class ConflictResolver:
                 "confidence": synthesis.confidence_level,
                 "uncertainty_factors": synthesis.uncertainty_factors,
                 "knowledge_gaps": synthesis.knowledge_gaps,
-                "methodology": synthesis.synthesis_methodology
+                "methodology": synthesis.synthesis_methodology,
             },
             "evidence_distribution": synthesis.evidence_weight_distribution,
-            "recommendations": self._generate_recommendations(conflicts, synthesis)
+            "recommendations": self._generate_recommendations(conflicts, synthesis),
         }
 
     def _generate_recommendations(
-        self,
-        conflicts: List[EvidenceConflict],
-        synthesis: SynthesizedConclusion
+        self, conflicts: List[EvidenceConflict], synthesis: SynthesizedConclusion
     ) -> List[str]:
         """Generate recommendations for improving the analysis."""
 
         recommendations = []
 
         if synthesis.confidence_level < 0.6:
-            recommendations.append("Seek additional high-credibility sources to improve confidence")
+            recommendations.append(
+                "Seek additional high-credibility sources to improve confidence"
+            )
 
         if len(synthesis.knowledge_gaps) > 2:
-            recommendations.append("Address identified knowledge gaps through targeted research")
+            recommendations.append(
+                "Address identified knowledge gaps through targeted research"
+            )
 
         unresolved_conflicts = [c for c in conflicts if not c.resolution_strategy]
         if unresolved_conflicts:
-            recommendations.append("Resolve remaining conflicts through expert consultation")
+            recommendations.append(
+                "Resolve remaining conflicts through expert consultation"
+            )
 
-        if synthesis.uncertainty_level in [UncertaintyLevel.HIGH, UncertaintyLevel.VERY_HIGH]:
-            recommendations.append("Consider acknowledging high uncertainty in final conclusions")
+        if synthesis.uncertainty_level in [
+            UncertaintyLevel.HIGH,
+            UncertaintyLevel.VERY_HIGH,
+        ]:
+            recommendations.append(
+                "Consider acknowledging high uncertainty in final conclusions"
+            )
 
         return recommendations

@@ -1,18 +1,20 @@
 """Chain of Thought reasoning agent."""
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
+
 import structlog
 
-from .base_agent import BaseAgent
+from ..domain.entities.prediction import Prediction
 from ..domain.entities.question import Question
 from ..domain.entities.research_report import ResearchReport
-from ..domain.entities.prediction import Prediction
-from ..domain.value_objects.reasoning_trace import (
-    ReasoningTrace, ReasoningStep, ReasoningStepType
-)
 from ..domain.services.reasoning_orchestrator import ReasoningOrchestrator
-
+from ..domain.value_objects.reasoning_trace import (
+    ReasoningStep,
+    ReasoningStepType,
+    ReasoningTrace,
+)
+from .base_agent import BaseAgent
 
 logger = structlog.get_logger(__name__)
 
@@ -20,11 +22,11 @@ logger = structlog.get_logger(__name__)
 class ChainOfThoughtAgent(BaseAgent):
     """
     Agent that uses chain-of-thought reasoning with explicit step documentation.
-    
+
     Implements systematic step-by-step reasoning with configurable depth,
     bias detection integration, and confidence calibration.
     """
-    
+
     def __init__(
         self,
         name: str,
@@ -32,11 +34,11 @@ class ChainOfThoughtAgent(BaseAgent):
         reasoning_depth: int = 5,
         confidence_threshold: float = 0.7,
         enable_bias_detection: bool = True,
-        step_validation: bool = True
+        step_validation: bool = True,
     ):
         """
         Initialize Chain of Thought agent.
-        
+
         Args:
             name: Agent name
             model_config: Model configuration
@@ -50,123 +52,129 @@ class ChainOfThoughtAgent(BaseAgent):
         self.confidence_threshold = confidence_threshold
         self.enable_bias_detection = enable_bias_detection
         self.step_validation = step_validation
-        
+
         # Initialize reasoning orchestrator
         self.orchestrator = ReasoningOrchestrator(
             confidence_threshold=confidence_threshold,
             max_reasoning_depth=reasoning_depth,
             bias_detection_enabled=enable_bias_detection,
-            validation_enabled=step_validation
+            validation_enabled=step_validation,
         )
-        
+
         self.logger = logger.bind(agent=name, type="chain_of_thought")
-    
+
     async def conduct_research(
-        self,
-        question: Question,
-        search_config: Optional[Dict[str, Any]] = None
+        self, question: Question, search_config: Optional[Dict[str, Any]] = None
     ) -> ResearchReport:
         """
         Conduct research using chain-of-thought reasoning.
-        
+
         Args:
             question: Question to research
             search_config: Search configuration
-            
+
         Returns:
             Research report with chain-of-thought analysis
         """
         self.logger.info("Starting CoT research", question_id=str(question.id))
-        
+
         # Generate reasoning trace for research
-        research_trace = await self._generate_research_reasoning_trace(question, search_config)
-        
+        research_trace = await self._generate_research_reasoning_trace(
+            question, search_config
+        )
+
         # Extract research findings from reasoning trace
         research_report = await self._create_research_report_from_trace(
             question, research_trace, search_config
         )
-        
+
         self.logger.info(
             "CoT research completed",
             question_id=str(question.id),
             reasoning_steps=len(research_trace.steps),
-            confidence=research_trace.overall_confidence
+            confidence=research_trace.overall_confidence,
         )
-        
+
         return research_report
-    
+
     async def generate_prediction(
-        self,
-        question: Question,
-        research_report: ResearchReport
+        self, question: Question, research_report: ResearchReport
     ) -> Prediction:
         """
         Generate prediction using chain-of-thought reasoning.
-        
+
         Args:
             question: Question to predict
             research_report: Research findings
-            
+
         Returns:
             Prediction with detailed reasoning trace
         """
         self.logger.info("Starting CoT prediction", question_id=str(question.id))
-        
+
         # Generate reasoning trace for prediction
         prediction_trace = await self._generate_prediction_reasoning_trace(
             question, research_report
         )
-        
+
         # Create prediction from reasoning trace
         prediction = await self._create_prediction_from_trace(
             question, research_report, prediction_trace
         )
-        
+
         self.logger.info(
             "CoT prediction completed",
             question_id=str(question.id),
             reasoning_steps=len(prediction_trace.steps),
-            confidence=prediction_trace.overall_confidence
+            confidence=prediction_trace.overall_confidence,
         )
-        
+
         return prediction
-    
-    async def reason(self, question: Question, context: Dict[str, Any]) -> ReasoningTrace:
+
+    async def reason(
+        self, question: Question, context: Dict[str, Any]
+    ) -> ReasoningTrace:
         """
         Generate reasoning trace using chain-of-thought methodology.
-        
+
         Args:
             question: Question to reason about
             context: Additional context
-            
+
         Returns:
             Complete reasoning trace
         """
         self.logger.info("Starting CoT reasoning", question_id=str(question.id))
-        
+
         reasoning_steps = []
         current_confidence = 0.5
-        
+
         # Step 1: Initial observation and problem understanding
         observation_step = await self._create_observation_step(question, context)
         reasoning_steps.append(observation_step)
-        
+
         # Step 2: Generate initial hypotheses
         hypothesis_steps = await self._generate_hypothesis_steps(question, context)
         reasoning_steps.extend(hypothesis_steps)
-        
+
         # Step 3: Systematic analysis of each hypothesis
-        analysis_steps = await self._analyze_hypotheses(question, hypothesis_steps, context)
+        analysis_steps = await self._analyze_hypotheses(
+            question, hypothesis_steps, context
+        )
         reasoning_steps.extend(analysis_steps)
-        
+
         # Step 4: Synthesis of findings
-        synthesis_step = await self._synthesize_findings(question, analysis_steps, context)
+        synthesis_step = await self._synthesize_findings(
+            question, analysis_steps, context
+        )
         reasoning_steps.append(synthesis_step)
-        
+
         # Step 5: Final conclusion with confidence assessment
-        conclusion_step = await self._draw_conclusion(question, reasoning_steps, context)
+        conclusion_step = await self._draw_conclusion(
+            question, reasoning_steps, context
+        )
         reasoning_steps.append(conclusion_step)
-        
+
         # Create initial trace
         initial_trace = ReasoningTrace.create(
             question_id=question.id,
@@ -176,20 +184,18 @@ class ChainOfThoughtAgent(BaseAgent):
             final_conclusion=conclusion_step.content,
             overall_confidence=conclusion_step.confidence,
             bias_checks=[],
-            uncertainty_sources=[]
+            uncertainty_sources=[],
         )
-        
+
         # Use orchestrator for validation and bias detection
         final_trace = await self.orchestrator.orchestrate_reasoning(
             question, self, context
         )
-        
+
         return final_trace
-    
+
     async def _create_observation_step(
-        self,
-        question: Question,
-        context: Dict[str, Any]
+        self, question: Question, context: Dict[str, Any]
     ) -> ReasoningStep:
         """Create initial observation step."""
         content = f"""Initial observation: Analyzing question '{question.title}'
@@ -203,48 +209,49 @@ Key aspects to consider:
 - Available timeframe for resolution
 - Relevant historical patterns or precedents
 - Potential information sources and their reliability"""
-        
+
         return ReasoningStep.create(
             step_type=ReasoningStepType.OBSERVATION,
             content=content,
             confidence=0.8,
-            metadata={"question_analysis": True, "context_items": len(context)}
+            metadata={"question_analysis": True, "context_items": len(context)},
         )
-    
+
     async def _generate_hypothesis_steps(
-        self,
-        question: Question,
-        context: Dict[str, Any]
+        self, question: Question, context: Dict[str, Any]
     ) -> List[ReasoningStep]:
         """Generate multiple hypothesis steps."""
         hypotheses = [
             "Base rate hypothesis: Consider historical frequency of similar events",
             "Trend analysis hypothesis: Examine current trends and their trajectory",
             "Expert consensus hypothesis: Evaluate expert opinions and predictions",
-            "Model-based hypothesis: Apply relevant predictive models or frameworks"
+            "Model-based hypothesis: Apply relevant predictive models or frameworks",
         ]
-        
+
         hypothesis_steps = []
         for i, hypothesis in enumerate(hypotheses):
             step = ReasoningStep.create(
                 step_type=ReasoningStepType.HYPOTHESIS,
                 content=f"Hypothesis {i+1}: {hypothesis}",
                 confidence=0.6,
-                metadata={"hypothesis_number": i+1, "total_hypotheses": len(hypotheses)}
+                metadata={
+                    "hypothesis_number": i + 1,
+                    "total_hypotheses": len(hypotheses),
+                },
             )
             hypothesis_steps.append(step)
-        
+
         return hypothesis_steps
-    
+
     async def _analyze_hypotheses(
         self,
         question: Question,
         hypothesis_steps: List[ReasoningStep],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> List[ReasoningStep]:
         """Analyze each hypothesis systematically."""
         analysis_steps = []
-        
+
         for i, hypothesis_step in enumerate(hypothesis_steps):
             analysis_content = f"""Analysis of {hypothesis_step.content}:
 
@@ -264,30 +271,32 @@ Evidence assessment:
 - Potential for verification: Medium
 
 Confidence adjustment based on analysis: {0.7 + (i * 0.05)}"""
-            
+
             analysis_step = ReasoningStep.create(
                 step_type=ReasoningStepType.ANALYSIS,
                 content=analysis_content,
                 confidence=0.7 + (i * 0.05),  # Slightly increasing confidence
                 metadata={
-                    "analyzed_hypothesis": i+1,
+                    "analyzed_hypothesis": i + 1,
                     "analysis_depth": "systematic",
-                    "evidence_quality": "medium_to_high"
-                }
+                    "evidence_quality": "medium_to_high",
+                },
             )
             analysis_steps.append(analysis_step)
-        
+
         return analysis_steps
-    
+
     async def _synthesize_findings(
         self,
         question: Question,
         analysis_steps: List[ReasoningStep],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> ReasoningStep:
         """Synthesize findings from all analyses."""
-        avg_confidence = sum(step.confidence for step in analysis_steps) / len(analysis_steps)
-        
+        avg_confidence = sum(step.confidence for step in analysis_steps) / len(
+            analysis_steps
+        )
+
         synthesis_content = f"""Synthesis of all analytical findings:
 
 Key insights from hypothesis analysis:
@@ -305,7 +314,7 @@ Integration of findings:
 Overall assessment:
 The combination of multiple reasoning approaches strengthens confidence
 in the analysis while acknowledging remaining uncertainties."""
-        
+
         return ReasoningStep.create(
             step_type=ReasoningStepType.SYNTHESIS,
             content=synthesis_content,
@@ -313,35 +322,37 @@ in the analysis while acknowledging remaining uncertainties."""
             metadata={
                 "synthesis_method": "multi_hypothesis_integration",
                 "input_analyses": len(analysis_steps),
-                "average_input_confidence": avg_confidence
-            }
+                "average_input_confidence": avg_confidence,
+            },
         )
-    
+
     async def _draw_conclusion(
         self,
         question: Question,
         reasoning_steps: List[ReasoningStep],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> ReasoningStep:
         """Draw final conclusion from reasoning process."""
         # Calculate weighted confidence based on step types
         weighted_confidence = 0.0
         total_weight = 0.0
-        
+
         step_weights = {
             ReasoningStepType.OBSERVATION: 0.5,
             ReasoningStepType.HYPOTHESIS: 0.3,
             ReasoningStepType.ANALYSIS: 1.0,
-            ReasoningStepType.SYNTHESIS: 1.5
+            ReasoningStepType.SYNTHESIS: 1.5,
         }
-        
+
         for step in reasoning_steps:
             weight = step_weights.get(step.step_type, 0.5)
             weighted_confidence += step.confidence * weight
             total_weight += weight
-        
-        final_confidence = weighted_confidence / total_weight if total_weight > 0 else 0.5
-        
+
+        final_confidence = (
+            weighted_confidence / total_weight if total_weight > 0 else 0.5
+        )
+
         conclusion_content = f"""Final conclusion based on chain-of-thought reasoning:
 
 Reasoning process summary:
@@ -366,7 +377,7 @@ Uncertainty sources:
 - Limited availability of perfect historical analogies
 - Potential for unforeseen developments
 - Model limitations and assumptions"""
-        
+
         return ReasoningStep.create(
             step_type=ReasoningStepType.CONCLUSION,
             content=conclusion_content,
@@ -374,63 +385,67 @@ Uncertainty sources:
             metadata={
                 "reasoning_steps_count": len(reasoning_steps),
                 "confidence_calculation": "weighted_average",
-                "final_confidence": final_confidence
-            }
+                "final_confidence": final_confidence,
+            },
         )
-    
+
     async def _generate_research_reasoning_trace(
-        self,
-        question: Question,
-        search_config: Optional[Dict[str, Any]]
+        self, question: Question, search_config: Optional[Dict[str, Any]]
     ) -> ReasoningTrace:
         """Generate reasoning trace for research phase."""
         context = {"phase": "research", "search_config": search_config or {}}
         return await self.reason(question, context)
-    
+
     async def _generate_prediction_reasoning_trace(
-        self,
-        question: Question,
-        research_report: ResearchReport
+        self, question: Question, research_report: ResearchReport
     ) -> ReasoningTrace:
         """Generate reasoning trace for prediction phase."""
         context = {
             "phase": "prediction",
             "research_findings": research_report.key_findings,
             "sources_count": len(research_report.sources),
-            "research_confidence": research_report.confidence_score
+            "research_confidence": research_report.confidence_score,
         }
         return await self.reason(question, context)
-    
+
     async def _create_research_report_from_trace(
         self,
         question: Question,
         reasoning_trace: ReasoningTrace,
-        search_config: Optional[Dict[str, Any]]
+        search_config: Optional[Dict[str, Any]],
     ) -> ResearchReport:
         """Create research report from reasoning trace."""
         # Extract key findings from reasoning steps
         key_findings = []
         for step in reasoning_trace.steps:
-            if step.step_type in [ReasoningStepType.ANALYSIS, ReasoningStepType.SYNTHESIS]:
-                key_findings.append(step.content[:200] + "..." if len(step.content) > 200 else step.content)
-        
+            if step.step_type in [
+                ReasoningStepType.ANALYSIS,
+                ReasoningStepType.SYNTHESIS,
+            ]:
+                key_findings.append(
+                    step.content[:200] + "..."
+                    if len(step.content) > 200
+                    else step.content
+                )
+
         # Create mock sources (in real implementation, would come from actual research)
         sources = [
             {
                 "url": "https://example.com/research1",
                 "title": "Historical Analysis of Similar Questions",
                 "relevance_score": 0.8,
-                "credibility_score": 0.9
+                "credibility_score": 0.9,
             },
             {
-                "url": "https://example.com/research2", 
+                "url": "https://example.com/research2",
                 "title": "Expert Opinions and Predictions",
                 "relevance_score": 0.7,
-                "credibility_score": 0.8
-            }
+                "credibility_score": 0.8,
+            },
         ]
-        
+
         from ..domain.entities.research_report import ResearchReport
+
         return ResearchReport.create(
             question_id=question.id,
             agent_id=self.name,
@@ -438,23 +453,24 @@ Uncertainty sources:
             key_findings=key_findings,
             confidence_score=reasoning_trace.overall_confidence,
             research_method="chain_of_thought_research",
-            reasoning_trace=reasoning_trace
+            reasoning_trace=reasoning_trace,
         )
-    
+
     async def _create_prediction_from_trace(
         self,
         question: Question,
         research_report: ResearchReport,
-        reasoning_trace: ReasoningTrace
+        reasoning_trace: ReasoningTrace,
     ) -> Prediction:
         """Create prediction from reasoning trace."""
         # Extract reasoning from trace
         reasoning_summary = reasoning_trace.final_conclusion
-        
+
         # Calculate prediction value based on question type
         prediction_value = self._calculate_prediction_value(question, reasoning_trace)
-        
+
         from ..domain.entities.prediction import Prediction, PredictionMethod
+
         return Prediction.create(
             question_id=question.id,
             agent_id=self.name,
@@ -462,73 +478,75 @@ Uncertainty sources:
             confidence=reasoning_trace.overall_confidence,
             reasoning=reasoning_summary,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
-            reasoning_trace=reasoning_trace
+            reasoning_trace=reasoning_trace,
         )
-    
+
     def _calculate_prediction_value(
-        self,
-        question: Question,
-        reasoning_trace: ReasoningTrace
+        self, question: Question, reasoning_trace: ReasoningTrace
     ) -> float:
         """Calculate prediction value based on reasoning trace."""
         # Simple heuristic based on confidence and question type
         base_probability = 0.5  # Neutral starting point
-        
+
         # Adjust based on overall confidence
         confidence_adjustment = (reasoning_trace.overall_confidence - 0.5) * 0.4
-        
+
         # Adjust based on reasoning quality
         quality_score = reasoning_trace.get_reasoning_quality_score()
         quality_adjustment = (quality_score - 0.5) * 0.2
-        
+
         prediction_value = max(
             0.05,  # Minimum prediction
             min(
                 0.95,  # Maximum prediction
-                base_probability + confidence_adjustment + quality_adjustment
-            )
+                base_probability + confidence_adjustment + quality_adjustment,
+            ),
         )
-        
+
         return prediction_value
-    
+
     def get_agent_config(self) -> Dict[str, Any]:
         """Get agent configuration."""
         base_config = self.get_agent_metadata()
-        base_config.update({
-            "reasoning_depth": self.reasoning_depth,
-            "confidence_threshold": self.confidence_threshold,
-            "enable_bias_detection": self.enable_bias_detection,
-            "step_validation": self.step_validation,
-            "orchestrator_config": self.orchestrator.get_orchestrator_config()
-        })
+        base_config.update(
+            {
+                "reasoning_depth": self.reasoning_depth,
+                "confidence_threshold": self.confidence_threshold,
+                "enable_bias_detection": self.enable_bias_detection,
+                "step_validation": self.step_validation,
+                "orchestrator_config": self.orchestrator.get_orchestrator_config(),
+            }
+        )
         return base_config
-    
+
     def update_reasoning_config(
         self,
         reasoning_depth: Optional[int] = None,
         confidence_threshold: Optional[float] = None,
         enable_bias_detection: Optional[bool] = None,
-        step_validation: Optional[bool] = None
+        step_validation: Optional[bool] = None,
     ) -> None:
         """Update reasoning configuration."""
         if reasoning_depth is not None:
             self.reasoning_depth = reasoning_depth
-        
+
         if confidence_threshold is not None:
             self.confidence_threshold = confidence_threshold
-        
+
         if enable_bias_detection is not None:
             self.enable_bias_detection = enable_bias_detection
-        
+
         if step_validation is not None:
             self.step_validation = step_validation
-        
+
         # Update orchestrator configuration
         self.orchestrator.update_config(
             confidence_threshold=confidence_threshold,
             max_reasoning_depth=reasoning_depth,
             bias_detection_enabled=enable_bias_detection,
-            validation_enabled=step_validation
+            validation_enabled=step_validation,
         )
-        
-        self.logger.info("CoT agent configuration updated", config=self.get_agent_config())
+
+        self.logger.info(
+            "CoT agent configuration updated", config=self.get_agent_config()
+        )

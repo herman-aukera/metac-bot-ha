@@ -2,9 +2,10 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Callable, Any, Set
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -12,6 +13,7 @@ logger = structlog.get_logger(__name__)
 
 class DegradationLevel(Enum):
     """Levels of system degradation."""
+
     NORMAL = "normal"
     LIGHT = "light"
     MODERATE = "moderate"
@@ -21,16 +23,18 @@ class DegradationLevel(Enum):
 
 class FeaturePriority(Enum):
     """Priority levels for features during degradation."""
-    CRITICAL = "critical"      # Never disable
-    HIGH = "high"             # Disable only in critical situations
-    MEDIUM = "medium"         # Disable in heavy degradation
-    LOW = "low"               # Disable in moderate degradation
-    OPTIONAL = "optional"     # Disable in light degradation
+
+    CRITICAL = "critical"  # Never disable
+    HIGH = "high"  # Disable only in critical situations
+    MEDIUM = "medium"  # Disable in heavy degradation
+    LOW = "low"  # Disable in moderate degradation
+    OPTIONAL = "optional"  # Disable in light degradation
 
 
 @dataclass
 class DegradationRule:
     """Rule for degrading system functionality."""
+
     name: str
     trigger_condition: Callable[[], bool]
     degradation_level: DegradationLevel
@@ -43,6 +47,7 @@ class DegradationRule:
 @dataclass
 class Feature:
     """System feature that can be degraded."""
+
     name: str
     priority: FeaturePriority
     enabled: bool = True
@@ -55,6 +60,7 @@ class Feature:
 @dataclass
 class DegradationEvent:
     """Record of a degradation event."""
+
     timestamp: float
     level: DegradationLevel
     triggered_by: str
@@ -88,7 +94,9 @@ class GracefulDegradationManager:
         self.history_retention_hours = 24
 
         # Callbacks
-        self.degradation_callbacks: List[Callable[[DegradationLevel, DegradationLevel], None]] = []
+        self.degradation_callbacks: List[
+            Callable[[DegradationLevel, DegradationLevel], None]
+        ] = []
         self.feature_callbacks: Dict[str, List[Callable[[bool], None]]] = {}
 
     def register_feature(self, feature: Feature):
@@ -99,10 +107,12 @@ class GracefulDegradationManager:
             feature: Feature configuration
         """
         self.features[feature.name] = feature
-        self.logger.info("Registered feature",
-                        name=feature.name,
-                        priority=feature.priority.value,
-                        enabled=feature.enabled)
+        self.logger.info(
+            "Registered feature",
+            name=feature.name,
+            priority=feature.priority.value,
+            enabled=feature.enabled,
+        )
 
     def register_degradation_rule(self, rule: DegradationRule):
         """
@@ -112,14 +122,15 @@ class GracefulDegradationManager:
             rule: DegradationRule configuration
         """
         self.degradation_rules[rule.name] = rule
-        self.logger.info("Registered degradation rule",
-                        name=rule.name,
-                        level=rule.degradation_level.value,
-                        affected_features=len(rule.affected_features))
+        self.logger.info(
+            "Registered degradation rule",
+            name=rule.name,
+            level=rule.degradation_level.value,
+            affected_features=len(rule.affected_features),
+        )
 
     def register_degradation_callback(
-        self,
-        callback: Callable[[DegradationLevel, DegradationLevel], None]
+        self, callback: Callable[[DegradationLevel, DegradationLevel], None]
     ):
         """
         Register callback for degradation level changes.
@@ -131,9 +142,7 @@ class GracefulDegradationManager:
         self.degradation_callbacks.append(callback)
 
     def register_feature_callback(
-        self,
-        feature_name: str,
-        callback: Callable[[bool], None]
+        self, feature_name: str, callback: Callable[[bool], None]
     ):
         """
         Register callback for feature state changes.
@@ -154,10 +163,12 @@ class GracefulDegradationManager:
 
         self.running = True
         self.monitor_task = asyncio.create_task(self._monitoring_loop())
-        self.logger.info("Started degradation monitoring",
-                        evaluation_interval=self.evaluation_interval,
-                        rules=len(self.degradation_rules),
-                        features=len(self.features))
+        self.logger.info(
+            "Started degradation monitoring",
+            evaluation_interval=self.evaluation_interval,
+            rules=len(self.degradation_rules),
+            features=len(self.features),
+        )
 
     async def stop_monitoring(self):
         """Stop the degradation monitoring loop."""
@@ -209,14 +220,19 @@ class GracefulDegradationManager:
                     # Check recovery condition
                     should_recover = True
                     if rule.recovery_condition:
-                        should_recover = await self._execute_condition(rule.recovery_condition)
+                        should_recover = await self._execute_condition(
+                            rule.recovery_condition
+                        )
 
                     if should_recover:
                         await self._recover_degradation(rule_name, current_time)
 
             except Exception as e:
-                self.logger.error("Error evaluating degradation rule",
-                                rule_name=rule_name, error=str(e))
+                self.logger.error(
+                    "Error evaluating degradation rule",
+                    rule_name=rule_name,
+                    error=str(e),
+                )
 
     async def _execute_condition(self, condition: Callable) -> bool:
         """Execute condition function, handling both sync and async."""
@@ -241,7 +257,7 @@ class GracefulDegradationManager:
             level=rule.degradation_level,
             triggered_by=rule.name,
             affected_features=list(rule.affected_features),
-            reason=rule.description or f"Rule {rule.name} triggered"
+            reason=rule.description or f"Rule {rule.name} triggered",
         )
 
         # Store active degradation
@@ -252,10 +268,12 @@ class GracefulDegradationManager:
         for feature_name in rule.affected_features:
             await self._degrade_feature(feature_name, rule.degradation_level)
 
-        self.logger.warning("Degradation triggered",
-                          rule_name=rule.name,
-                          level=rule.degradation_level.value,
-                          affected_features=len(rule.affected_features))
+        self.logger.warning(
+            "Degradation triggered",
+            rule_name=rule.name,
+            level=rule.degradation_level.value,
+            affected_features=len(rule.affected_features),
+        )
 
     async def _recover_degradation(self, rule_name: str, current_time: float):
         """
@@ -282,12 +300,16 @@ class GracefulDegradationManager:
         for feature_name in rule.affected_features:
             await self._recover_feature(feature_name)
 
-        self.logger.info("Degradation recovered",
-                        rule_name=rule_name,
-                        duration=current_time - event.timestamp,
-                        affected_features=len(rule.affected_features))
+        self.logger.info(
+            "Degradation recovered",
+            rule_name=rule_name,
+            duration=current_time - event.timestamp,
+            affected_features=len(rule.affected_features),
+        )
 
-    async def _degrade_feature(self, feature_name: str, degradation_level: DegradationLevel):
+    async def _degrade_feature(
+        self, feature_name: str, degradation_level: DegradationLevel
+    ):
         """
         Degrade a specific feature.
 
@@ -296,8 +318,9 @@ class GracefulDegradationManager:
             degradation_level: Level of degradation
         """
         if feature_name not in self.features:
-            self.logger.warning("Attempted to degrade unknown feature",
-                              feature_name=feature_name)
+            self.logger.warning(
+                "Attempted to degrade unknown feature", feature_name=feature_name
+            )
             return
 
         feature = self.features[feature_name]
@@ -314,10 +337,12 @@ class GracefulDegradationManager:
         # Notify callbacks
         await self._notify_feature_callbacks(feature_name, False)
 
-        self.logger.info("Feature degraded",
-                        feature_name=feature_name,
-                        priority=feature.priority.value,
-                        degradation_level=degradation_level.value)
+        self.logger.info(
+            "Feature degraded",
+            feature_name=feature_name,
+            priority=feature.priority.value,
+            degradation_level=degradation_level.value,
+        )
 
     async def _recover_feature(self, feature_name: str):
         """
@@ -348,7 +373,9 @@ class GracefulDegradationManager:
 
         self.logger.info("Feature recovered", feature_name=feature_name)
 
-    def _should_degrade_feature(self, feature: Feature, degradation_level: DegradationLevel) -> bool:
+    def _should_degrade_feature(
+        self, feature: Feature, degradation_level: DegradationLevel
+    ) -> bool:
         """
         Check if feature should be degraded at given level.
 
@@ -365,8 +392,17 @@ class GracefulDegradationManager:
         degradation_thresholds = {
             DegradationLevel.LIGHT: [FeaturePriority.OPTIONAL],
             DegradationLevel.MODERATE: [FeaturePriority.OPTIONAL, FeaturePriority.LOW],
-            DegradationLevel.HEAVY: [FeaturePriority.OPTIONAL, FeaturePriority.LOW, FeaturePriority.MEDIUM],
-            DegradationLevel.CRITICAL: [FeaturePriority.OPTIONAL, FeaturePriority.LOW, FeaturePriority.MEDIUM, FeaturePriority.HIGH]
+            DegradationLevel.HEAVY: [
+                FeaturePriority.OPTIONAL,
+                FeaturePriority.LOW,
+                FeaturePriority.MEDIUM,
+            ],
+            DegradationLevel.CRITICAL: [
+                FeaturePriority.OPTIONAL,
+                FeaturePriority.LOW,
+                FeaturePriority.MEDIUM,
+                FeaturePriority.HIGH,
+            ],
         }
 
         return feature.priority in degradation_thresholds.get(degradation_level, [])
@@ -378,9 +414,13 @@ class GracefulDegradationManager:
         else:
             # Use highest degradation level from active degradations
             levels = [event.level for event in self.active_degradations.values()]
-            level_order = [DegradationLevel.NORMAL, DegradationLevel.LIGHT,
-                          DegradationLevel.MODERATE, DegradationLevel.HEAVY,
-                          DegradationLevel.CRITICAL]
+            level_order = [
+                DegradationLevel.NORMAL,
+                DegradationLevel.LIGHT,
+                DegradationLevel.MODERATE,
+                DegradationLevel.HEAVY,
+                DegradationLevel.CRITICAL,
+            ]
 
             max_level_index = max(level_order.index(level) for level in levels)
             new_level = level_order[max_level_index]
@@ -392,9 +432,11 @@ class GracefulDegradationManager:
             # Notify callbacks
             await self._notify_degradation_callbacks(old_level, new_level)
 
-            self.logger.info("Degradation level changed",
-                           old_level=old_level.value,
-                           new_level=new_level.value)
+            self.logger.info(
+                "Degradation level changed",
+                old_level=old_level.value,
+                new_level=new_level.value,
+            )
 
     async def _notify_feature_callbacks(self, feature_name: str, enabled: bool):
         """Notify feature state change callbacks."""
@@ -403,24 +445,26 @@ class GracefulDegradationManager:
                 try:
                     await self._execute_callback(callback, enabled)
                 except Exception as e:
-                    self.logger.error("Error in feature callback",
-                                    feature_name=feature_name,
-                                    callback=callback.__name__,
-                                    error=str(e))
+                    self.logger.error(
+                        "Error in feature callback",
+                        feature_name=feature_name,
+                        callback=callback.__name__,
+                        error=str(e),
+                    )
 
     async def _notify_degradation_callbacks(
-        self,
-        old_level: DegradationLevel,
-        new_level: DegradationLevel
+        self, old_level: DegradationLevel, new_level: DegradationLevel
     ):
         """Notify degradation level change callbacks."""
         for callback in self.degradation_callbacks:
             try:
                 await self._execute_callback(callback, old_level, new_level)
             except Exception as e:
-                self.logger.error("Error in degradation callback",
-                                callback=callback.__name__,
-                                error=str(e))
+                self.logger.error(
+                    "Error in degradation callback",
+                    callback=callback.__name__,
+                    error=str(e),
+                )
 
     async def _execute_callback(self, callback: Callable, *args):
         """Execute callback, handling both sync and async."""
@@ -437,7 +481,8 @@ class GracefulDegradationManager:
         retention_seconds = self.history_retention_hours * 3600
 
         self.degradation_history = [
-            event for event in self.degradation_history
+            event
+            for event in self.degradation_history
             if current_time - event.timestamp <= retention_seconds
         ]
 
@@ -457,7 +502,7 @@ class GracefulDegradationManager:
             level=level,
             triggered_by="manual",
             affected_features=[],
-            reason=reason
+            reason=reason,
         )
 
         # Determine features to degrade
@@ -473,10 +518,12 @@ class GracefulDegradationManager:
         self.active_degradations["manual"] = event
         self.degradation_history.append(event)
 
-        self.logger.warning("Manual degradation triggered",
-                          level=level.value,
-                          reason=reason,
-                          affected_features=len(features_to_degrade))
+        self.logger.warning(
+            "Manual degradation triggered",
+            level=level.value,
+            reason=reason,
+            affected_features=len(features_to_degrade),
+        )
 
     async def manual_recover(self):
         """Manually recover from all degradations."""
@@ -531,7 +578,7 @@ class GracefulDegradationManager:
                     "level": event.level.value,
                     "triggered_by": event.triggered_by,
                     "duration": time.time() - event.timestamp,
-                    "affected_features": len(event.affected_features)
+                    "affected_features": len(event.affected_features),
                 }
                 for name, event in self.active_degradations.items()
             },
@@ -539,10 +586,10 @@ class GracefulDegradationManager:
                 name: {
                     "enabled": feature.enabled,
                     "degraded": feature.degraded,
-                    "priority": feature.priority.value
+                    "priority": feature.priority.value,
                 }
                 for name, feature in self.features.items()
-            }
+            },
         }
 
     def get_degradation_history(self, hours: int = 24) -> List[DegradationEvent]:
@@ -559,7 +606,8 @@ class GracefulDegradationManager:
         cutoff_time = current_time - (hours * 3600)
 
         return [
-            event for event in self.degradation_history
+            event
+            for event in self.degradation_history
             if event.timestamp >= cutoff_time
         ]
 
@@ -568,7 +616,7 @@ class GracefulDegradationManager:
 def create_cpu_degradation_rule(
     name: str = "high_cpu",
     cpu_threshold: float = 90.0,
-    affected_features: Set[str] = None
+    affected_features: Set[str] = None,
 ) -> DegradationRule:
     """Create CPU-based degradation rule."""
     import psutil
@@ -581,14 +629,14 @@ def create_cpu_degradation_rule(
         trigger_condition=check_cpu,
         degradation_level=DegradationLevel.MODERATE,
         affected_features=affected_features or {"analytics", "detailed_logging"},
-        description=f"CPU usage above {cpu_threshold}%"
+        description=f"CPU usage above {cpu_threshold}%",
     )
 
 
 def create_memory_degradation_rule(
     name: str = "high_memory",
     memory_threshold: float = 85.0,
-    affected_features: Set[str] = None
+    affected_features: Set[str] = None,
 ) -> DegradationRule:
     """Create memory-based degradation rule."""
     import psutil
@@ -600,6 +648,7 @@ def create_memory_degradation_rule(
         name=name,
         trigger_condition=check_memory,
         degradation_level=DegradationLevel.HEAVY,
-        affected_features=affected_features or {"caching", "background_tasks", "analytics"},
-        description=f"Memory usage above {memory_threshold}%"
+        affected_features=affected_features
+        or {"caching", "background_tasks", "analytics"},
+        description=f"Memory usage above {memory_threshold}%",
     )

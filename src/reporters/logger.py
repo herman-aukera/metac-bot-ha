@@ -1,13 +1,17 @@
 """
 Structured logging for forecasts.
 """
-import structlog
+
 import logging
+
+import structlog
 
 logging.basicConfig(level=logging.INFO)
 structlog.configure(
     processors=[
-        structlog.processors.KeyValueRenderer(key_order=["timestamp", "level", "event", "agent"])
+        structlog.processors.KeyValueRenderer(
+            key_order=["timestamp", "level", "event", "agent"]
+        )
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),

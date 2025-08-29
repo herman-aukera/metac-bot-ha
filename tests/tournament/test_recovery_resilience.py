@@ -1,19 +1,20 @@
 """Recovery and resilience testing under tournament conditions."""
 
-import pytest
 import asyncio
-import time
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from unittest.mock import Mock, AsyncMock, patch
-from dataclasses import dataclass
 import random
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.domain.entities.question import Question, QuestionType
-from src.domain.entities.forecast import Forecast
-from src.domain.value_objects.probability import Probability
-from src.domain.value_objects.confidence import Confidence
+import pytest
+
 from src.application.forecast_service import ForecastService
+from src.domain.entities.forecast import Forecast
+from src.domain.entities.question import Question, QuestionType
+from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.probability import Probability
 from src.infrastructure.reliability.circuit_breaker import CircuitBreaker
 from src.infrastructure.reliability.retry_manager import RetryManager
 
@@ -21,6 +22,7 @@ from src.infrastructure.reliability.retry_manager import RetryManager
 @dataclass
 class FailureScenario:
     """Defines a failure scenario for resilience testing."""
+
     name: str
     failure_type: str  # "api", "timeout", "memory", "network", "partial"
     failure_rate: float  # 0.0 to 1.0
@@ -37,9 +39,7 @@ class ResilienceTester:
         self.failure_injector = FailureInjector()
 
     async def test_failure_recovery(
-        self,
-        scenario: FailureScenario,
-        questions: List[Dict[str, Any]]
+        self, scenario: FailureScenario, questions: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Test system recovery from specific failure scenarios."""
 
@@ -48,7 +48,7 @@ class ResilienceTester:
             failure_type=scenario.failure_type,
             failure_rate=scenario.failure_rate,
             failure_duration=scenario.failure_duration,
-            recovery_pattern=scenario.recovery_pattern
+            recovery_pattern=scenario.recovery_pattern,
         )
 
         start_time = time.time()
@@ -60,7 +60,7 @@ class ResilienceTester:
             "recovery_time": 0,
             "errors": [],
             "performance_timeline": [],
-            "recovery_successful": False
+            "recovery_successful": False,
         }
 
         # Process questions with failure injection
@@ -74,9 +74,7 @@ class ResilienceTester:
                     await self.failure_injector.inject_failure(scenario.failure_type)
 
                 forecast = await self.forecast_service.generate_forecast(
-                    question=question,
-                    agent_types=["chain_of_thought"],
-                    timeout=60
+                    question=question, agent_types=["chain_of_thought"], timeout=60
                 )
 
                 results["successful_forecasts"] += 1
@@ -89,12 +87,14 @@ class ResilienceTester:
 
             # Record performance timeline
             attempt_time = time.time() - attempt_start
-            results["performance_timeline"].append({
-                "question_id": question.id,
-                "attempt_time": attempt_time,
-                "success": success,
-                "timestamp": time.time() - start_time
-            })
+            results["performance_timeline"].append(
+                {
+                    "question_id": question.id,
+                    "attempt_time": attempt_time,
+                    "success": success,
+                    "timestamp": time.time() - start_time,
+                }
+            )
 
             # Check for recovery
             if not results["recovery_successful"] and success:
@@ -104,10 +104,12 @@ class ResilienceTester:
                     results["recovery_successful"] = True
 
         # Analyze recovery patterns
-        results["recovery_analysis"] = self._analyze_recovery_pattern(results["performance_timeline"])
+        results["recovery_analysis"] = self._analyze_recovery_pattern(
+            results["performance_timeline"]
+        )
         results["meets_recovery_expectations"] = (
-            results["recovery_successful"] and
-            results["recovery_time"] <= scenario.expected_recovery_time
+            results["recovery_successful"]
+            and results["recovery_time"] <= scenario.expected_recovery_time
         )
 
         return results
@@ -122,10 +124,12 @@ class ResilienceTester:
             close_time=datetime.fromisoformat(question_data["close_time"]),
             resolve_time=datetime.fromisoformat(question_data["resolve_time"]),
             categories=question_data.get("categories", []),
-            tags=question_data.get("tags", [])
+            tags=question_data.get("tags", []),
         )
 
-    def _analyze_recovery_pattern(self, timeline: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _analyze_recovery_pattern(
+        self, timeline: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Analyze recovery patterns from performance timeline."""
         if not timeline:
             return {"pattern": "no_data"}
@@ -138,16 +142,20 @@ class ResilienceTester:
             if not entry["success"] and current_failure_start is None:
                 current_failure_start = entry["timestamp"]
             elif entry["success"] and current_failure_start is not None:
-                failure_periods.append({
-                    "start": current_failure_start,
-                    "end": entry["timestamp"],
-                    "duration": entry["timestamp"] - current_failure_start
-                })
+                failure_periods.append(
+                    {
+                        "start": current_failure_start,
+                        "end": entry["timestamp"],
+                        "duration": entry["timestamp"] - current_failure_start,
+                    }
+                )
                 current_failure_start = None
 
         # Calculate recovery metrics
         if failure_periods:
-            avg_recovery_time = sum(fp["duration"] for fp in failure_periods) / len(failure_periods)
+            avg_recovery_time = sum(fp["duration"] for fp in failure_periods) / len(
+                failure_periods
+            )
             max_recovery_time = max(fp["duration"] for fp in failure_periods)
 
             return {
@@ -155,7 +163,7 @@ class ResilienceTester:
                 "failure_periods": len(failure_periods),
                 "avg_recovery_time": avg_recovery_time,
                 "max_recovery_time": max_recovery_time,
-                "total_downtime": sum(fp["duration"] for fp in failure_periods)
+                "total_downtime": sum(fp["duration"] for fp in failure_periods),
             }
         else:
             return {"pattern": "no_failures_or_no_recovery"}
@@ -172,7 +180,13 @@ class FailureInjector:
         self.failure_start_time = None
         self.call_count = 0
 
-    def configure(self, failure_type: str, failure_rate: float, failure_duration: float, recovery_pattern: str):
+    def configure(
+        self,
+        failure_type: str,
+        failure_rate: float,
+        failure_duration: float,
+        recovery_pattern: str,
+    ):
         """Configure failure injection parameters."""
         self.failure_type = failure_type
         self.failure_rate = failure_rate
@@ -245,7 +259,7 @@ class TestRecoveryResilience:
                 "close_time": "2025-12-01T00:00:00Z",
                 "resolve_time": "2026-01-01T00:00:00Z",
                 "categories": ["Test"],
-                "tags": ["resilience"]
+                "tags": ["resilience"],
             },
             {
                 "id": 5002,
@@ -255,7 +269,7 @@ class TestRecoveryResilience:
                 "close_time": "2025-12-01T00:00:00Z",
                 "resolve_time": "2026-01-01T00:00:00Z",
                 "categories": ["Test"],
-                "tags": ["recovery"]
+                "tags": ["recovery"],
             },
             {
                 "id": 5003,
@@ -265,8 +279,8 @@ class TestRecoveryResilience:
                 "close_time": "2025-12-01T00:00:00Z",
                 "resolve_time": "2026-01-01T00:00:00Z",
                 "categories": ["Test"],
-                "tags": ["failure-handling"]
-            }
+                "tags": ["failure-handling"],
+            },
         ]
 
     @pytest.mark.asyncio
@@ -291,7 +305,7 @@ class TestRecoveryResilience:
                 reasoning=f"Recovered forecast for question {question.id}",
                 method="chain_of_thought",
                 sources=["recovered_api"],
-                metadata={"call_count": call_count}
+                metadata={"call_count": call_count},
             )
 
         resilience_tester.forecast_service.generate_forecast = AsyncMock(
@@ -305,16 +319,24 @@ class TestRecoveryResilience:
             failure_rate=0.7,  # High failure rate initially
             failure_duration=5.0,  # 5 second failure period
             recovery_pattern="immediate",
-            expected_recovery_time=10.0
+            expected_recovery_time=10.0,
         )
 
-        result = await resilience_tester.test_failure_recovery(api_failure_scenario, resilience_questions)
+        result = await resilience_tester.test_failure_recovery(
+            api_failure_scenario, resilience_questions
+        )
 
         # Verify recovery behavior
         assert result["recovery_successful"], "System should recover from API failures"
-        assert result["successful_forecasts"] >= 1, "At least one forecast should succeed after recovery"
-        assert result["recovery_time"] <= 15.0, "Recovery should happen within reasonable time"
-        assert "API service unavailable" in str(result["errors"]), "API errors should be recorded"
+        assert (
+            result["successful_forecasts"] >= 1
+        ), "At least one forecast should succeed after recovery"
+        assert (
+            result["recovery_time"] <= 15.0
+        ), "Recovery should happen within reasonable time"
+        assert "API service unavailable" in str(
+            result["errors"]
+        ), "API errors should be recorded"
 
     @pytest.mark.asyncio
     async def test_timeout_recovery(self, resilience_tester, resilience_questions):
@@ -340,7 +362,7 @@ class TestRecoveryResilience:
                     reasoning=f"Quick forecast after timeout recovery",
                     method="chain_of_thought",
                     sources=["timeout_recovery"],
-                    metadata={"call_count": call_count}
+                    metadata={"call_count": call_count},
                 )
 
         resilience_tester.forecast_service.generate_forecast = AsyncMock(
@@ -354,18 +376,26 @@ class TestRecoveryResilience:
             failure_rate=0.3,
             failure_duration=2.0,
             recovery_pattern="immediate",
-            expected_recovery_time=5.0
+            expected_recovery_time=5.0,
         )
 
-        result = await resilience_tester.test_failure_recovery(timeout_scenario, resilience_questions)
+        result = await resilience_tester.test_failure_recovery(
+            timeout_scenario, resilience_questions
+        )
 
         # Verify timeout recovery
         assert result["recovery_successful"], "System should recover from timeouts"
-        assert result["successful_forecasts"] >= 2, "Multiple forecasts should succeed after timeout"
-        assert any("timed out" in error.lower() for error in result["errors"]), "Timeout errors should be recorded"
+        assert (
+            result["successful_forecasts"] >= 2
+        ), "Multiple forecasts should succeed after timeout"
+        assert any(
+            "timed out" in error.lower() for error in result["errors"]
+        ), "Timeout errors should be recorded"
 
     @pytest.mark.asyncio
-    async def test_gradual_recovery_pattern(self, resilience_tester, resilience_questions):
+    async def test_gradual_recovery_pattern(
+        self, resilience_tester, resilience_questions
+    ):
         """Test gradual recovery patterns."""
         # Mock forecast service with gradual recovery
         call_count = 0
@@ -389,7 +419,7 @@ class TestRecoveryResilience:
                 reasoning=f"Gradual recovery forecast (quality={quality:.2f})",
                 method="chain_of_thought",
                 sources=["gradual_recovery"],
-                metadata={"call_count": call_count, "quality": quality}
+                metadata={"call_count": call_count, "quality": quality},
             )
 
         resilience_tester.forecast_service.generate_forecast = AsyncMock(
@@ -403,17 +433,26 @@ class TestRecoveryResilience:
             failure_rate=0.8,
             failure_duration=10.0,
             recovery_pattern="gradual",
-            expected_recovery_time=15.0
+            expected_recovery_time=15.0,
         )
 
-        result = await resilience_tester.test_failure_recovery(gradual_scenario, resilience_questions)
+        result = await resilience_tester.test_failure_recovery(
+            gradual_scenario, resilience_questions
+        )
 
         # Verify gradual recovery
-        assert result["successful_forecasts"] >= 1, "Some forecasts should succeed during gradual recovery"
-        assert result["recovery_analysis"]["pattern"] in ["recovery_detected", "no_failures_or_no_recovery"]
+        assert (
+            result["successful_forecasts"] >= 1
+        ), "Some forecasts should succeed during gradual recovery"
+        assert result["recovery_analysis"]["pattern"] in [
+            "recovery_detected",
+            "no_failures_or_no_recovery",
+        ]
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_behavior(self, resilience_tester, resilience_questions):
+    async def test_circuit_breaker_behavior(
+        self, resilience_tester, resilience_questions
+    ):
         """Test circuit breaker behavior during failures."""
         # Mock forecast service with circuit breaker simulation
         failure_count = 0
@@ -452,7 +491,7 @@ class TestRecoveryResilience:
                 reasoning="Circuit breaker test forecast",
                 method="chain_of_thought",
                 sources=["circuit_breaker_test"],
-                metadata={"failure_count": failure_count, "circuit_open": circuit_open}
+                metadata={"failure_count": failure_count, "circuit_open": circuit_open},
             )
 
         resilience_tester.forecast_service.generate_forecast = AsyncMock(
@@ -466,21 +505,29 @@ class TestRecoveryResilience:
             failure_rate=0.5,
             failure_duration=8.0,
             recovery_pattern="delayed",
-            expected_recovery_time=12.0
+            expected_recovery_time=12.0,
         )
 
-        result = await resilience_tester.test_failure_recovery(circuit_breaker_scenario, resilience_questions)
+        result = await resilience_tester.test_failure_recovery(
+            circuit_breaker_scenario, resilience_questions
+        )
 
         # Verify circuit breaker behavior
         assert len(result["errors"]) > 0, "Circuit breaker should record failures"
-        assert any("circuit breaker" in error.lower() for error in result["errors"]), "Circuit breaker errors should be recorded"
+        assert any(
+            "circuit breaker" in error.lower() for error in result["errors"]
+        ), "Circuit breaker errors should be recorded"
 
         # System should eventually recover
         if result["recovery_successful"]:
-            assert result["recovery_time"] <= 20.0, "Circuit breaker should allow eventual recovery"
+            assert (
+                result["recovery_time"] <= 20.0
+            ), "Circuit breaker should allow eventual recovery"
 
     @pytest.mark.asyncio
-    async def test_cascading_failure_recovery(self, resilience_tester, resilience_questions):
+    async def test_cascading_failure_recovery(
+        self, resilience_tester, resilience_questions
+    ):
         """Test recovery from cascading failures."""
         # Mock forecast service with cascading failure simulation
         failure_cascade = {"api": False, "network": False, "memory": False}
@@ -522,7 +569,10 @@ class TestRecoveryResilience:
                 reasoning="Forecast after cascading failure recovery",
                 method="chain_of_thought",
                 sources=["cascading_recovery"],
-                metadata={"call_count": call_count, "failures_resolved": not any(failure_cascade.values())}
+                metadata={
+                    "call_count": call_count,
+                    "failures_resolved": not any(failure_cascade.values()),
+                },
             )
 
         resilience_tester.forecast_service.generate_forecast = AsyncMock(
@@ -536,13 +586,17 @@ class TestRecoveryResilience:
             failure_rate=0.9,  # High failure rate
             failure_duration=15.0,  # Longer recovery time
             recovery_pattern="gradual",
-            expected_recovery_time=20.0
+            expected_recovery_time=20.0,
         )
 
-        result = await resilience_tester.test_failure_recovery(cascading_scenario, resilience_questions)
+        result = await resilience_tester.test_failure_recovery(
+            cascading_scenario, resilience_questions
+        )
 
         # Verify cascading failure handling
-        assert len(result["errors"]) >= 3, "Multiple types of failures should be recorded"
+        assert (
+            len(result["errors"]) >= 3
+        ), "Multiple types of failures should be recorded"
         error_types = set()
         for error in result["errors"]:
             if "api" in error.lower():
@@ -556,10 +610,14 @@ class TestRecoveryResilience:
 
         # System should eventually recover even from cascading failures
         if result["recovery_successful"]:
-            assert result["successful_forecasts"] >= 1, "System should recover from cascading failures"
+            assert (
+                result["successful_forecasts"] >= 1
+            ), "System should recover from cascading failures"
 
     @pytest.mark.asyncio
-    async def test_recovery_under_tournament_pressure(self, resilience_tester, resilience_questions):
+    async def test_recovery_under_tournament_pressure(
+        self, resilience_tester, resilience_questions
+    ):
         """Test recovery behavior under tournament pressure conditions."""
         # Mock forecast service with pressure-sensitive recovery
         call_count = 0
@@ -587,7 +645,7 @@ class TestRecoveryResilience:
                 reasoning=f"Pressure recovery forecast (quality={recovery_quality:.2f})",
                 method="chain_of_thought",
                 sources=["pressure_recovery"],
-                metadata={"call_count": call_count, "pressure_level": pressure_level}
+                metadata={"call_count": call_count, "pressure_level": pressure_level},
             )
 
         resilience_tester.forecast_service.generate_forecast = AsyncMock(
@@ -601,18 +659,26 @@ class TestRecoveryResilience:
             failure_rate=0.6,
             failure_duration=12.0,
             recovery_pattern="gradual",
-            expected_recovery_time=18.0
+            expected_recovery_time=18.0,
         )
 
-        result = await resilience_tester.test_failure_recovery(pressure_recovery_scenario, resilience_questions)
+        result = await resilience_tester.test_failure_recovery(
+            pressure_recovery_scenario, resilience_questions
+        )
 
         # Verify pressure-affected recovery
-        assert result["successful_forecasts"] >= 1, "System should recover even under tournament pressure"
+        assert (
+            result["successful_forecasts"] >= 1
+        ), "System should recover even under tournament pressure"
 
         # Recovery might be slower under pressure
         if result["recovery_successful"]:
-            assert result["recovery_time"] <= 25.0, "Recovery should happen within extended time under pressure"
+            assert (
+                result["recovery_time"] <= 25.0
+            ), "Recovery should happen within extended time under pressure"
 
         # Some degradation is acceptable under pressure
         success_rate = result["successful_forecasts"] / result["total_questions"]
-        assert success_rate >= 0.3, "Minimum success rate should be maintained under pressure"
+        assert (
+            success_rate >= 0.3
+        ), "Minimum success rate should be maintained under pressure"

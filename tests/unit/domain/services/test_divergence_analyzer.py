@@ -3,18 +3,27 @@ Unit tests for DivergenceAnalyzer.
 Tests divergence analysis, agent disagreement analysis, and resolution strategies.
 """
 
-import pytest
 import statistics
-from uuid import uuid4
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from src.domain.services.divergence_analyzer import (
-    DivergenceAnalyzer, DivergenceLevel, DivergenceSource,
-    DivergenceMetrics, AgentDivergenceProfile, DivergenceAnalysis
+import pytest
+
+from src.domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
 )
-from src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence
-from src.domain.value_objects.probability import Probability
+from src.domain.services.divergence_analyzer import (
+    AgentDivergenceProfile,
+    DivergenceAnalysis,
+    DivergenceAnalyzer,
+    DivergenceLevel,
+    DivergenceMetrics,
+    DivergenceSource,
+)
 from src.domain.value_objects.confidence import ConfidenceLevel
+from src.domain.value_objects.probability import Probability
 
 
 class TestDivergenceAnalyzer:
@@ -43,7 +52,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Detailed reasoning with evidence and analysis",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -52,7 +61,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Another detailed reasoning with research",
-                created_by="Agent2"
+                created_by="Agent2",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -61,14 +70,17 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.REACT,
                 reasoning="Third detailed reasoning",
-                created_by="Agent3"
-            )
+                created_by="Agent3",
+            ),
         ]
 
         analysis = self.analyzer.analyze_divergence(predictions)
 
         assert isinstance(analysis, DivergenceAnalysis)
-        assert analysis.divergence_level in [DivergenceLevel.VERY_LOW, DivergenceLevel.LOW]
+        assert analysis.divergence_level in [
+            DivergenceLevel.VERY_LOW,
+            DivergenceLevel.LOW,
+        ]
         assert analysis.metrics.variance < 0.01
         assert analysis.consensus_prediction == pytest.approx(0.7, abs=0.01)
         assert analysis.confidence_adjustment >= 0.0  # Should increase confidence
@@ -84,7 +96,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Low probability reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -93,7 +105,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="High probability reasoning",
-                created_by="Agent2"
+                created_by="Agent2",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -102,17 +114,23 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.LOW,
                 method=PredictionMethod.REACT,
                 reasoning="Uncertain reasoning",
-                created_by="Agent3"
-            )
+                created_by="Agent3",
+            ),
         ]
 
         analysis = self.analyzer.analyze_divergence(predictions)
 
         assert isinstance(analysis, DivergenceAnalysis)
-        assert analysis.divergence_level in [DivergenceLevel.HIGH, DivergenceLevel.VERY_HIGH]
+        assert analysis.divergence_level in [
+            DivergenceLevel.HIGH,
+            DivergenceLevel.VERY_HIGH,
+        ]
         assert analysis.metrics.variance > 0.05
         assert analysis.confidence_adjustment <= 0.0  # Should decrease confidence
-        assert DivergenceSource.METHODOLOGY in analysis.primary_sources or DivergenceSource.CONFIDENCE in analysis.primary_sources
+        assert (
+            DivergenceSource.METHODOLOGY in analysis.primary_sources
+            or DivergenceSource.CONFIDENCE in analysis.primary_sources
+        )
 
     def test_analyze_divergence_with_outliers(self):
         """Test divergence analysis with outlier predictions."""
@@ -124,7 +142,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Normal prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -133,7 +151,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Normal prediction",
-                created_by="Agent2"
+                created_by="Agent2",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -142,7 +160,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.REACT,
                 reasoning="Normal prediction",
-                created_by="Agent3"
+                created_by="Agent3",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -151,8 +169,8 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.AUTO_COT,
                 reasoning="Outlier prediction",
-                created_by="Agent4"
-            )
+                created_by="Agent4",
+            ),
         ]
 
         analysis = self.analyzer.analyze_divergence(predictions)
@@ -160,9 +178,13 @@ class TestDivergenceAnalyzer:
         assert isinstance(analysis, DivergenceAnalysis)
         # Note: outlier detection might not always detect outliers with small samples
         # Check that the outlier is at least identified in agent profiles
-        agent4_profile = next((p for p in analysis.agent_profiles if p.agent_name == "Agent4"), None)
+        agent4_profile = next(
+            (p for p in analysis.agent_profiles if p.agent_name == "Agent4"), None
+        )
         assert agent4_profile is not None
-        assert agent4_profile.outlier_frequency > 0  # Agent4 should be identified as outlier-prone
+        assert (
+            agent4_profile.outlier_frequency > 0
+        )  # Agent4 should be identified as outlier-prone
         # The outlier might not be detected as a primary source due to small sample size
         # but should be identified in agent profiles
 
@@ -176,7 +198,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Single prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             )
         ]
 
@@ -254,7 +276,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="CoT reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -263,14 +285,19 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="ToT reasoning",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         metrics = DivergenceMetrics(
-            variance=0.005, standard_deviation=0.07, range_spread=0.1,
-            interquartile_range=0.05, coefficient_of_variation=0.1,
-            entropy=0.5, consensus_strength=0.8, outlier_count=0
+            variance=0.005,
+            standard_deviation=0.07,
+            range_spread=0.1,
+            interquartile_range=0.05,
+            coefficient_of_variation=0.1,
+            entropy=0.5,
+            consensus_strength=0.8,
+            outlier_count=0,
         )
 
         sources = self.analyzer._identify_divergence_sources(predictions, metrics)
@@ -287,7 +314,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.LOW,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Low confidence reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -296,14 +323,19 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.VERY_HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="High confidence reasoning",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         metrics = DivergenceMetrics(
-            variance=0.005, standard_deviation=0.07, range_spread=0.1,
-            interquartile_range=0.05, coefficient_of_variation=0.1,
-            entropy=0.5, consensus_strength=0.8, outlier_count=0
+            variance=0.005,
+            standard_deviation=0.07,
+            range_spread=0.1,
+            interquartile_range=0.05,
+            coefficient_of_variation=0.1,
+            entropy=0.5,
+            consensus_strength=0.8,
+            outlier_count=0,
         )
 
         sources = self.analyzer._identify_divergence_sources(predictions, metrics)
@@ -320,7 +352,7 @@ class TestDivergenceAnalyzer:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="According to recent research and data analysis, the evidence suggests this outcome is likely. Therefore, because of multiple factors, however there might be some uncertainty.",
-            created_by="Agent1"
+            created_by="Agent1",
         )
 
         # Low quality reasoning
@@ -331,7 +363,7 @@ class TestDivergenceAnalyzer:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.TREE_OF_THOUGHT,
             reasoning="Maybe.",
-            created_by="Agent2"
+            created_by="Agent2",
         )
 
         high_score = self.analyzer._assess_reasoning_quality(high_quality_pred)
@@ -352,7 +384,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Agent1 reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -361,8 +393,8 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Agent2 reasoning",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         # Unbiased predictions
@@ -374,7 +406,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Agent1 reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -383,8 +415,8 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Agent2 reasoning",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         assert self.analyzer._detect_systematic_bias(biased_predictions) == True
@@ -400,7 +432,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Prediction 1",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -409,32 +441,46 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Prediction 2",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         # Low divergence should use simple average
-        consensus = self.analyzer._calculate_consensus_prediction(predictions, DivergenceLevel.LOW)
+        consensus = self.analyzer._calculate_consensus_prediction(
+            predictions, DivergenceLevel.LOW
+        )
         assert consensus == pytest.approx(0.7, abs=0.01)
 
         # High divergence should use trimmed mean (but with only 2 predictions, same as mean)
-        consensus = self.analyzer._calculate_consensus_prediction(predictions, DivergenceLevel.HIGH)
+        consensus = self.analyzer._calculate_consensus_prediction(
+            predictions, DivergenceLevel.HIGH
+        )
         assert consensus == pytest.approx(0.7, abs=0.01)
 
     def test_calculate_confidence_adjustment(self):
         """Test confidence adjustment calculation."""
         # Low divergence metrics
         low_divergence_metrics = DivergenceMetrics(
-            variance=0.001, standard_deviation=0.03, range_spread=0.05,
-            interquartile_range=0.02, coefficient_of_variation=0.05,
-            entropy=0.2, consensus_strength=0.9, outlier_count=0
+            variance=0.001,
+            standard_deviation=0.03,
+            range_spread=0.05,
+            interquartile_range=0.02,
+            coefficient_of_variation=0.05,
+            entropy=0.2,
+            consensus_strength=0.9,
+            outlier_count=0,
         )
 
         # High divergence metrics
         high_divergence_metrics = DivergenceMetrics(
-            variance=0.15, standard_deviation=0.4, range_spread=0.8,
-            interquartile_range=0.3, coefficient_of_variation=0.6,
-            entropy=2.0, consensus_strength=0.2, outlier_count=2
+            variance=0.15,
+            standard_deviation=0.4,
+            range_spread=0.8,
+            interquartile_range=0.3,
+            coefficient_of_variation=0.6,
+            entropy=2.0,
+            consensus_strength=0.2,
+            outlier_count=2,
         )
 
         low_adjustment = self.analyzer._calculate_confidence_adjustment(
@@ -458,7 +504,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Detailed reasoning with evidence",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -467,8 +513,8 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Simple reasoning",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         consensus = 0.7
@@ -480,8 +526,12 @@ class TestDivergenceAnalyzer:
         agent1_profile = next(p for p in profiles if p.agent_name == "Agent1")
         agent2_profile = next(p for p in profiles if p.agent_name == "Agent2")
 
-        assert agent1_profile.avg_distance_from_consensus == pytest.approx(0.1, abs=0.01)
-        assert agent2_profile.avg_distance_from_consensus == pytest.approx(0.1, abs=0.01)
+        assert agent1_profile.avg_distance_from_consensus == pytest.approx(
+            0.1, abs=0.01
+        )
+        assert agent2_profile.avg_distance_from_consensus == pytest.approx(
+            0.1, abs=0.01
+        )
 
     def test_select_resolution_strategy(self):
         """Test resolution strategy selection."""
@@ -512,9 +562,14 @@ class TestDivergenceAnalyzer:
     def test_generate_divergence_explanation(self):
         """Test divergence explanation generation."""
         metrics = DivergenceMetrics(
-            variance=0.05, standard_deviation=0.22, range_spread=0.4,
-            interquartile_range=0.2, coefficient_of_variation=0.3,
-            entropy=1.5, consensus_strength=0.6, outlier_count=1
+            variance=0.05,
+            standard_deviation=0.22,
+            range_spread=0.4,
+            interquartile_range=0.2,
+            coefficient_of_variation=0.3,
+            entropy=1.5,
+            consensus_strength=0.6,
+            outlier_count=1,
         )
 
         sources = [DivergenceSource.METHODOLOGY, DivergenceSource.OUTLIER]
@@ -580,7 +635,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Test reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -589,8 +644,8 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Test reasoning",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         self.analyzer.analyze_divergence(predictions)
@@ -636,7 +691,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Test reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             )
         ]
 
@@ -657,7 +712,7 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Test reasoning",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -666,14 +721,18 @@ class TestDivergenceAnalyzer:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Test reasoning",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         # With agent profiles
-        analysis_with_profiles = self.analyzer.analyze_divergence(predictions, include_agent_profiles=True)
+        analysis_with_profiles = self.analyzer.analyze_divergence(
+            predictions, include_agent_profiles=True
+        )
         assert len(analysis_with_profiles.agent_profiles) == 2
 
         # Without agent profiles
-        analysis_without_profiles = self.analyzer.analyze_divergence(predictions, include_agent_profiles=False)
+        analysis_without_profiles = self.analyzer.analyze_divergence(
+            predictions, include_agent_profiles=False
+        )
         assert len(analysis_without_profiles.agent_profiles) == 0

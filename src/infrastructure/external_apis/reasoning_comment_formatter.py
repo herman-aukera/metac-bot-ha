@@ -2,12 +2,14 @@
 
 import logging
 import re
-from typing import Dict, Optional, List
 from datetime import datetime
+from typing import Dict, List, Optional
 
-from ...domain.entities.prediction import Prediction
 from ...domain.entities.forecast import Forecast
-from ...domain.services.tournament_compliance_validator import TournamentComplianceValidator
+from ...domain.entities.prediction import Prediction
+from ...domain.services.tournament_compliance_validator import (
+    TournamentComplianceValidator,
+)
 
 
 class ReasoningCommentFormatter:
@@ -19,25 +21,31 @@ class ReasoningCommentFormatter:
 
         # Tournament-specific formatting rules
         self.max_comment_length = 2000  # Metaculus comment limit
-        self.min_comment_length = 100   # Tournament transparency requirement
+        self.min_comment_length = 100  # Tournament transparency requirement
 
-    def format_prediction_comment(self, prediction: Prediction, question_title: str = "") -> str:
+    def format_prediction_comment(
+        self, prediction: Prediction, question_title: str = ""
+    ) -> str:
         """Format a prediction's reasoning into a tournament-compliant comment."""
         try:
             # Validate compliance first
-            compliance_report = self.compliance_validator.validate_reasoning_comment(prediction)
+            compliance_report = self.compliance_validator.validate_reasoning_comment(
+                prediction
+            )
 
             if not compliance_report.is_compliant:
                 self.logger.warning(
                     f"Prediction reasoning has compliance issues (score: {compliance_report.score:.2f})",
                     extra={
                         "prediction_id": str(prediction.id),
-                        "issues": [issue.message for issue in compliance_report.issues]
-                    }
+                        "issues": [issue.message for issue in compliance_report.issues],
+                    },
                 )
 
             # Format the reasoning for tournament submission
-            formatted_comment = self.compliance_validator.format_reasoning_for_tournament(prediction)
+            formatted_comment = (
+                self.compliance_validator.format_reasoning_for_tournament(prediction)
+            )
 
             # Add tournament-specific enhancements
             enhanced_comment = self._enhance_comment_for_tournament(
@@ -52,7 +60,9 @@ class ReasoningCommentFormatter:
                 self.logger.warning(
                     f"Final comment too short ({len(final_comment)} chars), padding with transparency info"
                 )
-                final_comment = self._pad_comment_with_transparency(final_comment, prediction)
+                final_comment = self._pad_comment_with_transparency(
+                    final_comment, prediction
+                )
 
             return final_comment
 
@@ -60,13 +70,19 @@ class ReasoningCommentFormatter:
             self.logger.error(f"Error formatting reasoning comment: {e}")
             return self._generate_fallback_comment(prediction)
 
-    def format_forecast_comment(self, forecast: Forecast, question_title: str = "") -> str:
+    def format_forecast_comment(
+        self, forecast: Forecast, question_title: str = ""
+    ) -> str:
         """Format a forecast's ensemble reasoning into a tournament-compliant comment."""
         try:
             # Use the primary prediction's reasoning or ensemble summary
             if forecast.predictions:
-                primary_prediction = forecast.predictions[0]  # Use first prediction as primary
-                base_comment = self.format_prediction_comment(primary_prediction, question_title)
+                primary_prediction = forecast.predictions[
+                    0
+                ]  # Use first prediction as primary
+                base_comment = self.format_prediction_comment(
+                    primary_prediction, question_title
+                )
 
                 # Add ensemble information if multiple predictions
                 if len(forecast.predictions) > 1:
@@ -81,24 +97,32 @@ class ReasoningCommentFormatter:
             self.logger.error(f"Error formatting forecast comment: {e}")
             return self._generate_fallback_comment_for_forecast(forecast)
 
-    def validate_comment_before_submission(self, comment: str, prediction: Prediction) -> Dict[str, any]:
+    def validate_comment_before_submission(
+        self, comment: str, prediction: Prediction
+    ) -> Dict[str, any]:
         """Validate comment meets all tournament requirements before submission."""
         validation_result = {
             "is_valid": True,
             "issues": [],
-            "formatted_comment": comment
+            "formatted_comment": comment,
         }
 
         # Length validation
         if len(comment.strip()) < self.min_comment_length:
             validation_result["is_valid"] = False
-            validation_result["issues"].append(f"Comment too short: {len(comment)} chars (min: {self.min_comment_length})")
+            validation_result["issues"].append(
+                f"Comment too short: {len(comment)} chars (min: {self.min_comment_length})"
+            )
 
         if len(comment) > self.max_comment_length:
             validation_result["is_valid"] = False
-            validation_result["issues"].append(f"Comment too long: {len(comment)} chars (max: {self.max_comment_length})")
+            validation_result["issues"].append(
+                f"Comment too long: {len(comment)} chars (max: {self.max_comment_length})"
+            )
             # Auto-truncate if possible
-            validation_result["formatted_comment"] = self._truncate_comment_intelligently(comment)
+            validation_result["formatted_comment"] = (
+                self._truncate_comment_intelligently(comment)
+            )
 
         # Content validation
         content_issues = self._validate_comment_content(comment)
@@ -110,30 +134,45 @@ class ReasoningCommentFormatter:
         # Tournament compliance validation
         temp_prediction = prediction
         temp_prediction.reasoning = comment
-        compliance_report = self.compliance_validator.validate_reasoning_comment(temp_prediction)
+        compliance_report = self.compliance_validator.validate_reasoning_comment(
+            temp_prediction
+        )
 
         if not compliance_report.is_compliant:
-            validation_result["issues"].extend([issue.message for issue in compliance_report.issues])
+            validation_result["issues"].extend(
+                [issue.message for issue in compliance_report.issues]
+            )
             if any(issue.severity == "error" for issue in compliance_report.issues):
                 validation_result["is_valid"] = False
 
         return validation_result
 
-    def _enhance_comment_for_tournament(self, comment: str, prediction: Prediction, question_title: str) -> str:
+    def _enhance_comment_for_tournament(
+        self, comment: str, prediction: Prediction, question_title: str
+    ) -> str:
         """Add tournament-specific enhancements to the comment."""
         enhanced = comment
 
         # Add confidence and method transparency if not already present
         if "confidence:" not in enhanced.lower() and "method:" not in enhanced.lower():
             transparency_section = f"\n\nForecast Details:\n"
-            transparency_section += f"• Method: {prediction.method.value.replace('_', ' ').title()}\n"
-            transparency_section += f"• Confidence: {prediction.confidence.value.replace('_', ' ').title()}"
+            transparency_section += (
+                f"• Method: {prediction.method.value.replace('_', ' ').title()}\n"
+            )
+            transparency_section += (
+                f"• Confidence: {prediction.confidence.value.replace('_', ' ').title()}"
+            )
 
             if prediction.method_metadata:
-                key_metadata = {k: v for k, v in prediction.method_metadata.items()
-                              if k in ['base_probability', 'variation', 'component_predictions']}
+                key_metadata = {
+                    k: v
+                    for k, v in prediction.method_metadata.items()
+                    if k in ["base_probability", "variation", "component_predictions"]
+                }
                 if key_metadata:
-                    metadata_str = ", ".join(f"{k}: {v}" for k, v in key_metadata.items())
+                    metadata_str = ", ".join(
+                        f"{k}: {v}" for k, v in key_metadata.items()
+                    )
                     transparency_section += f"\n• Details: {metadata_str}"
 
             enhanced += transparency_section
@@ -154,7 +193,9 @@ class ReasoningCommentFormatter:
             ensemble_info += f"• Method: {forecast.ensemble_method}\n"
 
         if forecast.weight_distribution:
-            weights_str = ", ".join(f"{k}: {v:.2f}" for k, v in forecast.weight_distribution.items())
+            weights_str = ", ".join(
+                f"{k}: {v:.2f}" for k, v in forecast.weight_distribution.items()
+            )
             ensemble_info += f"• Weights: {weights_str}\n"
 
         if forecast.reasoning_summary:
@@ -176,10 +217,16 @@ class ReasoningCommentFormatter:
             return comment
 
         # Try to preserve structure by truncating sections
-        sections = comment.split('\n\n')
+        sections = comment.split("\n\n")
 
         # Keep the most important sections (analysis, conclusion, transparency)
-        important_keywords = ['analysis', 'conclusion', 'forecast details', 'method:', 'confidence:']
+        important_keywords = [
+            "analysis",
+            "conclusion",
+            "forecast details",
+            "method:",
+            "confidence:",
+        ]
         important_sections = []
         other_sections = []
 
@@ -190,23 +237,25 @@ class ReasoningCommentFormatter:
                 other_sections.append(section)
 
         # Start with important sections
-        truncated = '\n\n'.join(important_sections)
+        truncated = "\n\n".join(important_sections)
 
         # Add other sections if space allows
         for section in other_sections:
             test_length = len(truncated) + len(section) + 2  # +2 for \n\n
             if test_length <= self.max_comment_length - 50:  # Leave some buffer
-                truncated += '\n\n' + section
+                truncated += "\n\n" + section
             else:
                 break
 
         # If still too long, truncate the last section
         if len(truncated) > self.max_comment_length:
-            truncated = truncated[:self.max_comment_length - 20] + "... [truncated]"
+            truncated = truncated[: self.max_comment_length - 20] + "... [truncated]"
 
         return truncated
 
-    def _pad_comment_with_transparency(self, comment: str, prediction: Prediction) -> str:
+    def _pad_comment_with_transparency(
+        self, comment: str, prediction: Prediction
+    ) -> str:
         """Pad short comment with transparency information."""
         padded = comment
 
@@ -230,8 +279,13 @@ class ReasoningCommentFormatter:
 
         # Check for prohibited AI self-references
         ai_patterns = [
-            r"I am an AI", r"As an AI", r"I cannot", r"I don't have access",
-            r"I'm not able to", r"as a language model", r"I'm an AI"
+            r"I am an AI",
+            r"As an AI",
+            r"I cannot",
+            r"I don't have access",
+            r"I'm not able to",
+            r"as a language model",
+            r"I'm an AI",
         ]
 
         for pattern in ai_patterns:
@@ -240,11 +294,14 @@ class ReasoningCommentFormatter:
 
         # Check for required elements
         required_elements = ["analysis", "evidence", "conclusion"]
-        missing_elements = [elem for elem in required_elements
-                          if elem not in comment.lower()]
+        missing_elements = [
+            elem for elem in required_elements if elem not in comment.lower()
+        ]
 
         if len(missing_elements) > 1:  # Allow some flexibility
-            issues.append(f"Missing key reasoning elements: {', '.join(missing_elements)}")
+            issues.append(
+                f"Missing key reasoning elements: {', '.join(missing_elements)}"
+            )
 
         return issues
 

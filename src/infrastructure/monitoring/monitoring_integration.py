@@ -2,13 +2,14 @@
 Integration service for monitoring system with tournament forecasting components.
 Provides seamless integration with existing services.
 """
-import logging
-from typing import Dict, Any, Optional, Callable
-from functools import wraps
-import time
 
-from .comprehensive_monitor import comprehensive_monitor
+import logging
+import time
+from functools import wraps
+from typing import Any, Callable, Dict, Optional
+
 from .budget_dashboard import budget_dashboard
+from .comprehensive_monitor import comprehensive_monitor
 from .performance_tracker import performance_tracker
 
 logger = logging.getLogger(__name__)
@@ -28,15 +29,27 @@ class MonitoringIntegration:
 
         logger.info("Monitoring integration service initialized")
 
-    def track_api_call(self, question_id: str, model: str, task_type: str,
-                      prompt: str, response: str, success: bool = True) -> Dict[str, Any]:
+    def track_api_call(
+        self,
+        question_id: str,
+        model: str,
+        task_type: str,
+        prompt: str,
+        response: str,
+        success: bool = True,
+    ) -> Dict[str, Any]:
         """Track API call with comprehensive monitoring."""
         return self.comprehensive_monitor.track_question_processing(
             question_id, model, task_type, prompt, response, success
         )
 
-    def track_forecast(self, question_id: str, forecast_value: float,
-                      confidence: float, model: str = "ensemble") -> Dict[str, Any]:
+    def track_forecast(
+        self,
+        question_id: str,
+        forecast_value: float,
+        confidence: float,
+        model: str = "ensemble",
+    ) -> Dict[str, Any]:
         """Track forecast submission."""
         return self.comprehensive_monitor.track_question_processing(
             question_id, model, "forecast", "", "", True, forecast_value, confidence
@@ -44,7 +57,9 @@ class MonitoringIntegration:
 
     def update_forecast_outcome(self, question_id: str, actual_outcome: float) -> bool:
         """Update forecast with actual outcome."""
-        return self.comprehensive_monitor.update_forecast_outcome(question_id, actual_outcome)
+        return self.comprehensive_monitor.update_forecast_outcome(
+            question_id, actual_outcome
+        )
 
     def get_budget_status(self) -> Dict[str, Any]:
         """Get current budget status."""
@@ -63,13 +78,18 @@ class MonitoringIntegration:
         """Check if budget is available for estimated cost."""
         return self.budget_dashboard.budget_manager.can_afford(estimated_cost)
 
-    def get_cost_estimate(self, model: str, input_tokens: int, output_tokens: int) -> float:
+    def get_cost_estimate(
+        self, model: str, input_tokens: int, output_tokens: int
+    ) -> float:
         """Get cost estimate for API call."""
-        return self.budget_dashboard.budget_manager.estimate_cost(model, input_tokens, output_tokens)
+        return self.budget_dashboard.budget_manager.estimate_cost(
+            model, input_tokens, output_tokens
+        )
 
 
 def monitor_api_call(question_id: str = None, task_type: str = "general"):
     """Decorator for monitoring API calls."""
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -81,8 +101,8 @@ def monitor_api_call(question_id: str = None, task_type: str = "general"):
                 result = func(*args, **kwargs)
                 if isinstance(result, str):
                     response = result
-                elif isinstance(result, dict) and 'response' in result:
-                    response = result['response']
+                elif isinstance(result, dict) and "response" in result:
+                    response = result["response"]
                 return result
             except Exception as e:
                 success = False
@@ -95,10 +115,10 @@ def monitor_api_call(question_id: str = None, task_type: str = "general"):
                 # Extract question_id from args/kwargs if not provided
                 actual_question_id = question_id
                 if not actual_question_id:
-                    if args and hasattr(args[0], 'question_id'):
+                    if args and hasattr(args[0], "question_id"):
                         actual_question_id = args[0].question_id
-                    elif 'question_id' in kwargs:
-                        actual_question_id = kwargs['question_id']
+                    elif "question_id" in kwargs:
+                        actual_question_id = kwargs["question_id"]
                     else:
                         actual_question_id = "unknown"
 
@@ -107,6 +127,7 @@ def monitor_api_call(question_id: str = None, task_type: str = "general"):
                 )
 
         return wrapper
+
     return decorator
 
 

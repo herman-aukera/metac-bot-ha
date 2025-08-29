@@ -1,20 +1,20 @@
 """Metaculus proxy API client for free credits with fallback to OpenRouter."""
 
-import os
 import logging
-from typing import Optional, Dict, Any, List
+import os
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from .llm_client import LLMClient, LLMConfig
 from ..config.settings import Config
-
+from .llm_client import LLMClient, LLMConfig
 
 logger = logging.getLogger(__name__)
 
 
 class ProxyModelType(Enum):
     """Metaculus proxy model types."""
+
     CLAUDE_3_5_SONNET = "metaculus/claude-3-5-sonnet"
     GPT_4O = "metaculus/gpt-4o"
     GPT_4O_MINI = "metaculus/gpt-4o-mini"
@@ -23,13 +23,16 @@ class ProxyModelType(Enum):
 @dataclass
 class ProxyUsageStats:
     """Track proxy API usage statistics."""
+
     total_requests: int = 0
     successful_requests: int = 0
     failed_requests: int = 0
     fallback_requests: int = 0
     estimated_credits_used: float = 0.0
 
-    def add_request(self, success: bool, used_fallback: bool = False, credits_used: float = 0.0):
+    def add_request(
+        self, success: bool, used_fallback: bool = False, credits_used: float = 0.0
+    ):
         """Add a request to the statistics."""
         self.total_requests += 1
         if success:
@@ -76,26 +79,40 @@ class MetaculusProxyClient:
 
         # Proxy model configuration
         self.proxy_models = {
-            "default": os.getenv("METACULUS_DEFAULT_MODEL", ProxyModelType.CLAUDE_3_5_SONNET.value),
-            "summarizer": os.getenv("METACULUS_SUMMARIZER_MODEL", ProxyModelType.GPT_4O_MINI.value),
-            "research": os.getenv("METACULUS_RESEARCH_MODEL", ProxyModelType.GPT_4O.value)
+            "default": os.getenv(
+                "METACULUS_DEFAULT_MODEL", ProxyModelType.CLAUDE_3_5_SONNET.value
+            ),
+            "summarizer": os.getenv(
+                "METACULUS_SUMMARIZER_MODEL", ProxyModelType.GPT_4O_MINI.value
+            ),
+            "research": os.getenv(
+                "METACULUS_RESEARCH_MODEL", ProxyModelType.GPT_4O.value
+            ),
         }
 
         # Fallback model configuration
         self.fallback_models = {
             "default": "openrouter/anthropic/claude-3-5-sonnet",
             "summarizer": "openai/gpt-4o-mini",
-            "research": "openrouter/openai/gpt-4o"
+            "research": "openrouter/openai/gpt-4o",
         }
 
         # Credit management
-        self.proxy_credits_enabled = os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true"
-        self.max_proxy_requests = int(os.getenv("MAX_PROXY_REQUESTS", "1000"))  # Conservative limit
+        self.proxy_credits_enabled = (
+            os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true"
+        )
+        self.max_proxy_requests = int(
+            os.getenv("MAX_PROXY_REQUESTS", "1000")
+        )  # Conservative limit
         self.proxy_exhausted = False
 
-        self.logger.info(f"Initialized Metaculus proxy client (credits_enabled: {self.proxy_credits_enabled})")
+        self.logger.info(
+            f"Initialized Metaculus proxy client (credits_enabled: {self.proxy_credits_enabled})"
+        )
 
-    def get_llm_client(self, model_type: str = "default", purpose: str = "general") -> LLMClient:
+    def get_llm_client(
+        self, model_type: str = "default", purpose: str = "general"
+    ) -> LLMClient:
         """
         Get an LLM client with proxy support and fallback.
 
@@ -109,7 +126,9 @@ class MetaculusProxyClient:
         try:
             # Try proxy first if enabled and not exhausted
             if self.proxy_credits_enabled and not self.proxy_exhausted:
-                proxy_model = self.proxy_models.get(model_type, self.proxy_models["default"])
+                proxy_model = self.proxy_models.get(
+                    model_type, self.proxy_models["default"]
+                )
 
                 # Check if we should try proxy
                 if self._should_use_proxy():
@@ -119,16 +138,24 @@ class MetaculusProxyClient:
 
                         # Test the proxy client with a simple request
                         if self._test_proxy_client(proxy_client):
-                            self.logger.info(f"Using Metaculus proxy model: {proxy_model} for {purpose}")
+                            self.logger.info(
+                                f"Using Metaculus proxy model: {proxy_model} for {purpose}"
+                            )
                             return self._wrap_proxy_client(proxy_client, model_type)
                         else:
-                            self.logger.warning(f"Proxy model {proxy_model} test failed, falling back")
+                            self.logger.warning(
+                                f"Proxy model {proxy_model} test failed, falling back"
+                            )
 
                     except Exception as e:
-                        self.logger.warning(f"Failed to create proxy client for {proxy_model}: {e}")
+                        self.logger.warning(
+                            f"Failed to create proxy client for {proxy_model}: {e}"
+                        )
 
             # Fall back to regular models
-            fallback_model = self.fallback_models.get(model_type, self.fallback_models["default"])
+            fallback_model = self.fallback_models.get(
+                model_type, self.fallback_models["default"]
+            )
             fallback_config = self._create_fallback_config(fallback_model, purpose)
             fallback_client = LLMClient(fallback_config)
 
@@ -144,7 +171,7 @@ class MetaculusProxyClient:
                 api_key=self.config.llm.openrouter_api_key,
                 temperature=0.3,
                 max_retries=2,
-                timeout=60.0
+                timeout=60.0,
             )
             return LLMClient(basic_config)
 
@@ -159,8 +186,10 @@ class MetaculusProxyClient:
             return False
 
         # If failure rate is too high, temporarily disable proxy
-        if (self.usage_stats.total_requests > 10 and
-            self.usage_stats.get_success_rate() < 50):
+        if (
+            self.usage_stats.total_requests > 10
+            and self.usage_stats.get_success_rate() < 50
+        ):
             self.logger.warning("Proxy success rate too low, temporarily disabling")
             return False
 
@@ -175,7 +204,7 @@ class MetaculusProxyClient:
             temperature=0.3 if "summarizer" not in purpose else 0.0,
             max_retries=2,
             timeout=60.0,
-            max_tokens=4000 if "research" in purpose else 2000
+            max_tokens=4000 if "research" in purpose else 2000,
         )
 
     def _create_fallback_config(self, model: str, purpose: str) -> LLMConfig:
@@ -201,14 +230,16 @@ class MetaculusProxyClient:
             temperature=0.3 if "summarizer" not in purpose else 0.0,
             max_retries=3,
             timeout=90.0,
-            max_tokens=4000 if "research" in purpose else 2000
+            max_tokens=4000 if "research" in purpose else 2000,
         )
 
     def _test_proxy_client(self, client: LLMClient) -> bool:
         """Test if proxy client is working with a simple request."""
         try:
             # Simple test prompt
-            test_response = client.generate_text("Say 'OK' if you can respond.", max_tokens=10)
+            test_response = client.generate_text(
+                "Say 'OK' if you can respond.", max_tokens=10
+            )
             return test_response and len(test_response.strip()) > 0
         except Exception as e:
             self.logger.debug(f"Proxy client test failed: {e}")
@@ -274,7 +305,7 @@ class MetaculusProxyClient:
             "fallback_rate": self.usage_stats.get_fallback_rate(),
             "estimated_credits_used": self.usage_stats.estimated_credits_used,
             "proxy_exhausted": self.proxy_exhausted,
-            "proxy_credits_enabled": self.proxy_credits_enabled
+            "proxy_credits_enabled": self.proxy_credits_enabled,
         }
 
     def reset_proxy_status(self):
@@ -293,5 +324,5 @@ class MetaculusProxyClient:
         return {
             "proxy_models": self.proxy_models.copy(),
             "fallback_models": self.fallback_models.copy(),
-            "proxy_enabled": self.proxy_credits_enabled and not self.proxy_exhausted
+            "proxy_enabled": self.proxy_credits_enabled and not self.proxy_exhausted,
         }

@@ -5,6 +5,7 @@ emergency mode activation, and comprehensive error logging and alerting.
 """
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -12,11 +13,17 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
-import json
 
 from .error_classification import (
-    ErrorCategory, ErrorSeverity, RecoveryStrategy, RecoveryAction,
-    ErrorContext, ForecastingError, ModelError, BudgetError, APIError
+    APIError,
+    BudgetError,
+    ErrorCategory,
+    ErrorContext,
+    ErrorSeverity,
+    ForecastingError,
+    ModelError,
+    RecoveryAction,
+    RecoveryStrategy,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 class FallbackTier(Enum):
     """Tiers of fallback strategies."""
+
     PRIMARY = "primary"
     SECONDARY = "secondary"
     EMERGENCY = "emergency"
@@ -32,6 +40,7 @@ class FallbackTier(Enum):
 
 class PerformanceLevel(Enum):
     """Performance levels for fallback strategies."""
+
     OPTIMAL = "optimal"
     GOOD = "good"
     ACCEPTABLE = "acceptable"
@@ -41,6 +50,7 @@ class PerformanceLevel(Enum):
 @dataclass
 class FallbackOption:
     """Configuration for a fallback option."""
+
     name: str
     tier: FallbackTier
     performance_level: PerformanceLevel
@@ -57,6 +67,7 @@ class FallbackOption:
 @dataclass
 class FallbackResult:
     """Result of a fallback operation."""
+
     success: bool
     fallback_used: FallbackOption
     original_error: Optional[Exception]
@@ -70,9 +81,12 @@ class FallbackResult:
 @dataclass
 class AlertConfig:
     """Configuration for error alerts."""
+
     error_threshold: int = 5
     time_window_minutes: int = 15
-    severity_levels: List[ErrorSeverity] = field(default_factory=lambda: [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL])
+    severity_levels: List[ErrorSeverity] = field(
+        default_factory=lambda: [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL]
+    )
     notification_channels: List[str] = field(default_factory=lambda: ["log", "file"])
     cooldown_minutes: int = 60
 
@@ -98,7 +112,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.OPTIMAL,
                     cost_per_million=1.50,
                     availability_check="openrouter_api",
-                    configuration={"temperature": 0.0, "timeout": 90}
+                    configuration={"temperature": 0.0, "timeout": 90},
                 ),
                 FallbackOption(
                     name="openai/gpt-5-mini",
@@ -106,7 +120,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.GOOD,
                     cost_per_million=0.25,
                     availability_check="openrouter_api",
-                    configuration={"temperature": 0.1, "timeout": 60}
+                    configuration={"temperature": 0.1, "timeout": 60},
                 ),
                 FallbackOption(
                     name="moonshotai/kimi-k2:free",
@@ -114,7 +128,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.ACCEPTABLE,
                     cost_per_million=0.0,
                     availability_check="openrouter_free",
-                    configuration={"temperature": 0.2, "timeout": 45}
+                    configuration={"temperature": 0.2, "timeout": 45},
                 ),
                 FallbackOption(
                     name="openai/gpt-oss-20b:free",
@@ -122,7 +136,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.MINIMAL,
                     cost_per_million=0.0,
                     availability_check="openrouter_free",
-                    configuration={"temperature": 0.3, "timeout": 30}
+                    configuration={"temperature": 0.3, "timeout": 30},
                 ),
                 FallbackOption(
                     name="metaculus/gpt-4o",
@@ -130,8 +144,8 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.ACCEPTABLE,
                     cost_per_million=0.0,  # Uses proxy credits
                     availability_check="metaculus_proxy",
-                    configuration={"temperature": 0.0, "timeout": 60}
-                )
+                    configuration={"temperature": 0.0, "timeout": 60},
+                ),
             ],
             "mini": [
                 FallbackOption(
@@ -140,7 +154,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.OPTIMAL,
                     cost_per_million=0.25,
                     availability_check="openrouter_api",
-                    configuration={"temperature": 0.3, "timeout": 60}
+                    configuration={"temperature": 0.3, "timeout": 60},
                 ),
                 FallbackOption(
                     name="openai/gpt-5-nano",
@@ -148,7 +162,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.GOOD,
                     cost_per_million=0.05,
                     availability_check="openrouter_api",
-                    configuration={"temperature": 0.1, "timeout": 30}
+                    configuration={"temperature": 0.1, "timeout": 30},
                 ),
                 FallbackOption(
                     name="moonshotai/kimi-k2:free",
@@ -156,7 +170,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.ACCEPTABLE,
                     cost_per_million=0.0,
                     availability_check="openrouter_free",
-                    configuration={"temperature": 0.2, "timeout": 45}
+                    configuration={"temperature": 0.2, "timeout": 45},
                 ),
                 FallbackOption(
                     name="openai/gpt-oss-20b:free",
@@ -164,7 +178,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.MINIMAL,
                     cost_per_million=0.0,
                     availability_check="openrouter_free",
-                    configuration={"temperature": 0.3, "timeout": 30}
+                    configuration={"temperature": 0.3, "timeout": 30},
                 ),
                 FallbackOption(
                     name="metaculus/gpt-4o-mini",
@@ -172,8 +186,8 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.ACCEPTABLE,
                     cost_per_million=0.0,  # Uses proxy credits
                     availability_check="metaculus_proxy",
-                    configuration={"temperature": 0.1, "timeout": 45}
-                )
+                    configuration={"temperature": 0.1, "timeout": 45},
+                ),
             ],
             "nano": [
                 FallbackOption(
@@ -182,7 +196,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.OPTIMAL,
                     cost_per_million=0.05,
                     availability_check="openrouter_api",
-                    configuration={"temperature": 0.1, "timeout": 30}
+                    configuration={"temperature": 0.1, "timeout": 30},
                 ),
                 FallbackOption(
                     name="openai/gpt-oss-20b:free",
@@ -190,7 +204,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.GOOD,
                     cost_per_million=0.0,
                     availability_check="openrouter_free",
-                    configuration={"temperature": 0.2, "timeout": 30}
+                    configuration={"temperature": 0.2, "timeout": 30},
                 ),
                 FallbackOption(
                     name="moonshotai/kimi-k2:free",
@@ -198,7 +212,7 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.ACCEPTABLE,
                     cost_per_million=0.0,
                     availability_check="openrouter_free",
-                    configuration={"temperature": 0.3, "timeout": 45}
+                    configuration={"temperature": 0.3, "timeout": 45},
                 ),
                 FallbackOption(
                     name="metaculus/gpt-4o-mini",
@@ -206,13 +220,14 @@ class ModelTierFallbackManager:
                     performance_level=PerformanceLevel.MINIMAL,
                     cost_per_million=0.0,  # Uses proxy credits
                     availability_check="metaculus_proxy",
-                    configuration={"temperature": 0.1, "timeout": 45}
-                )
-            ]
+                    configuration={"temperature": 0.1, "timeout": 45},
+                ),
+            ],
         }
 
-    async def execute_fallback(self, original_tier: str, context: ErrorContext,
-                             budget_remaining: float) -> FallbackResult:
+    async def execute_fallback(
+        self, original_tier: str, context: ErrorContext, budget_remaining: float
+    ) -> FallbackResult:
         """
         Execute model tier fallback with performance preservation.
 
@@ -235,11 +250,13 @@ class ModelTierFallbackManager:
                 recovery_time=0.0,
                 performance_impact=1.0,
                 cost_impact=0.0,
-                message=f"No fallback chain defined for tier: {original_tier}"
+                message=f"No fallback chain defined for tier: {original_tier}",
             )
 
         # Filter fallback options based on budget and availability
-        viable_options = await self._filter_viable_options(fallback_chain, budget_remaining, context)
+        viable_options = await self._filter_viable_options(
+            fallback_chain, budget_remaining, context
+        )
 
         if not viable_options:
             return FallbackResult(
@@ -249,7 +266,7 @@ class ModelTierFallbackManager:
                 recovery_time=time.time() - start_time,
                 performance_impact=1.0,
                 cost_impact=0.0,
-                message="No viable fallback options available"
+                message="No viable fallback options available",
             )
 
         # Try each viable option in order
@@ -264,7 +281,9 @@ class ModelTierFallbackManager:
                     option.last_used = datetime.utcnow()
 
                     # Calculate performance and cost impact
-                    performance_impact = self._calculate_performance_impact(original_tier, option)
+                    performance_impact = self._calculate_performance_impact(
+                        original_tier, option
+                    )
                     cost_impact = self._calculate_cost_impact(original_tier, option)
 
                     recovery_time = time.time() - start_time
@@ -272,8 +291,10 @@ class ModelTierFallbackManager:
                     # Record successful fallback
                     self._record_fallback_success(original_tier, option, recovery_time)
 
-                    logger.info(f"Successful fallback from {original_tier} to {option.name} "
-                              f"(performance impact: {performance_impact:.2f}, cost impact: {cost_impact:.2f})")
+                    logger.info(
+                        f"Successful fallback from {original_tier} to {option.name} "
+                        f"(performance impact: {performance_impact:.2f}, cost impact: {cost_impact:.2f})"
+                    )
 
                     return FallbackResult(
                         success=True,
@@ -286,8 +307,8 @@ class ModelTierFallbackManager:
                         metadata={
                             "original_tier": original_tier,
                             "fallback_tier": option.tier.value,
-                            "performance_level": option.performance_level.value
-                        }
+                            "performance_level": option.performance_level.value,
+                        },
                     )
 
             except Exception as e:
@@ -305,11 +326,15 @@ class ModelTierFallbackManager:
             recovery_time=recovery_time,
             performance_impact=1.0,
             cost_impact=0.0,
-            message="All fallback options failed"
+            message="All fallback options failed",
         )
 
-    async def _filter_viable_options(self, fallback_chain: List[FallbackOption],
-                                   budget_remaining: float, context: ErrorContext) -> List[FallbackOption]:
+    async def _filter_viable_options(
+        self,
+        fallback_chain: List[FallbackOption],
+        budget_remaining: float,
+        context: ErrorContext,
+    ) -> List[FallbackOption]:
         """Filter fallback options based on budget and availability constraints."""
         viable_options = []
 
@@ -327,11 +352,9 @@ class ModelTierFallbackManager:
                 viable_options.append(option)
 
         # Sort by preference (tier, then performance, then cost)
-        viable_options.sort(key=lambda x: (
-            x.tier.value,
-            -x.success_rate,
-            x.cost_per_million
-        ))
+        viable_options.sort(
+            key=lambda x: (x.tier.value, -x.success_rate, x.cost_per_million)
+        )
 
         return viable_options
 
@@ -340,15 +363,21 @@ class ModelTierFallbackManager:
         check_type = option.availability_check
 
         if check_type == "openrouter_api":
-            return bool(os.getenv("OPENROUTER_API_KEY")) and not os.getenv("OPENROUTER_API_KEY", "").startswith("dummy_")
+            return bool(os.getenv("OPENROUTER_API_KEY")) and not os.getenv(
+                "OPENROUTER_API_KEY", ""
+            ).startswith("dummy_")
         elif check_type == "openrouter_free":
-            return bool(os.getenv("OPENROUTER_API_KEY"))  # Free models still need OpenRouter access
+            return bool(
+                os.getenv("OPENROUTER_API_KEY")
+            )  # Free models still need OpenRouter access
         elif check_type == "metaculus_proxy":
             return os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true"
 
         return False
 
-    async def _test_fallback_option(self, option: FallbackOption, context: ErrorContext) -> bool:
+    async def _test_fallback_option(
+        self, option: FallbackOption, context: ErrorContext
+    ) -> bool:
         """Test if a fallback option is working."""
         try:
             if self.tri_model_router:
@@ -357,22 +386,19 @@ class ModelTierFallbackManager:
 
                 if option.name.startswith("metaculus/"):
                     test_model = GeneralLlm(
-                        model=option.name,
-                        api_key=None,
-                        **option.configuration
+                        model=option.name, api_key=None, **option.configuration
                     )
                 else:
                     test_model = GeneralLlm(
                         model=option.name,
                         api_key=os.getenv("OPENROUTER_API_KEY"),
                         base_url="https://openrouter.ai/api/v1",
-                        **option.configuration
+                        **option.configuration,
                     )
 
                 # Quick test with timeout
                 test_response = await asyncio.wait_for(
-                    test_model.invoke("Test"),
-                    timeout=10.0
+                    test_model.invoke("Test"), timeout=10.0
                 )
 
                 return bool(test_response and len(test_response.strip()) > 0)
@@ -383,34 +409,32 @@ class ModelTierFallbackManager:
             logger.debug(f"Fallback option {option.name} test failed: {e}")
             return False
 
-    def _calculate_performance_impact(self, original_tier: str, fallback_option: FallbackOption) -> float:
+    def _calculate_performance_impact(
+        self, original_tier: str, fallback_option: FallbackOption
+    ) -> float:
         """Calculate performance impact of using fallback option."""
         # Performance impact based on tier downgrade
-        tier_performance = {
-            "full": 1.0,
-            "mini": 0.8,
-            "nano": 0.6
-        }
+        tier_performance = {"full": 1.0, "mini": 0.8, "nano": 0.6}
 
         option_performance = {
             PerformanceLevel.OPTIMAL: 1.0,
             PerformanceLevel.GOOD: 0.8,
             PerformanceLevel.ACCEPTABLE: 0.6,
-            PerformanceLevel.MINIMAL: 0.4
+            PerformanceLevel.MINIMAL: 0.4,
         }
 
         original_performance = tier_performance.get(original_tier, 1.0)
-        fallback_performance = option_performance.get(fallback_option.performance_level, 0.5)
+        fallback_performance = option_performance.get(
+            fallback_option.performance_level, 0.5
+        )
 
         return fallback_performance / original_performance
 
-    def _calculate_cost_impact(self, original_tier: str, fallback_option: FallbackOption) -> float:
+    def _calculate_cost_impact(
+        self, original_tier: str, fallback_option: FallbackOption
+    ) -> float:
         """Calculate cost impact of using fallback option."""
-        original_costs = {
-            "full": 1.50,
-            "mini": 0.25,
-            "nano": 0.05
-        }
+        original_costs = {"full": 1.50, "mini": 0.25, "nano": 0.05}
 
         original_cost = original_costs.get(original_tier, 1.0)
         fallback_cost = fallback_option.cost_per_million
@@ -420,16 +444,20 @@ class ModelTierFallbackManager:
 
         return (fallback_cost - original_cost) / original_cost
 
-    def _record_fallback_success(self, original_tier: str, option: FallbackOption, recovery_time: float):
+    def _record_fallback_success(
+        self, original_tier: str, option: FallbackOption, recovery_time: float
+    ):
         """Record successful fallback for analysis."""
-        self.fallback_history.append({
-            "timestamp": datetime.utcnow(),
-            "original_tier": original_tier,
-            "fallback_option": option.name,
-            "fallback_tier": option.tier.value,
-            "recovery_time": recovery_time,
-            "success": True
-        })
+        self.fallback_history.append(
+            {
+                "timestamp": datetime.utcnow(),
+                "original_tier": original_tier,
+                "fallback_option": option.name,
+                "fallback_tier": option.tier.value,
+                "recovery_time": recovery_time,
+                "success": True,
+            }
+        )
 
         # Keep only recent history
         if len(self.fallback_history) > 1000:
@@ -440,8 +468,11 @@ class ModelTierFallbackManager:
         if not self.fallback_history:
             return {"total_fallbacks": 0}
 
-        recent_fallbacks = [f for f in self.fallback_history
-                          if f["timestamp"] > datetime.utcnow() - timedelta(hours=24)]
+        recent_fallbacks = [
+            f
+            for f in self.fallback_history
+            if f["timestamp"] > datetime.utcnow() - timedelta(hours=24)
+        ]
 
         tier_usage = {}
         option_usage = {}
@@ -463,7 +494,7 @@ class ModelTierFallbackManager:
             "recent_fallbacks_24h": len(recent_fallbacks),
             "tier_usage": tier_usage,
             "option_usage": option_usage,
-            "average_recovery_time": avg_recovery_time
+            "average_recovery_time": avg_recovery_time,
         }
 
 
@@ -486,7 +517,7 @@ class CrossProviderFallbackManager:
                 "priority": 1,
                 "cost_multiplier": 1.0,
                 "availability_check": self._check_openrouter_availability,
-                "fallback_to": ["metaculus_proxy", "free_models"]
+                "fallback_to": ["metaculus_proxy", "free_models"],
             },
             "metaculus_proxy": {
                 "base_url": None,  # Uses default
@@ -494,7 +525,7 @@ class CrossProviderFallbackManager:
                 "priority": 2,
                 "cost_multiplier": 0.0,  # Uses proxy credits
                 "availability_check": self._check_metaculus_proxy_availability,
-                "fallback_to": ["free_models"]
+                "fallback_to": ["free_models"],
             },
             "free_models": {
                 "base_url": "https://openrouter.ai/api/v1",
@@ -502,11 +533,13 @@ class CrossProviderFallbackManager:
                 "priority": 3,
                 "cost_multiplier": 0.0,
                 "availability_check": self._check_free_models_availability,
-                "fallback_to": []
-            }
+                "fallback_to": [],
+            },
         }
 
-    async def execute_provider_fallback(self, original_provider: str, context: ErrorContext) -> FallbackResult:
+    async def execute_provider_fallback(
+        self, original_provider: str, context: ErrorContext
+    ) -> FallbackResult:
         """
         Execute cross-provider fallback with intelligent routing.
 
@@ -531,7 +564,7 @@ class CrossProviderFallbackManager:
                 recovery_time=0.0,
                 performance_impact=1.0,
                 cost_impact=0.0,
-                message=f"No fallback providers defined for: {original_provider}"
+                message=f"No fallback providers defined for: {original_provider}",
             )
 
         # Try each fallback provider
@@ -548,15 +581,21 @@ class CrossProviderFallbackManager:
                             name=provider_name,
                             tier=FallbackTier.SECONDARY,
                             performance_level=PerformanceLevel.GOOD,
-                            cost_per_million=self.provider_configs[provider_name]["cost_multiplier"],
+                            cost_per_million=self.provider_configs[provider_name][
+                                "cost_multiplier"
+                            ],
                             availability_check=provider_name,
-                            configuration={}
+                            configuration={},
                         )
 
                         # Record successful provider fallback
-                        self._record_provider_fallback(original_provider, provider_name, recovery_time)
+                        self._record_provider_fallback(
+                            original_provider, provider_name, recovery_time
+                        )
 
-                        logger.info(f"Successful provider fallback from {original_provider} to {provider_name}")
+                        logger.info(
+                            f"Successful provider fallback from {original_provider} to {provider_name}"
+                        )
 
                         return FallbackResult(
                             success=True,
@@ -564,12 +603,15 @@ class CrossProviderFallbackManager:
                             original_error=None,
                             recovery_time=recovery_time,
                             performance_impact=0.9,  # Slight performance impact
-                            cost_impact=self.provider_configs[provider_name]["cost_multiplier"] - 1.0,
+                            cost_impact=self.provider_configs[provider_name][
+                                "cost_multiplier"
+                            ]
+                            - 1.0,
                             message=f"Successfully fell back to provider: {provider_name}",
                             metadata={
                                 "original_provider": original_provider,
-                                "fallback_provider": provider_name
-                            }
+                                "fallback_provider": provider_name,
+                            },
                         )
 
             except Exception as e:
@@ -585,7 +627,7 @@ class CrossProviderFallbackManager:
             recovery_time=recovery_time,
             performance_impact=1.0,
             cost_impact=0.0,
-            message="All provider fallbacks failed"
+            message="All provider fallbacks failed",
         )
 
     async def _check_provider_availability(self, provider_name: str) -> bool:
@@ -626,15 +668,19 @@ class CrossProviderFallbackManager:
             logger.debug(f"Provider {provider_name} test failed: {e}")
             return False
 
-    def _record_provider_fallback(self, original_provider: str, fallback_provider: str, recovery_time: float):
+    def _record_provider_fallback(
+        self, original_provider: str, fallback_provider: str, recovery_time: float
+    ):
         """Record provider fallback for analysis."""
-        self.fallback_history.append({
-            "timestamp": datetime.utcnow(),
-            "original_provider": original_provider,
-            "fallback_provider": fallback_provider,
-            "recovery_time": recovery_time,
-            "success": True
-        })
+        self.fallback_history.append(
+            {
+                "timestamp": datetime.utcnow(),
+                "original_provider": original_provider,
+                "fallback_provider": fallback_provider,
+                "recovery_time": recovery_time,
+                "success": True,
+            }
+        )
 
         # Keep only recent history
         if len(self.fallback_history) > 1000:
@@ -661,25 +707,27 @@ class EmergencyModeManager:
             "essential_features": [
                 "basic_forecasting",
                 "simple_research",
-                "error_recovery"
+                "error_recovery",
             ],
             "disabled_features": [
                 "advanced_analysis",
                 "detailed_reasoning",
-                "comprehensive_research"
+                "comprehensive_research",
             ],
             "model_restrictions": {
                 "allowed_models": [
                     "openai/gpt-oss-20b:free",
                     "moonshotai/kimi-k2:free",
-                    "metaculus/gpt-4o-mini"
+                    "metaculus/gpt-4o-mini",
                 ],
                 "max_tokens": 500,
-                "temperature": 0.1
-            }
+                "temperature": 0.1,
+            },
         }
 
-    async def activate_emergency_mode(self, trigger_error: Exception, context: ErrorContext) -> RecoveryAction:
+    async def activate_emergency_mode(
+        self, trigger_error: Exception, context: ErrorContext
+    ) -> RecoveryAction:
         """
         Activate emergency mode for critical failures.
 
@@ -703,11 +751,13 @@ class EmergencyModeManager:
         emergency_params = {
             "free_models_only": True,
             "minimal_functionality": True,
-            "allowed_models": self.emergency_config["model_restrictions"]["allowed_models"],
+            "allowed_models": self.emergency_config["model_restrictions"][
+                "allowed_models"
+            ],
             "max_tokens": self.emergency_config["model_restrictions"]["max_tokens"],
             "temperature": self.emergency_config["model_restrictions"]["temperature"],
             "essential_features": self.emergency_config["essential_features"],
-            "disabled_features": self.emergency_config["disabled_features"]
+            "disabled_features": self.emergency_config["disabled_features"],
         }
 
         return RecoveryAction(
@@ -715,7 +765,7 @@ class EmergencyModeManager:
             parameters=emergency_params,
             expected_delay=1.0,
             success_probability=0.7,
-            fallback_action=None
+            fallback_action=None,
         )
 
     async def deactivate_emergency_mode(self) -> bool:
@@ -764,7 +814,9 @@ class EmergencyModeManager:
         except Exception:
             return False
 
-    async def _send_emergency_alert(self, trigger_error: Exception, context: ErrorContext):
+    async def _send_emergency_alert(
+        self, trigger_error: Exception, context: ErrorContext
+    ):
         """Send emergency mode activation alert."""
         alert_message = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -775,12 +827,14 @@ class EmergencyModeManager:
                 "model_tier": context.model_tier,
                 "operation_mode": context.operation_mode,
                 "budget_remaining": context.budget_remaining,
-                "attempt_number": context.attempt_number
-            }
+                "attempt_number": context.attempt_number,
+            },
         }
 
         # Log the alert
-        logger.critical(f"EMERGENCY MODE ACTIVATED: {json.dumps(alert_message, indent=2)}")
+        logger.critical(
+            f"EMERGENCY MODE ACTIVATED: {json.dumps(alert_message, indent=2)}"
+        )
 
         # Write to emergency log file
         try:
@@ -802,13 +856,21 @@ class EmergencyModeManager:
         if not self.emergency_active:
             return {"active": False}
 
-        duration = datetime.utcnow() - self.emergency_start_time if self.emergency_start_time else timedelta(0)
+        duration = (
+            datetime.utcnow() - self.emergency_start_time
+            if self.emergency_start_time
+            else timedelta(0)
+        )
 
         return {
             "active": True,
-            "start_time": self.emergency_start_time.isoformat() if self.emergency_start_time else None,
+            "start_time": (
+                self.emergency_start_time.isoformat()
+                if self.emergency_start_time
+                else None
+            ),
             "duration_seconds": duration.total_seconds(),
-            "config": self.emergency_config
+            "config": self.emergency_config,
         }
 
 
@@ -823,7 +885,12 @@ class ErrorLoggingAndAlertingSystem:
         self.alert_history = []
         self.last_alert_times = {}
 
-    async def log_error(self, error: Exception, context: ErrorContext, recovery_action: Optional[RecoveryAction] = None):
+    async def log_error(
+        self,
+        error: Exception,
+        context: ErrorContext,
+        recovery_action: Optional[RecoveryAction] = None,
+    ):
         """
         Log error with comprehensive details and trigger alerts if needed.
 
@@ -844,13 +911,23 @@ class ErrorLoggingAndAlertingSystem:
                 "budget_remaining": context.budget_remaining,
                 "attempt_number": context.attempt_number,
                 "model_name": context.model_name,
-                "provider": context.provider
+                "provider": context.provider,
             },
-            "recovery_action": {
-                "strategy": recovery_action.strategy.value if recovery_action else None,
-                "parameters": recovery_action.parameters if recovery_action else None,
-                "success_probability": recovery_action.success_probability if recovery_action else None
-            } if recovery_action else None
+            "recovery_action": (
+                {
+                    "strategy": (
+                        recovery_action.strategy.value if recovery_action else None
+                    ),
+                    "parameters": (
+                        recovery_action.parameters if recovery_action else None
+                    ),
+                    "success_probability": (
+                        recovery_action.success_probability if recovery_action else None
+                    ),
+                }
+                if recovery_action
+                else None
+            ),
         }
 
         # Add to error log
@@ -861,8 +938,10 @@ class ErrorLoggingAndAlertingSystem:
             self.error_log = self.error_log[-10000:]
 
         # Log to standard logger
-        logger.error(f"Error logged: {error} | Context: {context.task_type}/{context.model_tier} | "
-                    f"Recovery: {recovery_action.strategy.value if recovery_action else 'None'}")
+        logger.error(
+            f"Error logged: {error} | Context: {context.task_type}/{context.model_tier} | "
+            f"Recovery: {recovery_action.strategy.value if recovery_action else 'None'}"
+        )
 
         # Check if alert should be triggered
         await self._check_and_trigger_alerts(error, context)
@@ -887,9 +966,12 @@ class ErrorLoggingAndAlertingSystem:
         cutoff_time = current_time - time_window
 
         recent_errors = [
-            entry for entry in self.error_log
-            if (datetime.fromisoformat(entry["timestamp"]) > cutoff_time and
-                entry["error_type"] == error_type)
+            entry
+            for entry in self.error_log
+            if (
+                datetime.fromisoformat(entry["timestamp"]) > cutoff_time
+                and entry["error_type"] == error_type
+            )
         ]
 
         # Trigger alert if threshold exceeded
@@ -897,7 +979,9 @@ class ErrorLoggingAndAlertingSystem:
             await self._send_alert(error_type, len(recent_errors), context)
             self.last_alert_times[error_type] = current_time
 
-    async def _send_alert(self, error_type: str, error_count: int, context: ErrorContext):
+    async def _send_alert(
+        self, error_type: str, error_count: int, context: ErrorContext
+    ):
         """Send error alert through configured channels."""
         alert = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -909,8 +993,8 @@ class ErrorLoggingAndAlertingSystem:
                 "task_type": context.task_type,
                 "model_tier": context.model_tier,
                 "operation_mode": context.operation_mode,
-                "budget_remaining": context.budget_remaining
-            }
+                "budget_remaining": context.budget_remaining,
+            },
         }
 
         # Add to alert history
@@ -919,7 +1003,9 @@ class ErrorLoggingAndAlertingSystem:
         # Send through configured channels
         for channel in self.alert_config.notification_channels:
             if channel == "log":
-                logger.warning(f"ALERT: {error_type} occurred {error_count} times in {self.alert_config.time_window_minutes} minutes")
+                logger.warning(
+                    f"ALERT: {error_type} occurred {error_count} times in {self.alert_config.time_window_minutes} minutes"
+                )
             elif channel == "file":
                 await self._write_alert_to_file(alert)
 
@@ -952,7 +1038,8 @@ class ErrorLoggingAndAlertingSystem:
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
 
         recent_errors = [
-            entry for entry in self.error_log
+            entry
+            for entry in self.error_log
             if datetime.fromisoformat(entry["timestamp"]) > cutoff_time
         ]
 
@@ -979,8 +1066,13 @@ class ErrorLoggingAndAlertingSystem:
             "error_types": error_types,
             "model_tiers": model_tiers,
             "operation_modes": operation_modes,
-            "alerts_sent": len([a for a in self.alert_history
-                              if datetime.fromisoformat(a["timestamp"]) > cutoff_time])
+            "alerts_sent": len(
+                [
+                    a
+                    for a in self.alert_history
+                    if datetime.fromisoformat(a["timestamp"]) > cutoff_time
+                ]
+            ),
         }
 
 
@@ -995,7 +1087,9 @@ class IntelligentFallbackOrchestrator:
         self.emergency_manager = EmergencyModeManager(budget_manager)
         self.logging_system = ErrorLoggingAndAlertingSystem()
 
-    async def execute_intelligent_fallback(self, error: Exception, context: ErrorContext) -> FallbackResult:
+    async def execute_intelligent_fallback(
+        self, error: Exception, context: ErrorContext
+    ) -> FallbackResult:
         """
         Execute intelligent fallback strategy based on error type and context.
 
@@ -1026,10 +1120,14 @@ class IntelligentFallbackOrchestrator:
             # Generic error - try model fallback first, then provider fallback
             return await self._handle_generic_error(error, context)
 
-    async def _handle_budget_emergency(self, error: Exception, context: ErrorContext) -> FallbackResult:
+    async def _handle_budget_emergency(
+        self, error: Exception, context: ErrorContext
+    ) -> FallbackResult:
         """Handle budget exhaustion emergency."""
         # Activate emergency mode
-        recovery_action = await self.emergency_manager.activate_emergency_mode(error, context)
+        recovery_action = await self.emergency_manager.activate_emergency_mode(
+            error, context
+        )
 
         # Log the recovery action
         await self.logging_system.log_error(error, context, recovery_action)
@@ -1042,16 +1140,18 @@ class IntelligentFallbackOrchestrator:
                 performance_level=PerformanceLevel.MINIMAL,
                 cost_per_million=0.0,
                 availability_check="always",
-                configuration=recovery_action.parameters
+                configuration=recovery_action.parameters,
             ),
             original_error=error,
             recovery_time=recovery_action.expected_delay,
             performance_impact=0.3,  # Significant performance reduction
             cost_impact=-1.0,  # Cost savings
-            message="Emergency mode activated due to budget exhaustion"
+            message="Emergency mode activated due to budget exhaustion",
         )
 
-    async def _handle_model_error(self, error: Exception, context: ErrorContext) -> FallbackResult:
+    async def _handle_model_error(
+        self, error: Exception, context: ErrorContext
+    ) -> FallbackResult:
         """Handle model-specific errors."""
         # Try model tier fallback first
         model_fallback_result = await self.model_fallback_manager.execute_fallback(
@@ -1062,17 +1162,23 @@ class IntelligentFallbackOrchestrator:
             return model_fallback_result
 
         # If model fallback fails, try provider fallback
-        provider_fallback_result = await self.provider_fallback_manager.execute_provider_fallback(
-            context.provider or "openrouter", context
+        provider_fallback_result = (
+            await self.provider_fallback_manager.execute_provider_fallback(
+                context.provider or "openrouter", context
+            )
         )
 
         return provider_fallback_result
 
-    async def _handle_api_error(self, error: Exception, context: ErrorContext) -> FallbackResult:
+    async def _handle_api_error(
+        self, error: Exception, context: ErrorContext
+    ) -> FallbackResult:
         """Handle API-specific errors."""
         # Try provider fallback first for API errors
-        provider_fallback_result = await self.provider_fallback_manager.execute_provider_fallback(
-            context.provider or "openrouter", context
+        provider_fallback_result = (
+            await self.provider_fallback_manager.execute_provider_fallback(
+                context.provider or "openrouter", context
+            )
         )
 
         if provider_fallback_result.success:
@@ -1085,7 +1191,9 @@ class IntelligentFallbackOrchestrator:
 
         return model_fallback_result
 
-    async def _handle_generic_error(self, error: Exception, context: ErrorContext) -> FallbackResult:
+    async def _handle_generic_error(
+        self, error: Exception, context: ErrorContext
+    ) -> FallbackResult:
         """Handle generic errors with comprehensive fallback strategy."""
         # Try model fallback first
         model_fallback_result = await self.model_fallback_manager.execute_fallback(
@@ -1096,8 +1204,10 @@ class IntelligentFallbackOrchestrator:
             return model_fallback_result
 
         # Try provider fallback
-        provider_fallback_result = await self.provider_fallback_manager.execute_provider_fallback(
-            context.provider or "openrouter", context
+        provider_fallback_result = (
+            await self.provider_fallback_manager.execute_provider_fallback(
+                context.provider or "openrouter", context
+            )
         )
 
         if provider_fallback_result.success:
@@ -1115,5 +1225,5 @@ class IntelligentFallbackOrchestrator:
             },
             "emergency_mode": self.emergency_manager.get_emergency_status(),
             "error_summary": self.logging_system.get_error_summary(),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }

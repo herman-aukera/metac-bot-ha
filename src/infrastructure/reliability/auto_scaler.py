@@ -2,9 +2,10 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Callable, Any
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -12,6 +13,7 @@ logger = structlog.get_logger(__name__)
 
 class ScalingDirection(Enum):
     """Scaling direction."""
+
     UP = "up"
     DOWN = "down"
     NONE = "none"
@@ -19,6 +21,7 @@ class ScalingDirection(Enum):
 
 class ScalingTrigger(Enum):
     """Scaling trigger types."""
+
     CPU_USAGE = "cpu_usage"
     MEMORY_USAGE = "memory_usage"
     REQUEST_RATE = "request_rate"
@@ -30,6 +33,7 @@ class ScalingTrigger(Enum):
 @dataclass
 class ScalingPolicy:
     """Configuration for auto-scaling behavior."""
+
     name: str
     trigger: ScalingTrigger
     scale_up_threshold: float
@@ -47,6 +51,7 @@ class ScalingPolicy:
 @dataclass
 class ScalingMetric:
     """Metric data for scaling decisions."""
+
     name: str
     value: float
     timestamp: float
@@ -56,6 +61,7 @@ class ScalingMetric:
 @dataclass
 class ScalingEvent:
     """Record of a scaling event."""
+
     timestamp: float
     direction: ScalingDirection
     trigger: str
@@ -105,16 +111,18 @@ class AutoScaler:
             policy: ScalingPolicy configuration
         """
         self.policies[policy.name] = policy
-        self.logger.info("Added scaling policy",
-                        policy_name=policy.name,
-                        trigger=policy.trigger.value,
-                        scale_up_threshold=policy.scale_up_threshold,
-                        scale_down_threshold=policy.scale_down_threshold)
+        self.logger.info(
+            "Added scaling policy",
+            policy_name=policy.name,
+            trigger=policy.trigger.value,
+            scale_up_threshold=policy.scale_up_threshold,
+            scale_down_threshold=policy.scale_down_threshold,
+        )
 
     def set_scale_callbacks(
         self,
         scale_up_callback: Callable[[int], Any],
-        scale_down_callback: Callable[[int], Any]
+        scale_down_callback: Callable[[int], Any],
     ):
         """
         Set callbacks for scaling operations.
@@ -145,9 +153,11 @@ class AutoScaler:
 
         self.running = True
         self.monitor_task = asyncio.create_task(self._monitoring_loop())
-        self.logger.info("Started auto-scaling monitoring",
-                        evaluation_interval=self.evaluation_interval,
-                        policies=len(self.policies))
+        self.logger.info(
+            "Started auto-scaling monitoring",
+            evaluation_interval=self.evaluation_interval,
+            policies=len(self.policies),
+        )
 
     async def stop_monitoring(self):
         """Stop the auto-scaling monitoring loop."""
@@ -186,9 +196,7 @@ class AutoScaler:
             try:
                 value = await self._execute_collector(collector)
                 metric = ScalingMetric(
-                    name=metric_name,
-                    value=value,
-                    timestamp=current_time
+                    name=metric_name, value=value, timestamp=current_time
                 )
 
                 if metric_name not in self.metrics_history:
@@ -196,12 +204,14 @@ class AutoScaler:
 
                 self.metrics_history[metric_name].append(metric)
 
-                self.logger.debug("Collected metric",
-                                metric_name=metric_name, value=value)
+                self.logger.debug(
+                    "Collected metric", metric_name=metric_name, value=value
+                )
 
             except Exception as e:
-                self.logger.error("Error collecting metric",
-                                metric_name=metric_name, error=str(e))
+                self.logger.error(
+                    "Error collecting metric", metric_name=metric_name, error=str(e)
+                )
 
     async def _execute_collector(self, collector: Callable) -> float:
         """Execute metric collector, handling both sync and async."""
@@ -225,10 +235,15 @@ class AutoScaler:
                 if scaling_decision != ScalingDirection.NONE:
                     await self._execute_scaling(policy, scaling_decision, current_time)
             except Exception as e:
-                self.logger.error("Error evaluating scaling policy",
-                                policy_name=policy.name, error=str(e))
+                self.logger.error(
+                    "Error evaluating scaling policy",
+                    policy_name=policy.name,
+                    error=str(e),
+                )
 
-    async def _evaluate_policy(self, policy: ScalingPolicy, current_time: float) -> ScalingDirection:
+    async def _evaluate_policy(
+        self, policy: ScalingPolicy, current_time: float
+    ) -> ScalingDirection:
         """
         Evaluate a single scaling policy.
 
@@ -245,8 +260,10 @@ class AutoScaler:
             return ScalingDirection.NONE
 
         recent_metrics = [
-            m for m in self.metrics_history[metric_name]
-            if current_time - m.timestamp <= self.evaluation_interval * policy.evaluation_periods
+            m
+            for m in self.metrics_history[metric_name]
+            if current_time - m.timestamp
+            <= self.evaluation_interval * policy.evaluation_periods
         ]
 
         if len(recent_metrics) < policy.evaluation_periods:
@@ -259,38 +276,47 @@ class AutoScaler:
         time_since_last_scale = current_time - self.last_scale_time
 
         # Evaluate scaling up
-        if (avg_value > policy.scale_up_threshold and
-            self.current_instances < policy.max_instances and
-            (self.last_scale_direction != ScalingDirection.UP or
-             time_since_last_scale >= policy.scale_up_cooldown)):
+        if (
+            avg_value > policy.scale_up_threshold
+            and self.current_instances < policy.max_instances
+            and (
+                self.last_scale_direction != ScalingDirection.UP
+                or time_since_last_scale >= policy.scale_up_cooldown
+            )
+        ):
 
-            self.logger.info("Scale up condition met",
-                           policy_name=policy.name,
-                           avg_value=avg_value,
-                           threshold=policy.scale_up_threshold,
-                           current_instances=self.current_instances)
+            self.logger.info(
+                "Scale up condition met",
+                policy_name=policy.name,
+                avg_value=avg_value,
+                threshold=policy.scale_up_threshold,
+                current_instances=self.current_instances,
+            )
             return ScalingDirection.UP
 
         # Evaluate scaling down
-        elif (avg_value < policy.scale_down_threshold and
-              self.current_instances > policy.min_instances and
-              (self.last_scale_direction != ScalingDirection.DOWN or
-               time_since_last_scale >= policy.scale_down_cooldown)):
+        elif (
+            avg_value < policy.scale_down_threshold
+            and self.current_instances > policy.min_instances
+            and (
+                self.last_scale_direction != ScalingDirection.DOWN
+                or time_since_last_scale >= policy.scale_down_cooldown
+            )
+        ):
 
-            self.logger.info("Scale down condition met",
-                           policy_name=policy.name,
-                           avg_value=avg_value,
-                           threshold=policy.scale_down_threshold,
-                           current_instances=self.current_instances)
+            self.logger.info(
+                "Scale down condition met",
+                policy_name=policy.name,
+                avg_value=avg_value,
+                threshold=policy.scale_down_threshold,
+                current_instances=self.current_instances,
+            )
             return ScalingDirection.DOWN
 
         return ScalingDirection.NONE
 
     async def _execute_scaling(
-        self,
-        policy: ScalingPolicy,
-        direction: ScalingDirection,
-        current_time: float
+        self, policy: ScalingPolicy, direction: ScalingDirection, current_time: float
     ):
         """
         Execute scaling operation.
@@ -304,14 +330,12 @@ class AutoScaler:
 
         if direction == ScalingDirection.UP:
             new_instances = min(
-                self.current_instances + policy.scale_up_step,
-                policy.max_instances
+                self.current_instances + policy.scale_up_step, policy.max_instances
             )
             callback = self.scale_up_callback
         else:  # ScalingDirection.DOWN
             new_instances = max(
-                self.current_instances - policy.scale_down_step,
-                policy.min_instances
+                self.current_instances - policy.scale_down_step, policy.min_instances
             )
             callback = self.scale_down_callback
 
@@ -321,8 +345,7 @@ class AutoScaler:
         # Get current metric value for logging
         metric_name = policy.trigger.value
         current_metric_value = 0.0
-        if (metric_name in self.metrics_history and
-            self.metrics_history[metric_name]):
+        if metric_name in self.metrics_history and self.metrics_history[metric_name]:
             current_metric_value = self.metrics_history[metric_name][-1].value
 
         # Execute scaling callback
@@ -344,22 +367,26 @@ class AutoScaler:
                 old_instances=old_instances,
                 new_instances=new_instances,
                 metric_value=current_metric_value,
-                reason=f"{policy.trigger.value} threshold exceeded"
+                reason=f"{policy.trigger.value} threshold exceeded",
             )
             self.scaling_events.append(event)
 
-            self.logger.info("Executed scaling operation",
-                           direction=direction.value,
-                           old_instances=old_instances,
-                           new_instances=new_instances,
-                           trigger=policy.name,
-                           metric_value=current_metric_value)
+            self.logger.info(
+                "Executed scaling operation",
+                direction=direction.value,
+                old_instances=old_instances,
+                new_instances=new_instances,
+                trigger=policy.name,
+                metric_value=current_metric_value,
+            )
 
         except Exception as e:
-            self.logger.error("Failed to execute scaling operation",
-                            direction=direction.value,
-                            new_instances=new_instances,
-                            error=str(e))
+            self.logger.error(
+                "Failed to execute scaling operation",
+                direction=direction.value,
+                new_instances=new_instances,
+                error=str(e),
+            )
 
     async def _execute_callback(self, callback: Callable, instances: int):
         """Execute scaling callback, handling both sync and async."""
@@ -377,13 +404,15 @@ class AutoScaler:
 
         for metric_name in self.metrics_history:
             self.metrics_history[metric_name] = [
-                m for m in self.metrics_history[metric_name]
+                m
+                for m in self.metrics_history[metric_name]
                 if current_time - m.timestamp <= retention_seconds
             ]
 
         # Also cleanup old scaling events
         self.scaling_events = [
-            e for e in self.scaling_events
+            e
+            for e in self.scaling_events
             if current_time - e.timestamp <= retention_seconds
         ]
 
@@ -396,13 +425,23 @@ class AutoScaler:
             reason: Reason for manual scaling
         """
         if target_instances == self.current_instances:
-            self.logger.info("Manual scale requested but already at target",
-                           target_instances=target_instances)
+            self.logger.info(
+                "Manual scale requested but already at target",
+                target_instances=target_instances,
+            )
             return
 
         old_instances = self.current_instances
-        direction = ScalingDirection.UP if target_instances > old_instances else ScalingDirection.DOWN
-        callback = self.scale_up_callback if direction == ScalingDirection.UP else self.scale_down_callback
+        direction = (
+            ScalingDirection.UP
+            if target_instances > old_instances
+            else ScalingDirection.DOWN
+        )
+        callback = (
+            self.scale_up_callback
+            if direction == ScalingDirection.UP
+            else self.scale_down_callback
+        )
 
         try:
             if callback:
@@ -422,19 +461,21 @@ class AutoScaler:
                 old_instances=old_instances,
                 new_instances=target_instances,
                 metric_value=0.0,
-                reason=reason
+                reason=reason,
             )
             self.scaling_events.append(event)
 
-            self.logger.info("Manual scaling completed",
-                           old_instances=old_instances,
-                           new_instances=target_instances,
-                           reason=reason)
+            self.logger.info(
+                "Manual scaling completed",
+                old_instances=old_instances,
+                new_instances=target_instances,
+                reason=reason,
+            )
 
         except Exception as e:
-            self.logger.error("Manual scaling failed",
-                            target_instances=target_instances,
-                            error=str(e))
+            self.logger.error(
+                "Manual scaling failed", target_instances=target_instances, error=str(e)
+            )
             raise
 
     def get_metrics(self) -> Dict[str, Any]:
@@ -443,7 +484,8 @@ class AutoScaler:
 
         # Calculate recent scaling events
         recent_events = [
-            e for e in self.scaling_events
+            e
+            for e in self.scaling_events
             if current_time - e.timestamp <= 3600  # Last hour
         ]
 
@@ -461,19 +503,20 @@ class AutoScaler:
                     "scale_up_threshold": policy.scale_up_threshold,
                     "scale_down_threshold": policy.scale_down_threshold,
                     "min_instances": policy.min_instances,
-                    "max_instances": policy.max_instances
+                    "max_instances": policy.max_instances,
                 }
                 for name, policy in self.policies.items()
             },
             "recent_scaling_events": len(recent_events),
             "total_scaling_events": len(self.scaling_events),
             "metrics_collected": {
-                name: len(metrics)
-                for name, metrics in self.metrics_history.items()
-            }
+                name: len(metrics) for name, metrics in self.metrics_history.items()
+            },
         }
 
-    def get_recent_metrics(self, metric_name: str, hours: int = 1) -> List[ScalingMetric]:
+    def get_recent_metrics(
+        self, metric_name: str, hours: int = 1
+    ) -> List[ScalingMetric]:
         """
         Get recent metrics for a specific metric.
 
@@ -491,8 +534,7 @@ class AutoScaler:
         cutoff_time = current_time - (hours * 3600)
 
         return [
-            m for m in self.metrics_history[metric_name]
-            if m.timestamp >= cutoff_time
+            m for m in self.metrics_history[metric_name] if m.timestamp >= cutoff_time
         ]
 
     def get_scaling_events(self, hours: int = 24) -> List[ScalingEvent]:
@@ -508,10 +550,7 @@ class AutoScaler:
         current_time = time.time()
         cutoff_time = current_time - (hours * 3600)
 
-        return [
-            e for e in self.scaling_events
-            if e.timestamp >= cutoff_time
-        ]
+        return [e for e in self.scaling_events if e.timestamp >= cutoff_time]
 
 
 # Convenience functions for common scaling policies
@@ -520,7 +559,7 @@ def create_cpu_scaling_policy(
     scale_up_threshold: float = 70.0,
     scale_down_threshold: float = 30.0,
     min_instances: int = 1,
-    max_instances: int = 10
+    max_instances: int = 10,
 ) -> ScalingPolicy:
     """Create CPU-based scaling policy."""
     return ScalingPolicy(
@@ -532,7 +571,7 @@ def create_cpu_scaling_policy(
         max_instances=max_instances,
         scale_up_cooldown=300.0,  # 5 minutes
         scale_down_cooldown=600.0,  # 10 minutes
-        evaluation_periods=2
+        evaluation_periods=2,
     )
 
 
@@ -541,7 +580,7 @@ def create_memory_scaling_policy(
     scale_up_threshold: float = 80.0,
     scale_down_threshold: float = 40.0,
     min_instances: int = 1,
-    max_instances: int = 10
+    max_instances: int = 10,
 ) -> ScalingPolicy:
     """Create memory-based scaling policy."""
     return ScalingPolicy(
@@ -553,7 +592,7 @@ def create_memory_scaling_policy(
         max_instances=max_instances,
         scale_up_cooldown=300.0,
         scale_down_cooldown=600.0,
-        evaluation_periods=2
+        evaluation_periods=2,
     )
 
 
@@ -562,7 +601,7 @@ def create_request_rate_scaling_policy(
     scale_up_threshold: float = 100.0,  # requests per minute
     scale_down_threshold: float = 20.0,
     min_instances: int = 1,
-    max_instances: int = 20
+    max_instances: int = 20,
 ) -> ScalingPolicy:
     """Create request rate-based scaling policy."""
     return ScalingPolicy(
@@ -574,5 +613,5 @@ def create_request_rate_scaling_policy(
         max_instances=max_instances,
         scale_up_cooldown=180.0,  # 3 minutes - faster for request rate
         scale_down_cooldown=600.0,  # 10 minutes
-        evaluation_periods=2
+        evaluation_periods=2,
     )

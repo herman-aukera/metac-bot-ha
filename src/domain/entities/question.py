@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from ..value_objects.tournament_strategy import QuestionCategory, QuestionPriority
@@ -11,6 +11,7 @@ from ..value_objects.tournament_strategy import QuestionCategory, QuestionPriori
 
 class QuestionType(Enum):
     """Types of questions that can be forecasted."""
+
     BINARY = "binary"
     MULTIPLE_CHOICE = "multiple_choice"
     NUMERIC = "numeric"
@@ -20,6 +21,7 @@ class QuestionType(Enum):
 
 class QuestionStatus(Enum):
     """Status of questions."""
+
     OPEN = "open"
     CLOSED = "closed"
     RESOLVED = "resolved"
@@ -34,6 +36,7 @@ class Question:
     This is the core entity that encapsulates all the information
     about a question that needs to be forecasted.
     """
+
     id: UUID
     metaculus_id: int
     title: str
@@ -88,7 +91,7 @@ class Question:
         url: str,
         close_time: datetime,
         categories: List[str],
-        **kwargs
+        **kwargs,
     ) -> "Question":
         """Factory method to create a new question."""
         now = datetime.now(timezone.utc)
@@ -122,16 +125,16 @@ class Question:
         resolve_time: Optional[datetime] = None,
         created_at: Optional[datetime] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        **kwargs
+        **kwargs,
     ) -> "Question":
         """Factory method to create a question from Metaculus API data."""
         if metadata is None:
             metadata = {}
 
         # Extract required fields from metadata
-        metaculus_id = metadata.get('metaculus_id', 0)
-        url = metadata.get('url', '')
-        category = metadata.get('category', '')
+        metaculus_id = metadata.get("metaculus_id", 0)
+        url = metadata.get("url", "")
+        category = metadata.get("category", "")
         categories = [category] if category else []
 
         # Handle close_time default
@@ -208,59 +211,149 @@ class Question:
         combined_text = f"{title_lower} {description_lower}"
 
         # Technology keywords
-        if any(keyword in combined_text for keyword in [
-            "ai", "artificial intelligence", "technology", "software", "tech",
-            "algorithm", "computer", "digital", "internet", "blockchain"
-        ]):
+        if any(
+            keyword in combined_text
+            for keyword in [
+                "ai",
+                "artificial intelligence",
+                "technology",
+                "software",
+                "tech",
+                "algorithm",
+                "computer",
+                "digital",
+                "internet",
+                "blockchain",
+            ]
+        ):
             return QuestionCategory.TECHNOLOGY
 
         # Economics keywords
-        elif any(keyword in combined_text for keyword in [
-            "economy", "gdp", "market", "finance", "economic", "inflation",
-            "recession", "stock", "price", "trade", "currency"
-        ]):
+        elif any(
+            keyword in combined_text
+            for keyword in [
+                "economy",
+                "gdp",
+                "market",
+                "finance",
+                "economic",
+                "inflation",
+                "recession",
+                "stock",
+                "price",
+                "trade",
+                "currency",
+            ]
+        ):
             return QuestionCategory.ECONOMICS
 
         # Politics keywords
-        elif any(keyword in combined_text for keyword in [
-            "election", "political", "government", "policy", "president",
-            "congress", "vote", "democracy", "republican", "democrat"
-        ]):
+        elif any(
+            keyword in combined_text
+            for keyword in [
+                "election",
+                "political",
+                "government",
+                "policy",
+                "president",
+                "congress",
+                "vote",
+                "democracy",
+                "republican",
+                "democrat",
+            ]
+        ):
             return QuestionCategory.POLITICS
 
         # Health keywords
-        elif any(keyword in combined_text for keyword in [
-            "health", "medical", "disease", "pandemic", "vaccine", "hospital",
-            "medicine", "treatment", "covid", "virus", "drug"
-        ]):
+        elif any(
+            keyword in combined_text
+            for keyword in [
+                "health",
+                "medical",
+                "disease",
+                "pandemic",
+                "vaccine",
+                "hospital",
+                "medicine",
+                "treatment",
+                "covid",
+                "virus",
+                "drug",
+            ]
+        ):
             return QuestionCategory.HEALTH
 
         # Climate keywords
-        elif any(keyword in combined_text for keyword in [
-            "climate", "environment", "carbon", "emission", "temperature",
-            "global warming", "renewable", "energy", "pollution", "green"
-        ]):
+        elif any(
+            keyword in combined_text
+            for keyword in [
+                "climate",
+                "environment",
+                "carbon",
+                "emission",
+                "temperature",
+                "global warming",
+                "renewable",
+                "energy",
+                "pollution",
+                "green",
+            ]
+        ):
             return QuestionCategory.CLIMATE
 
         # Science keywords
-        elif any(keyword in combined_text for keyword in [
-            "science", "research", "study", "experiment", "discovery",
-            "physics", "chemistry", "biology", "space", "nasa"
-        ]):
+        elif any(
+            keyword in combined_text
+            for keyword in [
+                "science",
+                "research",
+                "study",
+                "experiment",
+                "discovery",
+                "physics",
+                "chemistry",
+                "biology",
+                "space",
+                "nasa",
+            ]
+        ):
             return QuestionCategory.SCIENCE
 
         # Geopolitics keywords
-        elif any(keyword in combined_text for keyword in [
-            "war", "conflict", "international", "country", "nation",
-            "diplomacy", "treaty", "sanctions", "military", "peace"
-        ]):
+        elif any(
+            keyword in combined_text
+            for keyword in [
+                "war",
+                "conflict",
+                "international",
+                "country",
+                "nation",
+                "diplomacy",
+                "treaty",
+                "sanctions",
+                "military",
+                "peace",
+            ]
+        ):
             return QuestionCategory.GEOPOLITICS
 
         # Business keywords
-        elif any(keyword in combined_text for keyword in [
-            "business", "company", "corporation", "startup", "revenue",
-            "profit", "merger", "acquisition", "ipo", "ceo"
-        ]):
+        elif any(
+            keyword in combined_text
+            for keyword in [
+                "business",
+                "company",
+                "corporation",
+                "startup",
+                "revenue",
+                "profit",
+                "merger",
+                "acquisition",
+                "ipo",
+                "ceo",
+            ]
+        ):
             return QuestionCategory.BUSINESS
 
         else:
@@ -300,14 +393,16 @@ class Question:
             QuestionCategory.SCIENCE: 0.1,
             QuestionCategory.GEOPOLITICS: 0.25,
             QuestionCategory.BUSINESS: 0.1,
-            QuestionCategory.OTHER: 0.05
+            QuestionCategory.OTHER: 0.05,
         }
 
         base_difficulty += category_difficulty_adjustments.get(category, 0.0)
 
         return min(1.0, base_difficulty)
 
-    def calculate_scoring_potential(self, tournament_context: Optional[Dict[str, Any]] = None) -> float:
+    def calculate_scoring_potential(
+        self, tournament_context: Optional[Dict[str, Any]] = None
+    ) -> float:
         """Calculate scoring potential based on question characteristics and tournament context."""
         base_potential = 0.5
 
@@ -346,7 +441,7 @@ class Question:
     def create_priority_assessment(
         self,
         confidence_level: float,
-        tournament_context: Optional[Dict[str, Any]] = None
+        tournament_context: Optional[Dict[str, Any]] = None,
     ) -> QuestionPriority:
         """Create priority assessment for tournament resource allocation."""
         category = self.categorize_question()
@@ -388,10 +483,12 @@ class Question:
             scoring_potential=scoring_potential,
             resource_allocation=resource_allocation,
             deadline_urgency=deadline_urgency,
-            competitive_advantage=competitive_advantage
+            competitive_advantage=competitive_advantage,
         )
 
-    def calculate_market_inefficiency_score(self, market_data: Optional[Dict[str, Any]] = None) -> float:
+    def calculate_market_inefficiency_score(
+        self, market_data: Optional[Dict[str, Any]] = None
+    ) -> float:
         """Calculate market inefficiency score for competitive advantage."""
         if self.market_inefficiency_score is not None:
             return self.market_inefficiency_score
@@ -414,7 +511,7 @@ class Question:
             QuestionCategory.SCIENCE: 0.2,
             QuestionCategory.GEOPOLITICS: 0.4,
             QuestionCategory.BUSINESS: 0.3,
-            QuestionCategory.OTHER: 0.1
+            QuestionCategory.OTHER: 0.1,
         }
 
         base_score += category_inefficiency_potential.get(category, 0.1)
@@ -422,7 +519,9 @@ class Question:
         # Market data adjustments
         if market_data:
             prediction_variance = market_data.get("prediction_variance", 0.1)
-            base_score += min(0.3, prediction_variance * 2)  # Higher variance = more inefficiency
+            base_score += min(
+                0.3, prediction_variance * 2
+            )  # Higher variance = more inefficiency
 
         self.market_inefficiency_score = min(1.0, base_score)
         return self.market_inefficiency_score
@@ -451,7 +550,7 @@ class Question:
             QuestionCategory.SCIENCE: 0.4,
             QuestionCategory.GEOPOLITICS: 0.5,
             QuestionCategory.BUSINESS: 0.3,
-            QuestionCategory.OTHER: 0.2
+            QuestionCategory.OTHER: 0.2,
         }
 
         base_complexity += category_complexity.get(category, 0.2)
@@ -467,7 +566,9 @@ class Question:
         self.research_complexity_score = min(1.0, base_complexity)
         return self.research_complexity_score
 
-    def analyze_similar_questions(self, historical_questions: List["Question"]) -> List[Dict[str, Any]]:
+    def analyze_similar_questions(
+        self, historical_questions: List["Question"]
+    ) -> List[Dict[str, Any]]:
         """Analyze similar questions for pattern recognition."""
         if not historical_questions:
             return []
@@ -481,14 +582,16 @@ class Question:
 
             similarity_score = self._calculate_question_similarity(question)
             if similarity_score > 0.3:  # Threshold for similarity
-                similar_questions.append({
-                    "question_id": str(question.id),
-                    "title": question.title,
-                    "category": question.categorize_question(),
-                    "similarity_score": similarity_score,
-                    "difficulty_score": question.calculate_difficulty_score(),
-                    "historical_performance": question.historical_performance_data
-                })
+                similar_questions.append(
+                    {
+                        "question_id": str(question.id),
+                        "title": question.title,
+                        "category": question.categorize_question(),
+                        "similarity_score": similarity_score,
+                        "difficulty_score": question.calculate_difficulty_score(),
+                        "historical_performance": question.historical_performance_data,
+                    }
+                )
 
         # Sort by similarity score
         similar_questions.sort(key=lambda x: x["similarity_score"], reverse=True)
@@ -509,15 +612,41 @@ class Question:
 
         # Title/description similarity (simple keyword matching)
         my_keywords = set(self.title.lower().split() + self.description.lower().split())
-        other_keywords = set(other_question.title.lower().split() + other_question.description.lower().split())
+        other_keywords = set(
+            other_question.title.lower().split()
+            + other_question.description.lower().split()
+        )
 
         # Remove common words
-        common_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "will", "be", "is", "are", "was", "were"}
+        common_words = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "will",
+            "be",
+            "is",
+            "are",
+            "was",
+            "were",
+        }
         my_keywords -= common_words
         other_keywords -= common_words
 
         if my_keywords and other_keywords:
-            keyword_overlap = len(my_keywords.intersection(other_keywords)) / len(my_keywords.union(other_keywords))
+            keyword_overlap = len(my_keywords.intersection(other_keywords)) / len(
+                my_keywords.union(other_keywords)
+            )
             similarity += keyword_overlap * 0.4
 
         return min(1.0, similarity)

@@ -3,12 +3,13 @@ Performance tests for cost-effectiveness analysis and optimization.
 Tests cost vs quality correlation, budget efficiency, and tournament competitiveness.
 """
 
-import pytest
-import time
 import asyncio
-from unittest.mock import Mock, patch
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestCostEffectivenessAnalysis:
@@ -18,17 +19,34 @@ class TestCostEffectivenessAnalysis:
         """Test cost vs quality correlation analysis across model tiers."""
         # Generate test data for different model tiers
         model_performance_data = {
-            "gpt-5": {"cost_per_question": 1.50, "quality_scores": [8.8, 9.1, 8.9, 9.0, 8.7]},
-            "gpt-5-mini": {"cost_per_question": 0.25, "quality_scores": [8.2, 8.0, 8.3, 8.1, 8.4]},
-            "gpt-5-nano": {"cost_per_question": 0.05, "quality_scores": [7.5, 7.3, 7.6, 7.4, 7.7]},
-            "gpt-oss-20b:free": {"cost_per_question": 0.0, "quality_scores": [6.8, 6.5, 6.9, 6.7, 6.6]}
+            "gpt-5": {
+                "cost_per_question": 1.50,
+                "quality_scores": [8.8, 9.1, 8.9, 9.0, 8.7],
+            },
+            "gpt-5-mini": {
+                "cost_per_question": 0.25,
+                "quality_scores": [8.2, 8.0, 8.3, 8.1, 8.4],
+            },
+            "gpt-5-nano": {
+                "cost_per_question": 0.05,
+                "quality_scores": [7.5, 7.3, 7.6, 7.4, 7.7],
+            },
+            "gpt-oss-20b:free": {
+                "cost_per_question": 0.0,
+                "quality_scores": [6.8, 6.5, 6.9, 6.7, 6.6],
+            },
         }
 
         # Analyze cost-effectiveness for each model
-        cost_effectiveness_analysis = self._analyze_cost_effectiveness(model_performance_data)
+        cost_effectiveness_analysis = self._analyze_cost_effectiveness(
+            model_performance_data
+        )
 
         # Verify cost-effectiveness rankings (nano might be most cost-effective due to low cost)
-        assert cost_effectiveness_analysis["most_cost_effective"] in ["gpt-5-mini", "gpt-5-nano"]
+        assert cost_effectiveness_analysis["most_cost_effective"] in [
+            "gpt-5-mini",
+            "gpt-5-nano",
+        ]
         assert cost_effectiveness_analysis["best_quality"] == "gpt-5"
         assert cost_effectiveness_analysis["best_value_free"] == "gpt-oss-20b:free"
 
@@ -49,27 +67,30 @@ class TestCostEffectivenessAnalysis:
             results[model] = {
                 "avg_quality": avg_quality,
                 "cost": cost,
-                "cost_effectiveness": cost_effectiveness
+                "cost_effectiveness": cost_effectiveness,
             }
 
         # Find most cost-effective model
-        most_cost_effective = max(results.keys(),
-                                key=lambda k: results[k]["cost_effectiveness"])
+        most_cost_effective = max(
+            results.keys(), key=lambda k: results[k]["cost_effectiveness"]
+        )
 
         # Find best quality model
-        best_quality = max(results.keys(),
-                          key=lambda k: results[k]["avg_quality"])
+        best_quality = max(results.keys(), key=lambda k: results[k]["avg_quality"])
 
         # Find best free model
         free_models = {k: v for k, v in results.items() if v["cost"] == 0}
-        best_value_free = max(free_models.keys(),
-                             key=lambda k: results[k]["avg_quality"]) if free_models else None
+        best_value_free = (
+            max(free_models.keys(), key=lambda k: results[k]["avg_quality"])
+            if free_models
+            else None
+        )
 
         return {
             "most_cost_effective": most_cost_effective,
             "best_quality": best_quality,
             "best_value_free": best_value_free,
-            "detailed_results": results
+            "detailed_results": results,
         }
 
     def test_budget_efficiency_measurement(self):
@@ -78,13 +99,12 @@ class TestCostEffectivenessAnalysis:
         scenarios = [
             {"budget": 100.0, "questions": 75, "expected_efficiency": 0.75},
             {"budget": 50.0, "questions": 75, "expected_efficiency": 0.60},
-            {"budget": 25.0, "questions": 75, "expected_efficiency": 0.40}
+            {"budget": 25.0, "questions": 75, "expected_efficiency": 0.40},
         ]
 
         for scenario in scenarios:
             efficiency = self._measure_budget_efficiency(
-                scenario["budget"],
-                scenario["questions"]
+                scenario["budget"], scenario["questions"]
             )
 
             # Verify efficiency meets expectations
@@ -108,7 +128,7 @@ class TestCostEffectivenessAnalysis:
             elif budget_utilization < 0.95:
                 question_cost = 0.10  # Emergency mode
             else:
-                question_cost = 0.0   # Critical mode - free only
+                question_cost = 0.0  # Critical mode - free only
 
             if total_cost + question_cost <= budget:
                 total_cost += question_cost
@@ -118,10 +138,12 @@ class TestCostEffectivenessAnalysis:
                 questions_completed += 1
 
         return {
-            "questions_per_dollar": questions_completed / budget if budget > 0 else float('inf'),
+            "questions_per_dollar": (
+                questions_completed / budget if budget > 0 else float("inf")
+            ),
             "budget_utilization": total_cost / budget if budget > 0 else 0,
             "questions_completed": questions_completed,
-            "total_cost": total_cost
+            "total_cost": total_cost,
         }
 
     def test_tournament_competitiveness_indicators(self):
@@ -133,22 +155,22 @@ class TestCostEffectivenessAnalysis:
                 "avg_competitor_score": 8.5,
                 "our_avg_score": 8.7,
                 "cost_per_question": 1.20,
-                "expected_competitiveness": "strong"
+                "expected_competitiveness": "strong",
             },
             {
                 "name": "budget_constrained",
                 "avg_competitor_score": 8.5,
                 "our_avg_score": 8.0,  # Improved score to meet moderate threshold
                 "cost_per_question": 0.30,
-                "expected_competitiveness": "moderate"
+                "expected_competitiveness": "moderate",
             },
             {
                 "name": "emergency_mode",
                 "avg_competitor_score": 8.5,
                 "our_avg_score": 6.9,
                 "cost_per_question": 0.05,
-                "expected_competitiveness": "survival"
-            }
+                "expected_competitiveness": "survival",
+            },
         ]
 
         for scenario in competitive_scenarios:
@@ -171,23 +193,37 @@ class TestCostEffectivenessAnalysis:
         return {
             "level": level,
             "score_gap": score_gap,
-            "cost_efficiency": scenario["our_avg_score"] / cost if cost > 0 else float('inf'),
-            "recommendations": self._generate_competitiveness_recommendations(level, score_gap, cost)
+            "cost_efficiency": (
+                scenario["our_avg_score"] / cost if cost > 0 else float("inf")
+            ),
+            "recommendations": self._generate_competitiveness_recommendations(
+                level, score_gap, cost
+            ),
         }
 
-    def _generate_competitiveness_recommendations(self, level: str, score_gap: float, cost: float) -> List[str]:
+    def _generate_competitiveness_recommendations(
+        self, level: str, score_gap: float, cost: float
+    ) -> List[str]:
         """Generate recommendations based on competitiveness analysis."""
         recommendations = []
 
         if level == "survival":
-            recommendations.append("Consider increasing budget allocation for critical questions")
+            recommendations.append(
+                "Consider increasing budget allocation for critical questions"
+            )
             recommendations.append("Focus on high-impact, low-cost improvements")
         elif level == "moderate":
-            recommendations.append("Optimize model selection for better cost-quality balance")
-            recommendations.append("Identify opportunities to use premium models selectively")
+            recommendations.append(
+                "Optimize model selection for better cost-quality balance"
+            )
+            recommendations.append(
+                "Identify opportunities to use premium models selectively"
+            )
         else:  # strong
             recommendations.append("Maintain current strategy")
-            recommendations.append("Consider cost optimization without sacrificing quality")
+            recommendations.append(
+                "Consider cost optimization without sacrificing quality"
+            )
 
         return recommendations
 
@@ -200,15 +236,20 @@ class TestModelSelectionOptimization:
         # Test questions with different complexity levels
         test_questions = [
             {"text": "What is 2+2?", "expected_model_tier": "nano"},
-            {"text": "Summarize this news article", "expected_model_tier": "nano"},  # Adjusted expectation
-            {"text": "Analyze geopolitical implications", "expected_model_tier": "full"},
-            {"text": "Predict complex market dynamics", "expected_model_tier": "full"}
+            {
+                "text": "Summarize this news article",
+                "expected_model_tier": "nano",
+            },  # Adjusted expectation
+            {
+                "text": "Analyze geopolitical implications",
+                "expected_model_tier": "full",
+            },
+            {"text": "Predict complex market dynamics", "expected_model_tier": "full"},
         ]
 
         for question in test_questions:
             optimal_selection = self._optimize_model_selection(
-                question["text"],
-                budget_mode="normal"
+                question["text"], budget_mode="normal"
             )
 
             # Check if the expected tier matches the selected model
@@ -226,53 +267,95 @@ class TestModelSelectionOptimization:
         """Optimize model selection based on question complexity and budget."""
         # Calculate complexity score
         complexity_indicators = [
-            "analyze", "predict", "implications", "complex", "multifaceted",
-            "geopolitical", "dynamics", "comprehensive", "detailed"
+            "analyze",
+            "predict",
+            "implications",
+            "complex",
+            "multifaceted",
+            "geopolitical",
+            "dynamics",
+            "comprehensive",
+            "detailed",
         ]
 
-        complexity_score = sum(1 for indicator in complexity_indicators
-                             if indicator in question_text.lower()) / len(complexity_indicators)
+        complexity_score = sum(
+            1
+            for indicator in complexity_indicators
+            if indicator in question_text.lower()
+        ) / len(complexity_indicators)
 
         # Select model based on complexity and budget mode
         if budget_mode == "emergency":
-            return {"selected_model": "gpt-oss-20b:free", "complexity_score": complexity_score}
+            return {
+                "selected_model": "gpt-oss-20b:free",
+                "complexity_score": complexity_score,
+            }
         elif complexity_score > 0.3:  # Lower threshold for full model
             return {"selected_model": "gpt-5", "complexity_score": complexity_score}
         elif complexity_score > 0.1:  # Lower threshold for mini model
-            return {"selected_model": "gpt-5-mini", "complexity_score": complexity_score}
+            return {
+                "selected_model": "gpt-5-mini",
+                "complexity_score": complexity_score,
+            }
         else:
-            return {"selected_model": "gpt-5-nano", "complexity_score": complexity_score}
+            return {
+                "selected_model": "gpt-5-nano",
+                "complexity_score": complexity_score,
+            }
 
     def test_budget_constraint_optimization(self):
         """Test model selection optimization under budget constraints."""
         # Test different budget scenarios
         budget_scenarios = [
             {"remaining_budget": 50.0, "questions_left": 10, "expected_tier": "full"},
-            {"remaining_budget": 15.0, "questions_left": 20, "expected_tier": "nano"},  # 0.75 per question = nano
-            {"remaining_budget": 2.0, "questions_left": 30, "expected_tier": "free"},  # 0.067 per question = free
-            {"remaining_budget": 0.5, "questions_left": 10, "expected_tier": "free"}
+            {
+                "remaining_budget": 15.0,
+                "questions_left": 20,
+                "expected_tier": "nano",
+            },  # 0.75 per question = nano
+            {
+                "remaining_budget": 2.0,
+                "questions_left": 30,
+                "expected_tier": "free",
+            },  # 0.067 per question = free
+            {"remaining_budget": 0.5, "questions_left": 10, "expected_tier": "free"},
         ]
 
         for scenario in budget_scenarios:
             optimization = self._optimize_for_budget_constraint(
-                scenario["remaining_budget"],
-                scenario["questions_left"]
+                scenario["remaining_budget"], scenario["questions_left"]
             )
 
             assert scenario["expected_tier"] in optimization["recommended_tier"]
 
-    def _optimize_for_budget_constraint(self, remaining_budget: float, questions_left: int) -> Dict:
+    def _optimize_for_budget_constraint(
+        self, remaining_budget: float, questions_left: int
+    ) -> Dict:
         """Optimize model selection for budget constraints."""
-        budget_per_question = remaining_budget / questions_left if questions_left > 0 else 0
+        budget_per_question = (
+            remaining_budget / questions_left if questions_left > 0 else 0
+        )
 
         if budget_per_question > 2.0:
-            return {"recommended_tier": "full", "budget_per_question": budget_per_question}
+            return {
+                "recommended_tier": "full",
+                "budget_per_question": budget_per_question,
+            }
         elif budget_per_question > 1.0:  # Adjusted threshold for mini
-            return {"recommended_tier": "mini", "budget_per_question": budget_per_question}
+            return {
+                "recommended_tier": "mini",
+                "budget_per_question": budget_per_question,
+            }
         elif budget_per_question > 0.2:  # Adjusted threshold for nano
-            return {"recommended_tier": "nano", "budget_per_question": budget_per_question}
+            return {
+                "recommended_tier": "nano",
+                "budget_per_question": budget_per_question,
+            }
         else:
-            return {"recommended_tier": "free", "budget_per_question": budget_per_question}
+            return {
+                "recommended_tier": "free",
+                "budget_per_question": budget_per_question,
+            }
 
     def test_performance_correlation_analysis(self):
         """Test performance correlation analysis between cost and quality."""
@@ -281,7 +364,7 @@ class TestModelSelectionOptimization:
             {"cost": 0.0, "quality": 6.7, "response_time": 35},
             {"cost": 0.05, "quality": 7.4, "response_time": 15},
             {"cost": 0.25, "quality": 8.1, "response_time": 25},
-            {"cost": 1.50, "quality": 8.9, "response_time": 45}
+            {"cost": 1.50, "quality": 8.9, "response_time": 45},
         ]
 
         correlation_analysis = self._analyze_performance_correlation(performance_data)
@@ -305,23 +388,28 @@ class TestModelSelectionOptimization:
         sum_cost_sq = sum(c * c for c in costs)
         sum_quality_sq = sum(q * q for q in qualities)
 
-        correlation = (n * sum_cost_quality - sum_cost * sum_quality) / \
-                     ((n * sum_cost_sq - sum_cost**2) * (n * sum_quality_sq - sum_quality**2))**0.5
+        correlation = (n * sum_cost_quality - sum_cost * sum_quality) / (
+            (n * sum_cost_sq - sum_cost**2) * (n * sum_quality_sq - sum_quality**2)
+        ) ** 0.5
 
         # Find optimal cost point (best quality per dollar)
-        cost_effectiveness = [(d["quality"] / d["cost"] if d["cost"] > 0 else d["quality"] * 10)
-                             for d in data]
+        cost_effectiveness = [
+            (d["quality"] / d["cost"] if d["cost"] > 0 else d["quality"] * 10)
+            for d in data
+        ]
         optimal_index = cost_effectiveness.index(max(cost_effectiveness))
         optimal_cost_point = data[optimal_index]["cost"]
 
         # Estimate diminishing returns threshold
-        diminishing_returns_threshold = 0.25  # Based on typical model performance curves
+        diminishing_returns_threshold = (
+            0.25  # Based on typical model performance curves
+        )
 
         return {
             "cost_quality_correlation": correlation,
             "optimal_cost_point": optimal_cost_point,
             "diminishing_returns_threshold": diminishing_returns_threshold,
-            "performance_data": data
+            "performance_data": data,
         }
 
 
@@ -352,7 +440,7 @@ class TestResponseTimeOptimization:
                 "avg_response_time": sum(response_times) / len(response_times),
                 "min_response_time": min(response_times),
                 "max_response_time": max(response_times),
-                "response_times": response_times
+                "response_times": response_times,
             }
 
         return benchmarks
@@ -360,11 +448,7 @@ class TestResponseTimeOptimization:
     async def _simulate_model_response_times(self, model: str) -> List[float]:
         """Simulate response times for a specific model."""
         # Base response times (in seconds)
-        base_times = {
-            "gpt-5-nano": 15,
-            "gpt-5-mini": 25,
-            "gpt-5": 45
-        }
+        base_times = {"gpt-5-nano": 15, "gpt-5-mini": 25, "gpt-5": 45}
 
         base_time = base_times.get(model, 30)
 
@@ -383,13 +467,12 @@ class TestResponseTimeOptimization:
         throughput_scenarios = [
             {"batch_size": 1, "parallel_workers": 1, "expected_throughput": 15},
             {"batch_size": 5, "parallel_workers": 2, "expected_throughput": 25},
-            {"batch_size": 10, "parallel_workers": 3, "expected_throughput": 35}
+            {"batch_size": 10, "parallel_workers": 3, "expected_throughput": 35},
         ]
 
         for scenario in throughput_scenarios:
             throughput = self._optimize_throughput(
-                scenario["batch_size"],
-                scenario["parallel_workers"]
+                scenario["batch_size"], scenario["parallel_workers"]
             )
 
             assert throughput["questions_per_hour"] >= scenario["expected_throughput"]
@@ -400,11 +483,15 @@ class TestResponseTimeOptimization:
         base_time_per_question = 2.0
 
         # Batch processing efficiency (larger batches are more efficient)
-        batch_efficiency = 1.0 - (batch_size - 1) * 0.05  # 5% improvement per additional item
+        batch_efficiency = (
+            1.0 - (batch_size - 1) * 0.05
+        )  # 5% improvement per additional item
         batch_efficiency = max(batch_efficiency, 0.7)  # Minimum 70% efficiency
 
         # Parallel processing efficiency (diminishing returns)
-        parallel_efficiency = 1.0 + (parallel_workers - 1) * 0.4  # 40% improvement per worker
+        parallel_efficiency = (
+            1.0 + (parallel_workers - 1) * 0.4
+        )  # 40% improvement per worker
         parallel_efficiency = min(parallel_efficiency, 2.5)  # Maximum 250% efficiency
 
         # Calculate effective processing time
@@ -417,7 +504,7 @@ class TestResponseTimeOptimization:
             "questions_per_hour": questions_per_hour,
             "batch_efficiency": batch_efficiency,
             "parallel_efficiency": parallel_efficiency,
-            "effective_time_per_question": effective_time
+            "effective_time_per_question": effective_time,
         }
 
 

@@ -2,10 +2,15 @@
 Tests for ValidationStageService implementing task 4.2 requirements.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock
-from src.domain.services.validation_stage_service import ValidationStageService, ValidationResult
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from src.domain.services.validation_stage_service import (
+    ValidationResult,
+    ValidationStageService,
+)
 
 
 class TestValidationStageService:
@@ -31,20 +36,17 @@ Citation Quality: GOOD
 Evidence Gaps: None identified
 Overall Evidence Score: 9/10
 Status: PASS""",
-
             # Hallucination detection response
             """Potential Hallucinations: None found
 Severity: LOW
 Confidence in Detection: HIGH
 Hallucination Risk Score: 1/10
 Status: CLEAN""",
-
             # Consistency check response
             """Contradictions Found: None
 Logic Issues: None
 Consistency Score: 9/10
 Status: CONSISTENT""",
-
             # Quality scoring response
             """Accuracy Score: 9/10
 Completeness Score: 8/10
@@ -52,7 +54,7 @@ Clarity Score: 9/10
 Relevance Score: 9/10
 Reliability Score: 8/10
 Overall Quality Score: 8.6/10
-Status: EXCELLENT"""
+Status: EXCELLENT""",
         ]
 
         test_content = """
@@ -61,7 +63,9 @@ Status: EXCELLENT"""
         Key findings indicate positive outcomes with 85% success rate [Source: Study Results, 2024-01-15].
         """
 
-        result = await self.validation_service.validate_content(test_content, "research_synthesis")
+        result = await self.validation_service.validate_content(
+            test_content, "research_synthesis"
+        )
 
         assert isinstance(result, ValidationResult)
         assert result.is_valid == True
@@ -82,20 +86,17 @@ Citation Quality: POOR
 Evidence Gaps: Missing sources for key claims, No recent data citations
 Overall Evidence Score: 3/10
 Status: FAIL""",
-
             # Hallucination detection response
             """Potential Hallucinations: Exact statistics without source, Specific dates that seem fabricated
 Severity: HIGH
 Confidence in Detection: MEDIUM
 Hallucination Risk Score: 8/10
 Status: PROBLEMATIC""",
-
             # Consistency check response
             """Contradictions Found: Timeline inconsistency between sections
 Logic Issues: Causal relationship not supported
 Consistency Score: 4/10
 Status: MAJOR_ISSUES""",
-
             # Quality scoring response
             """Accuracy Score: 4/10
 Completeness Score: 5/10
@@ -103,7 +104,7 @@ Clarity Score: 6/10
 Relevance Score: 7/10
 Reliability Score: 3/10
 Overall Quality Score: 5/10
-Status: FAIR"""
+Status: FAIR""",
         ]
 
         test_content = """
@@ -112,7 +113,9 @@ Status: FAIR"""
         Results show improvement but data is missing.
         """
 
-        result = await self.validation_service.validate_content(test_content, "research_synthesis")
+        result = await self.validation_service.validate_content(
+            test_content, "research_synthesis"
+        )
 
         assert isinstance(result, ValidationResult)
         assert result.is_valid == False
@@ -131,16 +134,21 @@ Status: FAIR"""
             evidence_traceability_score=0.3,
             hallucination_detected=True,
             logical_consistency_score=0.6,
-            issues_identified=["Poor evidence traceability", "Potential hallucinations detected"],
+            issues_identified=[
+                "Poor evidence traceability",
+                "Potential hallucinations detected",
+            ],
             recommendations=["Add proper citations", "Verify claims against sources"],
             confidence_level="low",
             execution_time=2.5,
-            cost_estimate=0.0025
+            cost_estimate=0.0025,
         )
 
         test_content = "Test content for report generation."
 
-        report = await self.validation_service.generate_quality_report(validation_result, test_content)
+        report = await self.validation_service.generate_quality_report(
+            validation_result, test_content
+        )
 
         assert "VALIDATION QUALITY REPORT" in report
         assert "❌ INVALID" in report
@@ -157,7 +165,9 @@ Status: FAIR"""
         Other content here
         """
 
-        score = self.validation_service._extract_score_from_text(text, "Overall Evidence Score:")
+        score = self.validation_service._extract_score_from_text(
+            text, "Overall Evidence Score:"
+        )
         assert score == 7.0
 
     def test_extract_list_from_text(self):

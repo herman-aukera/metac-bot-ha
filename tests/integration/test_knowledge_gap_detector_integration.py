@@ -5,21 +5,21 @@ Integration test for KnowledgeGapDetector to verify the implementation works cor
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from src.domain.services.knowledge_gap_detector import (
-    KnowledgeGapDetector,
-    GapType,
-    GapSeverity,
-    ResearchStrategy
-)
+from src.domain.entities.question import Question, QuestionStatus, QuestionType
+from src.domain.entities.research_report import ResearchQuality
 from src.domain.services.authoritative_source_manager import (
     AuthoritativeSource,
-    SourceType,
     ExpertiseArea,
+    ExpertProfile,
     KnowledgeBase,
-    ExpertProfile
+    SourceType,
 )
-from src.domain.entities.question import Question, QuestionType, QuestionStatus
-from src.domain.entities.research_report import ResearchQuality
+from src.domain.services.knowledge_gap_detector import (
+    GapSeverity,
+    GapType,
+    KnowledgeGapDetector,
+    ResearchStrategy,
+)
 
 
 def test_knowledge_gap_detector_integration():
@@ -43,7 +43,7 @@ def test_knowledge_gap_detector_integration():
         metadata={},
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
-        resolution_criteria="Clear definition of AGI achievement"
+        resolution_criteria="Clear definition of AGI achievement",
     )
 
     # Test with limited sources (should detect many gaps)
@@ -56,7 +56,7 @@ def test_knowledge_gap_detector_integration():
             credibility_score=0.4,
             credibility_factors={},
             publish_date=datetime.utcnow() - timedelta(days=800),
-            authors=["Blogger"]
+            authors=["Blogger"],
         )
     ]
 
@@ -76,10 +76,7 @@ def test_knowledge_gap_detector_integration():
     assert len(assessment.critical_gaps) >= 1
 
     # Test adaptive research plan creation
-    constraints = {
-        "total_time": timedelta(hours=6),
-        "max_gaps": 3
-    }
+    constraints = {"total_time": timedelta(hours=6), "max_gaps": 3}
 
     plan = detector.create_adaptive_research_plan(assessment, question, constraints)
     assert plan.plan_id
@@ -93,7 +90,7 @@ def test_knowledge_gap_detector_integration():
         institution="MIT AI Lab",
         expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],
         h_index=50,
-        reputation_score=0.95
+        reputation_score=0.95,
     )
 
     diverse_sources = [
@@ -107,7 +104,7 @@ def test_knowledge_gap_detector_integration():
             publish_date=datetime.utcnow() - timedelta(days=30),
             authors=["Dr. AI Researcher"],
             knowledge_base=KnowledgeBase.ARXIV,
-            peer_review_status="peer_reviewed"
+            peer_review_status="peer_reviewed",
         ),
         AuthoritativeSource(
             url="https://expert-network.com/agi-timeline",
@@ -118,7 +115,7 @@ def test_knowledge_gap_detector_integration():
             credibility_factors={},
             publish_date=datetime.utcnow() - timedelta(days=15),
             expert_profile=expert_profile,
-            knowledge_base=KnowledgeBase.EXPERT_NETWORKS
+            knowledge_base=KnowledgeBase.EXPERT_NETWORKS,
         ),
         AuthoritativeSource(
             url="https://nsf.gov/ai-research-report",
@@ -129,8 +126,8 @@ def test_knowledge_gap_detector_integration():
             credibility_factors={},
             publish_date=datetime.utcnow() - timedelta(days=60),
             institution="National Science Foundation",
-            knowledge_base=KnowledgeBase.GOVERNMENT_DATABASES
-        )
+            knowledge_base=KnowledgeBase.GOVERNMENT_DATABASES,
+        ),
     ]
 
     # Test with diverse sources
@@ -138,15 +135,22 @@ def test_knowledge_gap_detector_integration():
     assert len(diverse_gaps) < len(gaps), "Diverse sources should have fewer gaps"
 
     diverse_assessment = detector.assess_research_quality(diverse_sources, question)
-    assert diverse_assessment.overall_quality in [ResearchQuality.HIGH, ResearchQuality.MEDIUM]
+    assert diverse_assessment.overall_quality in [
+        ResearchQuality.HIGH,
+        ResearchQuality.MEDIUM,
+    ]
     assert diverse_assessment.confidence_level > assessment.confidence_level
     assert diverse_assessment.completeness_score > assessment.completeness_score
 
     print("✅ KnowledgeGapDetector integration test passed!")
     print(f"   - Limited sources: {len(gaps)} gaps detected")
     print(f"   - Diverse sources: {len(diverse_gaps)} gaps detected")
-    print(f"   - Quality improvement: {assessment.overall_quality.value} → {diverse_assessment.overall_quality.value}")
-    print(f"   - Confidence improvement: {assessment.confidence_level:.2f} → {diverse_assessment.confidence_level:.2f}")
+    print(
+        f"   - Quality improvement: {assessment.overall_quality.value} → {diverse_assessment.overall_quality.value}"
+    )
+    print(
+        f"   - Confidence improvement: {assessment.confidence_level:.2f} → {diverse_assessment.confidence_level:.2f}"
+    )
 
 
 if __name__ == "__main__":

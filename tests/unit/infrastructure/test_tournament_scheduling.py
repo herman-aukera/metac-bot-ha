@@ -1,8 +1,9 @@
 """Tests for tournament scheduling configuration."""
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from src.infrastructure.config.tournament_config import TournamentConfig, TournamentMode
 
@@ -27,7 +28,7 @@ class TestTournamentScheduling:
             "DEADLINE_AWARE_SCHEDULING": "false",
             "CRITICAL_PERIOD_FREQUENCY_HOURS": "3",
             "FINAL_24H_FREQUENCY_HOURS": "2",
-            "TOURNAMENT_SCOPE": "daily"
+            "TOURNAMENT_SCOPE": "daily",
         }
 
         with patch.dict(os.environ, env_vars):
@@ -45,7 +46,7 @@ class TestTournamentScheduling:
             scheduling_interval_hours=4,
             deadline_aware_scheduling=True,
             critical_period_frequency_hours=2,
-            final_24h_frequency_hours=1
+            final_24h_frequency_hours=1,
         )
 
         # Normal period (more than 72 hours)
@@ -65,7 +66,7 @@ class TestTournamentScheduling:
             scheduling_interval_hours=4,
             deadline_aware_scheduling=False,
             critical_period_frequency_hours=2,
-            final_24h_frequency_hours=1
+            final_24h_frequency_hours=1,
         )
 
         # Should always return base frequency when disabled
@@ -79,7 +80,7 @@ class TestTournamentScheduling:
             scheduling_interval_hours=4,
             deadline_aware_scheduling=True,
             critical_period_frequency_hours=2,
-            final_24h_frequency_hours=1
+            final_24h_frequency_hours=1,
         )
 
         # Normal period - should run after 4 hours
@@ -98,22 +99,19 @@ class TestTournamentScheduling:
         """Test cron schedule generation for different modes."""
         # Tournament mode
         config = TournamentConfig(
-            mode=TournamentMode.TOURNAMENT,
-            scheduling_interval_hours=4
+            mode=TournamentMode.TOURNAMENT, scheduling_interval_hours=4
         )
         assert config.get_cron_schedule() == "0 */4 * * *"
 
         # Development mode
         config = TournamentConfig(
-            mode=TournamentMode.DEVELOPMENT,
-            scheduling_interval_hours=4
+            mode=TournamentMode.DEVELOPMENT, scheduling_interval_hours=4
         )
         assert config.get_cron_schedule() == "0 */6 * * *"
 
         # Quarterly cup mode
         config = TournamentConfig(
-            mode=TournamentMode.QUARTERLY_CUP,
-            scheduling_interval_hours=4
+            mode=TournamentMode.QUARTERLY_CUP, scheduling_interval_hours=4
         )
         assert config.get_cron_schedule() == "0 0 */2 * *"
 
@@ -124,7 +122,7 @@ class TestTournamentScheduling:
             deadline_aware_scheduling=True,
             critical_period_frequency_hours=2,
             final_24h_frequency_hours=1,
-            tournament_scope="seasonal"
+            tournament_scope="seasonal",
         )
 
         strategy = config.get_scheduling_strategy()
@@ -143,7 +141,7 @@ class TestTournamentScheduling:
             deadline_aware_scheduling=True,
             critical_period_frequency_hours=2,
             final_24h_frequency_hours=1,
-            tournament_scope="seasonal"
+            tournament_scope="seasonal",
         )
 
         config_dict = config.to_dict()
@@ -154,23 +152,31 @@ class TestTournamentScheduling:
         assert config_dict["final_24h_frequency_hours"] == 1
         assert config_dict["tournament_scope"] == "seasonal"
 
-    @pytest.mark.parametrize("hours_until_deadline,expected_frequency", [
-        (200, 4),  # Normal period
-        (100, 4),  # Normal period
-        (72, 2),   # Critical period boundary
-        (48, 2),   # Critical period
-        (25, 2),   # Critical period
-        (24, 1),   # Final 24h boundary
-        (12, 1),   # Final 24h
-        (1, 1),    # Final hour
-    ])
-    def test_deadline_frequency_boundaries(self, hours_until_deadline, expected_frequency):
+    @pytest.mark.parametrize(
+        "hours_until_deadline,expected_frequency",
+        [
+            (200, 4),  # Normal period
+            (100, 4),  # Normal period
+            (72, 2),  # Critical period boundary
+            (48, 2),  # Critical period
+            (25, 2),  # Critical period
+            (24, 1),  # Final 24h boundary
+            (12, 1),  # Final 24h
+            (1, 1),  # Final hour
+        ],
+    )
+    def test_deadline_frequency_boundaries(
+        self, hours_until_deadline, expected_frequency
+    ):
         """Test deadline-aware frequency calculation at boundaries."""
         config = TournamentConfig(
             scheduling_interval_hours=4,
             deadline_aware_scheduling=True,
             critical_period_frequency_hours=2,
-            final_24h_frequency_hours=1
+            final_24h_frequency_hours=1,
         )
 
-        assert config.get_deadline_aware_frequency(hours_until_deadline) == expected_frequency
+        assert (
+            config.get_deadline_aware_frequency(hours_until_deadline)
+            == expected_frequency
+        )

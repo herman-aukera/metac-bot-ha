@@ -3,12 +3,13 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 
 class ReasoningStepType(Enum):
     """Types of reasoning steps."""
+
     OBSERVATION = "observation"
     HYPOTHESIS = "hypothesis"
     ANALYSIS = "analysis"
@@ -21,6 +22,7 @@ class ReasoningStepType(Enum):
 @dataclass(frozen=True)
 class ReasoningStep:
     """Individual step in a reasoning process."""
+
     id: UUID
     step_type: ReasoningStepType
     content: str
@@ -31,7 +33,9 @@ class ReasoningStep:
     def __post_init__(self):
         """Validate reasoning step."""
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(f"Confidence must be between 0 and 1, got {self.confidence}")
+            raise ValueError(
+                f"Confidence must be between 0 and 1, got {self.confidence}"
+            )
 
     @classmethod
     def create(
@@ -39,7 +43,7 @@ class ReasoningStep:
         step_type: ReasoningStepType,
         content: str,
         confidence: float = 0.5,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> "ReasoningStep":
         """Factory method to create a reasoning step."""
         return cls(
@@ -48,13 +52,14 @@ class ReasoningStep:
             content=content,
             confidence=confidence,
             timestamp=datetime.utcnow(),
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
 
 @dataclass(frozen=True)
 class ReasoningTrace:
     """Complete trace of reasoning process for transparency."""
+
     id: UUID
     question_id: UUID
     agent_id: str
@@ -69,7 +74,9 @@ class ReasoningTrace:
     def __post_init__(self):
         """Validate reasoning trace."""
         if not 0.0 <= self.overall_confidence <= 1.0:
-            raise ValueError(f"Overall confidence must be between 0 and 1, got {self.overall_confidence}")
+            raise ValueError(
+                f"Overall confidence must be between 0 and 1, got {self.overall_confidence}"
+            )
         if not self.steps:
             raise ValueError("Reasoning trace must have at least one step")
 
@@ -83,7 +90,7 @@ class ReasoningTrace:
         final_conclusion: str,
         overall_confidence: float,
         bias_checks: Optional[List[str]] = None,
-        uncertainty_sources: Optional[List[str]] = None
+        uncertainty_sources: Optional[List[str]] = None,
     ) -> "ReasoningTrace":
         """Factory method to create a reasoning trace."""
         return cls(
@@ -96,7 +103,7 @@ class ReasoningTrace:
             overall_confidence=overall_confidence,
             bias_checks=bias_checks or [],
             uncertainty_sources=uncertainty_sources or [],
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
     def get_step_by_type(self, step_type: ReasoningStepType) -> List[ReasoningStep]:
@@ -116,7 +123,8 @@ class ReasoningTrace:
     def has_uncertainty_assessment(self) -> bool:
         """Check if uncertainty was assessed."""
         return len(self.uncertainty_sources) > 0 or any(
-            step.step_type == ReasoningStepType.UNCERTAINTY_ASSESSMENT for step in self.steps
+            step.step_type == ReasoningStepType.UNCERTAINTY_ASSESSMENT
+            for step in self.steps
         )
 
     def get_reasoning_quality_score(self) -> float:
@@ -136,4 +144,11 @@ class ReasoningTrace:
         # Bonus for step count (more thorough reasoning)
         step_count_bonus = min(0.1, len(self.steps) * 0.01)
 
-        return min(1.0, base_score + step_diversity_bonus + bias_check_bonus + uncertainty_bonus + step_count_bonus)
+        return min(
+            1.0,
+            base_score
+            + step_diversity_bonus
+            + bias_check_bonus
+            + uncertainty_bonus
+            + step_count_bonus,
+        )

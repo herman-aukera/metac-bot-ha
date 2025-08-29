@@ -86,23 +86,25 @@ Synthesize this information to:
 Focus on how different pieces of evidence interact and what they collectively suggest.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from jinja2 import Template
 
 
 class ReActPrompts:
     """
     Prompt templates for ReAct (Reasoning and Acting) methodology.
-    
+
     These prompts guide the model through iterative cycles of
     reasoning, acting, and observing to gather information and
     develop predictions.
     """
-    
+
     def __init__(self):
         self.system_prompt = REACT_SYSTEM_PROMPT
-        
-        self.initial_prompt_template = Template("""
+
+        self.initial_prompt_template = Template(
+            """
 Question: {{ question.title }}
 Description: {{ question.description }}
 Type: {{ question.question_type.value }}
@@ -120,9 +122,11 @@ Format your response as:
 Thought: [Your reasoning about what to do next]
 Action: [SEARCH/THINK/ANALYZE/SYNTHESIZE/FINALIZE]
 Action Input: [Specific details for the action]
-        """)
-        
-        self.continue_prompt_template = Template("""
+        """
+        )
+
+        self.continue_prompt_template = Template(
+            """
 Previous steps:
 {% for step in previous_steps %}
 {{ step.thought }}
@@ -135,9 +139,11 @@ Continue your reasoning process. What should you do next?
 Thought: [Your reasoning about what to do next]
 Action: [SEARCH/THINK/ANALYZE/SYNTHESIZE/FINALIZE]  
 Action Input: [Specific details for the action]
-        """)
-        
-        self.finalize_prompt_template = Template("""
+        """
+        )
+
+        self.finalize_prompt_template = Template(
+            """
 Question: {{ question.title }}
 Type: {{ question.question_type.value }}
 
@@ -168,19 +174,21 @@ Format response as JSON:
     "key_evidence": ["evidence1", "evidence2", "evidence3"],
     "main_uncertainties": ["uncertainty1", "uncertainty2"]
 }
-        """)
-    
+        """
+        )
+
     def get_initial_prompt(self, question: "Question") -> str:
         """Get initial ReAct prompt for a question."""
         return self.initial_prompt_template.render(question=question)
-    
+
     def get_continue_prompt(self, previous_steps: List[Dict[str, str]]) -> str:
         """Get continuation prompt with previous steps."""
         return self.continue_prompt_template.render(previous_steps=previous_steps)
-    
-    def get_finalize_prompt(self, question: "Question", all_steps: List[Dict[str, str]]) -> str:
+
+    def get_finalize_prompt(
+        self, question: "Question", all_steps: List[Dict[str, str]]
+    ) -> str:
         """Get finalization prompt with all steps."""
         return self.finalize_prompt_template.render(
-            question=question,
-            all_steps=all_steps
+            question=question, all_steps=all_steps
         )

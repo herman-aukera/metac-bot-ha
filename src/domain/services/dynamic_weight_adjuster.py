@@ -5,25 +5,26 @@ This service tracks agent performance over time, detects performance degradation
 and dynamically adjusts weights for optimal ensemble composition.
 """
 
-from typing import List, Dict, Any, Optional, Tuple, NamedTuple
-from uuid import UUID
-import statistics
 import math
-from datetime import datetime, timedelta
+import statistics
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from uuid import UUID
+
 import structlog
 
-from ..entities.prediction import Prediction, PredictionMethod, PredictionConfidence
-from ..value_objects.probability import Probability
+from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
 from ..value_objects.confidence import ConfidenceLevel
-
+from ..value_objects.probability import Probability
 
 logger = structlog.get_logger(__name__)
 
 
 class PerformanceMetric(Enum):
     """Types of performance metrics to track."""
+
     BRIER_SCORE = "brier_score"
     ACCURACY = "accuracy"
     CALIBRATION = "calibration"
@@ -33,6 +34,7 @@ class PerformanceMetric(Enum):
 
 class WeightAdjustmentStrategy(Enum):
     """Strategies for adjusting weights based on performance."""
+
     EXPONENTIAL_DECAY = "exponential_decay"
     LINEAR_DECAY = "linear_decay"
     THRESHOLD_BASED = "threshold_based"
@@ -43,6 +45,7 @@ class WeightAdjustmentStrategy(Enum):
 @dataclass
 class PerformanceRecord:
     """Record of agent performance for a specific prediction."""
+
     agent_name: str
     prediction_id: UUID
     question_id: UUID
@@ -58,6 +61,7 @@ class PerformanceRecord:
 @dataclass
 class AgentPerformanceProfile:
     """Comprehensive performance profile for an agent."""
+
     agent_name: str
     total_predictions: int
     recent_predictions: int
@@ -78,6 +82,7 @@ class AgentPerformanceProfile:
 @dataclass
 class EnsembleComposition:
     """Recommended ensemble composition with weights."""
+
     agent_weights: Dict[str, float]
     total_agents: int
     active_agents: int
@@ -95,10 +100,12 @@ class DynamicWeightAdjuster:
     for maximum prediction accuracy and reliability.
     """
 
-    def __init__(self,
-                 lookback_window: int = 50,
-                 min_predictions_for_weight: int = 5,
-                 performance_decay_factor: float = 0.95):
+    def __init__(
+        self,
+        lookback_window: int = 50,
+        min_predictions_for_weight: int = 5,
+        performance_decay_factor: float = 0.95,
+    ):
         """
         Initialize the dynamic weight adjuster.
 
@@ -121,7 +128,7 @@ class DynamicWeightAdjuster:
             WeightAdjustmentStrategy.LINEAR_DECAY: self._linear_decay_weights,
             WeightAdjustmentStrategy.THRESHOLD_BASED: self._threshold_based_weights,
             WeightAdjustmentStrategy.RELATIVE_RANKING: self._relative_ranking_weights,
-            WeightAdjustmentStrategy.ADAPTIVE_LEARNING_RATE: self._adaptive_learning_rate_weights
+            WeightAdjustmentStrategy.ADAPTIVE_LEARNING_RATE: self._adaptive_learning_rate_weights,
         }
 
         # Performance thresholds
@@ -130,16 +137,18 @@ class DynamicWeightAdjuster:
             "good": 0.20,
             "average": 0.25,
             "poor": 0.30,
-            "very_poor": 0.40
+            "very_poor": 0.40,
         }
 
         # Ensemble composition history
         self.composition_history: List[EnsembleComposition] = []
 
-    def record_performance(self,
-                          prediction: Prediction,
-                          actual_outcome: bool,
-                          timestamp: Optional[datetime] = None) -> None:
+    def record_performance(
+        self,
+        prediction: Prediction,
+        actual_outcome: bool,
+        timestamp: Optional[datetime] = None,
+    ) -> None:
         """
         Record performance for a prediction.
 
@@ -167,7 +176,7 @@ class DynamicWeightAdjuster:
             brier_score=brier_score,
             accuracy=accuracy,
             confidence_score=prediction.get_confidence_score(),
-            method=prediction.method
+            method=prediction.method,
         )
 
         # Store record
@@ -176,8 +185,7 @@ class DynamicWeightAdjuster:
         # Keep only recent records
         cutoff_time = timestamp - timedelta(days=30)  # Keep 30 days of history
         self.performance_records = [
-            r for r in self.performance_records
-            if r.timestamp >= cutoff_time
+            r for r in self.performance_records if r.timestamp >= cutoff_time
         ]
 
         # Update agent profile
@@ -189,12 +197,14 @@ class DynamicWeightAdjuster:
             brier_score=brier_score,
             accuracy=accuracy,
             predicted_prob=predicted_prob,
-            actual_outcome=actual_outcome
+            actual_outcome=actual_outcome,
         )
 
     def _update_agent_profile(self, agent_name: str) -> None:
         """Update performance profile for an agent."""
-        agent_records = [r for r in self.performance_records if r.agent_name == agent_name]
+        agent_records = [
+            r for r in self.performance_records if r.agent_name == agent_name
+        ]
 
         if not agent_records:
             return
@@ -204,16 +214,24 @@ class DynamicWeightAdjuster:
 
         # Calculate overall metrics
         total_predictions = len(agent_records)
-        recent_records = agent_records[-self.lookback_window:]
+        recent_records = agent_records[-self.lookback_window :]
         recent_predictions = len(recent_records)
 
         # Brier scores
-        overall_brier = statistics.mean([r.brier_score for r in agent_records if r.brier_score is not None])
-        recent_brier = statistics.mean([r.brier_score for r in recent_records if r.brier_score is not None])
+        overall_brier = statistics.mean(
+            [r.brier_score for r in agent_records if r.brier_score is not None]
+        )
+        recent_brier = statistics.mean(
+            [r.brier_score for r in recent_records if r.brier_score is not None]
+        )
 
         # Accuracy
-        overall_accuracy = statistics.mean([r.accuracy for r in agent_records if r.accuracy is not None])
-        recent_accuracy = statistics.mean([r.accuracy for r in recent_records if r.accuracy is not None])
+        overall_accuracy = statistics.mean(
+            [r.accuracy for r in agent_records if r.accuracy is not None]
+        )
+        recent_accuracy = statistics.mean(
+            [r.accuracy for r in recent_records if r.accuracy is not None]
+        )
 
         # Calibration score (simplified)
         calibration_score = self._calculate_calibration_score(agent_records)
@@ -231,15 +249,26 @@ class DynamicWeightAdjuster:
         specialization_areas = self._identify_specialization_areas(agent_records)
 
         # Current weight (if exists)
-        current_weight = self.agent_profiles.get(agent_name, AgentPerformanceProfile(
-            agent_name="", total_predictions=0, recent_predictions=0,
-            overall_brier_score=0.25, recent_brier_score=0.25,
-            overall_accuracy=0.5, recent_accuracy=0.5,
-            calibration_score=0.5, confidence_correlation=0.0,
-            performance_trend=0.0, consistency_score=0.5,
-            specialization_areas=[], current_weight=1.0,
-            recommended_weight=1.0, last_updated=datetime.now()
-        )).current_weight
+        current_weight = self.agent_profiles.get(
+            agent_name,
+            AgentPerformanceProfile(
+                agent_name="",
+                total_predictions=0,
+                recent_predictions=0,
+                overall_brier_score=0.25,
+                recent_brier_score=0.25,
+                overall_accuracy=0.5,
+                recent_accuracy=0.5,
+                calibration_score=0.5,
+                confidence_correlation=0.0,
+                performance_trend=0.0,
+                consistency_score=0.5,
+                specialization_areas=[],
+                current_weight=1.0,
+                recommended_weight=1.0,
+                last_updated=datetime.now(),
+            ),
+        ).current_weight
 
         # Calculate recommended weight
         recommended_weight = self._calculate_recommended_weight(
@@ -262,7 +291,7 @@ class DynamicWeightAdjuster:
             specialization_areas=specialization_areas,
             current_weight=current_weight,
             recommended_weight=recommended_weight,
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
     def _calculate_calibration_score(self, records: List[PerformanceRecord]) -> float:
@@ -278,7 +307,9 @@ class DynamicWeightAdjuster:
             if record.actual_outcome is not None:
                 for i, (low, high) in enumerate(bins):
                     if low <= record.predicted_probability < high:
-                        bin_data[i].append((record.predicted_probability, record.actual_outcome))
+                        bin_data[i].append(
+                            (record.predicted_probability, record.actual_outcome)
+                        )
                         break
 
         # Calculate calibration error
@@ -288,7 +319,9 @@ class DynamicWeightAdjuster:
         for i, predictions in bin_data.items():
             if predictions:
                 avg_predicted = statistics.mean([p[0] for p in predictions])
-                avg_actual = statistics.mean([1.0 if p[1] else 0.0 for p in predictions])
+                avg_actual = statistics.mean(
+                    [1.0 if p[1] else 0.0 for p in predictions]
+                )
                 error = abs(avg_predicted - avg_actual)
                 calibration_error += error * len(predictions)
                 total_predictions += len(predictions)
@@ -301,7 +334,9 @@ class DynamicWeightAdjuster:
         # Convert to score (lower error = higher score)
         return max(0.0, 1.0 - calibration_error * 2)
 
-    def _calculate_confidence_correlation(self, records: List[PerformanceRecord]) -> float:
+    def _calculate_confidence_correlation(
+        self, records: List[PerformanceRecord]
+    ) -> float:
         """Calculate correlation between confidence and accuracy."""
         if len(records) < 5:
             return 0.0
@@ -317,7 +352,10 @@ class DynamicWeightAdjuster:
             mean_conf = statistics.mean(confidences)
             mean_acc = statistics.mean(accuracies)
 
-            numerator = sum((c - mean_conf) * (a - mean_acc) for c, a in zip(confidences, accuracies))
+            numerator = sum(
+                (c - mean_conf) * (a - mean_acc)
+                for c, a in zip(confidences, accuracies)
+            )
 
             conf_var = sum((c - mean_conf) ** 2 for c in confidences)
             acc_var = sum((a - mean_acc) ** 2 for a in accuracies)
@@ -341,8 +379,12 @@ class DynamicWeightAdjuster:
         older_records = records[:mid_point]
         newer_records = records[mid_point:]
 
-        older_brier = statistics.mean([r.brier_score for r in older_records if r.brier_score is not None])
-        newer_brier = statistics.mean([r.brier_score for r in newer_records if r.brier_score is not None])
+        older_brier = statistics.mean(
+            [r.brier_score for r in older_records if r.brier_score is not None]
+        )
+        newer_brier = statistics.mean(
+            [r.brier_score for r in newer_records if r.brier_score is not None]
+        )
 
         # Lower Brier score is better, so improvement is negative change
         trend = older_brier - newer_brier
@@ -368,7 +410,9 @@ class DynamicWeightAdjuster:
 
         return consistency
 
-    def _identify_specialization_areas(self, records: List[PerformanceRecord]) -> List[str]:
+    def _identify_specialization_areas(
+        self, records: List[PerformanceRecord]
+    ) -> List[str]:
         """Identify areas where agent performs particularly well."""
         # Simplified implementation - could be enhanced with question categorization
         method_performance = {}
@@ -389,11 +433,13 @@ class DynamicWeightAdjuster:
 
         return specializations
 
-    def _calculate_recommended_weight(self,
-                                    recent_brier: float,
-                                    performance_trend: float,
-                                    consistency_score: float,
-                                    recent_predictions: int) -> float:
+    def _calculate_recommended_weight(
+        self,
+        recent_brier: float,
+        performance_trend: float,
+        consistency_score: float,
+        recent_predictions: int,
+    ) -> float:
         """Calculate recommended weight for an agent."""
         if recent_predictions < self.min_predictions_for_weight:
             return 0.1  # Low weight for insufficient data
@@ -411,14 +457,18 @@ class DynamicWeightAdjuster:
         sample_adjustment = min(1.0, recent_predictions / 20.0)
 
         # Combine adjustments
-        recommended_weight = base_weight * trend_adjustment * consistency_adjustment * sample_adjustment
+        recommended_weight = (
+            base_weight * trend_adjustment * consistency_adjustment * sample_adjustment
+        )
 
         # Clamp to reasonable range
         return max(0.05, min(2.0, recommended_weight))
 
-    def get_dynamic_weights(self,
-                           agent_names: List[str],
-                           strategy: WeightAdjustmentStrategy = WeightAdjustmentStrategy.ADAPTIVE_LEARNING_RATE) -> Dict[str, float]:
+    def get_dynamic_weights(
+        self,
+        agent_names: List[str],
+        strategy: WeightAdjustmentStrategy = WeightAdjustmentStrategy.ADAPTIVE_LEARNING_RATE,
+    ) -> Dict[str, float]:
         """
         Get dynamically adjusted weights for a list of agents.
 
@@ -441,7 +491,10 @@ class DynamicWeightAdjuster:
 
         for agent_name in agent_names:
             profile = self.agent_profiles.get(agent_name)
-            if profile and profile.recent_predictions >= self.min_predictions_for_weight:
+            if (
+                profile
+                and profile.recent_predictions >= self.min_predictions_for_weight
+            ):
                 # Exponential decay based on Brier score
                 decay_factor = math.exp(-profile.recent_brier_score * 5)
                 weights[agent_name] = decay_factor
@@ -465,7 +518,10 @@ class DynamicWeightAdjuster:
 
         for agent_name in agent_names:
             profile = self.agent_profiles.get(agent_name)
-            if profile and profile.recent_predictions >= self.min_predictions_for_weight:
+            if (
+                profile
+                and profile.recent_predictions >= self.min_predictions_for_weight
+            ):
                 # Linear decay: better performance (lower Brier) = higher weight
                 weight = max(0.1, 1.0 - profile.recent_brier_score * 2)
                 weights[agent_name] = weight
@@ -488,7 +544,10 @@ class DynamicWeightAdjuster:
 
         for agent_name in agent_names:
             profile = self.agent_profiles.get(agent_name)
-            if profile and profile.recent_predictions >= self.min_predictions_for_weight:
+            if (
+                profile
+                and profile.recent_predictions >= self.min_predictions_for_weight
+            ):
                 brier = profile.recent_brier_score
 
                 if brier <= self.performance_thresholds["excellent"]:
@@ -522,9 +581,16 @@ class DynamicWeightAdjuster:
         agent_scores = {}
         for agent_name in agent_names:
             profile = self.agent_profiles.get(agent_name)
-            if profile and profile.recent_predictions >= self.min_predictions_for_weight:
+            if (
+                profile
+                and profile.recent_predictions >= self.min_predictions_for_weight
+            ):
                 # Combined score: lower Brier + positive trend + consistency
-                score = (1.0 - profile.recent_brier_score) + profile.performance_trend * 0.2 + profile.consistency_score * 0.3
+                score = (
+                    (1.0 - profile.recent_brier_score)
+                    + profile.performance_trend * 0.2
+                    + profile.consistency_score * 0.3
+                )
                 agent_scores[agent_name] = score
             else:
                 agent_scores[agent_name] = 0.5
@@ -548,13 +614,18 @@ class DynamicWeightAdjuster:
 
         return weights
 
-    def _adaptive_learning_rate_weights(self, agent_names: List[str]) -> Dict[str, float]:
+    def _adaptive_learning_rate_weights(
+        self, agent_names: List[str]
+    ) -> Dict[str, float]:
         """Calculate weights using adaptive learning rate based on multiple factors."""
         weights = {}
 
         for agent_name in agent_names:
             profile = self.agent_profiles.get(agent_name)
-            if profile and profile.recent_predictions >= self.min_predictions_for_weight:
+            if (
+                profile
+                and profile.recent_predictions >= self.min_predictions_for_weight
+            ):
                 # Use the pre-calculated recommended weight
                 weights[agent_name] = profile.recommended_weight
             else:
@@ -584,7 +655,9 @@ class DynamicWeightAdjuster:
         if not profile:
             return False, "No performance data available"
 
-        if profile.recent_predictions < 5:  # Lowered threshold for more sensitive detection
+        if (
+            profile.recent_predictions < 5
+        ):  # Lowered threshold for more sensitive detection
             return False, "Insufficient recent predictions for degradation analysis"
 
         # Check multiple indicators with enhanced sensitivity
@@ -596,11 +669,15 @@ class DynamicWeightAdjuster:
 
         # Recent vs overall performance (more sensitive)
         if profile.recent_brier_score > profile.overall_brier_score * 1.15:
-            degradation_indicators.append("Recent performance significantly worse than overall")
+            degradation_indicators.append(
+                "Recent performance significantly worse than overall"
+            )
 
         # Absolute performance threshold
         if profile.recent_brier_score > 0.35:
-            degradation_indicators.append("Recent performance below acceptable threshold")
+            degradation_indicators.append(
+                "Recent performance below acceptable threshold"
+            )
 
         # Consistency drop (more sensitive)
         if profile.consistency_score < 0.4:
@@ -616,14 +693,20 @@ class DynamicWeightAdjuster:
 
         # Require only 1 indicator for degradation (more sensitive)
         is_degrading = len(degradation_indicators) >= 1
-        explanation = "; ".join(degradation_indicators) if degradation_indicators else "Performance appears stable"
+        explanation = (
+            "; ".join(degradation_indicators)
+            if degradation_indicators
+            else "Performance appears stable"
+        )
 
         return is_degrading, explanation
 
-    def recommend_ensemble_composition(self,
-                                     available_agents: List[str],
-                                     target_size: Optional[int] = None,
-                                     diversity_weight: float = 0.3) -> EnsembleComposition:
+    def recommend_ensemble_composition(
+        self,
+        available_agents: List[str],
+        target_size: Optional[int] = None,
+        diversity_weight: float = 0.3,
+    ) -> EnsembleComposition:
         """
         Recommend optimal ensemble composition.
 
@@ -637,9 +720,13 @@ class DynamicWeightAdjuster:
         """
         if not available_agents:
             return EnsembleComposition(
-                agent_weights={}, total_agents=0, active_agents=0,
-                diversity_score=0.0, expected_performance=0.0,
-                confidence_level=0.0, composition_rationale="No agents available"
+                agent_weights={},
+                total_agents=0,
+                active_agents=0,
+                diversity_score=0.0,
+                expected_performance=0.0,
+                confidence_level=0.0,
+                composition_rationale="No agents available",
             )
 
         # Get performance-based weights
@@ -655,20 +742,28 @@ class DynamicWeightAdjuster:
         for agent in available_agents:
             perf_score = performance_weights.get(agent, 0.5)
             div_score = diversity_scores.get(agent, 0.5)
-            combined_scores[agent] = (1 - diversity_weight) * perf_score + diversity_weight * div_score
+            combined_scores[agent] = (
+                1 - diversity_weight
+            ) * perf_score + diversity_weight * div_score
 
         # Select agents
         if target_size is None:
             # Automatic selection: include agents above threshold
             threshold = statistics.mean(combined_scores.values()) * 0.8
-            selected_agents = [agent for agent, score in combined_scores.items() if score >= threshold]
+            selected_agents = [
+                agent for agent, score in combined_scores.items() if score >= threshold
+            ]
             # Ensure at least 2 agents
             if len(selected_agents) < 2:
-                selected_agents = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:2]
+                selected_agents = sorted(
+                    combined_scores.items(), key=lambda x: x[1], reverse=True
+                )[:2]
                 selected_agents = [agent for agent, _ in selected_agents]
         else:
             # Select top N agents
-            sorted_agents = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
+            sorted_agents = sorted(
+                combined_scores.items(), key=lambda x: x[1], reverse=True
+            )
             selected_agents = [agent for agent, _ in sorted_agents[:target_size]]
 
         # Calculate final weights for selected agents
@@ -698,7 +793,7 @@ class DynamicWeightAdjuster:
             diversity_score=diversity_score,
             expected_performance=expected_performance,
             confidence_level=confidence_level,
-            composition_rationale=rationale
+            composition_rationale=rationale,
         )
 
         # Store in history
@@ -708,7 +803,9 @@ class DynamicWeightAdjuster:
 
         return composition
 
-    def _calculate_agent_diversity_scores(self, agent_names: List[str]) -> Dict[str, float]:
+    def _calculate_agent_diversity_scores(
+        self, agent_names: List[str]
+    ) -> Dict[str, float]:
         """Calculate diversity scores for agents."""
         diversity_scores = {}
 
@@ -719,7 +816,9 @@ class DynamicWeightAdjuster:
                 diversity = len(profile.specialization_areas) * 0.3
 
                 # Add method diversity (simplified)
-                agent_records = [r for r in self.performance_records if r.agent_name == agent]
+                agent_records = [
+                    r for r in self.performance_records if r.agent_name == agent
+                ]
                 methods = set(r.method for r in agent_records[-20:])  # Recent methods
                 method_diversity = len(methods) * 0.2
 
@@ -737,7 +836,9 @@ class DynamicWeightAdjuster:
         # Method diversity
         all_methods = set()
         for agent in selected_agents:
-            agent_records = [r for r in self.performance_records if r.agent_name == agent]
+            agent_records = [
+                r for r in self.performance_records if r.agent_name == agent
+            ]
             agent_methods = set(r.method for r in agent_records[-10:])
             all_methods.update(agent_methods)
 
@@ -801,7 +902,9 @@ class DynamicWeightAdjuster:
                 # Trend factor
                 trend_factor = max(0.0, 0.5 + profile.performance_trend * 0.5)
 
-                agent_confidence = (data_factor + consistency_factor + trend_factor) / 3.0
+                agent_confidence = (
+                    data_factor + consistency_factor + trend_factor
+                ) / 3.0
                 confidence_factors.append(agent_confidence)
 
         if confidence_factors:
@@ -809,11 +912,13 @@ class DynamicWeightAdjuster:
         else:
             return 0.5
 
-    def _generate_composition_rationale(self,
-                                      selected_agents: List[str],
-                                      weights: Dict[str, float],
-                                      diversity_score: float,
-                                      expected_performance: float) -> str:
+    def _generate_composition_rationale(
+        self,
+        selected_agents: List[str],
+        weights: Dict[str, float],
+        diversity_score: float,
+        expected_performance: float,
+    ) -> str:
         """Generate human-readable rationale for ensemble composition."""
         rationale = f"Selected {len(selected_agents)} agents for ensemble:\n\n"
 
@@ -838,9 +943,13 @@ class DynamicWeightAdjuster:
             rationale += "- Low diversity may indicate similar approaches; consider adding diverse agents\n"
 
         if expected_performance > 0.8:
-            rationale += "- High expected performance based on recent agent track records\n"
+            rationale += (
+                "- High expected performance based on recent agent track records\n"
+            )
         elif expected_performance < 0.6:
-            rationale += "- Moderate expected performance; monitor and adjust as needed\n"
+            rationale += (
+                "- Moderate expected performance; monitor and adjust as needed\n"
+            )
 
         return rationale
 
@@ -851,7 +960,7 @@ class DynamicWeightAdjuster:
             "total_predictions": len(self.performance_records),
             "agent_profiles": {},
             "overall_metrics": {},
-            "degradation_alerts": []
+            "degradation_alerts": [],
         }
 
         # Agent profiles
@@ -864,35 +973,50 @@ class DynamicWeightAdjuster:
                 "performance_trend": profile.performance_trend,
                 "consistency_score": profile.consistency_score,
                 "current_weight": profile.current_weight,
-                "recommended_weight": profile.recommended_weight
+                "recommended_weight": profile.recommended_weight,
             }
 
             # Check for degradation
             is_degrading, explanation = self.detect_performance_degradation(agent_name)
             if is_degrading:
-                summary["degradation_alerts"].append({
-                    "agent": agent_name,
-                    "explanation": explanation
-                })
+                summary["degradation_alerts"].append(
+                    {"agent": agent_name, "explanation": explanation}
+                )
 
         # Overall metrics
         if self.performance_records:
-            all_brier_scores = [r.brier_score for r in self.performance_records if r.brier_score is not None]
-            all_accuracies = [r.accuracy for r in self.performance_records if r.accuracy is not None]
+            all_brier_scores = [
+                r.brier_score
+                for r in self.performance_records
+                if r.brier_score is not None
+            ]
+            all_accuracies = [
+                r.accuracy for r in self.performance_records if r.accuracy is not None
+            ]
 
             if all_brier_scores:
-                summary["overall_metrics"]["mean_brier_score"] = statistics.mean(all_brier_scores)
-                summary["overall_metrics"]["brier_score_std"] = statistics.stdev(all_brier_scores) if len(all_brier_scores) > 1 else 0.0
+                summary["overall_metrics"]["mean_brier_score"] = statistics.mean(
+                    all_brier_scores
+                )
+                summary["overall_metrics"]["brier_score_std"] = (
+                    statistics.stdev(all_brier_scores)
+                    if len(all_brier_scores) > 1
+                    else 0.0
+                )
 
             if all_accuracies:
-                summary["overall_metrics"]["mean_accuracy"] = statistics.mean(all_accuracies)
+                summary["overall_metrics"]["mean_accuracy"] = statistics.mean(
+                    all_accuracies
+                )
 
         return summary
 
     def reset_agent_performance(self, agent_name: str) -> None:
         """Reset performance tracking for a specific agent."""
         # Remove records for the agent
-        self.performance_records = [r for r in self.performance_records if r.agent_name != agent_name]
+        self.performance_records = [
+            r for r in self.performance_records if r.agent_name != agent_name
+        ]
 
         # Remove profile
         if agent_name in self.agent_profiles:
@@ -905,13 +1029,15 @@ class DynamicWeightAdjuster:
         history = []
 
         for composition in self.composition_history:
-            history.append({
-                "agent_weights": composition.agent_weights,
-                "active_agents": composition.active_agents,
-                "diversity_score": composition.diversity_score,
-                "expected_performance": composition.expected_performance,
-                "confidence_level": composition.confidence_level
-            })
+            history.append(
+                {
+                    "agent_weights": composition.agent_weights,
+                    "active_agents": composition.active_agents,
+                    "diversity_score": composition.diversity_score,
+                    "expected_performance": composition.expected_performance,
+                    "confidence_level": composition.confidence_level,
+                }
+            )
 
         return history
 
@@ -935,7 +1061,9 @@ class DynamicWeightAdjuster:
                 degraded_agents.append(agent)
 
         if degraded_agents:
-            rebalancing_reasons.append(f"Performance degradation detected in agents: {', '.join(degraded_agents)}")
+            rebalancing_reasons.append(
+                f"Performance degradation detected in agents: {', '.join(degraded_agents)}"
+            )
 
         # Check for significant performance variance
         if len(current_agents) > 1:
@@ -948,7 +1076,9 @@ class DynamicWeightAdjuster:
             if len(recent_scores) > 1:
                 score_variance = statistics.variance(recent_scores)
                 if score_variance > 0.05:  # High variance threshold
-                    rebalancing_reasons.append("High performance variance between agents")
+                    rebalancing_reasons.append(
+                        "High performance variance between agents"
+                    )
 
         # Check for new high-performing agents not in current ensemble
         all_agents = list(self.agent_profiles.keys())
@@ -961,7 +1091,9 @@ class DynamicWeightAdjuster:
                 for agent in current_agents:
                     profile = self.agent_profiles.get(agent)
                     if profile:
-                        current_scores.append(1.0 - profile.recent_brier_score)  # Convert to performance score
+                        current_scores.append(
+                            1.0 - profile.recent_brier_score
+                        )  # Convert to performance score
                 if current_scores:
                     current_avg_performance = statistics.mean(current_scores)
 
@@ -971,7 +1103,9 @@ class DynamicWeightAdjuster:
                 if profile and profile.recent_predictions >= 5:
                     agent_performance = 1.0 - profile.recent_brier_score
                     if agent_performance > current_avg_performance * 1.2:
-                        rebalancing_reasons.append(f"High-performing agent {agent} available for inclusion")
+                        rebalancing_reasons.append(
+                            f"High-performing agent {agent} available for inclusion"
+                        )
                         break
 
         # Check time since last rebalancing
@@ -980,16 +1114,22 @@ class DynamicWeightAdjuster:
             pass
 
         should_rebalance = len(rebalancing_reasons) > 0
-        reason = "; ".join(rebalancing_reasons) if rebalancing_reasons else "No rebalancing needed"
+        reason = (
+            "; ".join(rebalancing_reasons)
+            if rebalancing_reasons
+            else "No rebalancing needed"
+        )
 
         return should_rebalance, reason
 
-    def select_optimal_agents_realtime(self,
-                                     available_agents: List[str],
-                                     max_agents: int = 5,
-                                     performance_weight: float = 0.7,
-                                     diversity_weight: float = 0.2,
-                                     recency_weight: float = 0.1) -> List[str]:
+    def select_optimal_agents_realtime(
+        self,
+        available_agents: List[str],
+        max_agents: int = 5,
+        performance_weight: float = 0.7,
+        diversity_weight: float = 0.2,
+        recency_weight: float = 0.1,
+    ) -> List[str]:
         """
         Select optimal agents for real-time ensemble composition.
 
@@ -1040,16 +1180,18 @@ class DynamicWeightAdjuster:
 
             # Combined score
             combined_score = (
-                performance_weight * performance_score +
-                diversity_weight * diversity_score +
-                recency_weight * recency_score
+                performance_weight * performance_score
+                + diversity_weight * diversity_score
+                + recency_weight * recency_score
             )
 
             agent_scores[agent] = combined_score
 
         # Sort agents by score and select top performers
         sorted_agents = sorted(agent_scores.items(), key=lambda x: x[1], reverse=True)
-        selected_agents = [agent for agent, score in sorted_agents[:max_agents] if score > 0.2]
+        selected_agents = [
+            agent for agent, score in sorted_agents[:max_agents] if score > 0.2
+        ]
 
         # Ensure minimum diversity if possible
         if len(selected_agents) < 2 and len(available_agents) >= 2:
@@ -1064,14 +1206,14 @@ class DynamicWeightAdjuster:
             available_agents=len(available_agents),
             selected_agents=len(selected_agents),
             selected=selected_agents,
-            scores={agent: agent_scores[agent] for agent in selected_agents}
+            scores={agent: agent_scores[agent] for agent in selected_agents},
         )
 
         return selected_agents
 
-    def trigger_automatic_rebalancing(self,
-                                    current_agents: List[str],
-                                    available_agents: List[str]) -> Optional[EnsembleComposition]:
+    def trigger_automatic_rebalancing(
+        self, current_agents: List[str], available_agents: List[str]
+    ) -> Optional[EnsembleComposition]:
         """
         Trigger automatic rebalancing if conditions are met.
 
@@ -1101,7 +1243,7 @@ class DynamicWeightAdjuster:
         new_composition = self.recommend_ensemble_composition(
             optimal_agents,
             target_size=min(5, len(optimal_agents)),
-            diversity_weight=0.3
+            diversity_weight=0.3,
         )
 
         # Add rebalancing metadata
@@ -1111,12 +1253,14 @@ class DynamicWeightAdjuster:
             "Automatic rebalancing completed",
             new_agents=list(new_composition.agent_weights.keys()),
             previous_agents=current_agents,
-            reason=reason
+            reason=reason,
         )
 
         return new_composition
 
-    def get_rebalancing_recommendations(self, current_agents: List[str]) -> Dict[str, Any]:
+    def get_rebalancing_recommendations(
+        self, current_agents: List[str]
+    ) -> Dict[str, Any]:
         """
         Get recommendations for ensemble rebalancing.
 
@@ -1132,7 +1276,7 @@ class DynamicWeightAdjuster:
             "degraded_agents": [],
             "recommended_additions": [],
             "recommended_removals": [],
-            "performance_summary": {}
+            "performance_summary": {},
         }
 
         # Check rebalancing need
@@ -1144,10 +1288,9 @@ class DynamicWeightAdjuster:
         for agent in current_agents:
             is_degrading, explanation = self.detect_performance_degradation(agent)
             if is_degrading:
-                recommendations["degraded_agents"].append({
-                    "agent": agent,
-                    "explanation": explanation
-                })
+                recommendations["degraded_agents"].append(
+                    {"agent": agent, "explanation": explanation}
+                )
 
         # Find potential additions
         all_agents = list(self.agent_profiles.keys())
@@ -1157,26 +1300,32 @@ class DynamicWeightAdjuster:
             profile = self.agent_profiles.get(agent)
             if profile and profile.recent_predictions >= 5:
                 if profile.recent_brier_score < 0.2:  # Good performance threshold
-                    recommendations["recommended_additions"].append({
-                        "agent": agent,
-                        "recent_brier_score": profile.recent_brier_score,
-                        "performance_trend": profile.performance_trend,
-                        "recent_predictions": profile.recent_predictions
-                    })
+                    recommendations["recommended_additions"].append(
+                        {
+                            "agent": agent,
+                            "recent_brier_score": profile.recent_brier_score,
+                            "performance_trend": profile.performance_trend,
+                            "recent_predictions": profile.recent_predictions,
+                        }
+                    )
 
         # Recommend removals based on poor performance
         for agent in current_agents:
             profile = self.agent_profiles.get(agent)
             if profile:
-                if (profile.recent_brier_score > 0.4 or
-                    profile.performance_trend < -0.3 or
-                    profile.consistency_score < 0.2):
-                    recommendations["recommended_removals"].append({
-                        "agent": agent,
-                        "recent_brier_score": profile.recent_brier_score,
-                        "performance_trend": profile.performance_trend,
-                        "consistency_score": profile.consistency_score
-                    })
+                if (
+                    profile.recent_brier_score > 0.4
+                    or profile.performance_trend < -0.3
+                    or profile.consistency_score < 0.2
+                ):
+                    recommendations["recommended_removals"].append(
+                        {
+                            "agent": agent,
+                            "recent_brier_score": profile.recent_brier_score,
+                            "performance_trend": profile.performance_trend,
+                            "consistency_score": profile.consistency_score,
+                        }
+                    )
 
         # Performance summary
         if current_agents:
@@ -1191,9 +1340,13 @@ class DynamicWeightAdjuster:
             if brier_scores:
                 recommendations["performance_summary"] = {
                     "mean_brier_score": statistics.mean(brier_scores),
-                    "brier_score_variance": statistics.variance(brier_scores) if len(brier_scores) > 1 else 0.0,
+                    "brier_score_variance": (
+                        statistics.variance(brier_scores)
+                        if len(brier_scores) > 1
+                        else 0.0
+                    ),
                     "mean_trend": statistics.mean(trends) if trends else 0.0,
-                    "agents_count": len(current_agents)
+                    "agents_count": len(current_agents),
                 }
 
         return recommendations

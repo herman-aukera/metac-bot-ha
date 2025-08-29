@@ -1,11 +1,18 @@
 """
 Tests for Cost Optimization Service.
 """
-import pytest
+
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.domain.services.cost_optimization_service import (
-    CostOptimizationService, TaskPriority, TaskComplexity,
-    TaskPrioritizationResult, ModelSelectionResult, ResearchDepthConfig
+    CostOptimizationService,
+    ModelSelectionResult,
+    ResearchDepthConfig,
+    TaskComplexity,
+    TaskPrioritizationResult,
+    TaskPriority,
 )
 from src.infrastructure.config.operation_modes import OperationMode
 
@@ -17,7 +24,7 @@ class TestCostOptimizationService:
         """Setup test fixtures."""
         self.service = CostOptimizationService()
 
-    @patch('src.domain.services.cost_optimization_service.budget_manager')
+    @patch("src.domain.services.cost_optimization_service.budget_manager")
     def test_optimize_model_selection_normal_mode(self, mock_budget_manager):
         """Test model selection optimization in normal mode."""
         # Mock budget status
@@ -29,14 +36,18 @@ class TestCostOptimizationService:
             task_type="forecast",
             original_model="claude-3-5-sonnet",
             operation_mode=OperationMode.NORMAL,
-            task_complexity=TaskComplexity.MEDIUM
+            task_complexity=TaskComplexity.MEDIUM,
         )
 
         assert isinstance(result, ModelSelectionResult)
         assert result.original_model == "claude-3-5-sonnet"
-        assert result.selected_model in ["openai/gpt-4o", "claude-3-5-sonnet", "openai/gpt-4o-mini"]
+        assert result.selected_model in [
+            "openai/gpt-4o",
+            "claude-3-5-sonnet",
+            "openai/gpt-4o-mini",
+        ]
 
-    @patch('src.domain.services.cost_optimization_service.budget_manager')
+    @patch("src.domain.services.cost_optimization_service.budget_manager")
     def test_optimize_model_selection_emergency_mode(self, mock_budget_manager):
         """Test model selection optimization in emergency mode."""
         # Mock budget status
@@ -48,14 +59,14 @@ class TestCostOptimizationService:
             task_type="research",
             original_model="openai/gpt-4o",
             operation_mode=OperationMode.EMERGENCY,
-            task_complexity=TaskComplexity.HIGH
+            task_complexity=TaskComplexity.HIGH,
         )
 
         assert isinstance(result, ModelSelectionResult)
         assert result.selected_model in ["openai/gpt-4o-mini", "claude-3-haiku"]
         assert result.cost_reduction >= 0.0
 
-    @patch('src.domain.services.cost_optimization_service.budget_manager')
+    @patch("src.domain.services.cost_optimization_service.budget_manager")
     def test_prioritize_task_normal_mode(self, mock_budget_manager):
         """Test task prioritization in normal mode."""
         # Mock budget status
@@ -68,7 +79,7 @@ class TestCostOptimizationService:
             task_priority=TaskPriority.HIGH,
             task_complexity=TaskComplexity.MEDIUM,
             operation_mode=OperationMode.NORMAL,
-            estimated_tokens=1000
+            estimated_tokens=1000,
         )
 
         assert isinstance(result, TaskPrioritizationResult)
@@ -76,7 +87,7 @@ class TestCostOptimizationService:
         assert result.priority_score > 0.0
         assert "approved" in result.reason.lower()
 
-    @patch('src.domain.services.cost_optimization_service.budget_manager')
+    @patch("src.domain.services.cost_optimization_service.budget_manager")
     def test_prioritize_task_emergency_mode_low_priority(self, mock_budget_manager):
         """Test task prioritization rejects low priority in emergency mode."""
         # Mock budget status
@@ -89,7 +100,7 @@ class TestCostOptimizationService:
             task_priority=TaskPriority.LOW,
             task_complexity=TaskComplexity.MINIMAL,
             operation_mode=OperationMode.EMERGENCY,
-            estimated_tokens=500
+            estimated_tokens=500,
         )
 
         assert isinstance(result, TaskPrioritizationResult)
@@ -98,17 +109,13 @@ class TestCostOptimizationService:
 
     def test_adapt_research_depth_normal_mode(self):
         """Test research depth adaptation in normal mode."""
-        base_config = {
-            "max_sources": 10,
-            "max_depth": 3,
-            "max_iterations": 5
-        }
+        base_config = {"max_sources": 10, "max_depth": 3, "max_iterations": 5}
 
         result = self.service.adapt_research_depth(
             base_config=base_config,
             operation_mode=OperationMode.NORMAL,
             task_complexity=TaskComplexity.MEDIUM,
-            budget_remaining=0.8
+            budget_remaining=0.8,
         )
 
         assert isinstance(result, ResearchDepthConfig)
@@ -119,17 +126,13 @@ class TestCostOptimizationService:
 
     def test_adapt_research_depth_emergency_mode(self):
         """Test research depth adaptation in emergency mode."""
-        base_config = {
-            "max_sources": 10,
-            "max_depth": 3,
-            "max_iterations": 5
-        }
+        base_config = {"max_sources": 10, "max_depth": 3, "max_iterations": 5}
 
         result = self.service.adapt_research_depth(
             base_config=base_config,
             operation_mode=OperationMode.EMERGENCY,
             task_complexity=TaskComplexity.HIGH,
-            budget_remaining=0.05
+            budget_remaining=0.05,
         )
 
         assert isinstance(result, ResearchDepthConfig)
@@ -141,8 +144,7 @@ class TestCostOptimizationService:
     def test_get_graceful_degradation_strategy_normal(self):
         """Test graceful degradation strategy in normal mode."""
         result = self.service.get_graceful_degradation_strategy(
-            operation_mode=OperationMode.NORMAL,
-            budget_remaining=0.8
+            operation_mode=OperationMode.NORMAL, budget_remaining=0.8
         )
 
         assert result["complexity_analysis"] is True
@@ -153,8 +155,7 @@ class TestCostOptimizationService:
     def test_get_graceful_degradation_strategy_emergency(self):
         """Test graceful degradation strategy in emergency mode."""
         result = self.service.get_graceful_degradation_strategy(
-            operation_mode=OperationMode.EMERGENCY,
-            budget_remaining=0.03
+            operation_mode=OperationMode.EMERGENCY, budget_remaining=0.03
         )
 
         assert result["complexity_analysis"] is False

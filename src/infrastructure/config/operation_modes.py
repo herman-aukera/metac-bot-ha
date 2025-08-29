@@ -2,20 +2,22 @@
 Budget-aware operation modes for tournament API optimization.
 Implements normal, conservative, and emergency operation modes with automatic switching.
 """
+
 import logging
-from enum import Enum
-from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, Optional, Tuple
 
 from .budget_manager import budget_manager
-from .task_complexity_analyzer import task_complexity_analyzer, ComplexityLevel
+from .task_complexity_analyzer import ComplexityLevel, task_complexity_analyzer
 
 logger = logging.getLogger(__name__)
 
 
 class OperationMode(Enum):
     """Available operation modes based on budget utilization."""
+
     NORMAL = "normal"
     CONSERVATIVE = "conservative"
     EMERGENCY = "emergency"
@@ -24,6 +26,7 @@ class OperationMode(Enum):
 @dataclass
 class OperationModeConfig:
     """Configuration for each operation mode."""
+
     mode: OperationMode
     budget_threshold: float  # Budget utilization threshold to trigger this mode
     max_questions_per_batch: int
@@ -39,6 +42,7 @@ class OperationModeConfig:
 @dataclass
 class ModeTransition:
     """Record of operation mode transitions."""
+
     timestamp: datetime
     from_mode: OperationMode
     to_mode: OperationMode
@@ -62,7 +66,9 @@ class OperationModeManager:
         # Initialize with current budget status
         self._update_mode_based_on_budget()
 
-        logger.info(f"Operation mode manager initialized in {self.current_mode.value} mode")
+        logger.info(
+            f"Operation mode manager initialized in {self.current_mode.value} mode"
+        )
 
     def _setup_mode_configurations(self) -> Dict[OperationMode, OperationModeConfig]:
         """Setup configurations for each operation mode."""
@@ -77,7 +83,7 @@ class OperationModeManager:
                 timeout_seconds=90,
                 enable_complexity_analysis=True,
                 skip_low_priority_questions=False,
-                description="Full functionality with optimal model selection"
+                description="Full functionality with optimal model selection",
             ),
             OperationMode.CONSERVATIVE: OperationModeConfig(
                 mode=OperationMode.CONSERVATIVE,
@@ -89,7 +95,7 @@ class OperationModeManager:
                 timeout_seconds=60,
                 enable_complexity_analysis=True,
                 skip_low_priority_questions=True,
-                description="Reduced functionality to conserve budget"
+                description="Reduced functionality to conserve budget",
             ),
             OperationMode.EMERGENCY: OperationModeConfig(
                 mode=OperationMode.EMERGENCY,
@@ -101,15 +107,17 @@ class OperationModeManager:
                 timeout_seconds=45,
                 enable_complexity_analysis=False,  # Disable to save processing
                 skip_low_priority_questions=True,
-                description="Minimal functionality to preserve remaining budget"
-            )
+                description="Minimal functionality to preserve remaining budget",
+            ),
         }
 
     def get_current_mode(self) -> OperationMode:
         """Get the current operation mode."""
         return self.current_mode
 
-    def get_mode_config(self, mode: Optional[OperationMode] = None) -> OperationModeConfig:
+    def get_mode_config(
+        self, mode: Optional[OperationMode] = None
+    ) -> OperationModeConfig:
         """Get configuration for specified mode or current mode."""
         target_mode = mode or self.current_mode
         return self.mode_configs[target_mode]
@@ -123,7 +131,9 @@ class OperationModeManager:
         new_mode = self._determine_mode_from_utilization(utilization)
 
         if new_mode != self.current_mode:
-            transition = self._transition_to_mode(new_mode, utilization, "budget_threshold")
+            transition = self._transition_to_mode(
+                new_mode, utilization, "budget_threshold"
+            )
             return True, transition
 
         return False, None
@@ -132,13 +142,17 @@ class OperationModeManager:
         """Determine appropriate operation mode based on budget utilization."""
         if utilization >= self.mode_configs[OperationMode.EMERGENCY].budget_threshold:
             return OperationMode.EMERGENCY
-        elif utilization >= self.mode_configs[OperationMode.CONSERVATIVE].budget_threshold:
+        elif (
+            utilization
+            >= self.mode_configs[OperationMode.CONSERVATIVE].budget_threshold
+        ):
             return OperationMode.CONSERVATIVE
         else:
             return OperationMode.NORMAL
 
-    def _transition_to_mode(self, new_mode: OperationMode, utilization: float,
-                           reason: str) -> ModeTransition:
+    def _transition_to_mode(
+        self, new_mode: OperationMode, utilization: float, reason: str
+    ) -> ModeTransition:
         """Transition to a new operation mode."""
         old_mode = self.current_mode
 
@@ -147,16 +161,19 @@ class OperationModeManager:
             from_mode=old_mode,
             to_mode=new_mode,
             budget_utilization=utilization,
-            trigger_reason=reason
+            trigger_reason=reason,
         )
 
         self.mode_transitions.append(transition)
         self.current_mode = new_mode
 
-        logger.warning(f"Operation mode changed: {old_mode.value} → {new_mode.value} "
-                      f"(utilization: {utilization:.1%}, reason: {reason})")
+        logger.warning(
+            f"Operation mode changed: {old_mode.value} → {new_mode.value} "
+            f"(utilization: {utilization:.1%}, reason: {reason})"
+        )
 
         return transition
+
     def _update_mode_based_on_budget(self):
         """Update mode based on current budget status."""
         budget_status = self.budget_manager.get_budget_status()
@@ -167,14 +184,18 @@ class OperationModeManager:
         if appropriate_mode != self.current_mode:
             self._transition_to_mode(appropriate_mode, utilization, "initialization")
 
-    def force_mode_transition(self, target_mode: OperationMode, reason: str = "manual") -> ModeTransition:
+    def force_mode_transition(
+        self, target_mode: OperationMode, reason: str = "manual"
+    ) -> ModeTransition:
         """Force transition to a specific mode (for testing or manual override)."""
         budget_status = self.budget_manager.get_budget_status()
         utilization = budget_status.utilization_percentage / 100.0
 
         return self._transition_to_mode(target_mode, utilization, reason)
 
-    def can_process_question(self, question_priority: str = "normal") -> Tuple[bool, str]:
+    def can_process_question(
+        self, question_priority: str = "normal"
+    ) -> Tuple[bool, str]:
         """Check if a question can be processed in current mode."""
         config = self.get_mode_config()
 
@@ -184,14 +205,21 @@ class OperationModeManager:
             return False, "No budget remaining"
 
         # In emergency mode, only process high priority questions
-        if (self.current_mode == OperationMode.EMERGENCY and
-            question_priority.lower() not in ["high", "critical"]):
-            return False, f"Emergency mode: skipping {question_priority} priority question"
+        if (
+            self.current_mode == OperationMode.EMERGENCY
+            and question_priority.lower() not in ["high", "critical"]
+        ):
+            return (
+                False,
+                f"Emergency mode: skipping {question_priority} priority question",
+            )
 
         # In conservative mode, skip low priority questions
-        if (self.current_mode == OperationMode.CONSERVATIVE and
-            config.skip_low_priority_questions and
-            question_priority.lower() == "low"):
+        if (
+            self.current_mode == OperationMode.CONSERVATIVE
+            and config.skip_low_priority_questions
+            and question_priority.lower() == "low"
+        ):
             return False, f"Conservative mode: skipping low priority question"
 
         return True, "Question can be processed"
@@ -224,6 +252,7 @@ class OperationModeManager:
                 return "openai/gpt-4o-mini"
 
         return recommended_model
+
     def get_processing_limits(self) -> Dict[str, Any]:
         """Get processing limits for current operation mode."""
         config = self.get_mode_config()
@@ -233,17 +262,21 @@ class OperationModeManager:
             "max_retries": config.max_retries,
             "timeout_seconds": config.timeout_seconds,
             "enable_complexity_analysis": config.enable_complexity_analysis,
-            "skip_low_priority_questions": config.skip_low_priority_questions
+            "skip_low_priority_questions": config.skip_low_priority_questions,
         }
 
-    def estimate_question_cost(self, question_text: str, task_type: str) -> Dict[str, Any]:
+    def estimate_question_cost(
+        self, question_text: str, task_type: str
+    ) -> Dict[str, Any]:
         """Estimate cost for processing a question in current mode."""
         config = self.get_mode_config()
 
         # Get complexity assessment if enabled
         complexity_assessment = None
         if config.enable_complexity_analysis:
-            complexity_assessment = self.complexity_analyzer.assess_question_complexity(question_text)
+            complexity_assessment = self.complexity_analyzer.assess_question_complexity(
+                question_text
+            )
 
         # Get model for task
         model = self.get_model_for_task(task_type, complexity_assessment)
@@ -251,7 +284,7 @@ class OperationModeManager:
         # Estimate tokens (simplified)
         base_tokens = {
             "research": {"input": 1200, "output": 800},
-            "forecast": {"input": 1000, "output": 500}
+            "forecast": {"input": 1000, "output": 500},
         }
 
         tokens = base_tokens.get(task_type, base_tokens["research"])
@@ -266,8 +299,12 @@ class OperationModeManager:
             "estimated_cost": estimated_cost,
             "input_tokens": tokens["input"],
             "output_tokens": tokens["output"],
-            "complexity": complexity_assessment.level.value if complexity_assessment else "unknown",
-            "operation_mode": self.current_mode.value
+            "complexity": (
+                complexity_assessment.level.value
+                if complexity_assessment
+                else "unknown"
+            ),
+            "operation_mode": self.current_mode.value,
         }
 
     def get_graceful_degradation_strategy(self) -> Dict[str, Any]:
@@ -278,28 +315,33 @@ class OperationModeManager:
         strategy = {
             "current_mode": self.current_mode.value,
             "budget_utilization": utilization,
-            "actions": []
+            "actions": [],
         }
 
         if utilization >= 0.95:
-            strategy["actions"].extend([
-                "Process only critical priority questions",
-                "Use minimal model (gpt-4o-mini) for all tasks",
-                "Disable complexity analysis",
-                "Reduce batch size to 2 questions",
-                "Single retry attempt only"
-            ])
+            strategy["actions"].extend(
+                [
+                    "Process only critical priority questions",
+                    "Use minimal model (gpt-4o-mini) for all tasks",
+                    "Disable complexity analysis",
+                    "Reduce batch size to 2 questions",
+                    "Single retry attempt only",
+                ]
+            )
         elif utilization >= 0.80:
-            strategy["actions"].extend([
-                "Skip low priority questions",
-                "Use cost-efficient models",
-                "Reduce batch size to 5 questions",
-                "Limit retries to 2 attempts"
-            ])
+            strategy["actions"].extend(
+                [
+                    "Skip low priority questions",
+                    "Use cost-efficient models",
+                    "Reduce batch size to 5 questions",
+                    "Limit retries to 2 attempts",
+                ]
+            )
         else:
             strategy["actions"].append("Normal operation - no degradation needed")
 
         return strategy
+
     def log_mode_status(self):
         """Log current operation mode status."""
         config = self.get_mode_config()
@@ -314,17 +356,23 @@ class OperationModeManager:
         logger.info(f"Forecast Model: {config.forecast_model}")
         logger.info(f"Max Retries: {config.max_retries}")
         logger.info(f"Timeout: {config.timeout_seconds}s")
-        logger.info(f"Complexity Analysis: {'Enabled' if config.enable_complexity_analysis else 'Disabled'}")
-        logger.info(f"Skip Low Priority: {'Yes' if config.skip_low_priority_questions else 'No'}")
+        logger.info(
+            f"Complexity Analysis: {'Enabled' if config.enable_complexity_analysis else 'Disabled'}"
+        )
+        logger.info(
+            f"Skip Low Priority: {'Yes' if config.skip_low_priority_questions else 'No'}"
+        )
 
         # Log recent transitions
         if self.mode_transitions:
             recent_transitions = self.mode_transitions[-3:]  # Last 3 transitions
             logger.info("Recent Mode Transitions:")
             for transition in recent_transitions:
-                logger.info(f"  {transition.timestamp.strftime('%H:%M:%S')}: "
-                           f"{transition.from_mode.value} → {transition.to_mode.value} "
-                           f"({transition.budget_utilization:.1%}, {transition.trigger_reason})")
+                logger.info(
+                    f"  {transition.timestamp.strftime('%H:%M:%S')}: "
+                    f"{transition.from_mode.value} → {transition.to_mode.value} "
+                    f"({transition.budget_utilization:.1%}, {transition.trigger_reason})"
+                )
 
     def get_mode_history(self) -> list[ModeTransition]:
         """Get history of mode transitions."""

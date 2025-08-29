@@ -1,16 +1,17 @@
 """Tests for AuthoritativeSourceManager."""
 
-import pytest
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from src.domain.services.authoritative_source_manager import (
-    AuthoritativeSourceManager,
-    AuthoritativeSource,
-    SourceType,
-    CredibilityFactor
-)
+import pytest
+
 from src.domain.entities.question import Question
+from src.domain.services.authoritative_source_manager import (
+    AuthoritativeSource,
+    AuthoritativeSourceManager,
+    CredibilityFactor,
+    SourceType,
+)
 
 
 @pytest.fixture
@@ -23,6 +24,7 @@ def source_manager():
 def sample_question():
     """Create sample question for testing."""
     from src.domain.entities.question import QuestionType
+
     return Question.create_new(
         metaculus_id=12345,
         title="Will AI achieve AGI by 2030?",
@@ -30,7 +32,7 @@ def sample_question():
         question_type=QuestionType.BINARY,
         url="https://metaculus.com/questions/12345",
         close_time=datetime.utcnow() + timedelta(days=365),
-        categories=["Technology", "AI"]
+        categories=["Technology", "AI"],
     )
 
 
@@ -48,7 +50,7 @@ def sample_academic_source():
         authors=["Dr. AI Researcher", "Prof. ML Expert"],
         institution="MIT",
         journal_or_venue="Nature Communications",
-        citation_count=75
+        citation_count=75,
     )
 
 
@@ -71,9 +73,7 @@ class TestAuthoritativeSourceManager:
     async def test_find_authoritative_sources(self, source_manager, sample_question):
         """Test finding authoritative sources for a question."""
         sources = await source_manager.find_authoritative_sources(
-            question=sample_question,
-            max_sources=10,
-            min_credibility=0.5
+            question=sample_question, max_sources=10, min_credibility=0.5
         )
 
         assert isinstance(sources, list)
@@ -95,7 +95,7 @@ class TestAuthoritativeSourceManager:
         academic_sources = await source_manager.find_authoritative_sources(
             question=sample_question,
             source_types=[SourceType.ACADEMIC_PAPER],
-            max_sources=5
+            max_sources=5,
         )
 
         assert isinstance(academic_sources, list)
@@ -121,7 +121,7 @@ class TestAuthoritativeSourceManager:
             ("https://www.nature.com/articles/123", "nature.com"),
             ("http://arxiv.org/abs/2024.1001", "arxiv.org"),
             ("https://census.gov/data/report", "census.gov"),
-            ("https://www.example.com/path", "example.com")
+            ("https://www.example.com/path", "example.com"),
         ]
 
         for url, expected_domain in test_cases:
@@ -137,7 +137,7 @@ class TestAuthoritativeSourceManager:
             summary="Test summary",
             source_type=SourceType.PEER_REVIEWED,
             credibility_score=0.0,
-            credibility_factors={}
+            credibility_factors={},
         )
 
         score = source_manager._assess_peer_review_status(peer_reviewed_source)
@@ -150,7 +150,7 @@ class TestAuthoritativeSourceManager:
             summary="Test summary",
             source_type=SourceType.PREPRINT,
             credibility_score=0.0,
-            credibility_factors={}
+            credibility_factors={},
         )
 
         score = source_manager._assess_peer_review_status(preprint_source)
@@ -160,11 +160,11 @@ class TestAuthoritativeSourceManager:
         """Test citation impact assessment."""
         test_cases = [
             (150, 0.9),  # High citations
-            (75, 0.8),   # Medium-high citations
-            (25, 0.7),   # Medium citations
-            (15, 0.6),   # Low-medium citations
-            (5, 0.5),    # Low citations
-            (None, 0.5)  # No citation data
+            (75, 0.8),  # Medium-high citations
+            (25, 0.7),  # Medium citations
+            (15, 0.6),  # Low-medium citations
+            (5, 0.5),  # Low citations
+            (None, 0.5),  # No citation data
         ]
 
         for citation_count, expected_score in test_cases:
@@ -175,7 +175,7 @@ class TestAuthoritativeSourceManager:
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.0,
                 credibility_factors={},
-                citation_count=citation_count
+                citation_count=citation_count,
             )
 
             score = source_manager._assess_citation_impact(source)
@@ -186,13 +186,13 @@ class TestAuthoritativeSourceManager:
         now = datetime.utcnow()
 
         test_cases = [
-            (now - timedelta(days=15), 0.9),    # Very recent
-            (now - timedelta(days=60), 0.8),    # Recent
-            (now - timedelta(days=120), 0.7),   # Moderately recent
-            (now - timedelta(days=300), 0.6),   # Somewhat old
-            (now - timedelta(days=600), 0.5),   # Old
+            (now - timedelta(days=15), 0.9),  # Very recent
+            (now - timedelta(days=60), 0.8),  # Recent
+            (now - timedelta(days=120), 0.7),  # Moderately recent
+            (now - timedelta(days=300), 0.6),  # Somewhat old
+            (now - timedelta(days=600), 0.5),  # Old
             (now - timedelta(days=1000), 0.4),  # Very old
-            (None, 0.5)                         # No date
+            (None, 0.5),  # No date
         ]
 
         for publish_date, expected_score in test_cases:
@@ -203,7 +203,7 @@ class TestAuthoritativeSourceManager:
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.0,
                 credibility_factors={},
-                publish_date=publish_date
+                publish_date=publish_date,
             )
 
             score = source_manager._assess_recency(source)
@@ -212,7 +212,9 @@ class TestAuthoritativeSourceManager:
     def test_source_validation(self, source_manager, sample_academic_source):
         """Test source authenticity validation."""
         # Valid source
-        is_valid, issues = source_manager.validate_source_authenticity(sample_academic_source)
+        is_valid, issues = source_manager.validate_source_authenticity(
+            sample_academic_source
+        )
         assert is_valid
         assert len(issues) == 0
 
@@ -223,7 +225,7 @@ class TestAuthoritativeSourceManager:
             summary="Test",
             source_type=SourceType.ACADEMIC_PAPER,
             credibility_score=0.5,
-            credibility_factors={}
+            credibility_factors={},
         )
 
         is_valid, issues = source_manager.validate_source_authenticity(invalid_source)
@@ -243,7 +245,9 @@ class TestAuthoritativeSourceManager:
         # Calculate credibility first
         source_manager.calculate_credibility_score(sample_academic_source)
 
-        breakdown = source_manager.get_source_credibility_breakdown(sample_academic_source)
+        breakdown = source_manager.get_source_credibility_breakdown(
+            sample_academic_source
+        )
 
         assert "overall_score" in breakdown
         assert "factors" in breakdown
@@ -261,7 +265,10 @@ class TestAuthoritativeSourceManager:
         assert research_source.url == sample_academic_source.url
         assert research_source.title == sample_academic_source.title
         assert research_source.summary == sample_academic_source.summary
-        assert research_source.credibility_score == sample_academic_source.credibility_score
+        assert (
+            research_source.credibility_score
+            == sample_academic_source.credibility_score
+        )
         assert research_source.publish_date == sample_academic_source.publish_date
         assert research_source.source_type == sample_academic_source.source_type.value
 
@@ -274,7 +281,7 @@ class TestAuthoritativeSourceManager:
             summary="This revolutionary secret will change everything",
             source_type=SourceType.NEWS_ANALYSIS,
             credibility_score=0.5,
-            credibility_factors={}
+            credibility_factors={},
         )
 
         has_suspicious = source_manager._has_suspicious_patterns(suspicious_source)
@@ -287,7 +294,7 @@ class TestAuthoritativeSourceManager:
             summary="Systematic analysis of artificial intelligence progress",
             source_type=SourceType.ACADEMIC_PAPER,
             credibility_score=0.8,
-            credibility_factors={}
+            credibility_factors={},
         )
 
         has_suspicious = source_manager._has_suspicious_patterns(normal_source)
@@ -317,7 +324,7 @@ class TestAuthoritativeSource:
             summary="Test summary",
             source_type=SourceType.ACADEMIC_PAPER,
             credibility_score=0.8,
-            credibility_factors={}
+            credibility_factors={},
         )
 
         assert source.url == "https://example.com"
@@ -337,7 +344,7 @@ class TestAuthoritativeSource:
             source_type=SourceType.ACADEMIC_PAPER,
             credibility_score=0.8,
             credibility_factors={},
-            authors=authors
+            authors=authors,
         )
 
         assert source.authors == authors
@@ -347,22 +354,26 @@ class TestEnhancedAuthoritativeSourceManager:
     """Test cases for enhanced AuthoritativeSourceManager functionality."""
 
     @pytest.mark.asyncio
-    async def test_find_authoritative_sources_enhanced(self, source_manager, sample_question):
+    async def test_find_authoritative_sources_enhanced(
+        self, source_manager, sample_question
+    ):
         """Test enhanced source finding with knowledge base integration."""
-        from src.domain.services.authoritative_source_manager import KnowledgeBaseQuery, KnowledgeBase, ExpertiseArea
+        from src.domain.services.authoritative_source_manager import (
+            ExpertiseArea,
+            KnowledgeBase,
+            KnowledgeBaseQuery,
+        )
 
         query_config = KnowledgeBaseQuery(
             query_text=sample_question.title,
             knowledge_bases=[KnowledgeBase.ARXIV, KnowledgeBase.EXPERT_NETWORKS],
             max_results=5,
             min_credibility=0.6,
-            expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE]
+            expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],
         )
 
         sources = await source_manager.find_authoritative_sources_enhanced(
-            question=sample_question,
-            query_config=query_config,
-            max_sources=10
+            question=sample_question, query_config=query_config, max_sources=10
         )
 
         assert isinstance(sources, list)
@@ -371,26 +382,33 @@ class TestEnhancedAuthoritativeSourceManager:
         # All sources should meet minimum credibility
         for source in sources:
             assert source.credibility_score >= 0.6
-            assert hasattr(source, 'knowledge_base')
-            assert hasattr(source, 'methodology_score')
-            assert hasattr(source, 'data_quality_score')
+            assert hasattr(source, "knowledge_base")
+            assert hasattr(source, "methodology_score")
+            assert hasattr(source, "data_quality_score")
 
     @pytest.mark.asyncio
-    async def test_search_specialized_knowledge_bases(self, source_manager, sample_question):
+    async def test_search_specialized_knowledge_bases(
+        self, source_manager, sample_question
+    ):
         """Test specialized knowledge base search."""
         from src.domain.services.authoritative_source_manager import (
-            KnowledgeBaseQuery, KnowledgeBase, ExpertiseArea
+            ExpertiseArea,
+            KnowledgeBase,
+            KnowledgeBaseQuery,
         )
 
         query = KnowledgeBaseQuery(
             query_text=sample_question.title,
             knowledge_bases=[KnowledgeBase.ARXIV, KnowledgeBase.PUBMED],
-            max_results=5
+            max_results=5,
         )
 
         sources = await source_manager.search_specialized_knowledge_bases(
             query=query,
-            expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE, ExpertiseArea.HEALTHCARE]
+            expertise_areas=[
+                ExpertiseArea.ARTIFICIAL_INTELLIGENCE,
+                ExpertiseArea.HEALTHCARE,
+            ],
         )
 
         assert isinstance(sources, list)
@@ -401,7 +419,11 @@ class TestEnhancedAuthoritativeSourceManager:
     def test_calculate_enhanced_credibility_score(self, source_manager):
         """Test enhanced credibility score calculation."""
         from src.domain.services.authoritative_source_manager import (
-            AuthoritativeSource, SourceType, ExpertProfile, ExpertiseArea, KnowledgeBase
+            AuthoritativeSource,
+            ExpertiseArea,
+            ExpertProfile,
+            KnowledgeBase,
+            SourceType,
         )
 
         # Create source with expert profile
@@ -411,7 +433,7 @@ class TestEnhancedAuthoritativeSourceManager:
             expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],
             h_index=30,
             years_experience=10,
-            reputation_score=0.85
+            reputation_score=0.85,
         )
 
         source = AuthoritativeSource(
@@ -424,7 +446,7 @@ class TestEnhancedAuthoritativeSourceManager:
             expert_profile=expert_profile,
             knowledge_base=KnowledgeBase.EXPERT_NETWORKS,
             doi="10.1000/test.2024.001",
-            abstract="Detailed abstract for testing methodology assessment"
+            abstract="Detailed abstract for testing methodology assessment",
         )
 
         score = source_manager.calculate_enhanced_credibility_score(source)
@@ -440,14 +462,18 @@ class TestEnhancedAuthoritativeSourceManager:
     async def test_validate_source_authenticity_enhanced(self, source_manager):
         """Test enhanced source validation."""
         from src.domain.services.authoritative_source_manager import (
-            AuthoritativeSource, SourceType, ExpertProfile, ExpertiseArea, KnowledgeBase
+            AuthoritativeSource,
+            ExpertiseArea,
+            ExpertProfile,
+            KnowledgeBase,
+            SourceType,
         )
 
         expert_profile = ExpertProfile(
             name="Dr. Valid Expert",
             institution="Valid University",
             expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],
-            reputation_score=0.8
+            reputation_score=0.8,
         )
 
         valid_source = AuthoritativeSource(
@@ -460,10 +486,12 @@ class TestEnhancedAuthoritativeSourceManager:
             expert_profile=expert_profile,
             knowledge_base=KnowledgeBase.ARXIV,
             doi="10.1000/valid.2024.001",
-            publish_date=datetime.utcnow() - timedelta(days=30)
+            publish_date=datetime.utcnow() - timedelta(days=30),
         )
 
-        is_valid, issues, details = await source_manager.validate_source_authenticity_enhanced(valid_source)
+        is_valid, issues, details = (
+            await source_manager.validate_source_authenticity_enhanced(valid_source)
+        )
 
         assert isinstance(is_valid, bool)
         assert isinstance(issues, list)
@@ -492,8 +520,7 @@ class TestEnhancedAuthoritativeSourceManager:
         from src.domain.services.authoritative_source_manager import ExpertiseArea
 
         experts = await source_manager.get_expert_recommendations(
-            expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],
-            min_reputation=0.7
+            expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE], min_reputation=0.7
         )
 
         assert isinstance(experts, list)
@@ -510,9 +537,14 @@ class TestEnhancedAuthoritativeSourceManager:
 
         assert isinstance(metrics, dict)
         expected_metrics = [
-            "overall_credibility", "methodology_quality", "data_quality",
-            "reproducibility", "expert_consensus", "domain_authority",
-            "peer_review_status", "recency"
+            "overall_credibility",
+            "methodology_quality",
+            "data_quality",
+            "reproducibility",
+            "expert_consensus",
+            "domain_authority",
+            "peer_review_status",
+            "recency",
         ]
 
         for metric in expected_metrics:
@@ -522,18 +554,24 @@ class TestEnhancedAuthoritativeSourceManager:
 
     def test_enhanced_metadata_functionality(self, sample_academic_source):
         """Test enhanced metadata functionality."""
-        from src.domain.services.authoritative_source_manager import ExpertProfile, ExpertiseArea, KnowledgeBase
+        from src.domain.services.authoritative_source_manager import (
+            ExpertiseArea,
+            ExpertProfile,
+            KnowledgeBase,
+        )
 
         # Add enhanced metadata
         sample_academic_source.doi = "10.1000/test.2024.001"
-        sample_academic_source.abstract = "This is a detailed abstract for testing purposes"
+        sample_academic_source.abstract = (
+            "This is a detailed abstract for testing purposes"
+        )
         sample_academic_source.keywords = ["AI", "machine learning", "research"]
         sample_academic_source.knowledge_base = KnowledgeBase.ARXIV
         sample_academic_source.expert_profile = ExpertProfile(
             name="Test Expert",
             institution="Test Institution",
             expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],
-            reputation_score=0.9
+            reputation_score=0.9,
         )
 
         # Test enhanced metadata retrieval

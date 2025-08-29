@@ -8,21 +8,28 @@ to forecast generation, handling errors and batching appropriately.
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-from src.infrastructure.metaculus_api import MetaculusAPI, APIConfig, MetaculusAPIError
-from src.application.ingestion_service import IngestionService, ValidationLevel, IngestionStats
 from src.application.forecast_service import ForecastService
-from src.domain.entities.question import Question
+from src.application.ingestion_service import (
+    IngestionService,
+    IngestionStats,
+    ValidationLevel,
+)
 from src.domain.entities.forecast import Forecast
-from src.domain.value_objects.probability import Probability
+from src.domain.entities.question import Question
 from src.domain.value_objects.confidence import ConfidenceLevel
+from src.domain.value_objects.probability import Probability
+from src.infrastructure.config.settings import Settings
+from src.infrastructure.logging.reasoning_logger import (
+    log_agent_reasoning,
+    log_ensemble_reasoning,
+)
+from src.infrastructure.metaculus_api import APIConfig, MetaculusAPI, MetaculusAPIError
+
 # Import ensemble and reasoning logging capabilities
 from src.pipelines.forecasting_pipeline import ForecastingPipeline
-from src.infrastructure.logging.reasoning_logger import log_agent_reasoning, log_ensemble_reasoning
-from src.infrastructure.config.settings import Settings
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +37,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DispatcherConfig:
     """Configuration for the dispatcher."""
+
     batch_size: int = 10
     validation_level: ValidationLevel = ValidationLevel.LENIENT
     max_retries: int = 3
@@ -49,6 +57,7 @@ class DispatcherConfig:
 @dataclass
 class DispatcherStats:
     """Statistics from dispatcher execution."""
+
     total_questions_fetched: int = 0
     questions_successfully_parsed: int = 0
     questions_failed_parsing: int = 0
@@ -69,6 +78,7 @@ class DispatcherStats:
 
 class DispatcherError(Exception):
     """Exception raised by the dispatcher."""
+
     pass
 
 
@@ -80,13 +90,15 @@ class Dispatcher:
     Handles errors, batching, and provides comprehensive statistics.
     """
 
-    def __init__(self,
-                 forecast_service: Optional[ForecastService] = None,
-                 ingestion_service: Optional[IngestionService] = None,
-                 metaculus_client=None,
-                 tournament_analytics=None,
-                 performance_tracking=None,
-                 config: Optional[DispatcherConfig] = None):
+    def __init__(
+        self,
+        forecast_service: Optional[ForecastService] = None,
+        ingestion_service: Optional[IngestionService] = None,
+        metaculus_client=None,
+        tournament_analytics=None,
+        performance_tracking=None,
+        config: Optional[DispatcherConfig] = None,
+    ):
         """
         Initialize the dispatcher.
 
@@ -161,7 +173,9 @@ class Dispatcher:
             DispatcherError: If ensemble forecast generation fails
         """
         try:
-            logger.info(f"Generating ensemble forecast for question {question.metaculus_id}")
+            logger.info(
+                f"Generating ensemble forecast for question {question.metaculus_id}"
+            )
 
             # Try to use the forecasting pipeline for ensemble forecasting
             if self.forecasting_pipeline:
@@ -171,7 +185,11 @@ class Dispatcher:
                     import asyncio
 
                     # Determine agent types to use
-                    agent_types = self.config.ensemble_agents or ["chain_of_thought", "tree_of_thought", "react"]
+                    agent_types = self.config.ensemble_agents or [
+                        "chain_of_thought",
+                        "tree_of_thought",
+                        "react",
+                    ]
 
                     # Use the pipeline's generate_forecast method directly with the Question entity
                     # This avoids the need for Metaculus client and works with local questions
@@ -179,7 +197,7 @@ class Dispatcher:
                         self.forecasting_pipeline.generate_forecast(
                             question=question,
                             agent_names=agent_types,
-                            include_research=True
+                            include_research=True,
                         )
                     )
 
@@ -189,100 +207,143 @@ class Dispatcher:
                     # Update metadata to indicate ensemble success
                     if forecast.metadata is None:
                         forecast.metadata = {}
-                    forecast.metadata.update({
-                        "ensemble_attempted": True,
-                        "ensemble_agents": agent_types,
-                        "aggregation_method": self.config.ensemble_aggregation_method,
-                        "ensemble_success": True,
-                        "offline_mode": True
-                    })
+                    forecast.metadata.update(
+                        {
+                            "ensemble_attempted": True,
+                            "ensemble_agents": agent_types,
+                            "aggregation_method": self.config.ensemble_aggregation_method,
+                            "ensemble_success": True,
+                            "offline_mode": True,
+                        }
+                    )
 
                 except Exception as pipeline_error:
-                    logger.warning(f"ForecastingPipeline failed ({pipeline_error}), falling back to ForecastService ensemble")
+                    logger.warning(
+                        f"ForecastingPipeline failed ({pipeline_error}), falling back to ForecastService ensemble"
+                    )
                     # Fall back to the standard ForecastService which has its own ensemble logic
                     forecast = self.forecast_service.generate_forecast(question)
 
                     # Update metadata to indicate ensemble fallback
                     if forecast.metadata is None:
                         forecast.metadata = {}
-                    forecast.metadata.update({
-                        "ensemble_attempted": True,
-                        "ensemble_agents": self.config.ensemble_agents or ["ai_forecast_service"],
-                        "aggregation_method": self.config.ensemble_aggregation_method,
-                        "ensemble_success": True,
-                        "pipeline_fallback": True,
-                        "offline_mode": True
-                    })
+                    forecast.metadata.update(
+                        {
+                            "ensemble_attempted": True,
+                            "ensemble_agents": self.config.ensemble_agents
+                            or ["ai_forecast_service"],
+                            "aggregation_method": self.config.ensemble_aggregation_method,
+                            "ensemble_success": True,
+                            "pipeline_fallback": True,
+                            "offline_mode": True,
+                        }
+                    )
             else:
                 # Fallback to standard forecasting if pipeline not available
-                logger.warning("Ensemble forecasting pipeline not available, falling back to standard forecasting")
+                logger.warning(
+                    "Ensemble forecasting pipeline not available, falling back to standard forecasting"
+                )
                 forecast = self.forecast_service.generate_forecast(question)
 
                 # Add ensemble metadata to indicate fallback
                 if forecast.metadata is None:
                     forecast.metadata = {}
-                forecast.metadata.update({
-                    "ensemble_attempted": True,
-                    "ensemble_agents": self.config.ensemble_agents,
-                    "aggregation_method": self.config.ensemble_aggregation_method,
-                    "fallback_used": True,
-                    "ensemble_success": False
-                })
+                forecast.metadata.update(
+                    {
+                        "ensemble_attempted": True,
+                        "ensemble_agents": self.config.ensemble_agents,
+                        "aggregation_method": self.config.ensemble_aggregation_method,
+                        "fallback_used": True,
+                        "ensemble_success": False,
+                    }
+                )
 
             # Log reasoning if enabled
             if self.config.enable_reasoning_logs:
                 try:
                     # Log individual agent reasoning if available in forecast metadata
-                    if hasattr(forecast, 'metadata') and forecast.metadata and forecast.metadata.get("agents_used"):
+                    if (
+                        hasattr(forecast, "metadata")
+                        and forecast.metadata
+                        and forecast.metadata.get("agents_used")
+                    ):
                         agents_used = forecast.metadata.get("agents_used", [])
                         for agent_name in agents_used:
                             # Find prediction for this agent
                             agent_prediction = None
                             for pred in forecast.predictions:
-                                if pred.created_by == agent_name or agent_name in pred.reasoning:
+                                if (
+                                    pred.created_by == agent_name
+                                    or agent_name in pred.reasoning
+                                ):
                                     agent_prediction = pred
                                     break
 
                             if agent_prediction:
                                 reasoning_data = {
-                                    "reasoning": agent_prediction.reasoning or "No detailed reasoning available",
+                                    "reasoning": agent_prediction.reasoning
+                                    or "No detailed reasoning available",
                                     "method": agent_name,
-                                    "confidence": agent_prediction.confidence.value if hasattr(agent_prediction.confidence, 'value') else str(agent_prediction.confidence)
+                                    "confidence": (
+                                        agent_prediction.confidence.value
+                                        if hasattr(agent_prediction.confidence, "value")
+                                        else str(agent_prediction.confidence)
+                                    ),
                                 }
 
                                 prediction_result = {
                                     "probability": agent_prediction.result.binary_probability,
-                                    "confidence": agent_prediction.confidence.value if hasattr(agent_prediction.confidence, 'value') else str(agent_prediction.confidence),
-                                    "method": agent_name
+                                    "confidence": (
+                                        agent_prediction.confidence.value
+                                        if hasattr(agent_prediction.confidence, "value")
+                                        else str(agent_prediction.confidence)
+                                    ),
+                                    "method": agent_name,
                                 }
 
                                 log_agent_reasoning(
                                     question_id=question.metaculus_id or question.id,
                                     agent_name=agent_name,
                                     reasoning_data=reasoning_data,
-                                    prediction_result=prediction_result
+                                    prediction_result=prediction_result,
                                 )
 
                     # Log ensemble reasoning
                     reasoning_data = {
-                        "reasoning": forecast.reasoning_summary or "Ensemble forecast with multiple agents",
+                        "reasoning": forecast.reasoning_summary
+                        or "Ensemble forecast with multiple agents",
                         "method": "ensemble",
-                        "agents_used": self.config.ensemble_agents or ["chain_of_thought", "tree_of_thought", "react"],
-                        "aggregation_method": forecast.ensemble_method or self.config.ensemble_aggregation_method,
-                        "prediction_count": len(forecast.predictions)
+                        "agents_used": self.config.ensemble_agents
+                        or ["chain_of_thought", "tree_of_thought", "react"],
+                        "aggregation_method": forecast.ensemble_method
+                        or self.config.ensemble_aggregation_method,
+                        "prediction_count": len(forecast.predictions),
                     }
 
                     prediction_result = {
-                        "probability": forecast.final_prediction.result.binary_probability if forecast.final_prediction else None,
-                        "confidence": forecast.final_prediction.confidence.value if forecast.final_prediction and hasattr(forecast.final_prediction.confidence, 'value') else str(forecast.final_prediction.confidence) if forecast.final_prediction else None,
-                        "method": "ensemble"
+                        "probability": (
+                            forecast.final_prediction.result.binary_probability
+                            if forecast.final_prediction
+                            else None
+                        ),
+                        "confidence": (
+                            forecast.final_prediction.confidence.value
+                            if forecast.final_prediction
+                            and hasattr(forecast.final_prediction.confidence, "value")
+                            else (
+                                str(forecast.final_prediction.confidence)
+                                if forecast.final_prediction
+                                else None
+                            )
+                        ),
+                        "method": "ensemble",
                     }
 
                     log_agent_reasoning(
                         question_id=question.metaculus_id or question.id,
                         agent_name="ensemble",
                         reasoning_data=reasoning_data,
-                        prediction_result=prediction_result
+                        prediction_result=prediction_result,
                     )
                 except Exception as e:
                     logger.warning(f"Failed to log reasoning trace: {e}")
@@ -294,10 +355,12 @@ class Dispatcher:
             logger.error(error_msg)
             raise DispatcherError(error_msg) from e
 
-    def run(self,
-            limit: Optional[int] = None,
-            status: str = "open",
-            category: Optional[str] = None) -> Tuple[List[Forecast], DispatcherStats]:
+    def run(
+        self,
+        limit: Optional[int] = None,
+        status: str = "open",
+        category: Optional[str] = None,
+    ) -> Tuple[List[Forecast], DispatcherStats]:
         """
         Run the complete forecasting pipeline.
 
@@ -316,7 +379,9 @@ class Dispatcher:
         forecasts = []
 
         try:
-            logger.info(f"Starting dispatcher run with limit={limit}, status={status}, category={category}")
+            logger.info(
+                f"Starting dispatcher run with limit={limit}, status={status}, category={category}"
+            )
 
             # Reset stats
             self.stats = DispatcherStats()
@@ -337,11 +402,15 @@ class Dispatcher:
 
             # Calculate total processing time
             end_time = datetime.now()
-            self.stats.total_processing_time_seconds = (end_time - start_time).total_seconds()
+            self.stats.total_processing_time_seconds = (
+                end_time - start_time
+            ).total_seconds()
 
-            logger.info(f"Dispatcher run completed: {len(forecasts)} forecasts generated "
-                       f"from {self.stats.total_questions_fetched} questions "
-                       f"({self.stats.success_rate:.1f}% success rate)")
+            logger.info(
+                f"Dispatcher run completed: {len(forecasts)} forecasts generated "
+                f"from {self.stats.total_questions_fetched} questions "
+                f"({self.stats.success_rate:.1f}% success rate)"
+            )
 
             return forecasts, self.stats
 
@@ -351,10 +420,9 @@ class Dispatcher:
             self.stats.errors.append(error_msg)
             raise DispatcherError(error_msg) from e
 
-    def run_batch(self,
-                  total_limit: int,
-                  status: str = "open",
-                  category: Optional[str] = None) -> Tuple[List[Forecast], DispatcherStats]:
+    def run_batch(
+        self, total_limit: int, status: str = "open", category: Optional[str] = None
+    ) -> Tuple[List[Forecast], DispatcherStats]:
         """
         Run the pipeline in batches for large datasets.
 
@@ -379,9 +447,7 @@ class Dispatcher:
 
             try:
                 batch_forecasts, batch_stats = self.run(
-                    limit=current_batch_size,
-                    status=status,
-                    category=category
+                    limit=current_batch_size, status=status, category=category
                 )
 
                 all_forecasts.extend(batch_forecasts)
@@ -397,13 +463,13 @@ class Dispatcher:
 
         return all_forecasts, combined_stats
 
-    def _fetch_questions(self, limit: Optional[int], status: str, category: Optional[str]) -> List[Dict[str, Any]]:
+    def _fetch_questions(
+        self, limit: Optional[int], status: str, category: Optional[str]
+    ) -> List[Dict[str, Any]]:
         """Fetch questions from the API with error handling."""
         try:
             raw_questions = self.api.fetch_questions(
-                limit=limit,
-                status=status,
-                category=category
+                limit=limit, status=status, category=category
             )
 
             logger.info(f"Fetched {len(raw_questions)} questions from API")
@@ -424,7 +490,9 @@ class Dispatcher:
     def _parse_questions(self, raw_questions: List[Dict[str, Any]]) -> List[Question]:
         """Parse raw questions into domain objects."""
         try:
-            questions, ingestion_stats = self.ingestion_service.parse_questions(raw_questions)
+            questions, ingestion_stats = self.ingestion_service.parse_questions(
+                raw_questions
+            )
 
             # Update dispatcher stats with ingestion results
             self.stats.questions_successfully_parsed = ingestion_stats.successful_parsed
@@ -452,7 +520,9 @@ class Dispatcher:
         for question in questions:
             try:
                 if self.config.enable_dry_run:
-                    logger.info(f"DRY RUN: Would generate forecast for question {question.metaculus_id}")
+                    logger.info(
+                        f"DRY RUN: Would generate forecast for question {question.metaculus_id}"
+                    )
                     continue
 
                 # Generate forecast using ForecastService
@@ -468,7 +538,9 @@ class Dispatcher:
                 self.stats.forecasts_failed += 1
                 self.stats.errors.append(error_msg)
 
-        logger.info(f"Generated {len(forecasts)} forecasts, {self.stats.forecasts_failed} failed")
+        logger.info(
+            f"Generated {len(forecasts)} forecasts, {self.stats.forecasts_failed} failed"
+        )
         return forecasts
 
     def _merge_stats(self, combined: DispatcherStats, batch: DispatcherStats) -> None:
@@ -488,7 +560,7 @@ class Dispatcher:
                 "batch_size": self.config.batch_size,
                 "validation_level": self.config.validation_level.value,
                 "max_retries": self.config.max_retries,
-                "enable_dry_run": self.config.enable_dry_run
+                "enable_dry_run": self.config.enable_dry_run,
             },
             "stats": {
                 "total_questions_fetched": self.stats.total_questions_fetched,
@@ -498,16 +570,16 @@ class Dispatcher:
                 "forecasts_failed": self.stats.forecasts_failed,
                 "success_rate": self.stats.success_rate,
                 "total_processing_time_seconds": self.stats.total_processing_time_seconds,
-                "error_count": len(self.stats.errors)
+                "error_count": len(self.stats.errors),
             },
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
     async def run_tournament(
         self,
         tournament_id: int,
         max_questions: int = 10,
-        agent_types: Optional[List[str]] = None
+        agent_types: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Run tournament forecasting with all integrated components.
@@ -528,7 +600,7 @@ class Dispatcher:
             "forecasts_generated": 0,
             "errors": [],
             "performance_metrics": {},
-            "agent_performance": {}
+            "agent_performance": {},
         }
 
         try:
@@ -545,8 +617,10 @@ class Dispatcher:
             # Add tournament-specific analytics if available
             if self.tournament_analytics:
                 try:
-                    tournament_metrics = await self.tournament_analytics.analyze_tournament_performance(
-                        tournament_id, forecasts
+                    tournament_metrics = (
+                        await self.tournament_analytics.analyze_tournament_performance(
+                            tournament_id, forecasts
+                        )
                     )
                     results["performance_metrics"] = tournament_metrics
                 except Exception as e:
@@ -555,7 +629,9 @@ class Dispatcher:
             # Add performance tracking if available
             if self.performance_tracking:
                 try:
-                    agent_performance = await self.performance_tracking.get_agent_performance_summary()
+                    agent_performance = (
+                        await self.performance_tracking.get_agent_performance_summary()
+                    )
                     results["agent_performance"] = agent_performance
                 except Exception as e:
                     logger.warning(f"Failed to get agent performance: {e}")

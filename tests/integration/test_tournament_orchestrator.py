@@ -2,18 +2,23 @@
 Comprehensive integration tests for the tournament orchestrator.
 Tests all components working together with proper dependency injection.
 """
-import pytest
+
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-import tempfile
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 import yaml
 
-from src.application.tournament_orchestrator import TournamentOrchestrator, create_tournament_orchestrator
-from src.infrastructure.config.settings import Settings
-from src.domain.entities.question import Question, QuestionType, QuestionStatus
+from src.application.tournament_orchestrator import (
+    TournamentOrchestrator,
+    create_tournament_orchestrator,
+)
 from src.domain.entities.forecast import Forecast
+from src.domain.entities.question import Question, QuestionStatus, QuestionType
+from src.infrastructure.config.settings import Settings
 
 
 class TestTournamentOrchestrator:
@@ -27,34 +32,24 @@ class TestTournamentOrchestrator:
                 "provider": "openai",
                 "model": "gpt-4",
                 "temperature": 0.3,
-                "api_key": "test-key"
+                "api_key": "test-key",
             },
-            "search": {
-                "provider": "multi_source",
-                "max_results": 5,
-                "timeout": 30.0
-            },
+            "search": {"provider": "multi_source", "max_results": 5, "timeout": 30.0},
             "metaculus": {
                 "base_url": "https://test.metaculus.com/api",
                 "tournament_id": 12345,
-                "dry_run": True
+                "dry_run": True,
             },
             "pipeline": {
                 "max_concurrent_questions": 2,
                 "default_agent_names": ["ensemble"],
-                "health_check_interval": 10
+                "health_check_interval": 10,
             },
-            "bot": {
-                "name": "TestBot",
-                "version": "1.0.0"
-            },
-            "logging": {
-                "level": "INFO",
-                "console_output": True
-            }
+            "bot": {"name": "TestBot", "version": "1.0.0"},
+            "logging": {"level": "INFO", "console_output": True},
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(config_data, f)
             config_path = f.name
 
@@ -69,9 +64,15 @@ class TestTournamentOrchestrator:
         orchestrator = TournamentOrchestrator(temp_config)
 
         # Mock external dependencies
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -96,9 +97,15 @@ class TestTournamentOrchestrator:
         """Test that orchestrator initializes all components correctly."""
         orchestrator = TournamentOrchestrator(temp_config)
 
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -131,7 +138,10 @@ class TestTournamentOrchestrator:
         assert registry.research_service.search_client == registry.search_client
         assert registry.research_service.llm_client == registry.llm_client
 
-        assert registry.forecast_service.forecasting_service == registry.forecasting_service
+        assert (
+            registry.forecast_service.forecasting_service
+            == registry.forecasting_service
+        )
         assert registry.forecast_service.ensemble_service == registry.ensemble_service
         assert registry.forecast_service.research_service == registry.research_service
 
@@ -140,14 +150,18 @@ class TestTournamentOrchestrator:
 
         assert registry.forecasting_pipeline.llm_client == registry.llm_client
         assert registry.forecasting_pipeline.search_client == registry.search_client
-        assert registry.forecasting_pipeline.metaculus_client == registry.metaculus_client
+        assert (
+            registry.forecasting_pipeline.metaculus_client == registry.metaculus_client
+        )
 
     async def test_health_check_system(self, orchestrator):
         """Test comprehensive health checking system."""
         # Mock health check methods
         orchestrator.registry.llm_client.health_check = AsyncMock(return_value=True)
         orchestrator.registry.search_client.health_check = AsyncMock(return_value=True)
-        orchestrator.registry.metaculus_client.health_check = AsyncMock(return_value=True)
+        orchestrator.registry.metaculus_client.health_check = AsyncMock(
+            return_value=True
+        )
 
         # Perform health check
         health_status = await orchestrator._perform_health_check()
@@ -170,13 +184,19 @@ class TestTournamentOrchestrator:
         config_data = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key"},
             "search": {"provider": "multi_source"},
-            "metaculus": {"base_url": "https://test.metaculus.com/api", "tournament_id": 12345},
-            "pipeline": {"max_concurrent_questions": 2, "default_agent_names": ["ensemble"]},
+            "metaculus": {
+                "base_url": "https://test.metaculus.com/api",
+                "tournament_id": 12345,
+            },
+            "pipeline": {
+                "max_concurrent_questions": 2,
+                "default_agent_names": ["ensemble"],
+            },
             "bot": {"name": "UpdatedTestBot", "version": "2.0.0"},
-            "logging": {"level": "INFO"}
+            "logging": {"level": "INFO"},
         }
 
-        with open(temp_config, 'w') as f:
+        with open(temp_config, "w") as f:
             yaml.dump(config_data, f)
 
         # Trigger configuration reload
@@ -198,9 +218,9 @@ class TestTournamentOrchestrator:
                 "prediction": 0.65,
                 "confidence": 0.8,
                 "method": "ensemble",
-                "reasoning": "Test reasoning"
+                "reasoning": "Test reasoning",
             },
-            "metadata": {"test": True}
+            "metadata": {"test": True},
         }
 
         orchestrator.registry.forecasting_pipeline.run_single_question = AsyncMock(
@@ -220,7 +240,7 @@ class TestTournamentOrchestrator:
             question_id=question_id,
             agent_type="ensemble",
             include_research=True,
-            collect_metrics=True
+            collect_metrics=True,
         )
 
     async def test_batch_forecast_integration(self, orchestrator):
@@ -234,8 +254,8 @@ class TestTournamentOrchestrator:
                 "forecast": {
                     "prediction": 0.6 + (i * 0.1),
                     "confidence": 0.8,
-                    "method": "ensemble"
-                }
+                    "method": "ensemble",
+                },
             }
             for i, qid in enumerate(question_ids)
         ]
@@ -265,7 +285,7 @@ class TestTournamentOrchestrator:
             "questions_processed": max_questions,
             "forecasts_generated": max_questions,
             "performance_metrics": {"avg_confidence": 0.75},
-            "agent_performance": {"ensemble": {"accuracy": 0.8}}
+            "agent_performance": {"ensemble": {"accuracy": 0.8}},
         }
 
         orchestrator.registry.dispatcher.run_tournament = AsyncMock(
@@ -276,7 +296,7 @@ class TestTournamentOrchestrator:
         results = await orchestrator.run_tournament(
             tournament_id=tournament_id,
             max_questions=max_questions,
-            agent_types=agent_types
+            agent_types=agent_types,
         )
 
         # Verify results structure
@@ -294,11 +314,13 @@ class TestTournamentOrchestrator:
     async def test_system_status_reporting(self, orchestrator):
         """Test comprehensive system status reporting."""
         # Mock health check
-        orchestrator._perform_health_check = AsyncMock(return_value={
-            "llm_client": True,
-            "search_client": True,
-            "metaculus_client": True
-        })
+        orchestrator._perform_health_check = AsyncMock(
+            return_value={
+                "llm_client": True,
+                "search_client": True,
+                "metaculus_client": True,
+            }
+        )
 
         # Get system status
         status = await orchestrator.get_system_status()
@@ -314,8 +336,14 @@ class TestTournamentOrchestrator:
         # Verify configuration details
         config = status["configuration"]
         assert config["environment"] == orchestrator.registry.settings.environment
-        assert config["tournament_id"] == orchestrator.registry.settings.metaculus.tournament_id
-        assert config["max_concurrent_questions"] == orchestrator.registry.settings.pipeline.max_concurrent_questions
+        assert (
+            config["tournament_id"]
+            == orchestrator.registry.settings.metaculus.tournament_id
+        )
+        assert (
+            config["max_concurrent_questions"]
+            == orchestrator.registry.settings.pipeline.max_concurrent_questions
+        )
 
     async def test_error_handling_and_recovery(self, orchestrator):
         """Test error handling and recovery mechanisms."""
@@ -354,9 +382,15 @@ class TestTournamentOrchestrator:
 
     async def test_managed_lifecycle_context_manager(self, temp_config):
         """Test managed lifecycle context manager."""
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -378,9 +412,15 @@ class TestTournamentOrchestrator:
 
     async def test_factory_function(self, temp_config):
         """Test factory function for creating orchestrator."""
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -402,9 +442,15 @@ class TestIntegrationValidation:
 
     async def test_component_integration_validation(self, temp_config):
         """Test that all components integrate correctly with validation."""
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks with validation
             mock_llm.return_value.initialize = AsyncMock()
@@ -419,34 +465,60 @@ class TestIntegrationValidation:
 
             # Validate all required components exist
             required_components = [
-                'settings', 'llm_client', 'search_client', 'metaculus_client',
-                'circuit_breaker', 'rate_limiter', 'health_monitor', 'retry_manager',
-                'reasoning_logger', 'dispatcher', 'forecast_service', 'ingestion_service',
-                'ensemble_service', 'forecasting_service', 'research_service',
-                'tournament_analytics', 'performance_tracking', 'calibration_service',
-                'risk_management_service', 'forecasting_pipeline'
+                "settings",
+                "llm_client",
+                "search_client",
+                "metaculus_client",
+                "circuit_breaker",
+                "rate_limiter",
+                "health_monitor",
+                "retry_manager",
+                "reasoning_logger",
+                "dispatcher",
+                "forecast_service",
+                "ingestion_service",
+                "ensemble_service",
+                "forecasting_service",
+                "research_service",
+                "tournament_analytics",
+                "performance_tracking",
+                "calibration_service",
+                "risk_management_service",
+                "forecasting_pipeline",
             ]
 
             for component in required_components:
-                assert hasattr(orchestrator.registry, component), f"Missing component: {component}"
-                assert getattr(orchestrator.registry, component) is not None, f"Component is None: {component}"
+                assert hasattr(
+                    orchestrator.registry, component
+                ), f"Missing component: {component}"
+                assert (
+                    getattr(orchestrator.registry, component) is not None
+                ), f"Component is None: {component}"
 
             # Validate component types
+            from src.application.dispatcher import Dispatcher
             from src.infrastructure.config.settings import Settings
             from src.pipelines.forecasting_pipeline import ForecastingPipeline
-            from src.application.dispatcher import Dispatcher
 
             assert isinstance(orchestrator.registry.settings, Settings)
-            assert isinstance(orchestrator.registry.forecasting_pipeline, ForecastingPipeline)
+            assert isinstance(
+                orchestrator.registry.forecasting_pipeline, ForecastingPipeline
+            )
             assert isinstance(orchestrator.registry.dispatcher, Dispatcher)
 
             await orchestrator.shutdown()
 
     async def test_end_to_end_integration_flow(self, temp_config):
         """Test complete end-to-end integration flow."""
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure comprehensive mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -465,7 +537,7 @@ class TestIntegrationValidation:
                 "title": "Test Question",
                 "description": "Test description",
                 "type": "binary",
-                "status": "open"
+                "status": "open",
             }
 
             mock_forecast_result = {
@@ -474,9 +546,9 @@ class TestIntegrationValidation:
                     "prediction": 0.65,
                     "confidence": 0.8,
                     "method": "ensemble",
-                    "reasoning": "Test reasoning"
+                    "reasoning": "Test reasoning",
                 },
-                "metadata": {"integration_test": True}
+                "metadata": {"integration_test": True},
             }
 
             # Mock the pipeline methods
@@ -508,23 +580,23 @@ async def test_orchestrator_requirements_compliance():
     orchestrator = TournamentOrchestrator()
 
     # Verify separation of concerns
-    assert hasattr(orchestrator, '_load_configuration')  # Configuration management
-    assert hasattr(orchestrator, '_create_llm_client')   # Client creation
-    assert hasattr(orchestrator, '_perform_health_check') # Health monitoring
-    assert hasattr(orchestrator, 'run_tournament')       # Business logic
+    assert hasattr(orchestrator, "_load_configuration")  # Configuration management
+    assert hasattr(orchestrator, "_create_llm_client")  # Client creation
+    assert hasattr(orchestrator, "_perform_health_check")  # Health monitoring
+    assert hasattr(orchestrator, "run_tournament")  # Business logic
 
     # Requirement 10.2: Plugin-based architecture and hot-swappable components
     # Verify configuration hot-reloading
-    assert hasattr(orchestrator, '_reload_configuration')
-    assert hasattr(orchestrator, '_config_reload_loop')
-    assert hasattr(orchestrator, '_update_component_configs')
+    assert hasattr(orchestrator, "_reload_configuration")
+    assert hasattr(orchestrator, "_config_reload_loop")
+    assert hasattr(orchestrator, "_update_component_configs")
 
     # Requirement 10.5: Comprehensive API documentation and monitoring
     # Verify monitoring capabilities
-    assert hasattr(orchestrator, 'get_system_status')
-    assert hasattr(orchestrator, '_health_check_loop')
-    assert hasattr(orchestrator, 'metrics')
+    assert hasattr(orchestrator, "get_system_status")
+    assert hasattr(orchestrator, "_health_check_loop")
+    assert hasattr(orchestrator, "metrics")
 
     # Verify graceful lifecycle management
-    assert hasattr(orchestrator, 'managed_lifecycle')
-    assert hasattr(orchestrator, 'shutdown')
+    assert hasattr(orchestrator, "managed_lifecycle")
+    assert hasattr(orchestrator, "shutdown")

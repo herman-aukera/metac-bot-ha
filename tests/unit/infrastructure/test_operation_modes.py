@@ -1,12 +1,17 @@
 """
 Unit tests for operation modes functionality.
 """
-import pytest
-from unittest.mock import Mock, patch
+
 from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
 
 from src.infrastructure.config.operation_modes import (
-    OperationMode, OperationModeManager, OperationModeConfig, ModeTransition
+    ModeTransition,
+    OperationMode,
+    OperationModeConfig,
+    OperationModeManager,
 )
 
 
@@ -15,10 +20,11 @@ class TestOperationModeManager:
 
     def setup_method(self):
         """Setup test fixtures."""
-        with patch('src.infrastructure.config.operation_modes.budget_manager') as mock_budget:
+        with patch(
+            "src.infrastructure.config.operation_modes.budget_manager"
+        ) as mock_budget:
             mock_budget.get_budget_status.return_value = Mock(
-                utilization_percentage=50.0,
-                remaining=50.0
+                utilization_percentage=50.0, remaining=50.0
             )
             self.manager = OperationModeManager()
 
@@ -49,11 +55,19 @@ class TestOperationModeManager:
 
     def test_determine_mode_from_utilization(self):
         """Test mode determination based on budget utilization."""
-        assert self.manager._determine_mode_from_utilization(0.5) == OperationMode.NORMAL
-        assert self.manager._determine_mode_from_utilization(0.85) == OperationMode.CONSERVATIVE
-        assert self.manager._determine_mode_from_utilization(0.97) == OperationMode.EMERGENCY
+        assert (
+            self.manager._determine_mode_from_utilization(0.5) == OperationMode.NORMAL
+        )
+        assert (
+            self.manager._determine_mode_from_utilization(0.85)
+            == OperationMode.CONSERVATIVE
+        )
+        assert (
+            self.manager._determine_mode_from_utilization(0.97)
+            == OperationMode.EMERGENCY
+        )
 
-    @patch('src.infrastructure.config.operation_modes.budget_manager')
+    @patch("src.infrastructure.config.operation_modes.budget_manager")
     def test_check_and_update_mode_no_change(self, mock_budget):
         """Test mode check when no change is needed."""
         mock_budget.get_budget_status.return_value = Mock(utilization_percentage=50.0)
@@ -66,7 +80,9 @@ class TestOperationModeManager:
 
     def test_check_and_update_mode_with_change(self):
         """Test mode change when budget threshold is exceeded."""
-        with patch.object(self.manager.budget_manager, 'get_budget_status') as mock_status:
+        with patch.object(
+            self.manager.budget_manager, "get_budget_status"
+        ) as mock_status:
             mock_status.return_value = Mock(utilization_percentage=85.0)
 
             changed, transition = self.manager.check_and_update_mode()
@@ -76,9 +92,12 @@ class TestOperationModeManager:
             assert transition.from_mode == OperationMode.NORMAL
             assert transition.to_mode == OperationMode.CONSERVATIVE
             assert self.manager.current_mode == OperationMode.CONSERVATIVE
+
     def test_force_mode_transition(self):
         """Test manual mode transition."""
-        transition = self.manager.force_mode_transition(OperationMode.EMERGENCY, "testing")
+        transition = self.manager.force_mode_transition(
+            OperationMode.EMERGENCY, "testing"
+        )
 
         assert self.manager.current_mode == OperationMode.EMERGENCY
         assert transition.from_mode == OperationMode.NORMAL
@@ -87,7 +106,9 @@ class TestOperationModeManager:
 
     def test_can_process_question_normal_mode(self):
         """Test question processing check in normal mode."""
-        with patch.object(self.manager.budget_manager, 'get_budget_status') as mock_status:
+        with patch.object(
+            self.manager.budget_manager, "get_budget_status"
+        ) as mock_status:
             mock_status.return_value = Mock(remaining=10.0)
 
             can_process, reason = self.manager.can_process_question("low")
@@ -98,7 +119,9 @@ class TestOperationModeManager:
         """Test question processing check in emergency mode."""
         self.manager.current_mode = OperationMode.EMERGENCY
 
-        with patch.object(self.manager.budget_manager, 'get_budget_status') as mock_status:
+        with patch.object(
+            self.manager.budget_manager, "get_budget_status"
+        ) as mock_status:
             mock_status.return_value = Mock(remaining=1.0)
 
             # Low priority should be rejected
@@ -112,7 +135,9 @@ class TestOperationModeManager:
 
     def test_can_process_question_no_budget(self):
         """Test question processing when no budget remains."""
-        with patch.object(self.manager.budget_manager, 'get_budget_status') as mock_status:
+        with patch.object(
+            self.manager.budget_manager, "get_budget_status"
+        ) as mock_status:
             mock_status.return_value = Mock(remaining=0.0)
 
             can_process, reason = self.manager.can_process_question()
@@ -121,7 +146,9 @@ class TestOperationModeManager:
 
     def test_get_model_for_task_with_complexity(self):
         """Test model selection with complexity analysis."""
-        with patch.object(self.manager.complexity_analyzer, 'get_model_for_task') as mock_get_model:
+        with patch.object(
+            self.manager.complexity_analyzer, "get_model_for_task"
+        ) as mock_get_model:
             mock_assessment = Mock()
             mock_assessment.level.value = "medium"
             mock_get_model.return_value = "openai/gpt-4o"
@@ -146,8 +173,11 @@ class TestOperationModeManager:
         limits = self.manager.get_processing_limits()
 
         expected_keys = [
-            "max_questions_per_batch", "max_retries", "timeout_seconds",
-            "enable_complexity_analysis", "skip_low_priority_questions"
+            "max_questions_per_batch",
+            "max_retries",
+            "timeout_seconds",
+            "enable_complexity_analysis",
+            "skip_low_priority_questions",
         ]
 
         for key in expected_keys:
@@ -157,7 +187,9 @@ class TestOperationModeManager:
 
     def test_get_graceful_degradation_strategy(self):
         """Test graceful degradation strategy generation."""
-        with patch.object(self.manager.budget_manager, 'get_budget_status') as mock_status:
+        with patch.object(
+            self.manager.budget_manager, "get_budget_status"
+        ) as mock_status:
             # Test normal utilization
             mock_status.return_value = Mock(utilization_percentage=50.0)
             strategy = self.manager.get_graceful_degradation_strategy()

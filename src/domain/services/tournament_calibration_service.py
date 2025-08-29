@@ -4,17 +4,18 @@ import logging
 import math
 import statistics
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
 from datetime import datetime
+from typing import Dict, List, Optional, Tuple, Union
 
-from ..entities.prediction import Prediction, PredictionResult, PredictionConfidence
 from ..entities.forecast import Forecast
+from ..entities.prediction import Prediction, PredictionConfidence, PredictionResult
 from ..value_objects.probability import Probability
 
 
 @dataclass
 class CalibrationAdjustment:
     """Represents a calibration adjustment applied to a prediction."""
+
     original_value: float
     adjusted_value: float
     adjustment_type: str  # "overconfidence", "anchoring", "extreme_avoidance"
@@ -25,6 +26,7 @@ class CalibrationAdjustment:
 @dataclass
 class CommunityPredictionData:
     """Community prediction data for anchoring strategies."""
+
     median_prediction: Optional[float] = None
     mean_prediction: Optional[float] = None
     prediction_count: int = 0
@@ -39,22 +41,24 @@ class TournamentCalibrationService:
         self.logger = logging.getLogger(__name__)
 
         # Calibration parameters for tournament optimization
-        self.overconfidence_threshold = 0.05  # Avoid predictions closer than 5% to extremes
-        self.extreme_avoidance_factor = 0.1   # Pull back from extremes by 10%
-        self.anchoring_weight = 0.2           # Weight for community anchoring
+        self.overconfidence_threshold = (
+            0.05  # Avoid predictions closer than 5% to extremes
+        )
+        self.extreme_avoidance_factor = 0.1  # Pull back from extremes by 10%
+        self.anchoring_weight = 0.2  # Weight for community anchoring
         self.confidence_adjustment_rates = {
             PredictionConfidence.VERY_HIGH: 0.15,  # Reduce very high confidence more
             PredictionConfidence.HIGH: 0.10,
             PredictionConfidence.MEDIUM: 0.05,
             PredictionConfidence.LOW: 0.02,
-            PredictionConfidence.VERY_LOW: 0.01
+            PredictionConfidence.VERY_LOW: 0.01,
         }
 
     def calibrate_prediction(
         self,
         prediction: Prediction,
         community_data: Optional[CommunityPredictionData] = None,
-        historical_performance: Optional[Dict[str, float]] = None
+        historical_performance: Optional[Dict[str, float]] = None,
     ) -> Tuple[Prediction, CalibrationAdjustment]:
         """Calibrate a prediction for tournament performance optimization."""
 
@@ -66,7 +70,7 @@ class TournamentCalibrationService:
                 adjusted_value=0.0,
                 adjustment_type="no_adjustment",
                 adjustment_factor=1.0,
-                reasoning="No numeric value to calibrate"
+                reasoning="No numeric value to calibrate",
             )
 
         adjusted_value = original_value
@@ -113,11 +117,17 @@ class TournamentCalibrationService:
         adjustment = CalibrationAdjustment(
             original_value=original_value,
             adjusted_value=adjusted_value,
-            adjustment_type="+".join(adjustments_applied) if adjustments_applied else "no_adjustment",
-            adjustment_factor=adjusted_value / original_value if original_value != 0 else 1.0,
+            adjustment_type=(
+                "+".join(adjustments_applied)
+                if adjustments_applied
+                else "no_adjustment"
+            ),
+            adjustment_factor=(
+                adjusted_value / original_value if original_value != 0 else 1.0
+            ),
             reasoning=self._generate_adjustment_reasoning(
                 original_value, adjusted_value, adjustments_applied, community_data
-            )
+            ),
         )
 
         self.logger.info(
@@ -125,7 +135,7 @@ class TournamentCalibrationService:
             original_value=original_value,
             adjusted_value=adjusted_value,
             adjustments=adjustments_applied,
-            adjustment_factor=adjustment.adjustment_factor
+            adjustment_factor=adjustment.adjustment_factor,
         )
 
         return calibrated_prediction, adjustment
@@ -134,7 +144,7 @@ class TournamentCalibrationService:
         self,
         forecast: Forecast,
         community_data: Optional[CommunityPredictionData] = None,
-        historical_performance: Optional[Dict[str, float]] = None
+        historical_performance: Optional[Dict[str, float]] = None,
     ) -> Tuple[Forecast, List[CalibrationAdjustment]]:
         """Calibrate all predictions in a forecast."""
 
@@ -162,7 +172,7 @@ class TournamentCalibrationService:
                 forecast.reasoning_summary, adjustments
             ),
             tournament_strategy=forecast.tournament_strategy,
-            reasoning_traces=forecast.reasoning_traces
+            reasoning_traces=forecast.reasoning_traces,
         )
 
         return calibrated_forecast, adjustments
@@ -170,7 +180,7 @@ class TournamentCalibrationService:
     def calculate_log_score_risk(self, prediction_value: float) -> float:
         """Calculate the log scoring risk for a prediction value."""
         if prediction_value <= 0 or prediction_value >= 1:
-            return float('inf')  # Infinite risk for extreme values
+            return float("inf")  # Infinite risk for extreme values
 
         # Log score risk is higher near extremes
         # Risk = -log(p) for correct predictions, -log(1-p) for incorrect
@@ -181,7 +191,9 @@ class TournamentCalibrationService:
 
         return expected_risk
 
-    def optimize_for_log_scoring(self, prediction_value: float, confidence: PredictionConfidence) -> float:
+    def optimize_for_log_scoring(
+        self, prediction_value: float, confidence: PredictionConfidence
+    ) -> float:
         """Optimize prediction value specifically for log scoring performance."""
 
         # Calculate current risk
@@ -195,7 +207,9 @@ class TournamentCalibrationService:
         confidence_factor = self.confidence_adjustment_rates.get(confidence, 0.05)
 
         # Test moving toward 0.5 (most conservative for log scoring)
-        conservative_adjustments = [0.1, 0.2, 0.3] if confidence_factor > 0.05 else [0.05, 0.1]
+        conservative_adjustments = (
+            [0.1, 0.2, 0.3] if confidence_factor > 0.05 else [0.05, 0.1]
+        )
 
         for adjustment in conservative_adjustments:
             if prediction_value > 0.5:
@@ -221,7 +235,9 @@ class TournamentCalibrationService:
             return max(prediction.result.multiple_choice_probabilities.values())
         return None
 
-    def _apply_overconfidence_mitigation(self, value: float, confidence: PredictionConfidence) -> float:
+    def _apply_overconfidence_mitigation(
+        self, value: float, confidence: PredictionConfidence
+    ) -> float:
         """Apply overconfidence mitigation based on confidence level."""
 
         # Higher confidence predictions get more adjustment
@@ -253,7 +269,7 @@ class TournamentCalibrationService:
         self,
         value: float,
         community_data: CommunityPredictionData,
-        confidence: PredictionConfidence
+        confidence: PredictionConfidence,
     ) -> float:
         """Apply community prediction anchoring strategy."""
 
@@ -281,18 +297,19 @@ class TournamentCalibrationService:
         return max(0.01, min(0.99, anchored_value))
 
     def _apply_historical_performance_adjustment(
-        self,
-        value: float,
-        historical_performance: Dict[str, float],
-        method
+        self, value: float, historical_performance: Dict[str, float], method
     ) -> float:
         """Apply adjustment based on historical performance of the method."""
 
-        method_name = method.value if hasattr(method, 'value') else str(method)
+        method_name = method.value if hasattr(method, "value") else str(method)
 
         # Get calibration factor for this method
-        calibration_factor = historical_performance.get(f"{method_name}_calibration", 1.0)
-        overconfidence_factor = historical_performance.get(f"{method_name}_overconfidence", 0.0)
+        calibration_factor = historical_performance.get(
+            f"{method_name}_calibration", 1.0
+        )
+        overconfidence_factor = historical_performance.get(
+            f"{method_name}_overconfidence", 0.0
+        )
 
         # Apply calibration adjustment
         if calibration_factor != 1.0:
@@ -306,7 +323,9 @@ class TournamentCalibrationService:
 
         return value
 
-    def _create_calibrated_prediction(self, original: Prediction, adjusted_value: float) -> Prediction:
+    def _create_calibrated_prediction(
+        self, original: Prediction, adjusted_value: float
+    ) -> Prediction:
         """Create a new prediction with calibrated value."""
 
         # Create new result with adjusted value
@@ -326,24 +345,30 @@ class TournamentCalibrationService:
             confidence=original.confidence,
             method=original.method,
             reasoning=original.reasoning,
-            reasoning_steps=original.reasoning_steps + [
-                f"Applied tournament calibration: {original.result} → {new_result}"
-            ],
+            reasoning_steps=original.reasoning_steps
+            + [f"Applied tournament calibration: {original.result} → {new_result}"],
             created_at=original.created_at,
             created_by=original.created_by,
             method_metadata={
                 **original.method_metadata,
                 "calibration_applied": True,
                 "original_value": self._extract_prediction_value(original),
-                "calibration_timestamp": datetime.utcnow().isoformat()
-            }
+                "calibration_timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
         # Copy other attributes
-        for attr in ['lower_bound', 'upper_bound', 'confidence_interval',
-                     'internal_consistency_score', 'evidence_strength',
-                     'reasoning_trace', 'bias_checks_performed',
-                     'uncertainty_quantification', 'calibration_data']:
+        for attr in [
+            "lower_bound",
+            "upper_bound",
+            "confidence_interval",
+            "internal_consistency_score",
+            "evidence_strength",
+            "reasoning_trace",
+            "bias_checks_performed",
+            "uncertainty_quantification",
+            "calibration_data",
+        ]:
             if hasattr(original, attr):
                 setattr(calibrated, attr, getattr(original, attr))
 
@@ -354,7 +379,7 @@ class TournamentCalibrationService:
         original_value: float,
         adjusted_value: float,
         adjustments_applied: List[str],
-        community_data: Optional[CommunityPredictionData]
+        community_data: Optional[CommunityPredictionData],
     ) -> str:
         """Generate reasoning for calibration adjustments."""
 
@@ -366,10 +391,14 @@ class TournamentCalibrationService:
         ]
 
         if "overconfidence_mitigation" in adjustments_applied:
-            reasoning_parts.append("Applied overconfidence mitigation to improve calibration")
+            reasoning_parts.append(
+                "Applied overconfidence mitigation to improve calibration"
+            )
 
         if "extreme_avoidance" in adjustments_applied:
-            reasoning_parts.append("Applied extreme value avoidance for log scoring protection")
+            reasoning_parts.append(
+                "Applied extreme value avoidance for log scoring protection"
+            )
 
         if "community_anchoring" in adjustments_applied and community_data:
             reasoning_parts.append(
@@ -385,13 +414,15 @@ class TournamentCalibrationService:
     def _update_reasoning_with_calibration(
         self,
         original_reasoning: Optional[str],
-        adjustments: List[CalibrationAdjustment]
+        adjustments: List[CalibrationAdjustment],
     ) -> str:
         """Update forecast reasoning to include calibration information."""
 
         base_reasoning = original_reasoning or "Ensemble forecast"
 
-        if not adjustments or all(adj.adjustment_type == "no_adjustment" for adj in adjustments):
+        if not adjustments or all(
+            adj.adjustment_type == "no_adjustment" for adj in adjustments
+        ):
             return base_reasoning
 
         calibration_summary = []
@@ -403,7 +434,9 @@ class TournamentCalibrationService:
                 )
 
         if calibration_summary:
-            calibration_text = "\n\nTournament Calibration Applied:\n" + "\n".join(calibration_summary)
+            calibration_text = "\n\nTournament Calibration Applied:\n" + "\n".join(
+                calibration_summary
+            )
             return base_reasoning + calibration_text
 
         return base_reasoning

@@ -1,26 +1,28 @@
 """Calibration accuracy validation and bias detection testing."""
 
-import pytest
 import asyncio
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Tuple
-from unittest.mock import Mock, AsyncMock
-from dataclasses import dataclass
-import statistics
 import math
 import random
+import statistics
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+from unittest.mock import AsyncMock, Mock
 
-from src.domain.entities.question import Question, QuestionType
-from src.domain.entities.forecast import Forecast
-from src.domain.value_objects.probability import Probability
-from src.domain.value_objects.confidence import Confidence
+import numpy as np
+import pytest
+
 from src.agents.base_agent import BaseAgent
+from src.domain.entities.forecast import Forecast
+from src.domain.entities.question import Question, QuestionType
+from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.probability import Probability
 
 
 @dataclass
 class BiasTestScenario:
     """Defines a bias testing scenario."""
+
     name: str
     bias_type: str  # "overconfidence", "underconfidence", "anchoring", "availability", "confirmation"
     expected_bias_strength: float  # 0.0 to 1.0
@@ -39,7 +41,7 @@ class CalibrationValidator:
         self,
         forecasts: List[Forecast],
         ground_truth: Dict[int, bool],
-        validation_method: str = "reliability_diagram"
+        validation_method: str = "reliability_diagram",
     ) -> Dict[str, Any]:
         """Validate calibration accuracy using various methods."""
 
@@ -66,7 +68,7 @@ class CalibrationValidator:
             "calibration_metrics": {},
             "reliability_analysis": {},
             "sharpness_analysis": {},
-            "resolution_analysis": {}
+            "resolution_analysis": {},
         }
 
         # Calculate calibration metrics
@@ -95,9 +97,7 @@ class CalibrationValidator:
         return validation_results
 
     def detect_prediction_biases(
-        self,
-        agent: BaseAgent,
-        bias_scenarios: List[BiasTestScenario]
+        self, agent: BaseAgent, bias_scenarios: List[BiasTestScenario]
     ) -> Dict[str, Any]:
         """Detect various prediction biases in agent behavior."""
 
@@ -106,7 +106,7 @@ class CalibrationValidator:
             "bias_tests": {},
             "overall_bias_score": 0.0,
             "detected_biases": [],
-            "bias_mitigation_recommendations": []
+            "bias_mitigation_recommendations": [],
         }
 
         for scenario in bias_scenarios:
@@ -114,11 +114,13 @@ class CalibrationValidator:
             bias_results["bias_tests"][scenario.name] = test_result
 
             if test_result["bias_detected"]:
-                bias_results["detected_biases"].append({
-                    "bias_type": scenario.bias_type,
-                    "strength": test_result["bias_strength"],
-                    "confidence": test_result["detection_confidence"]
-                })
+                bias_results["detected_biases"].append(
+                    {
+                        "bias_type": scenario.bias_type,
+                        "strength": test_result["bias_strength"],
+                        "confidence": test_result["detection_confidence"],
+                    }
+                )
 
         # Calculate overall bias score
         bias_results["overall_bias_score"] = self._calculate_overall_bias_score(
@@ -126,22 +128,23 @@ class CalibrationValidator:
         )
 
         # Generate mitigation recommendations
-        bias_results["bias_mitigation_recommendations"] = self._generate_bias_mitigation_recommendations(
-            bias_results["detected_biases"]
+        bias_results["bias_mitigation_recommendations"] = (
+            self._generate_bias_mitigation_recommendations(
+                bias_results["detected_biases"]
+            )
         )
 
         return bias_results
 
     def _calculate_calibration_metrics(
-        self,
-        predictions: List[float],
-        outcomes: List[float],
-        confidences: List[float]
+        self, predictions: List[float], outcomes: List[float], confidences: List[float]
     ) -> Dict[str, float]:
         """Calculate comprehensive calibration metrics."""
 
         # Brier Score
-        brier_score = statistics.mean([(p - o) ** 2 for p, o in zip(predictions, outcomes)])
+        brier_score = statistics.mean(
+            [(p - o) ** 2 for p, o in zip(predictions, outcomes)]
+        )
 
         # Brier Score Decomposition
         base_rate = statistics.mean(outcomes)
@@ -155,7 +158,9 @@ class CalibrationValidator:
         mce = self._calculate_maximum_calibration_error(predictions, outcomes)
 
         # Overconfidence/Underconfidence
-        confidence_bias = self._calculate_confidence_bias(predictions, outcomes, confidences)
+        confidence_bias = self._calculate_confidence_bias(
+            predictions, outcomes, confidences
+        )
 
         return {
             "brier_score": brier_score,
@@ -165,10 +170,12 @@ class CalibrationValidator:
             "maximum_calibration_error": mce,
             "overconfidence": max(0, confidence_bias),
             "underconfidence": max(0, -confidence_bias),
-            "calibration_score": 1.0 - ece  # Higher is better
+            "calibration_score": 1.0 - ece,  # Higher is better
         }
 
-    def _analyze_reliability(self, predictions: List[float], outcomes: List[float]) -> Dict[str, Any]:
+    def _analyze_reliability(
+        self, predictions: List[float], outcomes: List[float]
+    ) -> Dict[str, Any]:
         """Analyze reliability using reliability diagrams."""
 
         # Create bins for reliability diagram
@@ -192,37 +199,45 @@ class CalibrationValidator:
                 avg_outcome = statistics.mean(bin_outcomes)
                 bin_size = len(bin_predictions)
 
-                bins.append({
-                    "bin_range": (bin_start, bin_end),
-                    "count": bin_size,
-                    "avg_prediction": avg_prediction,
-                    "avg_outcome": avg_outcome,
-                    "calibration_error": abs(avg_prediction - avg_outcome),
-                    "proportion": bin_size / len(predictions)
-                })
+                bins.append(
+                    {
+                        "bin_range": (bin_start, bin_end),
+                        "count": bin_size,
+                        "avg_prediction": avg_prediction,
+                        "avg_outcome": avg_outcome,
+                        "calibration_error": abs(avg_prediction - avg_outcome),
+                        "proportion": bin_size / len(predictions),
+                    }
+                )
 
         # Calculate reliability metrics
         total_predictions = len(predictions)
-        weighted_calibration_error = sum(
-            bin_data["count"] * bin_data["calibration_error"]
-            for bin_data in bins
-        ) / total_predictions
+        weighted_calibration_error = (
+            sum(bin_data["count"] * bin_data["calibration_error"] for bin_data in bins)
+            / total_predictions
+        )
 
         return {
             "bins": bins,
             "weighted_calibration_error": weighted_calibration_error,
             "perfect_calibration": weighted_calibration_error < 0.05,
-            "reliability_score": 1.0 - weighted_calibration_error
+            "reliability_score": 1.0 - weighted_calibration_error,
         }
 
-    def _analyze_sharpness(self, predictions: List[float], confidences: List[float]) -> Dict[str, Any]:
+    def _analyze_sharpness(
+        self, predictions: List[float], confidences: List[float]
+    ) -> Dict[str, Any]:
         """Analyze prediction sharpness (discrimination ability)."""
 
         # Calculate prediction variance (higher = more sharp)
-        prediction_variance = statistics.variance(predictions) if len(predictions) > 1 else 0
+        prediction_variance = (
+            statistics.variance(predictions) if len(predictions) > 1 else 0
+        )
 
         # Calculate confidence variance
-        confidence_variance = statistics.variance(confidences) if len(confidences) > 1 else 0
+        confidence_variance = (
+            statistics.variance(confidences) if len(confidences) > 1 else 0
+        )
 
         # Calculate sharpness score
         sharpness_score = min(1.0, prediction_variance * 4)  # Normalize to 0-1
@@ -237,7 +252,8 @@ class CalibrationValidator:
         total_preds = len(predictions)
         entropy = -sum(
             (count / total_preds) * math.log(count / total_preds)
-            for count in prediction_bins if count > 0
+            for count in prediction_bins
+            if count > 0
         )
         max_entropy = math.log(10)  # Maximum possible entropy for 10 bins
         normalized_entropy = entropy / max_entropy
@@ -249,10 +265,12 @@ class CalibrationValidator:
             "entropy": entropy,
             "normalized_entropy": normalized_entropy,
             "discrimination_ability": 1.0 - normalized_entropy,
-            "prediction_distribution": prediction_bins
+            "prediction_distribution": prediction_bins,
         }
 
-    def _analyze_resolution(self, predictions: List[float], outcomes: List[float]) -> Dict[str, Any]:
+    def _analyze_resolution(
+        self, predictions: List[float], outcomes: List[float]
+    ) -> Dict[str, Any]:
         """Analyze resolution (ability to discriminate between different outcomes)."""
 
         base_rate = statistics.mean(outcomes)
@@ -273,8 +291,16 @@ class CalibrationValidator:
             discrimination_slope = pos_mean - neg_mean
 
         else:
-            pos_mean = statistics.mean(positive_predictions) if positive_predictions else base_rate
-            neg_mean = statistics.mean(negative_predictions) if negative_predictions else base_rate
+            pos_mean = (
+                statistics.mean(positive_predictions)
+                if positive_predictions
+                else base_rate
+            )
+            neg_mean = (
+                statistics.mean(negative_predictions)
+                if negative_predictions
+                else base_rate
+            )
             resolution_score = 0.0
             discrimination_slope = 0.0
 
@@ -284,10 +310,12 @@ class CalibrationValidator:
             "negative_case_avg_prediction": neg_mean,
             "resolution_score": resolution_score,
             "discrimination_slope": discrimination_slope,
-            "good_discrimination": resolution_score > 0.1
+            "good_discrimination": resolution_score > 0.1,
         }
 
-    async def _test_specific_bias(self, agent: BaseAgent, scenario: BiasTestScenario) -> Dict[str, Any]:
+    async def _test_specific_bias(
+        self, agent: BaseAgent, scenario: BiasTestScenario
+    ) -> Dict[str, Any]:
         """Test for a specific type of bias."""
 
         bias_indicators = []
@@ -308,19 +336,31 @@ class CalibrationValidator:
 
         # Analyze for specific bias type
         if scenario.bias_type == "overconfidence":
-            bias_indicators = self._detect_overconfidence_bias(forecasts, scenario.test_questions)
+            bias_indicators = self._detect_overconfidence_bias(
+                forecasts, scenario.test_questions
+            )
         elif scenario.bias_type == "underconfidence":
-            bias_indicators = self._detect_underconfidence_bias(forecasts, scenario.test_questions)
+            bias_indicators = self._detect_underconfidence_bias(
+                forecasts, scenario.test_questions
+            )
         elif scenario.bias_type == "anchoring":
-            bias_indicators = self._detect_anchoring_bias(forecasts, scenario.test_questions)
+            bias_indicators = self._detect_anchoring_bias(
+                forecasts, scenario.test_questions
+            )
         elif scenario.bias_type == "availability":
-            bias_indicators = self._detect_availability_bias(forecasts, scenario.test_questions)
+            bias_indicators = self._detect_availability_bias(
+                forecasts, scenario.test_questions
+            )
         elif scenario.bias_type == "confirmation":
-            bias_indicators = self._detect_confirmation_bias(forecasts, scenario.test_questions)
+            bias_indicators = self._detect_confirmation_bias(
+                forecasts, scenario.test_questions
+            )
 
         # Calculate bias strength and detection confidence
         bias_strength = statistics.mean(bias_indicators) if bias_indicators else 0.0
-        detection_confidence = min(1.0, len(bias_indicators) / 10)  # More indicators = higher confidence
+        detection_confidence = min(
+            1.0, len(bias_indicators) / 10
+        )  # More indicators = higher confidence
 
         return {
             "bias_type": scenario.bias_type,
@@ -328,16 +368,20 @@ class CalibrationValidator:
             "detection_confidence": detection_confidence,
             "bias_detected": bias_strength > scenario.detection_threshold,
             "bias_indicators": bias_indicators,
-            "forecast_count": len(forecasts)
+            "forecast_count": len(forecasts),
         }
 
-    def _detect_overconfidence_bias(self, forecasts: List[Forecast], questions: List[Dict[str, Any]]) -> List[float]:
+    def _detect_overconfidence_bias(
+        self, forecasts: List[Forecast], questions: List[Dict[str, Any]]
+    ) -> List[float]:
         """Detect overconfidence bias indicators."""
         indicators = []
 
         for forecast in forecasts:
             # High confidence with extreme predictions indicates overconfidence
-            extreme_prediction = forecast.prediction.value < 0.1 or forecast.prediction.value > 0.9
+            extreme_prediction = (
+                forecast.prediction.value < 0.1 or forecast.prediction.value > 0.9
+            )
             high_confidence = forecast.confidence.value > 0.8
 
             if extreme_prediction and high_confidence:
@@ -349,7 +393,9 @@ class CalibrationValidator:
 
         return indicators
 
-    def _detect_underconfidence_bias(self, forecasts: List[Forecast], questions: List[Dict[str, Any]]) -> List[float]:
+    def _detect_underconfidence_bias(
+        self, forecasts: List[Forecast], questions: List[Dict[str, Any]]
+    ) -> List[float]:
         """Detect underconfidence bias indicators."""
         indicators = []
 
@@ -367,7 +413,9 @@ class CalibrationValidator:
 
         return indicators
 
-    def _detect_anchoring_bias(self, forecasts: List[Forecast], questions: List[Dict[str, Any]]) -> List[float]:
+    def _detect_anchoring_bias(
+        self, forecasts: List[Forecast], questions: List[Dict[str, Any]]
+    ) -> List[float]:
         """Detect anchoring bias indicators."""
         indicators = []
 
@@ -379,12 +427,18 @@ class CalibrationValidator:
 
         for anchor in anchors:
             nearby_predictions = [p for p in predictions if abs(p - anchor) < 0.05]
-            if len(nearby_predictions) > len(predictions) * 0.3:  # 30% clustered around anchor
-                indicators.extend([0.5] * len(nearby_predictions))  # Moderate bias indicator
+            if (
+                len(nearby_predictions) > len(predictions) * 0.3
+            ):  # 30% clustered around anchor
+                indicators.extend(
+                    [0.5] * len(nearby_predictions)
+                )  # Moderate bias indicator
 
         return indicators
 
-    def _detect_availability_bias(self, forecasts: List[Forecast], questions: List[Dict[str, Any]]) -> List[float]:
+    def _detect_availability_bias(
+        self, forecasts: List[Forecast], questions: List[Dict[str, Any]]
+    ) -> List[float]:
         """Detect availability bias indicators."""
         indicators = []
 
@@ -395,18 +449,38 @@ class CalibrationValidator:
             reasoning = forecast.reasoning.lower()
 
             # Check for recent event keywords
-            recent_keywords = ["recent", "recently", "latest", "just", "yesterday", "last week", "breaking"]
-            memorable_keywords = ["dramatic", "shocking", "unprecedented", "historic", "major"]
+            recent_keywords = [
+                "recent",
+                "recently",
+                "latest",
+                "just",
+                "yesterday",
+                "last week",
+                "breaking",
+            ]
+            memorable_keywords = [
+                "dramatic",
+                "shocking",
+                "unprecedented",
+                "historic",
+                "major",
+            ]
 
-            recent_mentions = sum(1 for keyword in recent_keywords if keyword in reasoning)
-            memorable_mentions = sum(1 for keyword in memorable_keywords if keyword in reasoning)
+            recent_mentions = sum(
+                1 for keyword in recent_keywords if keyword in reasoning
+            )
+            memorable_mentions = sum(
+                1 for keyword in memorable_keywords if keyword in reasoning
+            )
 
             if recent_mentions > 2 or memorable_mentions > 1:
                 indicators.append(0.6)  # Moderate availability bias indicator
 
         return indicators
 
-    def _detect_confirmation_bias(self, forecasts: List[Forecast], questions: List[Dict[str, Any]]) -> List[float]:
+    def _detect_confirmation_bias(
+        self, forecasts: List[Forecast], questions: List[Dict[str, Any]]
+    ) -> List[float]:
         """Detect confirmation bias indicators."""
         indicators = []
 
@@ -417,8 +491,21 @@ class CalibrationValidator:
             reasoning = forecast.reasoning.lower()
 
             # Check for balanced reasoning
-            positive_words = ["support", "confirm", "evidence for", "indicates", "suggests"]
-            negative_words = ["however", "but", "against", "contradicts", "challenges", "despite"]
+            positive_words = [
+                "support",
+                "confirm",
+                "evidence for",
+                "indicates",
+                "suggests",
+            ]
+            negative_words = [
+                "however",
+                "but",
+                "against",
+                "contradicts",
+                "challenges",
+                "despite",
+            ]
 
             positive_count = sum(1 for word in positive_words if word in reasoning)
             negative_count = sum(1 for word in negative_words if word in reasoning)
@@ -426,7 +513,9 @@ class CalibrationValidator:
             # Strong confirmation bias if only positive evidence mentioned
             if positive_count > 2 and negative_count == 0:
                 indicators.append(0.7)
-            elif positive_count > negative_count * 3:  # Heavily skewed toward confirmation
+            elif (
+                positive_count > negative_count * 3
+            ):  # Heavily skewed toward confirmation
                 indicators.append(0.5)
 
         return indicators
@@ -441,20 +530,26 @@ class CalibrationValidator:
             close_time=datetime.fromisoformat(question_data["close_time"]),
             resolve_time=datetime.fromisoformat(question_data["resolve_time"]),
             categories=question_data.get("categories", []),
-            tags=question_data.get("tags", [])
+            tags=question_data.get("tags", []),
         )
 
-    def _calculate_reliability(self, predictions: List[float], outcomes: List[float]) -> float:
+    def _calculate_reliability(
+        self, predictions: List[float], outcomes: List[float]
+    ) -> float:
         """Calculate reliability component of Brier score."""
         # Implementation of reliability calculation
         return 0.0  # Placeholder
 
-    def _calculate_resolution(self, predictions: List[float], outcomes: List[float], base_rate: float) -> float:
+    def _calculate_resolution(
+        self, predictions: List[float], outcomes: List[float], base_rate: float
+    ) -> float:
         """Calculate resolution component of Brier score."""
         # Implementation of resolution calculation
         return 0.0  # Placeholder
 
-    def _calculate_expected_calibration_error(self, predictions: List[float], outcomes: List[float]) -> float:
+    def _calculate_expected_calibration_error(
+        self, predictions: List[float], outcomes: List[float]
+    ) -> float:
         """Calculate Expected Calibration Error."""
         num_bins = 10
         total_error = 0.0
@@ -481,7 +576,9 @@ class CalibrationValidator:
 
         return total_error
 
-    def _calculate_maximum_calibration_error(self, predictions: List[float], outcomes: List[float]) -> float:
+    def _calculate_maximum_calibration_error(
+        self, predictions: List[float], outcomes: List[float]
+    ) -> float:
         """Calculate Maximum Calibration Error."""
         num_bins = 10
         max_error = 0.0
@@ -506,13 +603,17 @@ class CalibrationValidator:
 
         return max_error
 
-    def _calculate_confidence_bias(self, predictions: List[float], outcomes: List[float], confidences: List[float]) -> float:
+    def _calculate_confidence_bias(
+        self, predictions: List[float], outcomes: List[float], confidences: List[float]
+    ) -> float:
         """Calculate confidence bias (positive = overconfident, negative = underconfident)."""
         if not confidences:
             return 0.0
 
         # Calculate actual accuracy for each prediction
-        accuracies = [1.0 - abs(pred - outcome) for pred, outcome in zip(predictions, outcomes)]
+        accuracies = [
+            1.0 - abs(pred - outcome) for pred, outcome in zip(predictions, outcomes)
+        ]
 
         # Compare confidence to actual accuracy
         confidence_errors = [conf - acc for conf, acc in zip(confidences, accuracies)]
@@ -531,7 +632,9 @@ class CalibrationValidator:
 
         return statistics.mean(bias_strengths) if bias_strengths else 0.0
 
-    def _generate_bias_mitigation_recommendations(self, detected_biases: List[Dict[str, Any]]) -> List[str]:
+    def _generate_bias_mitigation_recommendations(
+        self, detected_biases: List[Dict[str, Any]]
+    ) -> List[str]:
         """Generate recommendations for mitigating detected biases."""
         recommendations = []
 
@@ -540,18 +643,30 @@ class CalibrationValidator:
             strength = bias["strength"]
 
             if bias_type == "overconfidence" and strength > 0.5:
-                recommendations.append("Implement confidence calibration training and encourage consideration of alternative scenarios")
+                recommendations.append(
+                    "Implement confidence calibration training and encourage consideration of alternative scenarios"
+                )
             elif bias_type == "underconfidence" and strength > 0.5:
-                recommendations.append("Provide feedback on prediction accuracy to build appropriate confidence levels")
+                recommendations.append(
+                    "Provide feedback on prediction accuracy to build appropriate confidence levels"
+                )
             elif bias_type == "anchoring" and strength > 0.5:
-                recommendations.append("Use structured decision-making processes and consider multiple reference points")
+                recommendations.append(
+                    "Use structured decision-making processes and consider multiple reference points"
+                )
             elif bias_type == "availability" and strength > 0.5:
-                recommendations.append("Implement systematic information gathering and base rate consideration")
+                recommendations.append(
+                    "Implement systematic information gathering and base rate consideration"
+                )
             elif bias_type == "confirmation" and strength > 0.5:
-                recommendations.append("Encourage devil's advocate reasoning and systematic consideration of counterevidence")
+                recommendations.append(
+                    "Encourage devil's advocate reasoning and systematic consideration of counterevidence"
+                )
 
         if not recommendations:
-            recommendations.append("Continue monitoring for bias patterns and maintain current practices")
+            recommendations.append(
+                "Continue monitoring for bias patterns and maintain current practices"
+            )
 
         return recommendations
 
@@ -575,7 +690,9 @@ class TestCalibrationValidation:
             base_accuracy = 0.7
             noise = (question.id % 10) * 0.02 - 0.1  # ±0.1 noise
             prediction = max(0.1, min(0.9, base_accuracy + noise))
-            confidence = base_accuracy + abs(noise) * 0.5  # Confidence reflects uncertainty
+            confidence = (
+                base_accuracy + abs(noise) * 0.5
+            )  # Confidence reflects uncertainty
 
             return Forecast(
                 question_id=question.id,
@@ -584,7 +701,7 @@ class TestCalibrationValidation:
                 reasoning="Well-calibrated analysis with appropriate uncertainty",
                 method="calibrated",
                 sources=["calibrated_source"],
-                metadata={"calibration_target": base_accuracy}
+                metadata={"calibration_target": base_accuracy},
             )
 
         agent.generate_forecast = AsyncMock(side_effect=calibrated_forecast)
@@ -608,7 +725,7 @@ class TestCalibrationValidation:
                 reasoning="Very confident analysis with extreme prediction and recent dramatic events suggest high certainty",
                 method="overconfident",
                 sources=["biased_source"],
-                metadata={"bias_type": "overconfidence"}
+                metadata={"bias_type": "overconfidence"},
             )
 
         agent.generate_forecast = AsyncMock(side_effect=overconfident_forecast)
@@ -634,51 +751,61 @@ class TestCalibrationValidation:
         # Overconfidence bias scenario
         overconfidence_questions = []
         for i in range(10):
-            overconfidence_questions.append({
-                "id": 8000 + i,
-                "title": f"Overconfidence test question {i+1}",
-                "description": "Question designed to test overconfidence bias",
-                "type": "binary",
-                "close_time": "2025-12-01T00:00:00Z",
-                "resolve_time": "2026-01-01T00:00:00Z",
-                "categories": ["Test"],
-                "tags": ["overconfidence"]
-            })
+            overconfidence_questions.append(
+                {
+                    "id": 8000 + i,
+                    "title": f"Overconfidence test question {i+1}",
+                    "description": "Question designed to test overconfidence bias",
+                    "type": "binary",
+                    "close_time": "2025-12-01T00:00:00Z",
+                    "resolve_time": "2026-01-01T00:00:00Z",
+                    "categories": ["Test"],
+                    "tags": ["overconfidence"],
+                }
+            )
 
-        scenarios.append(BiasTestScenario(
-            name="Overconfidence Test",
-            bias_type="overconfidence",
-            expected_bias_strength=0.6,
-            test_questions=overconfidence_questions,
-            detection_threshold=0.4
-        ))
+        scenarios.append(
+            BiasTestScenario(
+                name="Overconfidence Test",
+                bias_type="overconfidence",
+                expected_bias_strength=0.6,
+                test_questions=overconfidence_questions,
+                detection_threshold=0.4,
+            )
+        )
 
         # Anchoring bias scenario
         anchoring_questions = []
         for i in range(10):
-            anchoring_questions.append({
-                "id": 8100 + i,
-                "title": f"Anchoring test question {i+1}",
-                "description": "Question with potential anchoring points",
-                "type": "binary",
-                "close_time": "2025-12-01T00:00:00Z",
-                "resolve_time": "2026-01-01T00:00:00Z",
-                "categories": ["Test"],
-                "tags": ["anchoring"]
-            })
+            anchoring_questions.append(
+                {
+                    "id": 8100 + i,
+                    "title": f"Anchoring test question {i+1}",
+                    "description": "Question with potential anchoring points",
+                    "type": "binary",
+                    "close_time": "2025-12-01T00:00:00Z",
+                    "resolve_time": "2026-01-01T00:00:00Z",
+                    "categories": ["Test"],
+                    "tags": ["anchoring"],
+                }
+            )
 
-        scenarios.append(BiasTestScenario(
-            name="Anchoring Test",
-            bias_type="anchoring",
-            expected_bias_strength=0.4,
-            test_questions=anchoring_questions,
-            detection_threshold=0.3
-        ))
+        scenarios.append(
+            BiasTestScenario(
+                name="Anchoring Test",
+                bias_type="anchoring",
+                expected_bias_strength=0.4,
+                test_questions=anchoring_questions,
+                detection_threshold=0.3,
+            )
+        )
 
         return scenarios
 
     @pytest.mark.asyncio
-    async def test_calibration_accuracy_validation(self, calibration_validator, mock_calibrated_agent, test_ground_truth):
+    async def test_calibration_accuracy_validation(
+        self, calibration_validator, mock_calibrated_agent, test_ground_truth
+    ):
         """Test calibration accuracy validation."""
         # Generate forecasts from well-calibrated agent
         forecasts = []
@@ -691,7 +818,7 @@ class TestCalibrationValidation:
                 "close_time": "2025-12-01T00:00:00Z",
                 "resolve_time": "2026-01-01T00:00:00Z",
                 "categories": ["Test"],
-                "tags": ["calibration"]
+                "tags": ["calibration"],
             }
 
             question = calibration_validator._create_question(question_data)
@@ -722,9 +849,13 @@ class TestCalibrationValidation:
         assert metrics["calibration_score"] >= 0.6  # Reasonable calibration
 
     @pytest.mark.asyncio
-    async def test_overconfidence_bias_detection(self, calibration_validator, mock_overconfident_agent, bias_test_scenarios):
+    async def test_overconfidence_bias_detection(
+        self, calibration_validator, mock_overconfident_agent, bias_test_scenarios
+    ):
         """Test overconfidence bias detection."""
-        overconfidence_scenario = next(s for s in bias_test_scenarios if s.bias_type == "overconfidence")
+        overconfidence_scenario = next(
+            s for s in bias_test_scenarios if s.bias_type == "overconfidence"
+        )
 
         bias_results = calibration_validator.detect_prediction_biases(
             mock_overconfident_agent, [overconfidence_scenario]
@@ -747,7 +878,9 @@ class TestCalibrationValidation:
         assert any(bias["bias_type"] == "overconfidence" for bias in detected_biases)
 
     @pytest.mark.asyncio
-    async def test_reliability_diagram_analysis(self, calibration_validator, mock_calibrated_agent, test_ground_truth):
+    async def test_reliability_diagram_analysis(
+        self, calibration_validator, mock_calibrated_agent, test_ground_truth
+    ):
         """Test reliability diagram analysis."""
         # Generate forecasts with varied predictions
         forecasts = []
@@ -760,7 +893,7 @@ class TestCalibrationValidation:
                 "close_time": "2025-12-01T00:00:00Z",
                 "resolve_time": "2026-01-01T00:00:00Z",
                 "categories": ["Test"],
-                "tags": ["reliability"]
+                "tags": ["reliability"],
             }
 
             question = calibration_validator._create_question(question_data)
@@ -793,7 +926,9 @@ class TestCalibrationValidation:
             assert 0 <= bin_data["avg_outcome"] <= 1
 
     @pytest.mark.asyncio
-    async def test_sharpness_analysis(self, calibration_validator, mock_calibrated_agent, test_ground_truth):
+    async def test_sharpness_analysis(
+        self, calibration_validator, mock_calibrated_agent, test_ground_truth
+    ):
         """Test sharpness analysis."""
         # Generate forecasts
         forecasts = []
@@ -806,7 +941,7 @@ class TestCalibrationValidation:
                 "close_time": "2025-12-01T00:00:00Z",
                 "resolve_time": "2026-01-01T00:00:00Z",
                 "categories": ["Test"],
-                "tags": ["sharpness"]
+                "tags": ["sharpness"],
             }
 
             question = calibration_validator._create_question(question_data)
@@ -832,7 +967,9 @@ class TestCalibrationValidation:
         assert len(sharpness["prediction_distribution"]) == 10
 
     @pytest.mark.asyncio
-    async def test_bias_mitigation_recommendations(self, calibration_validator, mock_overconfident_agent, bias_test_scenarios):
+    async def test_bias_mitigation_recommendations(
+        self, calibration_validator, mock_overconfident_agent, bias_test_scenarios
+    ):
         """Test bias mitigation recommendations."""
         bias_results = calibration_validator.detect_prediction_biases(
             mock_overconfident_agent, bias_test_scenarios
@@ -845,10 +982,19 @@ class TestCalibrationValidation:
 
         # Check for relevant recommendations
         recommendation_text = " ".join(recommendations).lower()
-        if any(bias["bias_type"] == "overconfidence" for bias in bias_results["detected_biases"]):
-            assert "confidence" in recommendation_text or "calibration" in recommendation_text
+        if any(
+            bias["bias_type"] == "overconfidence"
+            for bias in bias_results["detected_biases"]
+        ):
+            assert (
+                "confidence" in recommendation_text
+                or "calibration" in recommendation_text
+            )
 
         # Recommendations should be actionable
         for recommendation in recommendations:
             assert len(recommendation) > 20  # Substantial recommendations
-            assert any(word in recommendation.lower() for word in ["implement", "encourage", "provide", "use", "consider"])
+            assert any(
+                word in recommendation.lower()
+                for word in ["implement", "encourage", "provide", "use", "consider"]
+            )

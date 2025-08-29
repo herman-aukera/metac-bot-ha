@@ -2,18 +2,23 @@
 Comprehensive integration tests for task 12.1 - Integration and System Optimization.
 Tests all components working together with proper dependency injection.
 """
-import pytest
+
 import asyncio
 import tempfile
-import yaml
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.application.tournament_orchestrator import TournamentOrchestrator, ComponentRegistry
-from src.infrastructure.config.config_manager import create_config_manager
-from src.domain.entities.question import Question, QuestionType, QuestionStatus
+import pytest
+import yaml
+
+from src.application.tournament_orchestrator import (
+    ComponentRegistry,
+    TournamentOrchestrator,
+)
 from src.domain.entities.forecast import Forecast
+from src.domain.entities.question import Question, QuestionStatus, QuestionType
+from src.infrastructure.config.config_manager import create_config_manager
 
 
 class TestComprehensiveIntegration:
@@ -28,25 +33,25 @@ class TestComprehensiveIntegration:
                 "model": "gpt-4",
                 "temperature": 0.3,
                 "api_key": "test-key",
-                "rate_limit_rpm": 60
+                "rate_limit_rpm": 60,
             },
-            "search": {
-                "provider": "multi_source",
-                "max_results": 10,
-                "timeout": 30.0
-            },
+            "search": {"provider": "multi_source", "max_results": 10, "timeout": 30.0},
             "metaculus": {
                 "base_url": "https://test.metaculus.com/api",
                 "tournament_id": 12345,
                 "dry_run": True,
-                "api_key": "test-metaculus-key"
+                "api_key": "test-metaculus-key",
             },
             "pipeline": {
                 "max_concurrent_questions": 3,
-                "default_agent_names": ["ensemble", "chain_of_thought", "tree_of_thought"],
+                "default_agent_names": [
+                    "ensemble",
+                    "chain_of_thought",
+                    "tree_of_thought",
+                ],
                 "health_check_interval": 30,
                 "max_retries_per_question": 2,
-                "retry_delay_seconds": 1.0
+                "retry_delay_seconds": 1.0,
             },
             "ensemble": {
                 "min_agents": 2,
@@ -54,21 +59,18 @@ class TestComprehensiveIntegration:
                 "agent_weights": {
                     "chain_of_thought": 0.4,
                     "tree_of_thought": 0.3,
-                    "react": 0.3
-                }
+                    "react": 0.3,
+                },
             },
             "bot": {
                 "name": "ComprehensiveTestBot",
                 "version": "2.0.0",
-                "min_confidence_threshold": 0.6
+                "min_confidence_threshold": 0.6,
             },
-            "logging": {
-                "level": "INFO",
-                "console_output": True
-            }
+            "logging": {"level": "INFO", "console_output": True},
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(config_data, f)
             config_path = f.name
 
@@ -80,9 +82,15 @@ class TestComprehensiveIntegration:
     @pytest.fixture
     async def mock_external_services(self):
         """Mock all external services for integration testing."""
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.DuckDuckGoSearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.DuckDuckGoSearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure LLM client mock
             mock_llm.return_value.initialize = AsyncMock()
@@ -97,7 +105,9 @@ class TestComprehensiveIntegration:
             mock_search.return_value.health_check = AsyncMock()
             mock_search.return_value.update_config = AsyncMock()
             mock_search.return_value.search = AsyncMock(
-                return_value=[{"title": "Mock Search Result", "content": "Mock content"}]
+                return_value=[
+                    {"title": "Mock Search Result", "content": "Mock content"}
+                ]
             )
 
             # Configure Metaculus client mock
@@ -105,22 +115,22 @@ class TestComprehensiveIntegration:
             mock_metaculus.return_value.health_check = AsyncMock()
             mock_metaculus.return_value.update_config = AsyncMock()
             mock_metaculus.return_value.get_questions = AsyncMock(
-                return_value=[{
-                    "id": 12345,
-                    "title": "Test Question",
-                    "description": "Test description",
-                    "type": "binary",
-                    "status": "open"
-                }]
+                return_value=[
+                    {
+                        "id": 12345,
+                        "title": "Test Question",
+                        "description": "Test description",
+                        "type": "binary",
+                        "status": "open",
+                    }
+                ]
             )
 
-            yield {
-                "llm": mock_llm,
-                "search": mock_search,
-                "metaculus": mock_metaculus
-            }
+            yield {"llm": mock_llm, "search": mock_search, "metaculus": mock_metaculus}
 
-    async def test_complete_system_integration(self, comprehensive_config, mock_external_services):
+    async def test_complete_system_integration(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test complete system integration with all components."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -178,7 +188,9 @@ class TestComprehensiveIntegration:
         finally:
             await orchestrator.shutdown()
 
-    async def test_dependency_injection_validation(self, comprehensive_config, mock_external_services):
+    async def test_dependency_injection_validation(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test that dependency injection works correctly across all components."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -192,13 +204,25 @@ class TestComprehensiveIntegration:
 
             # Verify reasoning orchestrator dependencies
             assert registry.reasoning_orchestrator.llm_client == registry.llm_client
-            assert registry.reasoning_orchestrator.search_client == registry.search_client
+            assert (
+                registry.reasoning_orchestrator.search_client == registry.search_client
+            )
 
             # Verify forecast service dependencies
-            assert registry.forecast_service.forecasting_service == registry.forecasting_service
-            assert registry.forecast_service.ensemble_service == registry.ensemble_service
-            assert registry.forecast_service.research_service == registry.research_service
-            assert registry.forecast_service.reasoning_orchestrator == registry.reasoning_orchestrator
+            assert (
+                registry.forecast_service.forecasting_service
+                == registry.forecasting_service
+            )
+            assert (
+                registry.forecast_service.ensemble_service == registry.ensemble_service
+            )
+            assert (
+                registry.forecast_service.research_service == registry.research_service
+            )
+            assert (
+                registry.forecast_service.reasoning_orchestrator
+                == registry.reasoning_orchestrator
+            )
 
             # Verify dispatcher dependencies
             assert registry.dispatcher.forecast_service == registry.forecast_service
@@ -208,14 +232,19 @@ class TestComprehensiveIntegration:
             # Verify pipeline dependencies
             assert registry.forecasting_pipeline.llm_client == registry.llm_client
             assert registry.forecasting_pipeline.search_client == registry.search_client
-            assert registry.forecasting_pipeline.metaculus_client == registry.metaculus_client
+            assert (
+                registry.forecasting_pipeline.metaculus_client
+                == registry.metaculus_client
+            )
 
             print("✓ Dependency injection working correctly")
 
         finally:
             await orchestrator.shutdown()
 
-    async def test_configuration_hot_reload_integration(self, comprehensive_config, mock_external_services):
+    async def test_configuration_hot_reload_integration(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test configuration hot-reloading with all components."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -231,17 +260,36 @@ class TestComprehensiveIntegration:
                     "model": "gpt-4",
                     "temperature": 0.7,  # Changed
                     "api_key": "test-key",
-                    "rate_limit_rpm": 60
+                    "rate_limit_rpm": 60,
                 },
-                "search": {"provider": "multi_source", "max_results": 10, "timeout": 30.0},
-                "metaculus": {"base_url": "https://test.metaculus.com/api", "tournament_id": 12345, "dry_run": True},
-                "pipeline": {"max_concurrent_questions": 3, "default_agent_names": ["ensemble"], "health_check_interval": 30},
-                "ensemble": {"min_agents": 2, "confidence_threshold": 0.7, "agent_weights": {"chain_of_thought": 1.0}},
-                "bot": {"name": "UpdatedComprehensiveBot", "version": "3.0.0"},  # Changed
-                "logging": {"level": "INFO"}
+                "search": {
+                    "provider": "multi_source",
+                    "max_results": 10,
+                    "timeout": 30.0,
+                },
+                "metaculus": {
+                    "base_url": "https://test.metaculus.com/api",
+                    "tournament_id": 12345,
+                    "dry_run": True,
+                },
+                "pipeline": {
+                    "max_concurrent_questions": 3,
+                    "default_agent_names": ["ensemble"],
+                    "health_check_interval": 30,
+                },
+                "ensemble": {
+                    "min_agents": 2,
+                    "confidence_threshold": 0.7,
+                    "agent_weights": {"chain_of_thought": 1.0},
+                },
+                "bot": {
+                    "name": "UpdatedComprehensiveBot",
+                    "version": "3.0.0",
+                },  # Changed
+                "logging": {"level": "INFO"},
             }
 
-            with open(comprehensive_config, 'w') as f:
+            with open(comprehensive_config, "w") as f:
                 yaml.dump(updated_config, f)
 
             # Trigger configuration reload
@@ -252,14 +300,18 @@ class TestComprehensiveIntegration:
             assert orchestrator.registry.settings.bot.version == "3.0.0"
             assert orchestrator.registry.settings.llm.temperature == 0.7
             assert orchestrator.registry.settings.bot.name != original_name
-            assert orchestrator.registry.settings.llm.temperature != original_temperature
+            assert (
+                orchestrator.registry.settings.llm.temperature != original_temperature
+            )
 
             print("✓ Configuration hot-reload working")
 
         finally:
             await orchestrator.shutdown()
 
-    async def test_end_to_end_tournament_flow(self, comprehensive_config, mock_external_services):
+    async def test_end_to_end_tournament_flow(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test complete end-to-end tournament forecasting flow."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -277,7 +329,7 @@ class TestComprehensiveIntegration:
                 "forecasts_generated": max_questions,
                 "success_rate": 100.0,
                 "performance_metrics": {"avg_confidence": 0.75},
-                "agent_performance": {"ensemble": {"accuracy": 0.8}}
+                "agent_performance": {"ensemble": {"accuracy": 0.8}},
             }
 
             orchestrator.registry.dispatcher.run_tournament = AsyncMock(
@@ -288,7 +340,7 @@ class TestComprehensiveIntegration:
             results = await orchestrator.run_tournament(
                 tournament_id=tournament_id,
                 max_questions=max_questions,
-                agent_types=agent_types
+                agent_types=agent_types,
             )
 
             # Verify results structure
@@ -308,7 +360,9 @@ class TestComprehensiveIntegration:
         finally:
             await orchestrator.shutdown()
 
-    async def test_health_monitoring_integration(self, comprehensive_config, mock_external_services):
+    async def test_health_monitoring_integration(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test health monitoring across all components."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -318,9 +372,7 @@ class TestComprehensiveIntegration:
             health_status = await orchestrator._perform_health_check()
 
             # Verify health check covers all critical components
-            expected_components = [
-                "llm_client", "search_client", "metaculus_client"
-            ]
+            expected_components = ["llm_client", "search_client", "metaculus_client"]
 
             for component in expected_components:
                 assert component in health_status
@@ -335,7 +387,9 @@ class TestComprehensiveIntegration:
         finally:
             await orchestrator.shutdown()
 
-    async def test_system_status_comprehensive_reporting(self, comprehensive_config, mock_external_services):
+    async def test_system_status_comprehensive_reporting(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test comprehensive system status reporting."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -346,8 +400,12 @@ class TestComprehensiveIntegration:
 
             # Verify comprehensive status structure
             required_fields = [
-                "status", "uptime_seconds", "health_status", "metrics",
-                "configuration", "last_config_reload"
+                "status",
+                "uptime_seconds",
+                "health_status",
+                "metrics",
+                "configuration",
+                "last_config_reload",
             ]
 
             for field in required_fields:
@@ -358,7 +416,10 @@ class TestComprehensiveIntegration:
             assert config["environment"] == orchestrator.registry.settings.environment
             assert config["tournament_id"] == 12345
             assert config["max_concurrent_questions"] == 3
-            assert "ComprehensiveTestBot" in config.get("default_agents", []) or config.get("tournament_id") == 12345
+            assert (
+                "ComprehensiveTestBot" in config.get("default_agents", [])
+                or config.get("tournament_id") == 12345
+            )
 
             # Verify metrics structure
             metrics = status["metrics"]
@@ -372,7 +433,9 @@ class TestComprehensiveIntegration:
         finally:
             await orchestrator.shutdown()
 
-    async def test_error_handling_and_recovery(self, comprehensive_config, mock_external_services):
+    async def test_error_handling_and_recovery(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test error handling and recovery mechanisms across components."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -404,7 +467,9 @@ class TestComprehensiveIntegration:
         finally:
             await orchestrator.shutdown()
 
-    async def test_graceful_shutdown_all_components(self, comprehensive_config, mock_external_services):
+    async def test_graceful_shutdown_all_components(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test graceful shutdown of all components."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
         await orchestrator.initialize()
@@ -429,7 +494,9 @@ class TestComprehensiveIntegration:
 
         print("✓ Graceful shutdown of all components working")
 
-    async def test_managed_lifecycle_comprehensive(self, comprehensive_config, mock_external_services):
+    async def test_managed_lifecycle_comprehensive(
+        self, comprehensive_config, mock_external_services
+    ):
         """Test managed lifecycle context manager with all components."""
         orchestrator = TournamentOrchestrator(comprehensive_config)
 
@@ -458,25 +525,25 @@ async def test_integration_requirements_compliance():
     orchestrator = TournamentOrchestrator()
 
     # Verify separation of concerns
-    assert hasattr(orchestrator, 'initialize')  # Initialization logic
-    assert hasattr(orchestrator, 'run_tournament')  # Business logic
-    assert hasattr(orchestrator, 'get_system_status')  # Monitoring
-    assert hasattr(orchestrator, 'shutdown')  # Cleanup
+    assert hasattr(orchestrator, "initialize")  # Initialization logic
+    assert hasattr(orchestrator, "run_tournament")  # Business logic
+    assert hasattr(orchestrator, "get_system_status")  # Monitoring
+    assert hasattr(orchestrator, "shutdown")  # Cleanup
 
     # Requirement 10.2: Plugin-based architecture and hot-swappable components
     # Verify configuration hot-reloading capabilities
-    assert hasattr(orchestrator, '_reload_configuration')
-    assert hasattr(orchestrator, '_update_component_configs')
-    assert hasattr(orchestrator, '_on_config_change')
+    assert hasattr(orchestrator, "_reload_configuration")
+    assert hasattr(orchestrator, "_update_component_configs")
+    assert hasattr(orchestrator, "_on_config_change")
 
     # Requirement 10.5: Comprehensive monitoring and backward compatibility
     # Verify monitoring capabilities
-    assert hasattr(orchestrator, 'get_system_status')
-    assert hasattr(orchestrator, '_perform_health_check')
-    assert hasattr(orchestrator, 'metrics')
+    assert hasattr(orchestrator, "get_system_status")
+    assert hasattr(orchestrator, "_perform_health_check")
+    assert hasattr(orchestrator, "metrics")
 
     # Verify lifecycle management
-    assert hasattr(orchestrator, 'managed_lifecycle')
+    assert hasattr(orchestrator, "managed_lifecycle")
 
     print("✓ All requirements compliance verified")
 
@@ -484,4 +551,5 @@ async def test_integration_requirements_compliance():
 if __name__ == "__main__":
     # Run tests directly
     import sys
+
     sys.exit(pytest.main([__file__, "-v"]))

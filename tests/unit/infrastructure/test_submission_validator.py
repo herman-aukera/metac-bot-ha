@@ -1,24 +1,26 @@
 """
 Tests for submission validation and audit trail system.
 """
-import pytest
-import tempfile
-import os
-from unittest.mock import Mock, patch
-from datetime import datetime, timezone, timedelta
 
-from src.infrastructure.external_apis.submission_validator import (
-    SubmissionValidator,
-    AuditTrailManager,
-    ValidationResult,
-    ValidationError,
-    SubmissionStatus,
-    SubmissionRecord
-)
-from src.domain.entities.question import Question, QuestionType
+import os
+import tempfile
+from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
+
+import pytest
+
 from src.domain.entities.prediction import Prediction, PredictionResult
+from src.domain.entities.question import Question, QuestionType
 from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
+from src.infrastructure.external_apis.submission_validator import (
+    AuditTrailManager,
+    SubmissionRecord,
+    SubmissionStatus,
+    SubmissionValidator,
+    ValidationError,
+    ValidationResult,
+)
 
 
 @pytest.fixture
@@ -30,7 +32,7 @@ def validator():
 @pytest.fixture
 def audit_manager():
     """Create audit trail manager with temporary storage."""
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.jsonl') as f:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as f:
         temp_path = f.name
 
     manager = AuditTrailManager(storage_path=temp_path)
@@ -51,7 +53,7 @@ def binary_question():
         resolution_criteria="AGI is defined as...",
         close_time=datetime.now(timezone.utc) + timedelta(hours=24),
         resolve_time=datetime.now(timezone.utc) + timedelta(days=30),
-        created_at=datetime.now(timezone.utc) - timedelta(days=7)
+        created_at=datetime.now(timezone.utc) - timedelta(days=7),
     )
 
 
@@ -67,7 +69,7 @@ def continuous_question():
         resolve_time=datetime.now(timezone.utc) + timedelta(days=30),
         created_at=datetime.now(timezone.utc) - timedelta(days=7),
         min_value=-2.0,
-        max_value=5.0
+        max_value=5.0,
     )
 
 
@@ -82,7 +84,7 @@ def multiple_choice_question():
         close_time=datetime.now(timezone.utc) + timedelta(hours=24),
         resolve_time=datetime.now(timezone.utc) + timedelta(days=30),
         created_at=datetime.now(timezone.utc) - timedelta(days=7),
-        choices=["Democratic", "Republican", "Other"]
+        choices=["Democratic", "Republican", "Other"],
     )
 
 
@@ -93,7 +95,7 @@ def valid_binary_prediction():
         "question_id": "test_question",
         "prediction_value": 0.75,
         "reasoning": "Based on current AI development trends and expert opinions, there is a significant probability of AGI by 2030.",
-        "confidence": 0.8
+        "confidence": 0.8,
     }
 
 
@@ -114,9 +116,13 @@ class TestSubmissionValidator:
         tournament_validator = SubmissionValidator(tournament_mode=True)
         assert tournament_validator.tournament_mode is True
 
-    def test_valid_binary_prediction(self, validator, binary_question, valid_binary_prediction):
+    def test_valid_binary_prediction(
+        self, validator, binary_question, valid_binary_prediction
+    ):
         """Test validation of valid binary prediction."""
-        result, errors = validator.validate_prediction(binary_question, valid_binary_prediction)
+        result, errors = validator.validate_prediction(
+            binary_question, valid_binary_prediction
+        )
 
         assert result == ValidationResult.VALID
         assert len(errors) == 0
@@ -126,10 +132,12 @@ class TestSubmissionValidator:
         invalid_prediction = {
             "question_id": "test_question",
             "prediction_value": 1.5,  # Invalid: > 1.0
-            "reasoning": "This prediction is out of range."
+            "reasoning": "This prediction is out of range.",
         }
 
-        result, errors = validator.validate_prediction(binary_question, invalid_prediction)
+        result, errors = validator.validate_prediction(
+            binary_question, invalid_prediction
+        )
 
         assert result == ValidationResult.INVALID
         assert len(errors) > 0
@@ -140,21 +148,23 @@ class TestSubmissionValidator:
         extreme_prediction = {
             "question_id": "test_question",
             "prediction_value": 0.005,  # Extreme value
-            "reasoning": "This is an extreme prediction."
+            "reasoning": "This is an extreme prediction.",
         }
 
-        result, errors = validator.validate_prediction(binary_question, extreme_prediction)
+        result, errors = validator.validate_prediction(
+            binary_question, extreme_prediction
+        )
 
         assert result == ValidationResult.WARNING
         assert any(error.code == "EXTREME_PREDICTION_VALUE" for error in errors)
 
     def test_missing_required_fields(self, validator, binary_question):
         """Test validation with missing required fields."""
-        incomplete_prediction = {
-            "reasoning": "Missing prediction value."
-        }
+        incomplete_prediction = {"reasoning": "Missing prediction value."}
 
-        result, errors = validator.validate_prediction(binary_question, incomplete_prediction)
+        result, errors = validator.validate_prediction(
+            binary_question, incomplete_prediction
+        )
 
         assert result == ValidationResult.INVALID
         assert any(error.code == "MISSING_REQUIRED_FIELD" for error in errors)
@@ -164,10 +174,12 @@ class TestSubmissionValidator:
         valid_prediction = {
             "question_id": "test_question",
             "prediction_value": 1.5,
-            "reasoning": "Based on climate models and current trends."
+            "reasoning": "Based on climate models and current trends.",
         }
 
-        result, errors = validator.validate_prediction(continuous_question, valid_prediction)
+        result, errors = validator.validate_prediction(
+            continuous_question, valid_prediction
+        )
 
         assert result == ValidationResult.VALID
         assert len(errors) == 0
@@ -177,23 +189,29 @@ class TestSubmissionValidator:
         out_of_bounds_prediction = {
             "question_id": "test_question",
             "prediction_value": 10.0,  # Above max_value of 5.0
-            "reasoning": "This prediction exceeds the maximum bound."
+            "reasoning": "This prediction exceeds the maximum bound.",
         }
 
-        result, errors = validator.validate_prediction(continuous_question, out_of_bounds_prediction)
+        result, errors = validator.validate_prediction(
+            continuous_question, out_of_bounds_prediction
+        )
 
         assert result == ValidationResult.INVALID
         assert any(error.code == "VALUE_ABOVE_MAXIMUM" for error in errors)
 
-    def test_multiple_choice_prediction_validation(self, validator, multiple_choice_question):
+    def test_multiple_choice_prediction_validation(
+        self, validator, multiple_choice_question
+    ):
         """Test validation of multiple choice predictions."""
         valid_prediction = {
             "question_id": "test_question",
             "prediction_value": 1,  # Republican
-            "reasoning": "Based on polling data and historical trends."
+            "reasoning": "Based on polling data and historical trends.",
         }
 
-        result, errors = validator.validate_prediction(multiple_choice_question, valid_prediction)
+        result, errors = validator.validate_prediction(
+            multiple_choice_question, valid_prediction
+        )
 
         assert result == ValidationResult.VALID
         assert len(errors) == 0
@@ -203,10 +221,12 @@ class TestSubmissionValidator:
         invalid_prediction = {
             "question_id": "test_question",
             "prediction_value": 5,  # Invalid: only 3 choices (0-2)
-            "reasoning": "Invalid choice index."
+            "reasoning": "Invalid choice index.",
         }
 
-        result, errors = validator.validate_prediction(multiple_choice_question, invalid_prediction)
+        result, errors = validator.validate_prediction(
+            multiple_choice_question, invalid_prediction
+        )
 
         assert result == ValidationResult.INVALID
         assert any(error.code == "CHOICE_INDEX_OUT_OF_RANGE" for error in errors)
@@ -217,10 +237,12 @@ class TestSubmissionValidator:
         short_reasoning_prediction = {
             "question_id": "test_question",
             "prediction_value": 0.7,
-            "reasoning": "Short"  # Too short
+            "reasoning": "Short",  # Too short
         }
 
-        result, errors = validator.validate_prediction(binary_question, short_reasoning_prediction)
+        result, errors = validator.validate_prediction(
+            binary_question, short_reasoning_prediction
+        )
 
         assert result == ValidationResult.WARNING
         assert any(error.code == "REASONING_TOO_SHORT" for error in errors)
@@ -229,10 +251,12 @@ class TestSubmissionValidator:
         long_reasoning_prediction = {
             "question_id": "test_question",
             "prediction_value": 0.7,
-            "reasoning": "x" * 15000  # Too long
+            "reasoning": "x" * 15000,  # Too long
         }
 
-        result, errors = validator.validate_prediction(binary_question, long_reasoning_prediction)
+        result, errors = validator.validate_prediction(
+            binary_question, long_reasoning_prediction
+        )
 
         assert result == ValidationResult.INVALID
         assert any(error.code == "REASONING_TOO_LONG" for error in errors)
@@ -243,14 +267,15 @@ class TestSubmissionValidator:
             title="Closed question",
             description="This question is already closed.",
             question_type=QuestionType.BINARY,
-            close_time=datetime.now(timezone.utc) - timedelta(hours=1),  # Closed 1 hour ago
-            created_at=datetime.now(timezone.utc) - timedelta(days=7)
+            close_time=datetime.now(timezone.utc)
+            - timedelta(hours=1),  # Closed 1 hour ago
+            created_at=datetime.now(timezone.utc) - timedelta(days=7),
         )
 
         prediction = {
             "question_id": "test_question",
             "prediction_value": 0.7,
-            "reasoning": "This question is closed."
+            "reasoning": "This question is closed.",
         }
 
         result, errors = validator.validate_prediction(closed_question, prediction)
@@ -264,17 +289,20 @@ class TestSubmissionValidator:
             title="Closing soon question",
             description="This question closes soon.",
             question_type=QuestionType.BINARY,
-            close_time=datetime.now(timezone.utc) + timedelta(minutes=30),  # Closes in 30 minutes
-            created_at=datetime.now(timezone.utc) - timedelta(days=7)
+            close_time=datetime.now(timezone.utc)
+            + timedelta(minutes=30),  # Closes in 30 minutes
+            created_at=datetime.now(timezone.utc) - timedelta(days=7),
         )
 
         prediction = {
             "question_id": "test_question",
             "prediction_value": 0.7,
-            "reasoning": "This question closes soon."
+            "reasoning": "This question closes soon.",
         }
 
-        result, errors = validator.validate_prediction(closing_soon_question, prediction)
+        result, errors = validator.validate_prediction(
+            closing_soon_question, prediction
+        )
 
         assert result == ValidationResult.WARNING
         assert any(error.code == "QUESTION_CLOSING_SOON" for error in errors)
@@ -282,16 +310,14 @@ class TestSubmissionValidator:
     def test_prediction_object_validation(self, validator, binary_question):
         """Test validation with Prediction object instead of dict."""
         prediction_result = PredictionResult(
-            binary_probability=0.75,
-            numeric_value=None,
-            choice_index=None
+            binary_probability=0.75, numeric_value=None, choice_index=None
         )
 
         prediction = Prediction(
             question_id=binary_question.id,
             result=prediction_result,
             reasoning="Based on analysis of current trends.",
-            confidence=ConfidenceLevel(0.8)
+            confidence=ConfidenceLevel(0.8),
         )
 
         result, errors = validator.validate_prediction(binary_question, prediction)
@@ -299,9 +325,13 @@ class TestSubmissionValidator:
         assert result == ValidationResult.VALID
         assert len(errors) == 0
 
-    def test_format_binary_prediction_for_submission(self, validator, binary_question, valid_binary_prediction):
+    def test_format_binary_prediction_for_submission(
+        self, validator, binary_question, valid_binary_prediction
+    ):
         """Test formatting binary prediction for API submission."""
-        formatted = validator.format_prediction_for_submission(binary_question, valid_binary_prediction)
+        formatted = validator.format_prediction_for_submission(
+            binary_question, valid_binary_prediction
+        )
 
         assert "prediction" in formatted
         assert "comment" in formatted
@@ -310,30 +340,38 @@ class TestSubmissionValidator:
         assert formatted["void"] is False
         assert isinstance(formatted["prediction"], float)
 
-    def test_format_continuous_prediction_for_submission(self, validator, continuous_question):
+    def test_format_continuous_prediction_for_submission(
+        self, validator, continuous_question
+    ):
         """Test formatting continuous prediction for API submission."""
         prediction = {
             "question_id": "test_question",
             "prediction_value": 1.5,
-            "reasoning": "Based on climate models."
+            "reasoning": "Based on climate models.",
         }
 
-        formatted = validator.format_prediction_for_submission(continuous_question, prediction)
+        formatted = validator.format_prediction_for_submission(
+            continuous_question, prediction
+        )
 
         assert "prediction" in formatted
         assert "comment" in formatted
         assert formatted["prediction"] == 1.5
         assert isinstance(formatted["prediction"], float)
 
-    def test_format_multiple_choice_prediction_for_submission(self, validator, multiple_choice_question):
+    def test_format_multiple_choice_prediction_for_submission(
+        self, validator, multiple_choice_question
+    ):
         """Test formatting multiple choice prediction for API submission."""
         prediction = {
             "question_id": "test_question",
             "prediction_value": 1,
-            "reasoning": "Based on polling data."
+            "reasoning": "Based on polling data.",
         }
 
-        formatted = validator.format_prediction_for_submission(multiple_choice_question, prediction)
+        formatted = validator.format_prediction_for_submission(
+            multiple_choice_question, prediction
+        )
 
         assert "prediction" in formatted
         assert "comment" in formatted
@@ -345,18 +383,19 @@ class TestSubmissionValidator:
         tournament_validator = SubmissionValidator(tournament_mode=True)
 
         # Add tournament metadata to question
-        binary_question.metadata.update({
-            "category": "technology",
-            "tournament_priority": "high",
-            "urgency_score": 0.8
-        })
+        binary_question.metadata.update(
+            {
+                "category": "technology",
+                "tournament_priority": "high",
+                "urgency_score": 0.8,
+            }
+        )
 
         # Add agent metadata to prediction
         prediction_with_metadata = valid_binary_prediction.copy()
-        prediction_with_metadata.update({
-            "agent_type": "ensemble",
-            "reasoning_method": "chain_of_thought"
-        })
+        prediction_with_metadata.update(
+            {"agent_type": "ensemble", "reasoning_method": "chain_of_thought"}
+        )
 
         formatted = tournament_validator.format_prediction_for_submission(
             binary_question, prediction_with_metadata
@@ -376,7 +415,7 @@ class TestSubmissionValidator:
         formatted_prediction = {
             "prediction": 0.75,
             "comment": "Test reasoning",
-            "confidence": 0.8
+            "confidence": 0.8,
         }
 
         checksum = validator._calculate_validation_checksum(formatted_prediction)
@@ -389,24 +428,30 @@ class TestSubmissionValidator:
 
         # Test with tampered data
         formatted_prediction["prediction"] = 0.8  # Changed value
-        assert not validator.validate_submission_integrity(formatted_prediction, checksum)
+        assert not validator.validate_submission_integrity(
+            formatted_prediction, checksum
+        )
 
-    def test_tournament_condition_simulation(self, validator, binary_question, valid_binary_prediction):
+    def test_tournament_condition_simulation(
+        self, validator, binary_question, valid_binary_prediction
+    ):
         """Test tournament condition simulation."""
         tournament_context = {
             "tournament_id": "test_tournament",
             "current_ranking": 25,
             "participant_count": 100,
-            "completion_rate": 0.6
+            "completion_rate": 0.6,
         }
 
         # Add tournament metadata to question
-        binary_question.metadata.update({
-            "category": "technology",
-            "tournament_priority": "high",
-            "community_prediction": 0.3,
-            "prediction_count": 50
-        })
+        binary_question.metadata.update(
+            {
+                "category": "technology",
+                "tournament_priority": "high",
+                "community_prediction": 0.3,
+                "prediction_count": 50,
+            }
+        )
 
         simulation_results = validator.simulate_tournament_conditions(
             binary_question, valid_binary_prediction, tournament_context
@@ -451,10 +496,9 @@ class TestSubmissionValidator:
     def test_market_efficiency_estimation(self, validator, binary_question):
         """Test market efficiency estimation."""
         # Low participation
-        binary_question.metadata.update({
-            "prediction_count": 5,
-            "community_prediction": 0.5
-        })
+        binary_question.metadata.update(
+            {"prediction_count": 5, "community_prediction": 0.5}
+        )
         assert validator._estimate_market_efficiency(binary_question) == "low"
 
         # Medium participation
@@ -462,11 +506,13 @@ class TestSubmissionValidator:
         assert validator._estimate_market_efficiency(binary_question) == "medium"
 
         # High participation with extreme consensus
-        binary_question.metadata.update({
-            "prediction_count": 100,
-            "community_prediction": 0.05
-        })
-        assert validator._estimate_market_efficiency(binary_question) == "potentially_inefficient"
+        binary_question.metadata.update(
+            {"prediction_count": 100, "community_prediction": 0.05}
+        )
+        assert (
+            validator._estimate_market_efficiency(binary_question)
+            == "potentially_inefficient"
+        )
 
         # High participation with balanced consensus
         binary_question.metadata["community_prediction"] = 0.5
@@ -482,7 +528,7 @@ class TestSubmissionValidator:
             description="Closes very soon",
             question_type=QuestionType.BINARY,
             close_time=now + timedelta(minutes=30),
-            created_at=now - timedelta(days=7)
+            created_at=now - timedelta(days=7),
         )
 
         timing_analysis = validator._analyze_submission_timing(critical_question)
@@ -495,7 +541,7 @@ class TestSubmissionValidator:
             description="Closes in 2 days",
             question_type=QuestionType.BINARY,
             close_time=now + timedelta(days=2),
-            created_at=now - timedelta(days=7)
+            created_at=now - timedelta(days=7),
         )
 
         timing_analysis = validator._analyze_submission_timing(normal_question)
@@ -508,7 +554,9 @@ class TestSubmissionValidator:
         low_confidence_prediction = valid_binary_prediction.copy()
         low_confidence_prediction["confidence"] = 0.2
 
-        risk_assessment = validator._assess_submission_risk(binary_question, low_confidence_prediction)
+        risk_assessment = validator._assess_submission_risk(
+            binary_question, low_confidence_prediction
+        )
         assert risk_assessment["risk_level"] == "high"
         assert "low_confidence_prediction" in risk_assessment["identified_risks"]
 
@@ -516,11 +564,15 @@ class TestSubmissionValidator:
         extreme_prediction = valid_binary_prediction.copy()
         extreme_prediction["prediction_value"] = 0.02
 
-        risk_assessment = validator._assess_submission_risk(binary_question, extreme_prediction)
+        risk_assessment = validator._assess_submission_risk(
+            binary_question, extreme_prediction
+        )
         assert "extreme_prediction_value" in risk_assessment["identified_risks"]
 
         # Normal prediction
-        risk_assessment = validator._assess_submission_risk(binary_question, valid_binary_prediction)
+        risk_assessment = validator._assess_submission_risk(
+            binary_question, valid_binary_prediction
+        )
         assert risk_assessment["risk_level"] in ["low", "medium"]
 
 
@@ -534,7 +586,7 @@ class TestAuditTrailManager:
             prediction_value=0.75,
             reasoning="Test reasoning",
             confidence=0.8,
-            dry_run=False
+            dry_run=False,
         )
 
         assert record.submission_id is not None
@@ -554,7 +606,7 @@ class TestAuditTrailManager:
             question_id="test_question",
             prediction_value=0.75,
             reasoning="Test reasoning",
-            dry_run=True
+            dry_run=True,
         )
 
         assert record.status == SubmissionStatus.DRY_RUN
@@ -565,7 +617,7 @@ class TestAuditTrailManager:
         record = audit_manager.create_submission_record(
             question_id="test_question",
             prediction_value=0.75,
-            reasoning="Test reasoning"
+            reasoning="Test reasoning",
         )
 
         validation_errors = [
@@ -573,7 +625,7 @@ class TestAuditTrailManager:
                 field="test_field",
                 message="Test error",
                 severity=ValidationResult.WARNING,
-                code="TEST_ERROR"
+                code="TEST_ERROR",
             )
         ]
 
@@ -581,7 +633,7 @@ class TestAuditTrailManager:
             record.submission_id,
             SubmissionStatus.VALIDATED,
             validation_errors=validation_errors,
-            metadata={"test_key": "test_value"}
+            metadata={"test_key": "test_value"},
         )
 
         updated_record = audit_manager.get_submission_record(record.submission_id)
@@ -593,21 +645,19 @@ class TestAuditTrailManager:
         """Test retrieving submissions by question ID."""
         # Create multiple submissions for same question
         record1 = audit_manager.create_submission_record(
-            question_id="question_1",
-            prediction_value=0.6,
-            reasoning="First prediction"
+            question_id="question_1", prediction_value=0.6, reasoning="First prediction"
         )
 
         record2 = audit_manager.create_submission_record(
             question_id="question_1",
             prediction_value=0.7,
-            reasoning="Second prediction"
+            reasoning="Second prediction",
         )
 
         record3 = audit_manager.create_submission_record(
             question_id="question_2",
             prediction_value=0.8,
-            reasoning="Different question"
+            reasoning="Different question",
         )
 
         question_1_submissions = audit_manager.get_submissions_by_question("question_1")
@@ -626,7 +676,7 @@ class TestAuditTrailManager:
             record = audit_manager.create_submission_record(
                 question_id=f"question_{i}",
                 prediction_value=0.5 + i * 0.1,
-                reasoning=f"Prediction {i}"
+                reasoning=f"Prediction {i}",
             )
             records.append(record)
 
@@ -643,14 +693,14 @@ class TestAuditTrailManager:
             question_id="question_1",
             prediction_value=0.75,
             reasoning="Test reasoning 1",
-            confidence=0.8
+            confidence=0.8,
         )
 
         record2 = audit_manager.create_submission_record(
             question_id="question_2",
             prediction_value=0.65,
             reasoning="Test reasoning 2",
-            dry_run=True
+            dry_run=True,
         )
 
         # Add validation errors to one record
@@ -659,13 +709,13 @@ class TestAuditTrailManager:
                 field="test_field",
                 message="Test error",
                 severity=ValidationResult.WARNING,
-                code="TEST_ERROR"
+                code="TEST_ERROR",
             )
         ]
         audit_manager.update_submission_status(
             record1.submission_id,
             SubmissionStatus.VALIDATED,
-            validation_errors=validation_errors
+            validation_errors=validation_errors,
         )
 
         # Persist to storage
@@ -696,19 +746,23 @@ class TestAuditTrailManager:
         record1 = audit_manager.create_submission_record(
             question_id="question_1",
             prediction_value=0.75,
-            reasoning="Test reasoning 1"
+            reasoning="Test reasoning 1",
         )
 
         record2 = audit_manager.create_submission_record(
             question_id="question_2",
             prediction_value=0.65,
             reasoning="Test reasoning 2",
-            dry_run=True
+            dry_run=True,
         )
 
         # Update statuses
-        audit_manager.update_submission_status(record1.submission_id, SubmissionStatus.SUBMITTED)
-        audit_manager.update_submission_status(record2.submission_id, SubmissionStatus.FAILED)
+        audit_manager.update_submission_status(
+            record1.submission_id, SubmissionStatus.SUBMITTED
+        )
+        audit_manager.update_submission_status(
+            record2.submission_id, SubmissionStatus.FAILED
+        )
 
         report = audit_manager.generate_audit_report()
 
@@ -735,7 +789,7 @@ class TestSubmissionRecord:
                 field="test_field",
                 message="Test error",
                 severity=ValidationResult.WARNING,
-                code="TEST_ERROR"
+                code="TEST_ERROR",
             )
         ]
 
@@ -749,7 +803,7 @@ class TestSubmissionRecord:
             status=SubmissionStatus.VALIDATED,
             validation_errors=validation_errors,
             metadata={"test_key": "test_value"},
-            dry_run=False
+            dry_run=False,
         )
 
         record_dict = record.to_dict()
@@ -770,17 +824,19 @@ class TestSubmissionRecord:
         record = audit_manager.create_submission_record(
             question_id="test_question",
             prediction_value=0.75,
-            reasoning="Test reasoning"
+            reasoning="Test reasoning",
         )
 
         # Test successful confirmation
         api_response = {
             "status_code": 200,
             "message": "Success",
-            "prediction_id": "pred_12345"
+            "prediction_id": "pred_12345",
         }
 
-        audit_manager.confirm_submission(record.submission_id, api_response, success=True)
+        audit_manager.confirm_submission(
+            record.submission_id, api_response, success=True
+        )
 
         updated_record = audit_manager.get_submission_record(record.submission_id)
         assert updated_record.status == SubmissionStatus.SUBMITTED
@@ -792,17 +848,18 @@ class TestSubmissionRecord:
         failed_record = audit_manager.create_submission_record(
             question_id="test_question_2",
             prediction_value=0.6,
-            reasoning="Test reasoning 2"
+            reasoning="Test reasoning 2",
         )
 
-        failed_response = {
-            "status_code": 400,
-            "message": "Validation error"
-        }
+        failed_response = {"status_code": 400, "message": "Validation error"}
 
-        audit_manager.confirm_submission(failed_record.submission_id, failed_response, success=False)
+        audit_manager.confirm_submission(
+            failed_record.submission_id, failed_response, success=False
+        )
 
-        updated_failed_record = audit_manager.get_submission_record(failed_record.submission_id)
+        updated_failed_record = audit_manager.get_submission_record(
+            failed_record.submission_id
+        )
         assert updated_failed_record.status == SubmissionStatus.FAILED
         assert updated_failed_record.metadata["success"] is False
 
@@ -811,7 +868,7 @@ class TestSubmissionRecord:
         record = audit_manager.create_submission_record(
             question_id="test_question",
             prediction_value=0.75,
-            reasoning="Test reasoning"
+            reasoning="Test reasoning",
         )
 
         # Track first attempt (failed)
@@ -835,32 +892,38 @@ class TestSubmissionRecord:
         """Test filtered submission history retrieval."""
         # Create submissions with different characteristics
         record1 = audit_manager.create_submission_record(
-            question_id="question_1",
-            prediction_value=0.6,
-            reasoning="First prediction"
+            question_id="question_1", prediction_value=0.6, reasoning="First prediction"
         )
-        audit_manager.update_submission_status(record1.submission_id, SubmissionStatus.SUBMITTED)
+        audit_manager.update_submission_status(
+            record1.submission_id, SubmissionStatus.SUBMITTED
+        )
 
         record2 = audit_manager.create_submission_record(
             question_id="question_1",
             prediction_value=0.7,
             reasoning="Second prediction",
-            dry_run=True
+            dry_run=True,
         )
 
         record3 = audit_manager.create_submission_record(
             question_id="question_2",
             prediction_value=0.8,
-            reasoning="Different question"
+            reasoning="Different question",
         )
-        audit_manager.update_submission_status(record3.submission_id, SubmissionStatus.FAILED)
+        audit_manager.update_submission_status(
+            record3.submission_id, SubmissionStatus.FAILED
+        )
 
         # Test question filtering
-        question_1_history = audit_manager.get_submission_history(question_id="question_1")
+        question_1_history = audit_manager.get_submission_history(
+            question_id="question_1"
+        )
         assert len(question_1_history) == 2
 
         # Test status filtering
-        submitted_history = audit_manager.get_submission_history(status_filter=SubmissionStatus.SUBMITTED)
+        submitted_history = audit_manager.get_submission_history(
+            status_filter=SubmissionStatus.SUBMITTED
+        )
         assert len(submitted_history) == 1
         assert submitted_history[0].submission_id == record1.submission_id
 
@@ -869,31 +932,35 @@ class TestSubmissionRecord:
         assert len(dry_run_history) == 1
         assert dry_run_history[0].submission_id == record2.submission_id
 
-        real_submission_history = audit_manager.get_submission_history(dry_run_filter=False)
+        real_submission_history = audit_manager.get_submission_history(
+            dry_run_filter=False
+        )
         assert len(real_submission_history) == 2
 
     def test_performance_metrics(self, audit_manager):
         """Test performance metrics calculation."""
         # Create submissions with different outcomes
         record1 = audit_manager.create_submission_record(
-            question_id="question_1",
-            prediction_value=0.6,
-            reasoning="First prediction"
+            question_id="question_1", prediction_value=0.6, reasoning="First prediction"
         )
-        audit_manager.update_submission_status(record1.submission_id, SubmissionStatus.SUBMITTED)
+        audit_manager.update_submission_status(
+            record1.submission_id, SubmissionStatus.SUBMITTED
+        )
 
         record2 = audit_manager.create_submission_record(
             question_id="question_2",
             prediction_value=0.7,
-            reasoning="Second prediction"
+            reasoning="Second prediction",
         )
-        audit_manager.update_submission_status(record2.submission_id, SubmissionStatus.FAILED)
+        audit_manager.update_submission_status(
+            record2.submission_id, SubmissionStatus.FAILED
+        )
 
         record3 = audit_manager.create_submission_record(
             question_id="question_3",
             prediction_value=0.8,
             reasoning="Dry run prediction",
-            dry_run=True
+            dry_run=True,
         )
 
         metrics = audit_manager.get_performance_metrics()
@@ -910,14 +977,14 @@ class TestSubmissionRecord:
             question_id="question_1",
             prediction_value=0.75,
             reasoning="Test reasoning 1",
-            confidence=0.8
+            confidence=0.8,
         )
 
         record2 = audit_manager.create_submission_record(
             question_id="question_2",
             prediction_value=0.65,
             reasoning="Test reasoning 2",
-            dry_run=True
+            dry_run=True,
         )
 
         # Test JSON export
@@ -925,6 +992,7 @@ class TestSubmissionRecord:
         assert isinstance(json_export, str)
 
         import json
+
         exported_data = json.loads(json_export)
         assert len(exported_data) == 2
 
@@ -940,7 +1008,9 @@ class TestSubmissionRecord:
         assert "Total Submissions: 2" in summary_export
 
         # Test export without dry runs
-        json_export_no_dry = audit_manager.export_audit_trail(format="json", include_dry_runs=False)
+        json_export_no_dry = audit_manager.export_audit_trail(
+            format="json", include_dry_runs=False
+        )
         exported_data_no_dry = json.loads(json_export_no_dry)
         assert len(exported_data_no_dry) == 1
 
@@ -963,11 +1033,13 @@ class TestSubmissionRecord:
         record = audit_manager.create_submission_record(
             question_id="test_question",
             prediction_value=0.75,
-            reasoning="Test reasoning"
+            reasoning="Test reasoning",
         )
 
         api_response = {"status_code": 200, "message": "Success"}
-        audit_manager.confirm_submission(record.submission_id, api_response, success=True)
+        audit_manager.confirm_submission(
+            record.submission_id, api_response, success=True
+        )
 
         assert callback_called is True
         assert callback_record.submission_id == record.submission_id
@@ -982,6 +1054,7 @@ class TestDryRunManager:
     def dry_run_manager(self, validator, audit_manager):
         """Create dry-run manager."""
         from src.infrastructure.external_apis.submission_validator import DryRunManager
+
         return DryRunManager(validator, audit_manager)
 
     def test_start_dry_run_session(self, dry_run_manager):
@@ -989,12 +1062,11 @@ class TestDryRunManager:
         tournament_context = {
             "tournament_id": "test_tournament",
             "current_ranking": 25,
-            "participant_count": 100
+            "participant_count": 100,
         }
 
         session_id = dry_run_manager.start_dry_run_session(
-            "Test Session",
-            tournament_context
+            "Test Session", tournament_context
         )
 
         assert session_id is not None
@@ -1006,27 +1078,28 @@ class TestDryRunManager:
         assert session["status"] == "active"
         assert len(session["submissions"]) == 0
 
-    def test_simulate_submission(self, dry_run_manager, binary_question, valid_binary_prediction):
+    def test_simulate_submission(
+        self, dry_run_manager, binary_question, valid_binary_prediction
+    ):
         """Test submission simulation."""
         session_id = dry_run_manager.start_dry_run_session("Test Session")
 
         # Add tournament metadata to question
-        binary_question.metadata.update({
-            "category": "technology",
-            "tournament_priority": "high",
-            "community_prediction": 0.3
-        })
+        binary_question.metadata.update(
+            {
+                "category": "technology",
+                "tournament_priority": "high",
+                "community_prediction": 0.3,
+            }
+        )
 
         agent_metadata = {
             "agent_type": "ensemble",
-            "reasoning_method": "chain_of_thought"
+            "reasoning_method": "chain_of_thought",
         }
 
         simulation_results = dry_run_manager.simulate_submission(
-            session_id,
-            binary_question,
-            valid_binary_prediction,
-            agent_metadata
+            session_id, binary_question, valid_binary_prediction, agent_metadata
         )
 
         assert "submission_id" in simulation_results
@@ -1052,12 +1125,16 @@ class TestDryRunManager:
             assert "current_ranking" in competitive_analysis
             assert "estimated_new_ranking" in competitive_analysis
 
-    def test_end_dry_run_session(self, dry_run_manager, binary_question, valid_binary_prediction):
+    def test_end_dry_run_session(
+        self, dry_run_manager, binary_question, valid_binary_prediction
+    ):
         """Test ending a dry-run session."""
         session_id = dry_run_manager.start_dry_run_session("Test Session")
 
         # Add some simulations
-        dry_run_manager.simulate_submission(session_id, binary_question, valid_binary_prediction)
+        dry_run_manager.simulate_submission(
+            session_id, binary_question, valid_binary_prediction
+        )
 
         report = dry_run_manager.end_dry_run_session(session_id)
 
@@ -1117,10 +1194,12 @@ class TestDryRunManager:
         valid_prediction = {
             "question_id": binary_question.id,
             "prediction_value": 0.75,
-            "reasoning": "Valid reasoning"
+            "reasoning": "Valid reasoning",
         }
 
-        api_sim = dry_run_manager._simulate_api_interaction(binary_question, valid_prediction)
+        api_sim = dry_run_manager._simulate_api_interaction(
+            binary_question, valid_prediction
+        )
         assert api_sim["would_succeed"] is True
         assert api_sim["simulated_api_response"]["success"] is True
         assert api_sim["simulated_api_response"]["status_code"] == 200
@@ -1129,25 +1208,21 @@ class TestDryRunManager:
         invalid_prediction = {
             "question_id": binary_question.id,
             "prediction_value": 1.5,  # Invalid for binary
-            "reasoning": "Invalid reasoning"
+            "reasoning": "Invalid reasoning",
         }
 
-        api_sim = dry_run_manager._simulate_api_interaction(binary_question, invalid_prediction)
+        api_sim = dry_run_manager._simulate_api_interaction(
+            binary_question, invalid_prediction
+        )
         assert api_sim["would_succeed"] is False
         assert api_sim["simulated_api_response"]["success"] is False
         assert api_sim["simulated_api_response"]["status_code"] == 400
 
     def test_competitive_impact_simulation(self, dry_run_manager, binary_question):
         """Test competitive impact simulation."""
-        tournament_context = {
-            "current_ranking": 50,
-            "participant_count": 100
-        }
+        tournament_context = {"current_ranking": 50, "participant_count": 100}
 
-        prediction_data = {
-            "prediction_value": 0.75,
-            "confidence": 0.8
-        }
+        prediction_data = {"prediction_value": 0.75, "confidence": 0.8}
 
         # Add tournament priority to question
         binary_question.metadata["tournament_priority"] = "high"
@@ -1168,24 +1243,24 @@ class TestDryRunManager:
         )
         assert no_context_impact["impact"] == "unknown"
 
-    def test_learning_opportunities_identification(self, dry_run_manager, binary_question, valid_binary_prediction):
+    def test_learning_opportunities_identification(
+        self, dry_run_manager, binary_question, valid_binary_prediction
+    ):
         """Test learning opportunities identification."""
         # Create simulation results with various issues
         simulation_results = {
             "validation_results": {
                 "result": "invalid",
-                "errors": [{"code": "VALUE_OUT_OF_RANGE"}]
+                "errors": [{"code": "VALUE_OUT_OF_RANGE"}],
             },
             "risk_assessment": {
                 "risk_level": "high",
-                "identified_risks": ["low_confidence_prediction"]
+                "identified_risks": ["low_confidence_prediction"],
             },
             "tournament_simulation": {
                 "strategic_considerations": ["extreme_consensus"]
             },
-            "timing_analysis": {
-                "status": "critical"
-            }
+            "timing_analysis": {"status": "critical"},
         }
 
         opportunities = dry_run_manager._identify_learning_opportunities(
@@ -1200,7 +1275,9 @@ class TestDryRunManager:
         assert "risk_management" in opportunity_types
         assert "time_management" in opportunity_types
 
-    def test_session_report_generation(self, dry_run_manager, binary_question, valid_binary_prediction):
+    def test_session_report_generation(
+        self, dry_run_manager, binary_question, valid_binary_prediction
+    ):
         """Test comprehensive session report generation."""
         session_id = dry_run_manager.start_dry_run_session("Test Session")
 

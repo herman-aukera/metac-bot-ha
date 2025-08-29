@@ -3,17 +3,21 @@ Integrated monitoring service that combines all monitoring components.
 Provides unified interface for performance tracking, analytics, and optimization.
 """
 
-import logging
 import asyncio
+import logging
 import threading
 import time
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
 
-from .model_performance_tracker import ModelPerformanceTracker, model_performance_tracker
+from .model_performance_tracker import (
+    ModelPerformanceTracker,
+    model_performance_tracker,
+)
 from .optimization_analytics import OptimizationAnalytics, optimization_analytics
 from .performance_tracker import PerformanceTracker, performance_tracker
+
 try:
     from ..config.cost_monitor import CostMonitor, cost_monitor
 except ImportError:
@@ -26,10 +30,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MonitoringAlert:
     """Unified monitoring alert."""
+
     timestamp: datetime
     alert_type: str  # "performance", "cost", "quality", "tournament"
-    severity: str    # "info", "warning", "critical"
-    component: str   # Source component
+    severity: str  # "info", "warning", "critical"
+    component: str  # Source component
     message: str
     data: Dict[str, Any]
     recommendations: List[str]
@@ -37,13 +42,14 @@ class MonitoringAlert:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
+        data["timestamp"] = self.timestamp.isoformat()
         return data
 
 
 @dataclass
 class ComprehensiveStatus:
     """Comprehensive system status."""
+
     timestamp: datetime
     overall_health: str  # "excellent", "good", "concerning", "critical"
     budget_status: Dict[str, Any]
@@ -62,7 +68,7 @@ class IntegratedMonitoringService:
         model_tracker: ModelPerformanceTracker = None,
         analytics: OptimizationAnalytics = None,
         perf_tracker: PerformanceTracker = None,
-        cost_monitor: CostMonitor = None
+        cost_monitor: CostMonitor = None,
     ):
         """Initialize integrated monitoring service."""
         self.model_tracker = model_tracker or model_performance_tracker
@@ -91,9 +97,7 @@ class IntegratedMonitoringService:
 
         # Start monitoring thread
         self._monitoring_thread = threading.Thread(
-            target=self._monitoring_loop,
-            daemon=True,
-            name="IntegratedMonitoring"
+            target=self._monitoring_loop, daemon=True, name="IntegratedMonitoring"
         )
         self._monitoring_thread.start()
 
@@ -121,7 +125,7 @@ class IntegratedMonitoringService:
         routing_rationale: str,
         estimated_cost: float,
         operation_mode: str = "normal",
-        budget_remaining: Optional[float] = None
+        budget_remaining: Optional[float] = None,
     ):
         """Record model usage across all monitoring components."""
         # Record in model performance tracker
@@ -133,10 +137,12 @@ class IntegratedMonitoringService:
             routing_rationale=routing_rationale,
             estimated_cost=estimated_cost,
             operation_mode=operation_mode,
-            budget_remaining=budget_remaining
+            budget_remaining=budget_remaining,
         )
 
-        logger.debug(f"Recorded model usage for {question_id}: {selected_model} ({selected_tier})")
+        logger.debug(
+            f"Recorded model usage for {question_id}: {selected_model} ({selected_tier})"
+        )
 
     def record_execution_outcome(
         self,
@@ -147,7 +153,7 @@ class IntegratedMonitoringService:
         success: bool = True,
         fallback_used: bool = False,
         forecast_value: Optional[float] = None,
-        confidence: Optional[float] = None
+        confidence: Optional[float] = None,
     ):
         """Record execution outcome across all monitoring components."""
         # Update model performance tracker
@@ -157,7 +163,7 @@ class IntegratedMonitoringService:
             execution_time=execution_time,
             quality_score=quality_score,
             success=success,
-            fallback_used=fallback_used
+            fallback_used=fallback_used,
         )
 
         # Record forecast if provided
@@ -165,13 +171,17 @@ class IntegratedMonitoringService:
             self.perf_tracker.record_forecast(
                 question_id=question_id,
                 forecast_value=forecast_value,
-                confidence=confidence
+                confidence=confidence,
             )
 
-        logger.debug(f"Recorded execution outcome for {question_id}: "
-                    f"cost=${actual_cost:.4f}, time={execution_time:.2f}s")
+        logger.debug(
+            f"Recorded execution outcome for {question_id}: "
+            f"cost=${actual_cost:.4f}, time={execution_time:.2f}s"
+        )
 
-    def get_comprehensive_status(self, total_budget: float = 100.0) -> ComprehensiveStatus:
+    def get_comprehensive_status(
+        self, total_budget: float = 100.0
+    ) -> ComprehensiveStatus:
         """Get comprehensive system status."""
         timestamp = datetime.now()
 
@@ -186,15 +196,18 @@ class IntegratedMonitoringService:
                     "total": total_budget,
                     "spent": cost_breakdown.total_cost,
                     "remaining": total_budget - cost_breakdown.total_cost,
-                    "utilization_percent": (cost_breakdown.total_cost / total_budget) * 100,
+                    "utilization_percent": (cost_breakdown.total_cost / total_budget)
+                    * 100,
                     "questions_processed": cost_breakdown.question_count,
-                    "avg_cost_per_question": cost_breakdown.avg_cost_per_question
+                    "avg_cost_per_question": cost_breakdown.avg_cost_per_question,
                 }
             }
 
         cost_breakdown = self.model_tracker.get_cost_breakdown(24)
         quality_metrics = self.model_tracker.get_quality_metrics(24)
-        tournament_competitiveness = self.model_tracker.get_tournament_competitiveness_indicators(total_budget)
+        tournament_competitiveness = (
+            self.model_tracker.get_tournament_competitiveness_indicators(total_budget)
+        )
         cost_effectiveness = self.analytics.analyze_cost_effectiveness(24)
         performance_correlations = self.analytics.analyze_performance_correlations(24)
 
@@ -205,8 +218,12 @@ class IntegratedMonitoringService:
 
         # Compile optimization recommendations
         optimization_recommendations = []
-        optimization_recommendations.extend(cost_effectiveness.optimal_routing_suggestions)
-        optimization_recommendations.extend(performance_correlations.sweet_spot_recommendations)
+        optimization_recommendations.extend(
+            cost_effectiveness.optimal_routing_suggestions
+        )
+        optimization_recommendations.extend(
+            performance_correlations.sweet_spot_recommendations
+        )
         optimization_recommendations.extend(tournament_competitiveness.recommendations)
 
         # Get active alerts
@@ -219,20 +236,18 @@ class IntegratedMonitoringService:
             performance_metrics={
                 "cost_breakdown": asdict(cost_breakdown),
                 "quality_metrics": asdict(quality_metrics),
-                "cost_effectiveness": asdict(cost_effectiveness)
+                "cost_effectiveness": asdict(cost_effectiveness),
             },
             cost_analysis={
                 "performance_correlations": asdict(performance_correlations)
             },
             optimization_recommendations=optimization_recommendations[:10],  # Top 10
             tournament_competitiveness=asdict(tournament_competitiveness),
-            active_alerts=active_alerts
+            active_alerts=active_alerts,
         )
 
     def generate_strategic_recommendations(
-        self,
-        budget_used_percentage: float,
-        total_budget: float = 100.0
+        self, budget_used_percentage: float, total_budget: float = 100.0
     ) -> Dict[str, Any]:
         """Generate strategic recommendations based on current state."""
         # Get tournament phase strategy
@@ -241,7 +256,9 @@ class IntegratedMonitoringService:
         )
 
         # Get budget optimization suggestions
-        budget_optimization = self.analytics.generate_budget_optimization_suggestions(total_budget)
+        budget_optimization = self.analytics.generate_budget_optimization_suggestions(
+            total_budget
+        )
 
         # Get performance trends
         effectiveness_trends = self.model_tracker.get_model_effectiveness_trends(7)
@@ -252,7 +269,7 @@ class IntegratedMonitoringService:
             "effectiveness_trends": effectiveness_trends,
             "implementation_priority": self._prioritize_recommendations(
                 phase_strategy, budget_optimization
-            )
+            ),
         }
 
     def check_alerts_and_thresholds(self) -> List[MonitoringAlert]:
@@ -262,48 +279,60 @@ class IntegratedMonitoringService:
         # Check performance degradation
         perf_alerts = self.perf_tracker.detect_performance_degradation()
         for alert_data in perf_alerts:
-            new_alerts.append(MonitoringAlert(
-                timestamp=datetime.now(),
-                alert_type="performance",
-                severity=alert_data.get("severity", "warning"),
-                component="performance_tracker",
-                message=alert_data.get("message", "Performance issue detected"),
-                data=alert_data,
-                recommendations=alert_data.get("recommendations", [])
-            ))
+            new_alerts.append(
+                MonitoringAlert(
+                    timestamp=datetime.now(),
+                    alert_type="performance",
+                    severity=alert_data.get("severity", "warning"),
+                    component="performance_tracker",
+                    message=alert_data.get("message", "Performance issue detected"),
+                    data=alert_data,
+                    recommendations=alert_data.get("recommendations", []),
+                )
+            )
 
         # Check tournament competitiveness
         competitiveness = self.model_tracker.get_tournament_competitiveness_indicators()
         if competitiveness.competitiveness_level in ["concerning", "critical"]:
-            new_alerts.append(MonitoringAlert(
-                timestamp=datetime.now(),
-                alert_type="tournament",
-                severity="critical" if competitiveness.competitiveness_level == "critical" else "warning",
-                component="tournament_competitiveness",
-                message=f"Tournament competitiveness: {competitiveness.competitiveness_level}",
-                data=asdict(competitiveness),
-                recommendations=competitiveness.recommendations
-            ))
+            new_alerts.append(
+                MonitoringAlert(
+                    timestamp=datetime.now(),
+                    alert_type="tournament",
+                    severity=(
+                        "critical"
+                        if competitiveness.competitiveness_level == "critical"
+                        else "warning"
+                    ),
+                    component="tournament_competitiveness",
+                    message=f"Tournament competitiveness: {competitiveness.competitiveness_level}",
+                    data=asdict(competitiveness),
+                    recommendations=competitiveness.recommendations,
+                )
+            )
 
         # Check cost efficiency
         cost_effectiveness = self.analytics.analyze_cost_effectiveness(24)
-        if cost_effectiveness.overall_efficiency < 20:  # Less than 20 questions per dollar
-            new_alerts.append(MonitoringAlert(
-                timestamp=datetime.now(),
-                alert_type="cost",
-                severity="warning",
-                component="cost_efficiency",
-                message=f"Low cost efficiency: {cost_effectiveness.overall_efficiency:.1f} questions/$",
-                data={"efficiency": cost_effectiveness.overall_efficiency},
-                recommendations=cost_effectiveness.optimal_routing_suggestions
-            ))
+        if (
+            cost_effectiveness.overall_efficiency < 20
+        ):  # Less than 20 questions per dollar
+            new_alerts.append(
+                MonitoringAlert(
+                    timestamp=datetime.now(),
+                    alert_type="cost",
+                    severity="warning",
+                    component="cost_efficiency",
+                    message=f"Low cost efficiency: {cost_effectiveness.overall_efficiency:.1f} questions/$",
+                    data={"efficiency": cost_effectiveness.overall_efficiency},
+                    recommendations=cost_effectiveness.optimal_routing_suggestions,
+                )
+            )
 
         # Add to alert history
         self.alert_history.extend(new_alerts)
 
         # Trim alert history
         if len(self.alert_history) > self.max_alert_history:
-            self.alert_history = self.alert_history[-self.max_alert_history:]
+            self.alert_history = self.alert_history[-self.max_alert_history :]
 
         return new_alerts
 
@@ -337,10 +366,7 @@ class IntegratedMonitoringService:
                 self._stop_monitoring.wait(60)  # Wait longer on error
 
     def _assess_overall_health(
-        self,
-        budget_status: Dict[str, Any],
-        quality_metrics,
-        tournament_competitiveness
+        self, budget_status: Dict[str, Any], quality_metrics, tournament_competitiveness
     ) -> str:
         """Assess overall system health."""
         health_score = 0
@@ -389,18 +415,19 @@ class IntegratedMonitoringService:
     def _get_active_alerts(self, hours: int = 24) -> List[MonitoringAlert]:
         """Get active alerts from the last specified hours."""
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        return [
-            alert for alert in self.alert_history
-            if alert.timestamp >= cutoff_time
-        ]
+        return [alert for alert in self.alert_history if alert.timestamp >= cutoff_time]
 
-    def _prioritize_recommendations(self, phase_strategy, budget_optimization) -> List[str]:
+    def _prioritize_recommendations(
+        self, phase_strategy, budget_optimization
+    ) -> List[str]:
         """Prioritize implementation recommendations."""
         priority_recommendations = []
 
         # High priority: budget critical issues
         if budget_optimization.risk_assessment == "high":
-            priority_recommendations.extend(budget_optimization.implementation_steps[:2])
+            priority_recommendations.extend(
+                budget_optimization.implementation_steps[:2]
+            )
 
         # Medium priority: phase strategy adjustments
         priority_recommendations.extend(phase_strategy.routing_adjustments[:3])
@@ -423,17 +450,23 @@ class IntegratedMonitoringService:
 
             # Budget summary
             budget = status.budget_status.get("budget", {})
-            logger.info(f"Budget: {budget.get('utilization_percent', 0):.1f}% used, "
-                       f"${budget.get('remaining', 0):.2f} remaining")
+            logger.info(
+                f"Budget: {budget.get('utilization_percent', 0):.1f}% used, "
+                f"${budget.get('remaining', 0):.2f} remaining"
+            )
 
             # Performance summary
             perf = status.performance_metrics.get("quality_metrics", {})
-            logger.info(f"Quality: {perf.get('avg_quality_score', 0):.3f}, "
-                       f"Success: {perf.get('success_rate', 0):.1%}")
+            logger.info(
+                f"Quality: {perf.get('avg_quality_score', 0):.3f}, "
+                f"Success: {perf.get('success_rate', 0):.1%}"
+            )
 
             # Tournament competitiveness
             tournament = status.tournament_competitiveness
-            logger.info(f"Competitiveness: {tournament.get('competitiveness_level', 'unknown').upper()}")
+            logger.info(
+                f"Competitiveness: {tournament.get('competitiveness_level', 'unknown').upper()}"
+            )
 
             # Active alerts
             if status.active_alerts:
@@ -452,15 +485,23 @@ class IntegratedMonitoringService:
         """Export comprehensive monitoring data for analysis."""
         return {
             "comprehensive_status": asdict(self.get_comprehensive_status()),
-            "model_effectiveness_trends": self.model_tracker.get_model_effectiveness_trends(7),
+            "model_effectiveness_trends": self.model_tracker.get_model_effectiveness_trends(
+                7
+            ),
             "cost_breakdown": asdict(self.model_tracker.get_cost_breakdown(hours)),
             "quality_metrics": asdict(self.model_tracker.get_quality_metrics(hours)),
             "optimization_analysis": {
-                "cost_effectiveness": asdict(self.analytics.analyze_cost_effectiveness(hours)),
-                "performance_correlations": asdict(self.analytics.analyze_performance_correlations(hours))
+                "cost_effectiveness": asdict(
+                    self.analytics.analyze_cost_effectiveness(hours)
+                ),
+                "performance_correlations": asdict(
+                    self.analytics.analyze_performance_correlations(hours)
+                ),
             },
-            "alert_history": [alert.to_dict() for alert in self._get_active_alerts(hours)],
-            "export_timestamp": datetime.now().isoformat()
+            "alert_history": [
+                alert.to_dict() for alert in self._get_active_alerts(hours)
+            ],
+            "export_timestamp": datetime.now().isoformat(),
         }
 
 

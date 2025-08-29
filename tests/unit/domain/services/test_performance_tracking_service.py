@@ -1,25 +1,39 @@
 """Tests for the performance tracking service."""
 
 import json
-import pytest
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
-from src.domain.services.performance_tracking_service import (
-    PerformanceTrackingService,
-    PerformanceMetric,
-    MetricType,
-    AlertLevel,
-    PerformanceAlert,
-    TournamentAnalytics
-)
+import pytest
+
 from src.domain.entities.forecast import Forecast, ForecastStatus
-from src.domain.entities.prediction import Prediction, PredictionResult, PredictionConfidence, PredictionMethod
-from src.domain.entities.research_report import ResearchReport, ResearchQuality, ResearchSource
-from src.domain.value_objects.reasoning_trace import ReasoningTrace, ReasoningStep, ReasoningStepType
+from src.domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+    PredictionResult,
+)
+from src.domain.entities.research_report import (
+    ResearchQuality,
+    ResearchReport,
+    ResearchSource,
+)
+from src.domain.services.performance_tracking_service import (
+    AlertLevel,
+    MetricType,
+    PerformanceAlert,
+    PerformanceMetric,
+    PerformanceTrackingService,
+    TournamentAnalytics,
+)
+from src.domain.value_objects.reasoning_trace import (
+    ReasoningStep,
+    ReasoningStepType,
+    ReasoningTrace,
+)
 
 
 class TestPerformanceTrackingService:
@@ -35,8 +49,7 @@ class TestPerformanceTrackingService:
     def performance_service(self, temp_storage_path):
         """Create performance tracking service for testing."""
         return PerformanceTrackingService(
-            metrics_storage_path=temp_storage_path,
-            enable_real_time_monitoring=True
+            metrics_storage_path=temp_storage_path, enable_real_time_monitoring=True
         )
 
     @pytest.fixture
@@ -51,14 +64,14 @@ class TestPerformanceTrackingService:
                 url="https://example.com/source1",
                 title="Source 1",
                 summary="Summary 1",
-                credibility_score=0.8
+                credibility_score=0.8,
             ),
             ResearchSource(
                 url="https://example.com/source2",
                 title="Source 2",
                 summary="Summary 2",
-                credibility_score=0.9
-            )
+                credibility_score=0.9,
+            ),
         ]
 
         # Create research report
@@ -69,7 +82,7 @@ class TestPerformanceTrackingService:
             detailed_analysis="Sample detailed analysis",
             sources=sources,
             created_by="test_agent",
-            quality=ResearchQuality.HIGH
+            quality=ResearchQuality.HIGH,
         )
 
         # Create predictions
@@ -83,7 +96,7 @@ class TestPerformanceTrackingService:
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning=f"Test reasoning {i}",
                 created_by=f"agent_{i}",
-                reasoning_steps=[f"Step 1 for agent {i}", f"Step 2 for agent {i}"]
+                reasoning_steps=[f"Step 1 for agent {i}", f"Step 2 for agent {i}"],
             )
             predictions.append(prediction)
 
@@ -95,7 +108,7 @@ class TestPerformanceTrackingService:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.ENSEMBLE,
             reasoning="Ensemble prediction",
-            created_by="ensemble"
+            created_by="ensemble",
         )
 
         # Create forecast
@@ -107,7 +120,7 @@ class TestPerformanceTrackingService:
             reasoning_summary="Test forecast reasoning",
             ensemble_method="confidence_weighted",
             weight_distribution={"agent_0": 0.4, "agent_1": 0.3, "agent_2": 0.3},
-            consensus_strength=0.8
+            consensus_strength=0.8,
         )
 
         return forecast
@@ -115,8 +128,7 @@ class TestPerformanceTrackingService:
     def test_initialization(self, temp_storage_path):
         """Test service initialization."""
         service = PerformanceTrackingService(
-            metrics_storage_path=temp_storage_path,
-            enable_real_time_monitoring=True
+            metrics_storage_path=temp_storage_path, enable_real_time_monitoring=True
         )
 
         assert service.metrics_storage_path == temp_storage_path
@@ -125,7 +137,9 @@ class TestPerformanceTrackingService:
         assert len(service.alerts_buffer) == 0
         assert len(service.tournament_analytics) == 0
 
-    def test_track_forecast_performance_basic(self, performance_service, sample_forecast):
+    def test_track_forecast_performance_basic(
+        self, performance_service, sample_forecast
+    ):
         """Test basic forecast performance tracking."""
         processing_time = 120.5  # seconds
         resource_usage = {"cpu_percent": 45.2, "memory_mb": 512.0}
@@ -133,34 +147,34 @@ class TestPerformanceTrackingService:
         performance_service.track_forecast_performance(
             forecast=sample_forecast,
             processing_time=processing_time,
-            resource_usage=resource_usage
+            resource_usage=resource_usage,
         )
 
         # Check that metrics were stored
         assert len(performance_service.metrics_buffer) > 0
 
         # Check for different metric types
-        metric_types = [metric.metric_type for metric in performance_service.metrics_buffer]
+        metric_types = [
+            metric.metric_type for metric in performance_service.metrics_buffer
+        ]
         assert MetricType.CONFIDENCE in metric_types
         assert MetricType.REASONING_QUALITY in metric_types
         assert MetricType.RESPONSE_TIME in metric_types
         assert MetricType.RESOURCE_USAGE in metric_types
 
-    def test_track_forecast_performance_with_reasoning_traces(self, performance_service, sample_forecast):
+    def test_track_forecast_performance_with_reasoning_traces(
+        self, performance_service, sample_forecast
+    ):
         """Test forecast tracking with reasoning traces."""
         # Add reasoning traces to predictions
         for prediction in sample_forecast.predictions:
             reasoning_steps = [
                 ReasoningStep.create(
-                    ReasoningStepType.OBSERVATION,
-                    "Test observation",
-                    confidence=0.8
+                    ReasoningStepType.OBSERVATION, "Test observation", confidence=0.8
                 ),
                 ReasoningStep.create(
-                    ReasoningStepType.ANALYSIS,
-                    "Test analysis",
-                    confidence=0.7
-                )
+                    ReasoningStepType.ANALYSIS, "Test analysis", confidence=0.7
+                ),
             ]
 
             reasoning_trace = ReasoningTrace.create(
@@ -169,7 +183,7 @@ class TestPerformanceTrackingService:
                 reasoning_method=prediction.method.value,
                 steps=reasoning_steps,
                 final_conclusion="Test conclusion",
-                overall_confidence=0.75
+                overall_confidence=0.75,
             )
 
             prediction.add_reasoning_trace(reasoning_trace)
@@ -178,7 +192,8 @@ class TestPerformanceTrackingService:
 
         # Check that reasoning quality metrics were tracked
         quality_metrics = [
-            metric for metric in performance_service.metrics_buffer
+            metric
+            for metric in performance_service.metrics_buffer
             if metric.metric_type == MetricType.REASONING_QUALITY
         ]
         assert len(quality_metrics) > 0
@@ -195,7 +210,7 @@ class TestPerformanceTrackingService:
         metrics = performance_service.track_resolved_prediction(
             forecast=sample_forecast,
             actual_outcome=actual_outcome,
-            resolution_timestamp=resolution_timestamp
+            resolution_timestamp=resolution_timestamp,
         )
 
         # Check returned metrics
@@ -210,12 +225,15 @@ class TestPerformanceTrackingService:
         assert abs(metrics["brier_score"] - expected_brier) < 0.001
 
         # Check accuracy calculation
-        expected_accuracy = 1.0 if (prediction_prob > 0.5) == (actual_outcome == 1) else 0.0
+        expected_accuracy = (
+            1.0 if (prediction_prob > 0.5) == (actual_outcome == 1) else 0.0
+        )
         assert metrics["accuracy"] == expected_accuracy
 
         # Check that metrics were stored
         brier_metrics = [
-            metric for metric in performance_service.metrics_buffer
+            metric
+            for metric in performance_service.metrics_buffer
             if metric.metric_type == MetricType.BRIER_SCORE
         ]
         assert len(brier_metrics) > 0
@@ -275,7 +293,7 @@ class TestPerformanceTrackingService:
             brier_scores=brier_scores,
             questions_answered=25,
             questions_resolved=20,
-            calibration_score=0.85
+            calibration_score=0.85,
         )
 
         # Check that analytics were stored
@@ -288,8 +306,17 @@ class TestPerformanceTrackingService:
         assert analytics.questions_answered == 25
         assert analytics.questions_resolved == 20
         assert analytics.calibration_score == 0.85
-        assert abs(analytics.average_brier_score - sum(brier_scores) / len(brier_scores)) < 0.001
-        assert abs(analytics.competitive_position_percentile - (ranking / total_participants)) < 0.001
+        assert (
+            abs(analytics.average_brier_score - sum(brier_scores) / len(brier_scores))
+            < 0.001
+        )
+        assert (
+            abs(
+                analytics.competitive_position_percentile
+                - (ranking / total_participants)
+            )
+            < 0.001
+        )
 
     def test_performance_report_generation(self, performance_service, sample_forecast):
         """Test performance report generation."""
@@ -302,8 +329,7 @@ class TestPerformanceTrackingService:
         start_date = end_date - timedelta(days=7)
 
         report = performance_service.get_performance_report(
-            start_date=start_date,
-            end_date=end_date
+            start_date=start_date, end_date=end_date
         )
 
         # Check report structure
@@ -340,11 +366,13 @@ class TestPerformanceTrackingService:
         performance_service._persist_metrics()
 
         # Check that metrics files were created
-        metrics_files = list(performance_service.metrics_storage_path.glob("metrics_*.json"))
+        metrics_files = list(
+            performance_service.metrics_storage_path.glob("metrics_*.json")
+        )
         assert len(metrics_files) > 0
 
         # Check file content
-        with open(metrics_files[0], 'r') as f:
+        with open(metrics_files[0], "r") as f:
             metrics_data = json.load(f)
 
         assert isinstance(metrics_data, list)
@@ -364,9 +392,7 @@ class TestPerformanceTrackingService:
 
         # Manually add old metrics
         old_metric = PerformanceMetric.create(
-            MetricType.CONFIDENCE,
-            0.5,
-            question_id=sample_forecast.question_id
+            MetricType.CONFIDENCE, 0.5, question_id=sample_forecast.question_id
         )
         old_metric.timestamp = datetime.utcnow() - timedelta(days=35)  # 35 days old
         performance_service.metrics_buffer.append(old_metric)
@@ -401,8 +427,7 @@ class TestPerformanceTrackingService:
     def test_real_time_monitoring_disabled(self, temp_storage_path, sample_forecast):
         """Test service with real-time monitoring disabled."""
         service = PerformanceTrackingService(
-            metrics_storage_path=temp_storage_path,
-            enable_real_time_monitoring=False
+            metrics_storage_path=temp_storage_path, enable_real_time_monitoring=False
         )
 
         # Track performance with very low confidence (would normally trigger alert)
@@ -415,17 +440,13 @@ class TestPerformanceTrackingService:
     def test_custom_alert_thresholds(self, temp_storage_path, sample_forecast):
         """Test service with custom alert thresholds."""
         custom_thresholds = {
-            MetricType.CONFIDENCE: {
-                "warning": 0.8,
-                "error": 0.6,
-                "critical": 0.4
-            }
+            MetricType.CONFIDENCE: {"warning": 0.8, "error": 0.6, "critical": 0.4}
         }
 
         service = PerformanceTrackingService(
             metrics_storage_path=temp_storage_path,
             enable_real_time_monitoring=True,
-            alert_thresholds=custom_thresholds
+            alert_thresholds=custom_thresholds,
         )
 
         # Track performance with confidence that would trigger custom threshold
@@ -446,8 +467,7 @@ class TestPerformanceTrackingService:
 
         # Test with invalid resolved prediction data
         metrics = performance_service.track_resolved_prediction(
-            forecast=None,
-            actual_outcome=1
+            forecast=None, actual_outcome=1
         )
 
         # Should return empty dict on error
@@ -465,7 +485,7 @@ class TestPerformanceTrackingService:
             value=0.15,
             question_id=question_id,
             agent_id="test_agent",
-            metadata={"test_key": "test_value"}
+            metadata={"test_key": "test_value"},
         )
 
         assert metric.metric_type == MetricType.BRIER_SCORE
@@ -483,7 +503,7 @@ class TestPerformanceTrackingService:
             message="Test alert message",
             metric_type=MetricType.CONFIDENCE,
             threshold_value=0.5,
-            actual_value=0.3
+            actual_value=0.3,
         )
 
         assert alert.level == AlertLevel.WARNING
@@ -497,20 +517,23 @@ class TestPerformanceTrackingService:
 
     def test_reasoning_trace_preservation(self, temp_storage_path, sample_forecast):
         """Test reasoning trace preservation."""
-        with patch('src.domain.services.performance_tracking_service.get_reasoning_logger') as mock_get_logger:
+        with patch(
+            "src.domain.services.performance_tracking_service.get_reasoning_logger"
+        ) as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
 
             # Create service after mock is set up
             performance_service = PerformanceTrackingService(
-                metrics_storage_path=temp_storage_path,
-                enable_real_time_monitoring=True
+                metrics_storage_path=temp_storage_path, enable_real_time_monitoring=True
             )
 
             performance_service.track_forecast_performance(sample_forecast)
 
             # Should have called reasoning logger for predictions and ensemble
-            assert mock_logger.log_reasoning_trace.call_count >= len(sample_forecast.predictions)
+            assert mock_logger.log_reasoning_trace.call_count >= len(
+                sample_forecast.predictions
+            )
 
     def test_trend_calculation(self, performance_service):
         """Test trend calculation for agent performance."""

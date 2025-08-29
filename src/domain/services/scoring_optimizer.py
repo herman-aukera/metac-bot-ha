@@ -1,24 +1,28 @@
 """Scoring optimizer service for tournament metrics optimization."""
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from uuid import UUID
+import math
 import statistics
 from collections import defaultdict
-import math
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
 
-from ..entities.question import Question
 from ..entities.forecast import Forecast, calculate_brier_score
 from ..entities.prediction import Prediction
+from ..entities.question import Question
 from ..value_objects.tournament_strategy import (
-    QuestionCategory, TournamentStrategy, RiskProfile, TournamentPhase
+    QuestionCategory,
+    RiskProfile,
+    TournamentPhase,
+    TournamentStrategy,
 )
 
 
 @dataclass
 class ScoringMetrics:
     """Tournament scoring metrics and analysis."""
+
     brier_score: float
     log_score: float
     calibration_score: float
@@ -33,6 +37,7 @@ class ScoringMetrics:
 @dataclass
 class OptimizationRecommendation:
     """Optimization recommendation for scoring improvement."""
+
     recommendation_type: str
     category: Optional[QuestionCategory]
     current_value: float
@@ -47,6 +52,7 @@ class OptimizationRecommendation:
 @dataclass
 class SubmissionTiming:
     """Optimal submission timing analysis."""
+
     question_id: UUID
     optimal_submission_time: datetime
     current_time: datetime
@@ -77,7 +83,7 @@ class ScoringOptimizer:
         forecasts: List[Forecast],
         questions: List[Question],
         resolved_outcomes: Optional[Dict[UUID, Any]] = None,
-        tournament_context: Optional[Dict[str, Any]] = None
+        tournament_context: Optional[Dict[str, Any]] = None,
     ) -> ScoringMetrics:
         """
         Calculate comprehensive tournament scoring metrics.
@@ -103,11 +109,17 @@ class ScoringOptimizer:
         avg_log_score = statistics.mean(log_scores) if log_scores else -0.693  # ln(0.5)
 
         # Calculate calibration metrics
-        calibration_score = self._calculate_calibration_score(forecasts, resolved_outcomes)
+        calibration_score = self._calculate_calibration_score(
+            forecasts, resolved_outcomes
+        )
 
         # Calculate resolution and reliability
-        resolution_score = self._calculate_resolution_score(forecasts, resolved_outcomes)
-        reliability_score = self._calculate_reliability_score(forecasts, resolved_outcomes)
+        resolution_score = self._calculate_resolution_score(
+            forecasts, resolved_outcomes
+        )
+        reliability_score = self._calculate_reliability_score(
+            forecasts, resolved_outcomes
+        )
 
         # Calculate sharpness (how far predictions are from 0.5)
         sharpness_score = self._calculate_sharpness_score(forecasts)
@@ -138,7 +150,7 @@ class ScoringOptimizer:
             sharpness_score=sharpness_score,
             tournament_rank=tournament_rank,
             category_performance=category_performance,
-            confidence_accuracy_mapping=confidence_accuracy
+            confidence_accuracy_mapping=confidence_accuracy,
         )
 
     def optimize_confidence_thresholds(
@@ -146,7 +158,7 @@ class ScoringOptimizer:
         tournament_id: str,
         current_strategy: TournamentStrategy,
         historical_performance: Dict[str, Any],
-        questions: List[Question]
+        questions: List[Question],
     ) -> List[OptimizationRecommendation]:
         """
         Optimize confidence thresholds for better scoring.
@@ -176,17 +188,25 @@ class ScoringOptimizer:
                     threshold_type, current_value, optimal_value, historical_performance
                 )
 
-                recommendations.append(OptimizationRecommendation(
-                    recommendation_type="confidence_threshold",
-                    category=None,
-                    current_value=current_value,
-                    recommended_value=optimal_value,
-                    expected_improvement=expected_improvement,
-                    confidence=0.7,
-                    rationale=f"Historical data suggests {threshold_type} threshold of {optimal_value:.2f} would improve scoring by {expected_improvement:.3f}",
-                    implementation_priority="high" if expected_improvement > 0.05 else "medium",
-                    risk_level="low" if abs(optimal_value - current_value) < 0.1 else "medium"
-                ))
+                recommendations.append(
+                    OptimizationRecommendation(
+                        recommendation_type="confidence_threshold",
+                        category=None,
+                        current_value=current_value,
+                        recommended_value=optimal_value,
+                        expected_improvement=expected_improvement,
+                        confidence=0.7,
+                        rationale=f"Historical data suggests {threshold_type} threshold of {optimal_value:.2f} would improve scoring by {expected_improvement:.3f}",
+                        implementation_priority=(
+                            "high" if expected_improvement > 0.05 else "medium"
+                        ),
+                        risk_level=(
+                            "low"
+                            if abs(optimal_value - current_value) < 0.1
+                            else "medium"
+                        ),
+                    )
+                )
 
         return recommendations
 
@@ -195,7 +215,7 @@ class ScoringOptimizer:
         forecasts: List[Forecast],
         questions: List[Question],
         tournament_strategy: TournamentStrategy,
-        market_conditions: Optional[Dict[str, Any]] = None
+        market_conditions: Optional[Dict[str, Any]] = None,
     ) -> List[OptimizationRecommendation]:
         """
         Optimize risk-adjusted scoring strategies.
@@ -225,17 +245,23 @@ class ScoringOptimizer:
                 current_risk_profile, optimal_risk_profile, risk_analysis
             )
 
-            recommendations.append(OptimizationRecommendation(
-                recommendation_type="risk_profile",
-                category=None,
-                current_value=self._risk_profile_to_numeric(current_risk_profile),
-                recommended_value=self._risk_profile_to_numeric(optimal_risk_profile),
-                expected_improvement=expected_improvement,
-                confidence=0.6,
-                rationale=f"Tournament position and market conditions suggest {optimal_risk_profile.value} risk profile",
-                implementation_priority="high" if expected_improvement > 0.1 else "medium",
-                risk_level="medium"
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    recommendation_type="risk_profile",
+                    category=None,
+                    current_value=self._risk_profile_to_numeric(current_risk_profile),
+                    recommended_value=self._risk_profile_to_numeric(
+                        optimal_risk_profile
+                    ),
+                    expected_improvement=expected_improvement,
+                    confidence=0.6,
+                    rationale=f"Tournament position and market conditions suggest {optimal_risk_profile.value} risk profile",
+                    implementation_priority=(
+                        "high" if expected_improvement > 0.1 else "medium"
+                    ),
+                    risk_level="medium",
+                )
+            )
 
         # Optimize category-specific risk adjustments
         category_recommendations = self._optimize_category_risk_adjustments(
@@ -250,7 +276,7 @@ class ScoringOptimizer:
         question: Question,
         current_forecast: Optional[Forecast],
         tournament_context: Dict[str, Any],
-        market_data: Optional[Dict[str, Any]] = None
+        market_data: Optional[Dict[str, Any]] = None,
     ) -> SubmissionTiming:
         """
         Optimize submission timing for maximum impact.
@@ -301,7 +327,7 @@ class ScoringOptimizer:
             confidence_in_timing=timing_confidence,
             timing_strategy=timing_strategy,
             risk_factors=risk_factors,
-            expected_score_improvement=score_improvement
+            expected_score_improvement=score_improvement,
         )
 
         # Cache result
@@ -314,7 +340,7 @@ class ScoringOptimizer:
         forecasts: List[Forecast],
         questions: List[Question],
         tournament_strategy: TournamentStrategy,
-        optimization_recommendations: List[OptimizationRecommendation]
+        optimization_recommendations: List[OptimizationRecommendation],
     ) -> Dict[str, float]:
         """
         Calculate expected tournament score with and without optimizations.
@@ -360,7 +386,7 @@ class ScoringOptimizer:
             "score_confidence_upper": score_confidence["upper"],
             "risk_adjusted_score": self._calculate_risk_adjusted_score(
                 current_score, forecasts, tournament_strategy
-            )
+            ),
         }
 
     def generate_scoring_strategy_recommendations(
@@ -368,7 +394,7 @@ class ScoringOptimizer:
         tournament_id: str,
         current_performance: ScoringMetrics,
         tournament_context: Dict[str, Any],
-        competitor_analysis: Optional[Dict[str, Any]] = None
+        competitor_analysis: Optional[Dict[str, Any]] = None,
     ) -> List[OptimizationRecommendation]:
         """
         Generate comprehensive scoring strategy recommendations.
@@ -386,37 +412,47 @@ class ScoringOptimizer:
 
         # Analyze calibration issues
         if current_performance.calibration_score < 0.8:
-            recommendations.extend(self._generate_calibration_recommendations(
-                current_performance, tournament_context
-            ))
+            recommendations.extend(
+                self._generate_calibration_recommendations(
+                    current_performance, tournament_context
+                )
+            )
 
         # Analyze sharpness issues
         if current_performance.sharpness_score < 0.3:
-            recommendations.extend(self._generate_sharpness_recommendations(
-                current_performance, tournament_context
-            ))
+            recommendations.extend(
+                self._generate_sharpness_recommendations(
+                    current_performance, tournament_context
+                )
+            )
 
         # Analyze category performance issues
-        recommendations.extend(self._generate_category_performance_recommendations(
-            current_performance, tournament_context
-        ))
+        recommendations.extend(
+            self._generate_category_performance_recommendations(
+                current_performance, tournament_context
+            )
+        )
 
         # Analyze competitive positioning
         if competitor_analysis:
-            recommendations.extend(self._generate_competitive_recommendations(
-                current_performance, competitor_analysis, tournament_context
-            ))
+            recommendations.extend(
+                self._generate_competitive_recommendations(
+                    current_performance, competitor_analysis, tournament_context
+                )
+            )
 
         # Analyze tournament phase-specific optimizations
         tournament_phase = tournament_context.get("phase", "middle")
-        recommendations.extend(self._generate_phase_specific_recommendations(
-            current_performance, tournament_phase, tournament_context
-        ))
+        recommendations.extend(
+            self._generate_phase_specific_recommendations(
+                current_performance, tournament_phase, tournament_context
+            )
+        )
 
         # Sort by expected improvement and priority
         recommendations.sort(
             key=lambda r: (r.expected_improvement, r.implementation_priority == "high"),
-            reverse=True
+            reverse=True,
         )
 
         return recommendations
@@ -432,13 +468,11 @@ class ScoringOptimizer:
             sharpness_score=0.0,
             tournament_rank=None,
             category_performance={},
-            confidence_accuracy_mapping={}
+            confidence_accuracy_mapping={},
         )
 
     def _calculate_brier_scores(
-        self,
-        forecasts: List[Forecast],
-        resolved_outcomes: Optional[Dict[UUID, Any]]
+        self, forecasts: List[Forecast], resolved_outcomes: Optional[Dict[UUID, Any]]
     ) -> List[float]:
         """Calculate Brier scores for resolved forecasts."""
         if not resolved_outcomes:
@@ -449,16 +483,16 @@ class ScoringOptimizer:
             if forecast.question_id in resolved_outcomes:
                 outcome = resolved_outcomes[forecast.question_id]
                 if isinstance(outcome, (int, float)) and outcome in [0, 1]:
-                    prediction = forecast.prediction  # Uses backward compatibility property
+                    prediction = (
+                        forecast.prediction
+                    )  # Uses backward compatibility property
                     brier_score = calculate_brier_score(prediction, int(outcome))
                     brier_scores.append(brier_score)
 
         return brier_scores
 
     def _calculate_log_scores(
-        self,
-        forecasts: List[Forecast],
-        resolved_outcomes: Optional[Dict[UUID, Any]]
+        self, forecasts: List[Forecast], resolved_outcomes: Optional[Dict[UUID, Any]]
     ) -> List[float]:
         """Calculate logarithmic scores for resolved forecasts."""
         if not resolved_outcomes:
@@ -483,9 +517,7 @@ class ScoringOptimizer:
         return log_scores
 
     def _calculate_calibration_score(
-        self,
-        forecasts: List[Forecast],
-        resolved_outcomes: Optional[Dict[UUID, Any]]
+        self, forecasts: List[Forecast], resolved_outcomes: Optional[Dict[UUID, Any]]
     ) -> float:
         """Calculate calibration score (reliability component)."""
         if not resolved_outcomes:
@@ -507,7 +539,9 @@ class ScoringOptimizer:
 
         for bin_predictions in bins.values():
             if len(bin_predictions) > 0:
-                avg_prediction = sum(p[0] for p in bin_predictions) / len(bin_predictions)
+                avg_prediction = sum(p[0] for p in bin_predictions) / len(
+                    bin_predictions
+                )
                 avg_outcome = sum(p[1] for p in bin_predictions) / len(bin_predictions)
 
                 bin_error = abs(avg_prediction - avg_outcome)
@@ -521,9 +555,7 @@ class ScoringOptimizer:
         return 0.0
 
     def _calculate_resolution_score(
-        self,
-        forecasts: List[Forecast],
-        resolved_outcomes: Optional[Dict[UUID, Any]]
+        self, forecasts: List[Forecast], resolved_outcomes: Optional[Dict[UUID, Any]]
     ) -> float:
         """Calculate resolution score (how much predictions vary from base rate)."""
         if not resolved_outcomes:
@@ -554,12 +586,12 @@ class ScoringOptimizer:
         return resolution
 
     def _calculate_reliability_score(
-        self,
-        forecasts: List[Forecast],
-        resolved_outcomes: Optional[Dict[UUID, Any]]
+        self, forecasts: List[Forecast], resolved_outcomes: Optional[Dict[UUID, Any]]
     ) -> float:
         """Calculate reliability score (inverse of calibration error)."""
-        calibration_score = self._calculate_calibration_score(forecasts, resolved_outcomes)
+        calibration_score = self._calculate_calibration_score(
+            forecasts, resolved_outcomes
+        )
         return calibration_score  # Already converted from error to score
 
     def _calculate_sharpness_score(self, forecasts: List[Forecast]) -> float:
@@ -579,7 +611,7 @@ class ScoringOptimizer:
         self,
         forecasts: List[Forecast],
         questions: List[Question],
-        resolved_outcomes: Optional[Dict[UUID, Any]]
+        resolved_outcomes: Optional[Dict[UUID, Any]],
     ) -> Dict[QuestionCategory, float]:
         """Calculate performance by question category."""
         if not resolved_outcomes:
@@ -589,13 +621,19 @@ class ScoringOptimizer:
 
         for forecast in forecasts:
             if forecast.question_id in resolved_outcomes:
-                question = next((q for q in questions if q.id == forecast.question_id), None)
+                question = next(
+                    (q for q in questions if q.id == forecast.question_id), None
+                )
                 if question:
                     outcome = resolved_outcomes[forecast.question_id]
                     if isinstance(outcome, (int, float)) and outcome in [0, 1]:
                         category = question.categorize_question()
-                        brier_score = calculate_brier_score(forecast.prediction, int(outcome))
-                        category_scores[category].append(1.0 - brier_score)  # Convert to accuracy
+                        brier_score = calculate_brier_score(
+                            forecast.prediction, int(outcome)
+                        )
+                        category_scores[category].append(
+                            1.0 - brier_score
+                        )  # Convert to accuracy
 
         # Calculate average performance by category
         category_performance = {}
@@ -606,9 +644,7 @@ class ScoringOptimizer:
         return category_performance
 
     def _calculate_confidence_accuracy_mapping(
-        self,
-        forecasts: List[Forecast],
-        resolved_outcomes: Optional[Dict[UUID, Any]]
+        self, forecasts: List[Forecast], resolved_outcomes: Optional[Dict[UUID, Any]]
     ) -> Dict[str, float]:
         """Calculate accuracy by confidence level."""
         if not resolved_outcomes:
@@ -620,12 +656,18 @@ class ScoringOptimizer:
             if forecast.question_id in resolved_outcomes:
                 outcome = resolved_outcomes[forecast.question_id]
                 if isinstance(outcome, (int, float)) and outcome in [0, 1]:
-                    confidence_level = forecast.confidence  # Uses backward compatibility property
+                    confidence_level = (
+                        forecast.confidence
+                    )  # Uses backward compatibility property
                     prediction = forecast.prediction
 
                     # Simple accuracy: 1 if prediction > 0.5 and outcome = 1, or prediction <= 0.5 and outcome = 0
-                    correct = (prediction > 0.5 and outcome == 1) or (prediction <= 0.5 and outcome == 0)
-                    confidence_accuracy[str(confidence_level)].append(1.0 if correct else 0.0)
+                    correct = (prediction > 0.5 and outcome == 1) or (
+                        prediction <= 0.5 and outcome == 0
+                    )
+                    confidence_accuracy[str(confidence_level)].append(
+                        1.0 if correct else 0.0
+                    )
 
         # Calculate average accuracy by confidence level
         mapping = {}
@@ -636,9 +678,7 @@ class ScoringOptimizer:
         return mapping
 
     def _calculate_tournament_rank(
-        self,
-        our_brier_score: float,
-        standings: Dict[str, float]
+        self, our_brier_score: float, standings: Dict[str, float]
     ) -> int:
         """Calculate tournament rank based on Brier score."""
         our_score = 1.0 - our_brier_score  # Convert Brier to accuracy-like score
@@ -649,14 +689,14 @@ class ScoringOptimizer:
         self,
         threshold_type: str,
         historical_performance: Dict[str, Any],
-        questions: List[Question]
+        questions: List[Question],
     ) -> float:
         """Calculate optimal confidence threshold based on historical data."""
         # Default thresholds
         defaults = {
             "minimum_submission": 0.6,
             "high_confidence": 0.8,
-            "abstention": 0.4
+            "abstention": 0.4,
         }
 
         base_threshold = defaults.get(threshold_type, 0.6)
@@ -686,7 +726,7 @@ class ScoringOptimizer:
         threshold_type: str,
         current_value: float,
         optimal_value: float,
-        historical_performance: Dict[str, Any]
+        historical_performance: Dict[str, Any],
     ) -> float:
         """Estimate improvement from threshold change."""
         # Simple heuristic: larger changes in critical thresholds have more impact
@@ -703,7 +743,7 @@ class ScoringOptimizer:
         self,
         threshold: float,
         accuracy_data: Dict[str, float],
-        questions: List[Question]
+        questions: List[Question],
     ) -> float:
         """Estimate expected score at given confidence threshold."""
         # Simplified estimation - in practice would use more sophisticated modeling
@@ -720,9 +760,7 @@ class ScoringOptimizer:
         return max(0.0, min(1.0, base_score))
 
     def _analyze_risk_exposure(
-        self,
-        forecasts: List[Forecast],
-        questions: List[Question]
+        self, forecasts: List[Forecast], questions: List[Question]
     ) -> Dict[str, float]:
         """Analyze current risk exposure across forecasts."""
         risk_analysis = {
@@ -730,7 +768,7 @@ class ScoringOptimizer:
             "confidence_distribution": 0.0,
             "category_concentration": 0.0,
             "timing_risk": 0.0,
-            "overall_risk": 0.0
+            "overall_risk": 0.0,
         }
 
         if not forecasts:
@@ -746,12 +784,16 @@ class ScoringOptimizer:
         if confidence_scores:
             # Risk is higher when all predictions have similar confidence
             unique_confidences = len(set(confidence_scores))
-            risk_analysis["confidence_distribution"] = 1.0 - (unique_confidences / len(confidence_scores))
+            risk_analysis["confidence_distribution"] = 1.0 - (
+                unique_confidences / len(confidence_scores)
+            )
 
         # Calculate category concentration risk
         categories = []
         for forecast in forecasts:
-            question = next((q for q in questions if q.id == forecast.question_id), None)
+            question = next(
+                (q for q in questions if q.id == forecast.question_id), None
+            )
             if question:
                 categories.append(question.categorize_question())
 
@@ -767,9 +809,13 @@ class ScoringOptimizer:
         current_time = datetime.utcnow()
         timing_risks = []
         for forecast in forecasts:
-            question = next((q for q in questions if q.id == forecast.question_id), None)
+            question = next(
+                (q for q in questions if q.id == forecast.question_id), None
+            )
             if question and question.close_time:
-                hours_to_close = (question.close_time - current_time).total_seconds() / 3600
+                hours_to_close = (
+                    question.close_time - current_time
+                ).total_seconds() / 3600
                 if hours_to_close < 6:
                     timing_risks.append(1.0)  # High risk
                 elif hours_to_close < 24:
@@ -781,12 +827,14 @@ class ScoringOptimizer:
             risk_analysis["timing_risk"] = statistics.mean(timing_risks)
 
         # Calculate overall risk
-        risk_analysis["overall_risk"] = statistics.mean([
-            risk_analysis["prediction_variance"],
-            risk_analysis["confidence_distribution"],
-            risk_analysis["category_concentration"],
-            risk_analysis["timing_risk"]
-        ])
+        risk_analysis["overall_risk"] = statistics.mean(
+            [
+                risk_analysis["prediction_variance"],
+                risk_analysis["confidence_distribution"],
+                risk_analysis["category_concentration"],
+                risk_analysis["timing_risk"],
+            ]
+        )
 
         return risk_analysis
 
@@ -794,7 +842,7 @@ class ScoringOptimizer:
         self,
         risk_analysis: Dict[str, float],
         tournament_strategy: TournamentStrategy,
-        market_conditions: Optional[Dict[str, Any]]
+        market_conditions: Optional[Dict[str, Any]],
     ) -> RiskProfile:
         """Determine optimal risk profile based on analysis."""
         current_risk = risk_analysis["overall_risk"]
@@ -824,14 +872,14 @@ class ScoringOptimizer:
         self,
         current_profile: RiskProfile,
         optimal_profile: RiskProfile,
-        risk_analysis: Dict[str, float]
+        risk_analysis: Dict[str, float],
     ) -> float:
         """Estimate improvement from risk profile change."""
         profile_scores = {
             RiskProfile.CONSERVATIVE: 0.3,
             RiskProfile.MODERATE: 0.5,
             RiskProfile.AGGRESSIVE: 0.7,
-            RiskProfile.ADAPTIVE: 0.6
+            RiskProfile.ADAPTIVE: 0.6,
         }
 
         current_score = profile_scores[current_profile]
@@ -848,7 +896,7 @@ class ScoringOptimizer:
             RiskProfile.CONSERVATIVE: 0.3,
             RiskProfile.MODERATE: 0.5,
             RiskProfile.AGGRESSIVE: 0.7,
-            RiskProfile.ADAPTIVE: 0.6
+            RiskProfile.ADAPTIVE: 0.6,
         }
         return mapping[profile]
 
@@ -857,7 +905,7 @@ class ScoringOptimizer:
         forecasts: List[Forecast],
         questions: List[Question],
         tournament_strategy: TournamentStrategy,
-        risk_analysis: Dict[str, float]
+        risk_analysis: Dict[str, float],
     ) -> List[OptimizationRecommendation]:
         """Optimize category-specific risk adjustments."""
         recommendations = []
@@ -865,32 +913,40 @@ class ScoringOptimizer:
         # Analyze category risk exposure
         category_risks = defaultdict(list)
         for forecast in forecasts:
-            question = next((q for q in questions if q.id == forecast.question_id), None)
+            question = next(
+                (q for q in questions if q.id == forecast.question_id), None
+            )
             if question:
                 category = question.categorize_question()
-                prediction_risk = abs(forecast.prediction - 0.5) * 2  # Sharpness as risk proxy
+                prediction_risk = (
+                    abs(forecast.prediction - 0.5) * 2
+                )  # Sharpness as risk proxy
                 category_risks[category].append(prediction_risk)
 
         # Generate recommendations for high-risk categories
         for category, risks in category_risks.items():
             if risks:
                 avg_risk = statistics.mean(risks)
-                current_specialization = tournament_strategy.category_specializations.get(category, 0.5)
+                current_specialization = (
+                    tournament_strategy.category_specializations.get(category, 0.5)
+                )
 
                 if avg_risk > 0.8:  # High risk category
                     recommended_specialization = max(0.3, current_specialization - 0.1)
 
-                    recommendations.append(OptimizationRecommendation(
-                        recommendation_type="category_risk_adjustment",
-                        category=category,
-                        current_value=current_specialization,
-                        recommended_value=recommended_specialization,
-                        expected_improvement=0.05,
-                        confidence=0.6,
-                        rationale=f"High risk exposure in {category.value} category suggests reducing specialization",
-                        implementation_priority="medium",
-                        risk_level="low"
-                    ))
+                    recommendations.append(
+                        OptimizationRecommendation(
+                            recommendation_type="category_risk_adjustment",
+                            category=category,
+                            current_value=current_specialization,
+                            recommended_value=recommended_specialization,
+                            expected_improvement=0.05,
+                            confidence=0.6,
+                            rationale=f"High risk exposure in {category.value} category suggests reducing specialization",
+                            implementation_priority="medium",
+                            risk_level="low",
+                        )
+                    )
 
         return recommendations
 
@@ -898,7 +954,7 @@ class ScoringOptimizer:
         self,
         question: Question,
         tournament_context: Dict[str, Any],
-        market_data: Optional[Dict[str, Any]]
+        market_data: Optional[Dict[str, Any]],
     ) -> str:
         """Determine optimal timing strategy for question."""
         # Consider question characteristics
@@ -931,7 +987,7 @@ class ScoringOptimizer:
         question: Question,
         timing_strategy: str,
         tournament_context: Dict[str, Any],
-        market_data: Optional[Dict[str, Any]]
+        market_data: Optional[Dict[str, Any]],
     ) -> datetime:
         """Calculate optimal submission time based on strategy."""
         current_time = datetime.utcnow()
@@ -949,7 +1005,9 @@ class ScoringOptimizer:
         elif timing_strategy == "optimal_window":
             # Submit in the middle 50% of available time
             time_remaining = close_time - current_time
-            return current_time + timedelta(seconds=time_remaining.total_seconds() * 0.5)
+            return current_time + timedelta(
+                seconds=time_remaining.total_seconds() * 0.5
+            )
         else:
             return current_time + timedelta(hours=6)  # Default
 
@@ -957,7 +1015,7 @@ class ScoringOptimizer:
         self,
         question: Question,
         timing_strategy: str,
-        market_data: Optional[Dict[str, Any]]
+        market_data: Optional[Dict[str, Any]],
     ) -> float:
         """Assess confidence in timing recommendation."""
         base_confidence = 0.6
@@ -983,7 +1041,7 @@ class ScoringOptimizer:
         self,
         question: Question,
         timing_strategy: str,
-        tournament_context: Dict[str, Any]
+        tournament_context: Dict[str, Any],
     ) -> List[str]:
         """Identify risk factors for timing strategy."""
         risk_factors = []
@@ -1012,7 +1070,7 @@ class ScoringOptimizer:
         self,
         question: Question,
         timing_strategy: str,
-        current_forecast: Optional[Forecast]
+        current_forecast: Optional[Forecast],
     ) -> float:
         """Estimate score improvement from optimal timing."""
         base_improvement = 0.02  # Small but meaningful improvement
@@ -1040,7 +1098,7 @@ class ScoringOptimizer:
         self,
         forecasts: List[Forecast],
         questions: List[Question],
-        tournament_strategy: TournamentStrategy
+        tournament_strategy: TournamentStrategy,
     ) -> float:
         """Calculate current expected tournament score."""
         if not forecasts:
@@ -1063,7 +1121,7 @@ class ScoringOptimizer:
         forecasts: List[Forecast],
         questions: List[Question],
         tournament_strategy: TournamentStrategy,
-        optimization_recommendations: List[OptimizationRecommendation]
+        optimization_recommendations: List[OptimizationRecommendation],
     ) -> float:
         """Calculate expected score with optimizations applied."""
         current_score = self._calculate_current_expected_score(
@@ -1071,7 +1129,9 @@ class ScoringOptimizer:
         )
 
         # Apply improvements from recommendations
-        total_improvement = sum(rec.expected_improvement for rec in optimization_recommendations)
+        total_improvement = sum(
+            rec.expected_improvement for rec in optimization_recommendations
+        )
 
         # Apply diminishing returns
         improvement_factor = 1.0 - math.exp(-total_improvement * 2)
@@ -1082,13 +1142,15 @@ class ScoringOptimizer:
         self,
         forecasts: List[Forecast],
         questions: List[Question],
-        tournament_strategy: TournamentStrategy
+        tournament_strategy: TournamentStrategy,
     ) -> Dict[str, float]:
         """Calculate expected scores by category."""
         category_scores = defaultdict(list)
 
         for forecast in forecasts:
-            question = next((q for q in questions if q.id == forecast.question_id), None)
+            question = next(
+                (q for q in questions if q.id == forecast.question_id), None
+            )
             if question:
                 category = question.categorize_question()
                 confidence = forecast.confidence
@@ -1108,7 +1170,7 @@ class ScoringOptimizer:
         self,
         forecasts: List[Forecast],
         questions: List[Question],
-        tournament_strategy: TournamentStrategy
+        tournament_strategy: TournamentStrategy,
     ) -> Dict[str, float]:
         """Calculate confidence intervals for score estimates."""
         current_score = self._calculate_current_expected_score(
@@ -1129,14 +1191,13 @@ class ScoringOptimizer:
 
             return {
                 "lower": max(0.0, current_score - margin),
-                "upper": min(1.0, current_score + margin)
+                "upper": min(1.0, current_score + margin),
             }
 
         return {"lower": current_score * 0.9, "upper": current_score * 1.1}
 
     def _calculate_improvement_confidence(
-        self,
-        optimization_recommendations: List[OptimizationRecommendation]
+        self, optimization_recommendations: List[OptimizationRecommendation]
     ) -> float:
         """Calculate confidence in improvement estimates."""
         if not optimization_recommendations:
@@ -1160,14 +1221,18 @@ class ScoringOptimizer:
         self,
         base_score: float,
         forecasts: List[Forecast],
-        tournament_strategy: TournamentStrategy
+        tournament_strategy: TournamentStrategy,
     ) -> float:
         """Calculate risk-adjusted score."""
         if not forecasts:
             return base_score
 
         # Calculate risk penalty
-        prediction_variance = statistics.variance([f.prediction for f in forecasts]) if len(forecasts) > 1 else 0.0
+        prediction_variance = (
+            statistics.variance([f.prediction for f in forecasts])
+            if len(forecasts) > 1
+            else 0.0
+        )
         risk_penalty = prediction_variance * 0.1  # Small penalty for high variance
 
         # Adjust based on risk profile
@@ -1179,73 +1244,73 @@ class ScoringOptimizer:
         return max(0.0, base_score - risk_penalty)
 
     def _generate_calibration_recommendations(
-        self,
-        current_performance: ScoringMetrics,
-        tournament_context: Dict[str, Any]
+        self, current_performance: ScoringMetrics, tournament_context: Dict[str, Any]
     ) -> List[OptimizationRecommendation]:
         """Generate recommendations to improve calibration."""
         recommendations = []
 
         calibration_gap = 0.9 - current_performance.calibration_score
         if calibration_gap > 0.1:
-            recommendations.append(OptimizationRecommendation(
-                recommendation_type="calibration_improvement",
-                category=None,
-                current_value=current_performance.calibration_score,
-                recommended_value=0.9,
-                expected_improvement=calibration_gap * 0.5,
-                confidence=0.7,
-                rationale="Poor calibration detected - implement confidence adjustment mechanisms",
-                implementation_priority="high",
-                risk_level="low"
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    recommendation_type="calibration_improvement",
+                    category=None,
+                    current_value=current_performance.calibration_score,
+                    recommended_value=0.9,
+                    expected_improvement=calibration_gap * 0.5,
+                    confidence=0.7,
+                    rationale="Poor calibration detected - implement confidence adjustment mechanisms",
+                    implementation_priority="high",
+                    risk_level="low",
+                )
+            )
 
         return recommendations
 
     def _generate_sharpness_recommendations(
-        self,
-        current_performance: ScoringMetrics,
-        tournament_context: Dict[str, Any]
+        self, current_performance: ScoringMetrics, tournament_context: Dict[str, Any]
     ) -> List[OptimizationRecommendation]:
         """Generate recommendations to improve sharpness."""
         recommendations = []
 
         if current_performance.sharpness_score < 0.4:
-            recommendations.append(OptimizationRecommendation(
-                recommendation_type="sharpness_improvement",
-                category=None,
-                current_value=current_performance.sharpness_score,
-                recommended_value=0.5,
-                expected_improvement=0.03,
-                confidence=0.6,
-                rationale="Low sharpness - predictions too close to 0.5, increase confidence in strong predictions",
-                implementation_priority="medium",
-                risk_level="medium"
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    recommendation_type="sharpness_improvement",
+                    category=None,
+                    current_value=current_performance.sharpness_score,
+                    recommended_value=0.5,
+                    expected_improvement=0.03,
+                    confidence=0.6,
+                    rationale="Low sharpness - predictions too close to 0.5, increase confidence in strong predictions",
+                    implementation_priority="medium",
+                    risk_level="medium",
+                )
+            )
 
         return recommendations
 
     def _generate_category_performance_recommendations(
-        self,
-        current_performance: ScoringMetrics,
-        tournament_context: Dict[str, Any]
+        self, current_performance: ScoringMetrics, tournament_context: Dict[str, Any]
     ) -> List[OptimizationRecommendation]:
         """Generate category-specific performance recommendations."""
         recommendations = []
 
         for category, performance in current_performance.category_performance.items():
             if performance < 0.6:  # Poor performance threshold
-                recommendations.append(OptimizationRecommendation(
-                    recommendation_type="category_improvement",
-                    category=category,
-                    current_value=performance,
-                    recommended_value=0.7,
-                    expected_improvement=0.05,
-                    confidence=0.6,
-                    rationale=f"Poor performance in {category.value} category - increase research depth or reduce focus",
-                    implementation_priority="medium",
-                    risk_level="low"
-                ))
+                recommendations.append(
+                    OptimizationRecommendation(
+                        recommendation_type="category_improvement",
+                        category=category,
+                        current_value=performance,
+                        recommended_value=0.7,
+                        expected_improvement=0.05,
+                        confidence=0.6,
+                        rationale=f"Poor performance in {category.value} category - increase research depth or reduce focus",
+                        implementation_priority="medium",
+                        risk_level="low",
+                    )
+                )
 
         return recommendations
 
@@ -1253,23 +1318,28 @@ class ScoringOptimizer:
         self,
         current_performance: ScoringMetrics,
         competitor_analysis: Dict[str, Any],
-        tournament_context: Dict[str, Any]
+        tournament_context: Dict[str, Any],
     ) -> List[OptimizationRecommendation]:
         """Generate competitive positioning recommendations."""
         recommendations = []
 
-        if current_performance.tournament_rank and current_performance.tournament_rank > 10:
-            recommendations.append(OptimizationRecommendation(
-                recommendation_type="competitive_positioning",
-                category=None,
-                current_value=float(current_performance.tournament_rank),
-                recommended_value=5.0,
-                expected_improvement=0.1,
-                confidence=0.5,
-                rationale="Low tournament ranking - implement more aggressive strategy",
-                implementation_priority="high",
-                risk_level="high"
-            ))
+        if (
+            current_performance.tournament_rank
+            and current_performance.tournament_rank > 10
+        ):
+            recommendations.append(
+                OptimizationRecommendation(
+                    recommendation_type="competitive_positioning",
+                    category=None,
+                    current_value=float(current_performance.tournament_rank),
+                    recommended_value=5.0,
+                    expected_improvement=0.1,
+                    confidence=0.5,
+                    rationale="Low tournament ranking - implement more aggressive strategy",
+                    implementation_priority="high",
+                    risk_level="high",
+                )
+            )
 
         return recommendations
 
@@ -1277,34 +1347,38 @@ class ScoringOptimizer:
         self,
         current_performance: ScoringMetrics,
         tournament_phase: str,
-        tournament_context: Dict[str, Any]
+        tournament_context: Dict[str, Any],
     ) -> List[OptimizationRecommendation]:
         """Generate tournament phase-specific recommendations."""
         recommendations = []
 
         if tournament_phase == "late":
-            recommendations.append(OptimizationRecommendation(
-                recommendation_type="late_phase_optimization",
-                category=None,
-                current_value=0.5,
-                recommended_value=0.7,
-                expected_improvement=0.08,
-                confidence=0.6,
-                rationale="Late tournament phase - increase risk tolerance and submission speed",
-                implementation_priority="high",
-                risk_level="medium"
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    recommendation_type="late_phase_optimization",
+                    category=None,
+                    current_value=0.5,
+                    recommended_value=0.7,
+                    expected_improvement=0.08,
+                    confidence=0.6,
+                    rationale="Late tournament phase - increase risk tolerance and submission speed",
+                    implementation_priority="high",
+                    risk_level="medium",
+                )
+            )
         elif tournament_phase == "early":
-            recommendations.append(OptimizationRecommendation(
-                recommendation_type="early_phase_optimization",
-                category=None,
-                current_value=0.5,
-                recommended_value=0.4,
-                expected_improvement=0.04,
-                confidence=0.7,
-                rationale="Early tournament phase - focus on calibration and research quality",
-                implementation_priority="medium",
-                risk_level="low"
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    recommendation_type="early_phase_optimization",
+                    category=None,
+                    current_value=0.5,
+                    recommended_value=0.4,
+                    expected_improvement=0.04,
+                    confidence=0.7,
+                    rationale="Early tournament phase - focus on calibration and research quality",
+                    implementation_priority="medium",
+                    risk_level="low",
+                )
+            )
 
         return recommendations

@@ -4,8 +4,10 @@ This module provides forecasting prompts designed to improve calibration and
 reduce overconfidence while maintaining token efficiency.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from jinja2 import Template
+
 from ..domain.entities.question import Question
 from ..domain.entities.research_report import ResearchReport
 
@@ -24,7 +26,8 @@ class CalibratedForecastingPrompts:
     def __init__(self):
         pass
         # Basic calibrated forecasting template
-        self.basic_calibrated_template = Template("""
+        self.basic_calibrated_template = Template(
+            """
 Make a calibrated forecast for this question:
 
 Q: {{ question.title }}
@@ -50,9 +53,11 @@ Provide probability (0-1) with confidence interval:
 {% endif %}
 
 Remember: Well-calibrated forecasters are right X% of the time when they say X%.
-""")
+"""
+        )
         # Scenario analysis template for uncertainty assessment
-        self.scenario_analysis_template = Template("""
+        self.scenario_analysis_template = Template(
+            """
 Forecast with scenario analysis:
 
 QUESTION: {{ question.title }}
@@ -86,9 +91,11 @@ Final forecast:
   "key_uncertainties": ["uncertainty1", "uncertainty2"]
 }
 {% endif %}
-""")
+"""
+        )
         # Overconfidence reduction template
-        self.overconfidence_reduction_template = Template("""
+        self.overconfidence_reduction_template = Template(
+            """
 Make a well-calibrated forecast (avoid overconfidence):
 
 Q: {{ question.title }}
@@ -120,9 +127,11 @@ Calibrated forecast:
 {% endif %}
 
 Remember: Overconfidence is the #1 bias in forecasting. Be humble about uncertainty.
-""")
+"""
+        )
         # Reference class forecasting template
-        self.reference_class_template = Template("""
+        self.reference_class_template = Template(
+            """
 Use reference class forecasting:
 
 Q: {{ question.title }}
@@ -154,38 +163,48 @@ Reference class forecast:
 {% endif %}
 
 Base rates are powerful. Start there, then adjust carefully.
-""")
-    def get_basic_calibrated_prompt(self, question: Question, research_summary: str) -> str:
+"""
+        )
+
+    def get_basic_calibrated_prompt(
+        self, question: Question, research_summary: str
+    ) -> str:
         """Get basic calibrated forecasting prompt."""
         return self.basic_calibrated_template.render(
-            question=question,
-            research_summary=research_summary
+            question=question, research_summary=research_summary
         )
 
-    def get_scenario_analysis_prompt(self, question: Question, research_summary: str) -> str:
+    def get_scenario_analysis_prompt(
+        self, question: Question, research_summary: str
+    ) -> str:
         """Get scenario analysis forecasting prompt."""
         return self.scenario_analysis_template.render(
-            question=question,
-            research_summary=research_summary
+            question=question, research_summary=research_summary
         )
 
-    def get_overconfidence_reduction_prompt(self, question: Question, research_summary: str) -> str:
+    def get_overconfidence_reduction_prompt(
+        self, question: Question, research_summary: str
+    ) -> str:
         """Get overconfidence reduction forecasting prompt."""
         return self.overconfidence_reduction_template.render(
-            question=question,
-            research_summary=research_summary
+            question=question, research_summary=research_summary
         )
 
-    def get_reference_class_prompt(self, question: Question, research_summary: str,
-                                 reference_class_hint: Optional[str] = None) -> str:
+    def get_reference_class_prompt(
+        self,
+        question: Question,
+        research_summary: str,
+        reference_class_hint: Optional[str] = None,
+    ) -> str:
         """Get reference class forecasting prompt."""
         return self.reference_class_template.render(
             question=question,
             research_summary=research_summary,
-            reference_class_hint=reference_class_hint
+            reference_class_hint=reference_class_hint,
         )
         # Comprehensive calibrated template combining all techniques
-        self.comprehensive_calibrated_template = Template("""
+        self.comprehensive_calibrated_template = Template(
+            """
 Make a well-calibrated forecast using multiple debiasing techniques:
 
 QUESTION: {{ question.title }}
@@ -257,16 +276,20 @@ Provide comprehensive calibrated forecast:
 {% endif %}
 
 Remember: Good calibration means being right X% of the time when you say X%.
-""")
-    def get_comprehensive_calibrated_prompt(self, question: Question, research_summary: str) -> str:
-        """Get comprehensive calibrated forecasting prompt with all debiasing techniques."""
-        return self.comprehensive_calibrated_template.render(
-            question=question,
-            research_summary=research_summary
+"""
         )
 
-    def get_calibrated_prompt(self, question: Question, research_summary: str,
-                            calibration_type: str = "basic") -> str:
+    def get_comprehensive_calibrated_prompt(
+        self, question: Question, research_summary: str
+    ) -> str:
+        """Get comprehensive calibrated forecasting prompt with all debiasing techniques."""
+        return self.comprehensive_calibrated_template.render(
+            question=question, research_summary=research_summary
+        )
+
+    def get_calibrated_prompt(
+        self, question: Question, research_summary: str, calibration_type: str = "basic"
+    ) -> str:
         """
         Get calibrated forecasting prompt based on type.
 
@@ -302,7 +325,7 @@ Remember: Good calibration means being right X% of the time when you say X%.
             "scenario": {"input_tokens": 280, "expected_output": 300},
             "overconfidence": {"input_tokens": 320, "expected_output": 250},
             "reference_class": {"input_tokens": 250, "expected_output": 200},
-            "comprehensive": {"input_tokens": 450, "expected_output": 500}
+            "comprehensive": {"input_tokens": 450, "expected_output": 500},
         }
         return estimates.get(calibration_type, estimates["basic"])
 
@@ -315,8 +338,9 @@ class CalibrationPromptManager:
     def __init__(self):
         self.calibrated_prompts = CalibratedForecastingPrompts()
 
-    def select_optimal_calibration_type(self, question: Question,
-                                      budget_remaining: Optional[float] = None) -> str:
+    def select_optimal_calibration_type(
+        self, question: Question, budget_remaining: Optional[float] = None
+    ) -> str:
         """
         Select optimal calibration type based on question characteristics and budget.
 
@@ -352,6 +376,7 @@ class CalibrationPromptManager:
         # Long-term questions benefit from scenario analysis
         if question.close_time:
             from datetime import datetime, timezone
+
             days_until_close = (question.close_time - datetime.now(timezone.utc)).days
             if days_until_close > 180:
                 score += 2
@@ -366,13 +391,22 @@ class CalibrationPromptManager:
             score += 2
 
         # Questions with many choices need scenario analysis
-        if hasattr(question, 'choices') and question.choices and len(question.choices) > 3:
+        if (
+            hasattr(question, "choices")
+            and question.choices
+            and len(question.choices) > 3
+        ):
             score += 1
 
         return score
-    def get_optimal_calibrated_prompt(self, question: Question, research_summary: str,
-                                    budget_remaining: Optional[float] = None,
-                                    force_type: Optional[str] = None) -> Dict[str, Any]:
+
+    def get_optimal_calibrated_prompt(
+        self,
+        question: Question,
+        research_summary: str,
+        budget_remaining: Optional[float] = None,
+        force_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get optimal calibrated forecasting prompt with metadata.
 
@@ -396,12 +430,14 @@ class CalibrationPromptManager:
         )
 
         # Get token estimates
-        token_estimates = self.calibrated_prompts.estimate_calibration_token_usage(calibration_type)
+        token_estimates = self.calibrated_prompts.estimate_calibration_token_usage(
+            calibration_type
+        )
 
         # Calculate cost estimates (using same rates as research prompts)
         model_costs = {
             "gpt-4o": {"input": 0.0025, "output": 0.01},
-            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006}
+            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
         }
 
         cost_estimates = {}
@@ -411,7 +447,7 @@ class CalibrationPromptManager:
             cost_estimates[model] = {
                 "input_cost": input_cost,
                 "output_cost": output_cost,
-                "total_cost": input_cost + output_cost
+                "total_cost": input_cost + output_cost,
             }
 
         return {
@@ -421,10 +457,10 @@ class CalibrationPromptManager:
             "cost_estimates": cost_estimates,
             "recommended_model": "gpt-4o-mini",  # Forecasting can use mini effectively
             "metadata": {
-                "question_id": getattr(question, 'id', None),
+                "question_id": getattr(question, "id", None),
                 "question_type": question.question_type.value,
-                "calibration_techniques": self._get_techniques_used(calibration_type)
-            }
+                "calibration_techniques": self._get_techniques_used(calibration_type),
+            },
         }
 
     def _get_techniques_used(self, calibration_type: str) -> List[str]:
@@ -434,6 +470,11 @@ class CalibrationPromptManager:
             "scenario": ["scenario_analysis", "uncertainty_assessment"],
             "overconfidence": ["devils_advocate", "outside_view", "reference_class"],
             "reference_class": ["reference_class_forecasting", "base_rate_adjustment"],
-            "comprehensive": ["reference_class", "scenario_analysis", "overconfidence_reduction", "calibration_steps"]
+            "comprehensive": [
+                "reference_class",
+                "scenario_analysis",
+                "overconfidence_reduction",
+                "calibration_steps",
+            ],
         }
         return techniques.get(calibration_type, [])

@@ -1,6 +1,7 @@
 """Base prompt templates and utilities."""
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 from jinja2 import Template
 
 
@@ -8,9 +9,10 @@ class BasePrompts:
     """
     Base prompt templates and utilities shared across different reasoning strategies.
     """
-    
+
     def __init__(self):
-        self.research_summary_template = Template("""
+        self.research_summary_template = Template(
+            """
 Based on the following research sources, provide a comprehensive summary:
 
 {% for source in research_sources %}
@@ -32,9 +34,11 @@ Format as JSON:
     "reliability_assessment": "assessment of source quality",
     "forecasting_relevance": "how this relates to the prediction"
 }
-        """)
-        
-        self.confidence_calibration_template = Template("""
+        """
+        )
+
+        self.confidence_calibration_template = Template(
+            """
 Question: {{ question_title }}
 Your prediction: {{ prediction }}
 
@@ -57,9 +61,11 @@ Rate each factor from 1-5 and provide overall confidence (0-1):
     "overall_confidence": confidence_0_to_1,
     "reasoning": "explanation of confidence level"
 }
-        """)
-        
-        self.prediction_format_template = Template("""
+        """
+        )
+
+        self.prediction_format_template = Template(
+            """
 {% if question_type == "BINARY" %}
 For this binary question, provide your answer as a probability between 0 and 1.
 Example: 0.65 means 65% chance the event will occur.
@@ -81,25 +87,32 @@ Always include:
 - Key factors that influenced your prediction  
 - Main sources of uncertainty
 - Confidence level in your prediction
-        """)
-    
+        """
+        )
+
     def format_research_summary(self, research_sources: list) -> str:
         """Format research sources into summary prompt."""
         return self.research_summary_template.render(research_sources=research_sources)
-    
-    def format_confidence_calibration(self, question_title: str, prediction: Any) -> str:
+
+    def format_confidence_calibration(
+        self, question_title: str, prediction: Any
+    ) -> str:
         """Format confidence calibration prompt."""
         return self.confidence_calibration_template.render(
-            question_title=question_title,
-            prediction=prediction
+            question_title=question_title, prediction=prediction
         )
-    
-    def format_prediction_guidelines(self, question_type: str, choices: list = None, 
-                                   min_value: float = None, max_value: float = None) -> str:
+
+    def format_prediction_guidelines(
+        self,
+        question_type: str,
+        choices: list = None,
+        min_value: float = None,
+        max_value: float = None,
+    ) -> str:
         """Format prediction guidelines based on question type."""
         return self.prediction_format_template.render(
             question_type=question_type,
             choices=choices or [],
             min_value=min_value,
-            max_value=max_value
+            max_value=max_value,
         )

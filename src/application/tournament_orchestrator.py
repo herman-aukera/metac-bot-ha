@@ -1,55 +1,61 @@
 """
 Tournament orchestration system that integrates all components with proper dependency injection.
 """
+
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any, Type
-from datetime import datetime, timezone
-from dataclasses import dataclass
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Type
+
 import structlog
 
-from ..infrastructure.config.settings import Settings, Config
-from ..infrastructure.config.config_manager import ConfigManager, ConfigChangeEvent, create_config_manager
-from ..infrastructure.external_apis.llm_client import LLMClient
-from ..infrastructure.external_apis.search_client import SearchClient, DuckDuckGoSearchClient
-from ..infrastructure.external_apis.metaculus_client import MetaculusClient
-from ..infrastructure.reliability.circuit_breaker import CircuitBreaker
-from ..infrastructure.reliability.rate_limiter import TokenBucketRateLimiter
-from ..infrastructure.reliability.health_monitor import HealthMonitor
-from ..infrastructure.reliability.retry_manager import RetryManager
-from ..infrastructure.logging.reasoning_logger import ReasoningLogger
-
-from ..pipelines.forecasting_pipeline import ForecastingPipeline
 from ..application.dispatcher import Dispatcher
 from ..application.forecast_service import ForecastService
 from ..application.ingestion_service import IngestionService
-
-from ..domain.services.ensemble_service import EnsembleService
-from ..domain.services.forecasting_service import ForecastingService
-from ..domain.services.research_service import ResearchService
-from ..domain.services.tournament_analytics import TournamentAnalytics
-from ..domain.services.performance_tracking_service import PerformanceTrackingService
-from ..domain.services.calibration_service import CalibrationTracker
-from ..domain.services.risk_management_service import RiskManagementService
-from ..domain.services.reasoning_orchestrator import ReasoningOrchestrator
-from ..domain.services.question_categorizer import QuestionCategorizer
+from ..domain.entities.forecast import Forecast
+from ..domain.entities.question import Question
 from ..domain.services.authoritative_source_manager import AuthoritativeSourceManager
+from ..domain.services.calibration_service import CalibrationTracker
 from ..domain.services.conflict_resolver import ConflictResolver
-from ..domain.services.knowledge_gap_detector import KnowledgeGapDetector
+from ..domain.services.conservative_strategy_engine import ConservativeStrategyEngine
 from ..domain.services.divergence_analyzer import DivergenceAnalyzer
 from ..domain.services.dynamic_weight_adjuster import DynamicWeightAdjuster
-from ..domain.services.performance_analyzer import PerformanceAnalyzer
+from ..domain.services.ensemble_service import EnsembleService
+from ..domain.services.forecasting_service import ForecastingService
+from ..domain.services.knowledge_gap_detector import KnowledgeGapDetector
 from ..domain.services.pattern_detector import PatternDetector
-from ..domain.services.strategy_adaptation_engine import StrategyAdaptationEngine
-from ..domain.services.uncertainty_quantifier import UncertaintyQuantifier
-from ..domain.services.conservative_strategy_engine import ConservativeStrategyEngine
+from ..domain.services.performance_analyzer import PerformanceAnalyzer
+from ..domain.services.performance_tracking_service import PerformanceTrackingService
+from ..domain.services.question_categorizer import QuestionCategorizer
+from ..domain.services.reasoning_orchestrator import ReasoningOrchestrator
+from ..domain.services.research_service import ResearchService
+from ..domain.services.risk_management_service import RiskManagementService
 from ..domain.services.scoring_optimizer import ScoringOptimizer
+from ..domain.services.strategy_adaptation_engine import StrategyAdaptationEngine
+from ..domain.services.tournament_analytics import TournamentAnalytics
 from ..domain.services.tournament_analyzer import TournamentAnalyzer
-
-from ..domain.entities.question import Question
-from ..domain.entities.forecast import Forecast
+from ..domain.services.uncertainty_quantifier import UncertaintyQuantifier
+from ..infrastructure.config.config_manager import (
+    ConfigChangeEvent,
+    ConfigManager,
+    create_config_manager,
+)
+from ..infrastructure.config.settings import Config, Settings
+from ..infrastructure.external_apis.llm_client import LLMClient
+from ..infrastructure.external_apis.metaculus_client import MetaculusClient
+from ..infrastructure.external_apis.search_client import (
+    DuckDuckGoSearchClient,
+    SearchClient,
+)
+from ..infrastructure.logging.reasoning_logger import ReasoningLogger
+from ..infrastructure.reliability.circuit_breaker import CircuitBreaker
+from ..infrastructure.reliability.health_monitor import HealthMonitor
+from ..infrastructure.reliability.rate_limiter import TokenBucketRateLimiter
+from ..infrastructure.reliability.retry_manager import RetryManager
+from ..pipelines.forecasting_pipeline import ForecastingPipeline
 
 logger = structlog.get_logger(__name__)
 
@@ -113,7 +119,11 @@ class TournamentOrchestrator:
     Implements hot-reloading configuration and comprehensive integration testing.
     """
 
-    def __init__(self, config_path: Optional[str] = None, config_manager: Optional[ConfigManager] = None):
+    def __init__(
+        self,
+        config_path: Optional[str] = None,
+        config_manager: Optional[ConfigManager] = None,
+    ):
         """Initialize the tournament orchestrator with configuration."""
         self.config_path = config_path
         self.config_manager = config_manager
@@ -130,7 +140,7 @@ class TournamentOrchestrator:
             "errors_encountered": 0,
             "uptime_start": datetime.now(timezone.utc),
             "last_health_check": None,
-            "component_health": {}
+            "component_health": {},
         }
 
     async def initialize(self) -> None:
@@ -141,12 +151,15 @@ class TournamentOrchestrator:
             # Initialize configuration manager if not provided
             if not self.config_manager:
                 config_paths = [Path(self.config_path)] if self.config_path else []
-                watch_dirs = [Path("config"), Path(".")]  # Watch config directory and current directory
+                watch_dirs = [
+                    Path("config"),
+                    Path("."),
+                ]  # Watch config directory and current directory
                 self.config_manager = create_config_manager(
                     config_paths=[str(p) for p in config_paths],
                     watch_directories=[str(p) for p in watch_dirs if p.exists()],
                     enable_hot_reload=True,
-                    validation_enabled=True
+                    validation_enabled=True,
                 )
 
             # Load configuration
@@ -161,19 +174,21 @@ class TournamentOrchestrator:
             metaculus_client = await self._create_metaculus_client(settings)
 
             # Initialize reliability components
-            from ..infrastructure.reliability.circuit_breaker import CircuitBreakerConfig
+            from ..infrastructure.reliability.circuit_breaker import (
+                CircuitBreakerConfig,
+            )
+
             circuit_breaker_config = CircuitBreakerConfig(
-                failure_threshold=5,
-                recovery_timeout=60.0,
-                expected_exception=Exception
+                failure_threshold=5, recovery_timeout=60.0, expected_exception=Exception
             )
             circuit_breaker = CircuitBreaker("main", circuit_breaker_config)
 
             from ..infrastructure.reliability.rate_limiter import RateLimitConfig
+
             rate_limit_config = RateLimitConfig(
                 requests_per_second=settings.llm.rate_limit_rpm / 60.0,
                 burst_size=min(settings.llm.rate_limit_rpm, 20),
-                enabled=True
+                enabled=True,
             )
             rate_limiter = TokenBucketRateLimiter("main", rate_limit_config)
 
@@ -182,25 +197,24 @@ class TournamentOrchestrator:
             )
 
             from ..infrastructure.reliability.retry_manager import RetryPolicy
+
             retry_policy = RetryPolicy(
                 max_attempts=settings.pipeline.max_retries_per_question,
                 base_delay=settings.pipeline.retry_delay_seconds,
                 max_delay=30.0,
-                backoff_multiplier=2.0
+                backoff_multiplier=2.0,
             )
             retry_manager = RetryManager("main", retry_policy)
 
             from pathlib import Path as PathLib
-            reasoning_logger = ReasoningLogger(
-                base_dir=PathLib("logs/reasoning")
-            )
+
+            reasoning_logger = ReasoningLogger(base_dir=PathLib("logs/reasoning"))
 
             # Initialize domain services with proper dependency injection
             ensemble_service = EnsembleService()
             forecasting_service = ForecastingService()
             research_service = ResearchService(
-                search_client=search_client,
-                llm_client=llm_client
+                search_client=search_client, llm_client=llm_client
             )
             tournament_analytics = TournamentAnalytics()
             performance_tracking = PerformanceTrackingService()
@@ -229,7 +243,9 @@ class TournamentOrchestrator:
             dynamic_weight_adjuster = DynamicWeightAdjuster()
             performance_analyzer = PerformanceAnalyzer()
             pattern_detector = PatternDetector()
-            strategy_adaptation_engine = StrategyAdaptationEngine(performance_analyzer, pattern_detector)
+            strategy_adaptation_engine = StrategyAdaptationEngine(
+                performance_analyzer, pattern_detector
+            )
             uncertainty_quantifier = UncertaintyQuantifier()
             conservative_strategy_engine = ConservativeStrategyEngine()
             scoring_optimizer = ScoringOptimizer()
@@ -237,6 +253,7 @@ class TournamentOrchestrator:
 
             # Initialize application services with proper dependency injection
             from ..application.ingestion_service import ValidationLevel
+
             ingestion_service = IngestionService(ValidationLevel.LENIENT)
 
             forecast_service = ForecastService(
@@ -247,7 +264,7 @@ class TournamentOrchestrator:
                 question_categorizer=question_categorizer,
                 risk_management_service=risk_management_service,
                 performance_tracking=performance_tracking,
-                calibration_service=calibration_service
+                calibration_service=calibration_service,
             )
 
             dispatcher = Dispatcher(
@@ -255,7 +272,7 @@ class TournamentOrchestrator:
                 ingestion_service=ingestion_service,
                 metaculus_client=metaculus_client,
                 tournament_analytics=tournament_analytics,
-                performance_tracking=performance_tracking
+                performance_tracking=performance_tracking,
             )
 
             # Initialize forecasting pipeline
@@ -263,7 +280,7 @@ class TournamentOrchestrator:
                 settings=settings,
                 llm_client=llm_client,
                 search_client=search_client,
-                metaculus_client=metaculus_client
+                metaculus_client=metaculus_client,
             )
 
             # Create component registry
@@ -301,7 +318,7 @@ class TournamentOrchestrator:
                 conservative_strategy_engine=conservative_strategy_engine,
                 scoring_optimizer=scoring_optimizer,
                 tournament_analyzer=tournament_analyzer,
-                forecasting_pipeline=forecasting_pipeline
+                forecasting_pipeline=forecasting_pipeline,
             )
 
             # Start background tasks
@@ -315,9 +332,11 @@ class TournamentOrchestrator:
 
     async def _on_config_change(self, change_event: ConfigChangeEvent) -> None:
         """Handle configuration change events."""
-        logger.info("Configuration change detected",
-                   change_type=change_event.change_type.value,
-                   file_path=str(change_event.file_path))
+        logger.info(
+            "Configuration change detected",
+            change_type=change_event.change_type.value,
+            file_path=str(change_event.file_path),
+        )
 
         try:
             if self.registry and change_event.new_config:
@@ -339,7 +358,7 @@ class TournamentOrchestrator:
         """Create and configure LLM client."""
         llm_client = LLMClient(settings.llm)
         # Initialize if method exists
-        if hasattr(llm_client, 'initialize'):
+        if hasattr(llm_client, "initialize"):
             await llm_client.initialize()
         return llm_client
 
@@ -348,7 +367,7 @@ class TournamentOrchestrator:
         # Use DuckDuckGo as default implementation
         search_client = DuckDuckGoSearchClient(settings)
         # Initialize if method exists
-        if hasattr(search_client, 'initialize'):
+        if hasattr(search_client, "initialize"):
             await search_client.initialize()
         return search_client
 
@@ -356,7 +375,7 @@ class TournamentOrchestrator:
         """Create and configure Metaculus client."""
         metaculus_client = MetaculusClient(settings.metaculus)
         # Initialize if method exists
-        if hasattr(metaculus_client, 'initialize'):
+        if hasattr(metaculus_client, "initialize"):
             await metaculus_client.initialize()
         return metaculus_client
 
@@ -366,14 +385,10 @@ class TournamentOrchestrator:
             raise RuntimeError("Registry not initialized")
 
         # Start health monitoring
-        self._health_check_task = asyncio.create_task(
-            self._health_check_loop()
-        )
+        self._health_check_task = asyncio.create_task(self._health_check_loop())
 
         # Start configuration hot-reloading
-        self._config_reload_task = asyncio.create_task(
-            self._config_reload_loop()
-        )
+        self._config_reload_task = asyncio.create_task(self._config_reload_loop())
 
         logger.info("Background tasks started")
 
@@ -382,7 +397,9 @@ class TournamentOrchestrator:
         while not self._shutdown_event.is_set():
             try:
                 await self._perform_health_check()
-                await asyncio.sleep(self.registry.settings.pipeline.health_check_interval)
+                await asyncio.sleep(
+                    self.registry.settings.pipeline.health_check_interval
+                )
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -436,7 +453,7 @@ class TournamentOrchestrator:
                 "Health check completed",
                 healthy_components=healthy_components,
                 total_components=total_components,
-                health_status=health_status
+                health_status=health_status,
             )
 
             return health_status
@@ -466,6 +483,7 @@ class TournamentOrchestrator:
 
         try:
             from pathlib import Path
+
             config_file = Path(self.config_path)
 
             if config_file.exists():
@@ -499,10 +517,12 @@ class TournamentOrchestrator:
         except Exception as e:
             logger.error("Failed to reload configuration", error=str(e))
             # Revert to old settings if reload fails
-            if self.registry and hasattr(self, '_last_good_settings'):
+            if self.registry and hasattr(self, "_last_good_settings"):
                 self.registry.settings = self._last_good_settings
 
-    async def _update_component_configs(self, old_settings: Settings, new_settings: Settings) -> None:
+    async def _update_component_configs(
+        self, old_settings: Settings, new_settings: Settings
+    ) -> None:
         """Update component configurations after reload."""
         if not self.registry:
             return
@@ -523,7 +543,7 @@ class TournamentOrchestrator:
         self,
         tournament_id: Optional[int] = None,
         max_questions: Optional[int] = None,
-        agent_types: Optional[List[str]] = None
+        agent_types: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Run complete tournament forecasting with all integrated components.
@@ -547,7 +567,7 @@ class TournamentOrchestrator:
             "Starting tournament run",
             tournament_id=tournament_id,
             max_questions=max_questions,
-            agent_types=agent_types
+            agent_types=agent_types,
         )
 
         start_time = datetime.now(timezone.utc)
@@ -558,7 +578,7 @@ class TournamentOrchestrator:
             "forecasts_generated": 0,
             "errors": [],
             "performance_metrics": {},
-            "agent_performance": {}
+            "agent_performance": {},
         }
 
         try:
@@ -566,7 +586,7 @@ class TournamentOrchestrator:
             tournament_results = await self.registry.dispatcher.run_tournament(
                 tournament_id=tournament_id,
                 max_questions=max_questions,
-                agent_types=agent_types
+                agent_types=agent_types,
             )
 
             # Update results
@@ -585,35 +605,39 @@ class TournamentOrchestrator:
                 tournament_id=tournament_id,
                 questions_processed=results["questions_processed"],
                 forecasts_generated=results["forecasts_generated"],
-                duration_seconds=results["duration_seconds"]
+                duration_seconds=results["duration_seconds"],
             )
 
             return results
 
         except Exception as e:
-            logger.error("Tournament run failed", tournament_id=tournament_id, error=str(e))
+            logger.error(
+                "Tournament run failed", tournament_id=tournament_id, error=str(e)
+            )
             results["error"] = str(e)
             results["end_time"] = datetime.now(timezone.utc).isoformat()
             self.metrics["errors_encountered"] += 1
             raise
 
     async def run_single_question(
-        self,
-        question_id: int,
-        agent_type: str = "ensemble"
+        self, question_id: int, agent_type: str = "ensemble"
     ) -> Dict[str, Any]:
         """Run forecasting for a single question."""
         if not self.registry:
             raise RuntimeError("Orchestrator not initialized")
 
-        logger.info("Running single question forecast", question_id=question_id, agent_type=agent_type)
+        logger.info(
+            "Running single question forecast",
+            question_id=question_id,
+            agent_type=agent_type,
+        )
 
         try:
             result = await self.registry.forecasting_pipeline.run_single_question(
                 question_id=question_id,
                 agent_type=agent_type,
                 include_research=True,
-                collect_metrics=True
+                collect_metrics=True,
             )
 
             self.metrics["questions_processed"] += 1
@@ -622,27 +646,31 @@ class TournamentOrchestrator:
             return result
 
         except Exception as e:
-            logger.error("Single question forecast failed", question_id=question_id, error=str(e))
+            logger.error(
+                "Single question forecast failed", question_id=question_id, error=str(e)
+            )
             self.metrics["errors_encountered"] += 1
             raise
 
     async def run_batch_forecast(
-        self,
-        question_ids: List[int],
-        agent_type: str = "ensemble"
+        self, question_ids: List[int], agent_type: str = "ensemble"
     ) -> List[Dict[str, Any]]:
         """Run batch forecasting for multiple questions."""
         if not self.registry:
             raise RuntimeError("Orchestrator not initialized")
 
-        logger.info("Running batch forecast", question_count=len(question_ids), agent_type=agent_type)
+        logger.info(
+            "Running batch forecast",
+            question_count=len(question_ids),
+            agent_type=agent_type,
+        )
 
         try:
             results = await self.registry.forecasting_pipeline.run_batch_forecast(
                 question_ids=question_ids,
                 agent_type=agent_type,
                 include_research=True,
-                batch_size=self.registry.settings.pipeline.max_concurrent_questions
+                batch_size=self.registry.settings.pipeline.max_concurrent_questions,
             )
 
             self.metrics["questions_processed"] += len(question_ids)
@@ -651,7 +679,9 @@ class TournamentOrchestrator:
             return results
 
         except Exception as e:
-            logger.error("Batch forecast failed", question_ids=question_ids, error=str(e))
+            logger.error(
+                "Batch forecast failed", question_ids=question_ids, error=str(e)
+            )
             self.metrics["errors_encountered"] += 1
             raise
 
@@ -677,9 +707,9 @@ class TournamentOrchestrator:
                 "environment": self.registry.settings.environment,
                 "tournament_id": self.registry.settings.metaculus.tournament_id,
                 "max_concurrent_questions": self.registry.settings.pipeline.max_concurrent_questions,
-                "default_agents": self.registry.settings.pipeline.default_agent_names
+                "default_agents": self.registry.settings.pipeline.default_agent_names,
             },
-            "last_config_reload": self._last_config_reload.isoformat()
+            "last_config_reload": self._last_config_reload.isoformat(),
         }
 
     @asynccontextmanager
@@ -724,15 +754,15 @@ class TournamentOrchestrator:
         if self.registry:
             try:
                 # Shutdown clients
-                if hasattr(self.registry.llm_client, 'shutdown'):
+                if hasattr(self.registry.llm_client, "shutdown"):
                     await self.registry.llm_client.shutdown()
-                if hasattr(self.registry.search_client, 'shutdown'):
+                if hasattr(self.registry.search_client, "shutdown"):
                     await self.registry.search_client.shutdown()
-                if hasattr(self.registry.metaculus_client, 'shutdown'):
+                if hasattr(self.registry.metaculus_client, "shutdown"):
                     await self.registry.metaculus_client.shutdown()
 
                 # Shutdown reliability components
-                if hasattr(self.registry.health_monitor, 'shutdown'):
+                if hasattr(self.registry.health_monitor, "shutdown"):
                     await self.registry.health_monitor.shutdown()
 
             except Exception as e:
@@ -742,7 +772,9 @@ class TournamentOrchestrator:
 
 
 # Factory function for easy instantiation
-async def create_tournament_orchestrator(config_path: Optional[str] = None) -> TournamentOrchestrator:
+async def create_tournament_orchestrator(
+    config_path: Optional[str] = None,
+) -> TournamentOrchestrator:
     """Factory function to create and initialize tournament orchestrator."""
     orchestrator = TournamentOrchestrator(config_path)
     await orchestrator.initialize()

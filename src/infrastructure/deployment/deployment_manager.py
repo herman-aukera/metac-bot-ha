@@ -3,21 +3,23 @@ Production deployment manager for AI forecasting bot.
 Handles deployment orchestration, health checks, and rollback capabilities.
 """
 
-import os
 import json
-import time
 import logging
+import os
 import subprocess
 import threading
-from typing import Dict, Any, Optional, List
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import requests
 
 
 class DeploymentStatus(Enum):
     """Deployment status enumeration."""
+
     PENDING = "pending"
     DEPLOYING = "deploying"
     HEALTHY = "healthy"
@@ -29,6 +31,7 @@ class DeploymentStatus(Enum):
 @dataclass
 class DeploymentConfig:
     """Deployment configuration."""
+
     image_tag: str
     environment: str
     replicas: int = 1
@@ -42,6 +45,7 @@ class DeploymentConfig:
 @dataclass
 class DeploymentInfo:
     """Deployment information."""
+
     id: str
     config: DeploymentConfig
     status: DeploymentStatus
@@ -65,7 +69,7 @@ class HealthChecker:
             response = requests.get(self.url, timeout=self.timeout)
             if response.status_code == 200:
                 data = response.json()
-                if data.get('status') == 'healthy':
+                if data.get("status") == "healthy":
                     return True, "Health check passed"
                 else:
                     return False, f"Service reports unhealthy: {data}"
@@ -82,7 +86,9 @@ class HealthChecker:
                 logging.info(f"Health check passed on attempt {attempt + 1}")
                 return True
 
-            logging.warning(f"Health check attempt {attempt + 1}/{max_attempts} failed: {message}")
+            logging.warning(
+                f"Health check attempt {attempt + 1}/{max_attempts} failed: {message}"
+            )
             if attempt < max_attempts - 1:
                 time.sleep(interval)
 
@@ -107,39 +113,37 @@ class BackupManager:
             os.makedirs(backup_path, exist_ok=True)
 
             # Backup configuration files
-            config_files = [
-                "docker-compose.yml",
-                ".env",
-                "config/config.prod.yaml"
-            ]
+            config_files = ["docker-compose.yml", ".env", "config/config.prod.yaml"]
 
             for config_file in config_files:
                 if os.path.exists(config_file):
-                    subprocess.run([
-                        "cp", config_file,
-                        os.path.join(backup_path, os.path.basename(config_file))
-                    ], check=True)
+                    subprocess.run(
+                        [
+                            "cp",
+                            config_file,
+                            os.path.join(backup_path, os.path.basename(config_file)),
+                        ],
+                        check=True,
+                    )
 
             # Backup application data
             if os.path.exists("data"):
-                subprocess.run([
-                    "cp", "-r", "data",
-                    os.path.join(backup_path, "data")
-                ], check=True)
+                subprocess.run(
+                    ["cp", "-r", "data", os.path.join(backup_path, "data")], check=True
+                )
 
             # Backup logs
             if os.path.exists("logs"):
-                subprocess.run([
-                    "cp", "-r", "logs",
-                    os.path.join(backup_path, "logs")
-                ], check=True)
+                subprocess.run(
+                    ["cp", "-r", "logs", os.path.join(backup_path, "logs")], check=True
+                )
 
             # Create backup metadata
             metadata = {
                 "deployment_id": deployment_id,
                 "timestamp": timestamp,
                 "backup_path": backup_path,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
             with open(os.path.join(backup_path, "metadata.json"), "w") as f:
@@ -160,11 +164,7 @@ class BackupManager:
                 return False
 
             # Restore configuration files
-            config_files = [
-                "docker-compose.yml",
-                ".env",
-                "config.prod.yaml"
-            ]
+            config_files = ["docker-compose.yml", ".env", "config.prod.yaml"]
 
             for config_file in config_files:
                 backup_file = os.path.join(backup_path, os.path.basename(config_file))
@@ -203,7 +203,7 @@ class BackupManager:
                 except Exception as e:
                     logging.warning(f"Failed to read backup metadata: {e}")
 
-        return sorted(backups, key=lambda x: x['created_at'], reverse=True)
+        return sorted(backups, key=lambda x: x["created_at"], reverse=True)
 
 
 class DeploymentOrchestrator:
@@ -222,7 +222,7 @@ class DeploymentOrchestrator:
             id=deployment_id,
             config=config,
             status=DeploymentStatus.PENDING,
-            start_time=datetime.now()
+            start_time=datetime.now(),
         )
 
         with self._lock:
@@ -230,9 +230,7 @@ class DeploymentOrchestrator:
 
         # Start deployment in background thread
         deployment_thread = threading.Thread(
-            target=self._execute_deployment,
-            args=(deployment_id,),
-            daemon=True
+            target=self._execute_deployment, args=(deployment_id,), daemon=True
         )
         deployment_thread.start()
 
@@ -301,7 +299,7 @@ class DeploymentOrchestrator:
         # This is a simple replacement - in production, use proper YAML parsing
         updated_content = content.replace(
             "image: ghcr.io/your-org/ai-forecasting-bot:latest",
-            f"image: ghcr.io/your-org/ai-forecasting-bot:{image_tag}"
+            f"image: ghcr.io/your-org/ai-forecasting-bot:{image_tag}",
         )
 
         # Write updated compose file
@@ -315,7 +313,9 @@ class DeploymentOrchestrator:
         if not os.path.exists(script_path):
             raise Exception("Blue-green deployment script not found")
 
-        result = subprocess.run([script_path, image_tag], capture_output=True, text=True)
+        result = subprocess.run(
+            [script_path, image_tag], capture_output=True, text=True
+        )
 
         if result.returncode != 0:
             raise Exception(f"Blue-green deployment failed: {result.stderr}")
@@ -338,7 +338,9 @@ class DeploymentOrchestrator:
 
         max_attempts = config.health_check_timeout // config.health_check_interval
 
-        success = health_checker.wait_for_health(max_attempts, config.health_check_interval)
+        success = health_checker.wait_for_health(
+            max_attempts, config.health_check_interval
+        )
 
         if success:
             deployment.health_checks_passed += 1
@@ -360,7 +362,7 @@ class DeploymentOrchestrator:
                 logging.info(f"Rolling back to: {last_good}")
 
                 # Restore backup
-                if self.backup_manager.restore_backup(last_good['backup_path']):
+                if self.backup_manager.restore_backup(last_good["backup_path"]):
                     # Restart services
                     subprocess.run(["docker-compose", "down"], check=True)
                     subprocess.run(["docker-compose", "up", "-d"], check=True)
@@ -368,16 +370,24 @@ class DeploymentOrchestrator:
                     # Verify rollback
                     health_checker = HealthChecker(deployment.config.health_check_url)
                     if health_checker.wait_for_health(10, 10):
-                        logging.info(f"Rollback successful for deployment {deployment_id}")
+                        logging.info(
+                            f"Rollback successful for deployment {deployment_id}"
+                        )
                         deployment.status = DeploymentStatus.HEALTHY
                     else:
-                        logging.error(f"Rollback health check failed for deployment {deployment_id}")
+                        logging.error(
+                            f"Rollback health check failed for deployment {deployment_id}"
+                        )
                         deployment.status = DeploymentStatus.FAILED
                 else:
-                    logging.error(f"Failed to restore backup for deployment {deployment_id}")
+                    logging.error(
+                        f"Failed to restore backup for deployment {deployment_id}"
+                    )
                     deployment.status = DeploymentStatus.FAILED
             else:
-                logging.error(f"No previous deployment found for rollback of {deployment_id}")
+                logging.error(
+                    f"No previous deployment found for rollback of {deployment_id}"
+                )
                 deployment.status = DeploymentStatus.FAILED
 
         except Exception as e:
@@ -393,7 +403,7 @@ class DeploymentOrchestrator:
         data = {
             "deployment_id": deployment_id,
             "backup_path": backup_path,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         with open(last_good_file, "w") as f:
@@ -449,7 +459,7 @@ class ProductionDeploymentManager:
             health_check_timeout=300,
             health_check_interval=10,
             rollback_on_failure=True,
-            backup_enabled=True
+            backup_enabled=True,
         )
 
         return self.orchestrator.deploy(config)
@@ -464,7 +474,7 @@ class ProductionDeploymentManager:
             health_check_timeout=180,
             health_check_interval=10,
             rollback_on_failure=True,
-            backup_enabled=False
+            backup_enabled=False,
         )
 
         return self.orchestrator.deploy(config)
@@ -482,12 +492,14 @@ class ProductionDeploymentManager:
             "environment": deployment.config.environment,
             "image_tag": deployment.config.image_tag,
             "start_time": deployment.start_time.isoformat(),
-            "end_time": deployment.end_time.isoformat() if deployment.end_time else None,
+            "end_time": (
+                deployment.end_time.isoformat() if deployment.end_time else None
+            ),
             "error_message": deployment.error_message,
             "health_checks": {
                 "passed": deployment.health_checks_passed,
-                "failed": deployment.health_checks_failed
-            }
+                "failed": deployment.health_checks_failed,
+            },
         }
 
     def list_recent_deployments(self, limit: int = 10) -> List[Dict[str, Any]]:
@@ -502,7 +514,7 @@ class ProductionDeploymentManager:
                 "environment": d.config.environment,
                 "image_tag": d.config.image_tag,
                 "start_time": d.start_time.isoformat(),
-                "end_time": d.end_time.isoformat() if d.end_time else None
+                "end_time": d.end_time.isoformat() if d.end_time else None,
             }
             for d in deployments[:limit]
         ]
@@ -515,7 +527,7 @@ class ProductionDeploymentManager:
                 ["./scripts/rollback.sh", "Emergency rollback"],
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=300,
             )
 
             if result.returncode == 0:

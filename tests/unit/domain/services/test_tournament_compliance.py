@@ -1,18 +1,24 @@
 """
 Tests for tournament rule compliance and transparency requirements.
 """
-import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
 
-from src.domain.services.tournament_compliance_validator import (
-    TournamentComplianceValidator, ComplianceIssue, ComplianceReport
-)
-from src.domain.services.tournament_rule_compliance_monitor import (
-    TournamentRuleComplianceMonitor, ComplianceViolationType, ComplianceViolation
-)
+from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import pytest
+
 from src.domain.entities.prediction import Prediction
 from src.domain.entities.question import Question, QuestionType
+from src.domain.services.tournament_compliance_validator import (
+    ComplianceIssue,
+    ComplianceReport,
+    TournamentComplianceValidator,
+)
+from src.domain.services.tournament_rule_compliance_monitor import (
+    ComplianceViolation,
+    ComplianceViolationType,
+    TournamentRuleComplianceMonitor,
+)
 
 
 class TestTournamentCompliance:
@@ -59,7 +65,11 @@ class TestTournamentCompliance:
 
         assert report.is_compliant is False
         assert len(report.issues) > 0
-        assert any("insufficient detail" in issue.description.lower() for issue in report.issues)
+        assert any(
+            "insufficient detail" in issue.description.lower()
+            for issue in report.issues
+        )
+
     def test_human_intervention_detection(self):
         """Test detection of human intervention violations."""
         # Test automated prediction (compliant)
@@ -67,7 +77,7 @@ class TestTournamentCompliance:
             "agent_type": "automated",
             "human_review": False,
             "manual_adjustments": [],
-            "intervention_flags": []
+            "intervention_flags": [],
         }
 
         violation = self.compliance_monitor.check_human_intervention(
@@ -81,7 +91,7 @@ class TestTournamentCompliance:
             "agent_type": "automated",
             "human_review": True,
             "manual_adjustments": ["probability adjusted from 0.7 to 0.8"],
-            "intervention_flags": ["human_override"]
+            "intervention_flags": ["human_override"],
         }
 
         violation = self.compliance_monitor.check_human_intervention(
@@ -103,8 +113,8 @@ class TestTournamentCompliance:
             "decision_points": [
                 {"step": "research", "automated": True},
                 {"step": "analysis", "automated": True},
-                {"step": "prediction", "automated": True}
-            ]
+                {"step": "prediction", "automated": True},
+            ],
         }
 
         report = self.compliance_validator.validate_automated_decision_making(
@@ -123,8 +133,8 @@ class TestTournamentCompliance:
             "decision_points": [
                 {"step": "research", "automated": True},
                 {"step": "analysis", "automated": False, "human_reviewer": "analyst_1"},
-                {"step": "prediction", "automated": True}
-            ]
+                {"step": "prediction", "automated": True},
+            ],
         }
 
         report = self.compliance_validator.validate_automated_decision_making(
@@ -133,7 +143,9 @@ class TestTournamentCompliance:
 
         assert report.is_compliant is False
         assert len(report.issues) > 0
-        assert any("human involvement" in issue.description.lower() for issue in report.issues)
+        assert any(
+            "human involvement" in issue.description.lower() for issue in report.issues
+        )
 
     def test_submission_timing_compliance(self):
         """Test compliance with submission timing requirements."""
@@ -143,7 +155,7 @@ class TestTournamentCompliance:
             "submission_time": datetime.now(),
             "processing_start_time": datetime.now() - timedelta(minutes=30),
             "research_duration": timedelta(minutes=20),
-            "analysis_duration": timedelta(minutes=10)
+            "analysis_duration": timedelta(minutes=10),
         }
 
         violation = self.compliance_monitor.check_submission_timing(
@@ -154,11 +166,12 @@ class TestTournamentCompliance:
 
         # Test late submission (violation)
         late_submission = {
-            "question_close_time": datetime.now() - timedelta(hours=1),  # Already closed
+            "question_close_time": datetime.now()
+            - timedelta(hours=1),  # Already closed
             "submission_time": datetime.now(),
             "processing_start_time": datetime.now() - timedelta(minutes=30),
             "research_duration": timedelta(minutes=20),
-            "analysis_duration": timedelta(minutes=10)
+            "analysis_duration": timedelta(minutes=10),
         }
 
         violation = self.compliance_monitor.check_submission_timing(
@@ -168,6 +181,7 @@ class TestTournamentCompliance:
         assert violation is not None
         assert violation.violation_type == ComplianceViolationType.LATE_SUBMISSION
         assert "after close time" in violation.description.lower()
+
     def test_data_source_compliance(self):
         """Test compliance with data source restrictions."""
         # Test compliant data sources
@@ -175,10 +189,10 @@ class TestTournamentCompliance:
             "sources_used": [
                 {"type": "web_search", "url": "https://example.com/public-data"},
                 {"type": "api", "service": "public_news_api"},
-                {"type": "database", "name": "public_economic_data"}
+                {"type": "database", "name": "public_economic_data"},
             ],
             "restricted_sources": [],
-            "private_information": False
+            "private_information": False,
         }
 
         report = self.compliance_validator.validate_data_source_compliance(
@@ -193,10 +207,10 @@ class TestTournamentCompliance:
             "sources_used": [
                 {"type": "web_search", "url": "https://example.com/public-data"},
                 {"type": "private_database", "name": "internal_company_data"},
-                {"type": "insider_information", "source": "confidential"}
+                {"type": "insider_information", "source": "confidential"},
             ],
             "restricted_sources": ["internal_company_data"],
-            "private_information": True
+            "private_information": True,
         }
 
         report = self.compliance_validator.validate_data_source_compliance(
@@ -205,8 +219,11 @@ class TestTournamentCompliance:
 
         assert report.is_compliant is False
         assert len(report.issues) > 0
-        assert any("private" in issue.description.lower() or "restricted" in issue.description.lower()
-                  for issue in report.issues)
+        assert any(
+            "private" in issue.description.lower()
+            or "restricted" in issue.description.lower()
+            for issue in report.issues
+        )
 
     def test_prediction_format_compliance(self):
         """Test compliance with prediction format requirements."""
@@ -214,11 +231,13 @@ class TestTournamentCompliance:
         compliant_prediction = Mock(spec=Prediction)
         compliant_prediction.probability = 0.75
         compliant_prediction.confidence_interval = (0.65, 0.85)
-        compliant_prediction.reasoning = "Detailed analysis with multiple factors considered."
+        compliant_prediction.reasoning = (
+            "Detailed analysis with multiple factors considered."
+        )
         compliant_prediction.metadata = {
             "format_version": "1.0",
             "required_fields": ["probability", "reasoning"],
-            "optional_fields": ["confidence_interval"]
+            "optional_fields": ["confidence_interval"],
         }
 
         report = self.compliance_validator.validate_prediction_format(
@@ -235,7 +254,7 @@ class TestTournamentCompliance:
         non_compliant_prediction.metadata = {
             "format_version": "0.5",  # Outdated format
             "required_fields": ["probability", "reasoning"],
-            "missing_fields": ["probability"]
+            "missing_fields": ["probability"],
         }
 
         report = self.compliance_validator.validate_prediction_format(
@@ -244,8 +263,11 @@ class TestTournamentCompliance:
 
         assert report.is_compliant is False
         assert len(report.issues) > 0
-        assert any("missing" in issue.description.lower() or "required" in issue.description.lower()
-                  for issue in report.issues)
+        assert any(
+            "missing" in issue.description.lower()
+            or "required" in issue.description.lower()
+            for issue in report.issues
+        )
 
     def test_comprehensive_compliance_check(self):
         """Test comprehensive compliance validation."""
@@ -266,18 +288,18 @@ class TestTournamentCompliance:
             "human_review": False,
             "data_sources": [
                 {"type": "web_search", "url": "https://public-data.com"},
-                {"type": "api", "service": "news_api"}
+                {"type": "api", "service": "news_api"},
             ],
             "processing_time": timedelta(minutes=15),
             "submission_time": datetime.now(),
-            "format_version": "1.0"
+            "format_version": "1.0",
         }
 
         # Run comprehensive compliance check
         report = self.compliance_validator.run_comprehensive_compliance_check(
             prediction=prediction,
             question=self.mock_question,
-            metadata=prediction_metadata
+            metadata=prediction_metadata,
         )
 
         # Should pass all compliance checks

@@ -4,8 +4,10 @@ This module provides token-efficient research prompts designed to maximize
 accuracy per token spent while maintaining competitive forecasting performance.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from jinja2 import Template
+
 from ..domain.entities.question import Question
 from ..domain.entities.research_report import ResearchSource
 
@@ -23,7 +25,8 @@ class OptimizedResearchPrompts:
 
     def __init__(self):
         # Simple research template for low-complexity questions
-        self.simple_research_template = Template("""
+        self.simple_research_template = Template(
+            """
 Research this question concisely:
 
 Q: {{ question.title }}
@@ -40,10 +43,12 @@ RECENT: [2-3 key developments with sources]
 FACTS: [3-4 relevant facts]
 EXPERTS: [1-2 expert opinions with names/orgs]
 SOURCES: [URLs]
-""")
+"""
+        )
 
         # Standard research template for medium-complexity questions
-        self.standard_research_template = Template("""
+        self.standard_research_template = Template(
+            """
 Research for forecasting:
 
 QUESTION: {{ question.title }}
@@ -71,10 +76,12 @@ Output format:
   "key_factors": ["factor1", "factor2", "factor3"],
   "base_rates": {"similar_event": 0.X}
 }
-""")
+"""
+        )
 
         # Comprehensive research template for high-complexity questions
-        self.comprehensive_research_template = Template("""
+        self.comprehensive_research_template = Template(
+            """
 Comprehensive research for complex forecasting question:
 
 QUESTION: {{ question.title }}
@@ -115,10 +122,12 @@ Required output:
   ],
   "sources": ["URL1", "URL2", "URL3"]
 }
-""")
+"""
+        )
 
         # News-focused template for time-sensitive questions
-        self.news_focused_template = Template("""
+        self.news_focused_template = Template(
+            """
 Focus on recent news for time-sensitive question:
 
 Q: {{ question.title }}
@@ -140,10 +149,12 @@ EXPERT: [Recent expert commentary]
 SOURCES: [News URLs with dates]
 
 Keep concise - focus on forecast-relevant information only.
-""")
+"""
+        )
 
         # Base rate research template for questions needing historical context
-        self.base_rate_template = Template("""
+        self.base_rate_template = Template(
+            """
 Research historical base rates:
 
 Q: {{ question.title }}
@@ -165,10 +176,15 @@ Output:
   "confidence": "high/medium/low",
   "sources": ["URL1", "URL2"]
 }
-""")
+"""
+        )
 
-    def get_research_prompt(self, question: Question, complexity_level: str = "standard",
-                          focus_type: str = "general") -> str:
+    def get_research_prompt(
+        self,
+        question: Question,
+        complexity_level: str = "standard",
+        focus_type: str = "general",
+    ) -> str:
         """
         Get optimized research prompt based on question complexity and focus type.
 
@@ -223,7 +239,7 @@ Output:
             "standard": {"input_tokens": 250, "expected_output": 500},
             "comprehensive": {"input_tokens": 400, "expected_output": 800},
             "news": {"input_tokens": 120, "expected_output": 250},
-            "base_rate": {"input_tokens": 180, "expected_output": 350}
+            "base_rate": {"input_tokens": 180, "expected_output": 350},
         }
         return estimates.get(complexity_level, estimates["standard"])
 
@@ -258,17 +274,27 @@ class QuestionComplexityAnalyzer:
         # Question type factor
         if question.question_type.value in ["NUMERIC", "DATE"]:
             complexity_score += 1
-        elif question.question_type.value == "MULTIPLE_CHOICE" and len(question.choices or []) > 4:
+        elif (
+            question.question_type.value == "MULTIPLE_CHOICE"
+            and len(question.choices or []) > 4
+        ):
             complexity_score += 1
 
         # Category factor (technical/specialized topics)
-        technical_categories = ["science", "technology", "economics", "politics", "medicine"]
+        technical_categories = [
+            "science",
+            "technology",
+            "economics",
+            "politics",
+            "medicine",
+        ]
         if any(cat.lower() in technical_categories for cat in question.categories):
             complexity_score += 1
 
         # Time horizon factor
         if question.close_time:
             from datetime import datetime, timezone
+
             days_until_close = (question.close_time - datetime.now(timezone.utc)).days
             if days_until_close > 365:  # Long-term questions are more complex
                 complexity_score += 1
@@ -292,7 +318,7 @@ class QuestionComplexityAnalyzer:
         Returns:
             Focus type: "general", "news", or "base_rate"
         """
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         # Check if question is time-sensitive (closes soon)
         if question.close_time:
@@ -301,8 +327,17 @@ class QuestionComplexityAnalyzer:
                 return "news"
 
         # Check if question benefits from historical analysis
-        historical_keywords = ["rate", "frequency", "typically", "usually", "historically",
-                             "average", "trend", "pattern", "precedent"]
+        historical_keywords = [
+            "rate",
+            "frequency",
+            "typically",
+            "usually",
+            "historically",
+            "average",
+            "trend",
+            "pattern",
+            "precedent",
+        ]
         question_text = (question.title + " " + (question.description or "")).lower()
 
         if any(keyword in question_text for keyword in historical_keywords):

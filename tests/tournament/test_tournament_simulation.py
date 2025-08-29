@@ -1,28 +1,30 @@
 """Tournament simulation testing framework for end-to-end validation."""
 
-import pytest
 import asyncio
-import time
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from unittest.mock import Mock, patch, AsyncMock
-from dataclasses import dataclass
 import json
 import random
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.domain.entities.question import Question, QuestionType
-from src.domain.entities.forecast import Forecast
-from src.domain.value_objects.probability import Probability
-from src.domain.value_objects.confidence import Confidence
+import pytest
+
 from src.application.forecast_service import ForecastService
+from src.domain.entities.forecast import Forecast
+from src.domain.entities.question import Question, QuestionType
 from src.domain.services.ensemble_service import EnsembleService
 from src.domain.services.tournament_analytics import TournamentAnalytics
+from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.probability import Probability
 from src.infrastructure.config.settings import Settings
 
 
 @dataclass
 class TournamentScenario:
     """Represents a tournament scenario for testing."""
+
     name: str
     questions: List[Dict[str, Any]]
     duration_hours: int
@@ -35,6 +37,7 @@ class TournamentScenario:
 @dataclass
 class TournamentResult:
     """Results from tournament simulation."""
+
     scenario_name: str
     total_questions: int
     completed_forecasts: int
@@ -56,9 +59,7 @@ class TournamentSimulator:
         self.tournament_analytics = TournamentAnalytics()
 
     async def simulate_tournament(
-        self,
-        scenario: TournamentScenario,
-        agent_types: List[str] = None
+        self, scenario: TournamentScenario, agent_types: List[str] = None
     ) -> TournamentResult:
         """Simulate a complete tournament scenario."""
         if agent_types is None:
@@ -84,31 +85,39 @@ class TournamentSimulator:
                         description=question_data["description"],
                         question_type=QuestionType(question_data["type"]),
                         close_time=datetime.fromisoformat(question_data["close_time"]),
-                        resolve_time=datetime.fromisoformat(question_data["resolve_time"]),
+                        resolve_time=datetime.fromisoformat(
+                            question_data["resolve_time"]
+                        ),
                         categories=question_data.get("categories", []),
-                        tags=question_data.get("tags", [])
+                        tags=question_data.get("tags", []),
                     )
 
                     # Simulate competitive pressure with time constraints
-                    remaining_time = scenario.duration_hours * 3600 - (time.time() - start_time)
+                    remaining_time = scenario.duration_hours * 3600 - (
+                        time.time() - start_time
+                    )
                     remaining_questions = len(scenario.questions) - i
                     time_per_question = remaining_time / max(remaining_questions, 1)
 
                     # Apply resource constraints
                     if scenario.resource_constraints.get("limited_api_calls"):
-                        max_calls = scenario.resource_constraints["max_api_calls_per_question"]
+                        max_calls = scenario.resource_constraints[
+                            "max_api_calls_per_question"
+                        ]
                         # Mock API call limiting would be implemented here
 
                     # Generate forecast with tournament conditions
-                    forecast_timeout = min(adjusted_timeout, int(time_per_question * 0.8))
+                    forecast_timeout = min(
+                        adjusted_timeout, int(time_per_question * 0.8)
+                    )
 
                     forecast = await asyncio.wait_for(
                         self.forecast_service.generate_forecast(
                             question=question,
                             agent_types=agent_types,
-                            timeout=forecast_timeout
+                            timeout=forecast_timeout,
                         ),
-                        timeout=forecast_timeout
+                        timeout=forecast_timeout,
                     )
 
                     forecasts.append(forecast)
@@ -139,13 +148,11 @@ class TournamentSimulator:
             execution_time=execution_time,
             resource_usage=resource_usage,
             errors=errors,
-            performance_metrics=performance_metrics
+            performance_metrics=performance_metrics,
         )
 
     def _calculate_performance_metrics(
-        self,
-        forecasts: List[Forecast],
-        questions: List[Dict[str, Any]]
+        self, forecasts: List[Forecast], questions: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Calculate performance metrics for tournament results."""
         if not forecasts:
@@ -160,13 +167,17 @@ class TournamentSimulator:
             simulated_outcome = random.random() < forecast.prediction.value
 
             # Calculate Brier score
-            brier = (forecast.prediction.value - (1.0 if simulated_outcome else 0.0)) ** 2
+            brier = (
+                forecast.prediction.value - (1.0 if simulated_outcome else 0.0)
+            ) ** 2
             total_brier += brier
 
             # Bin for calibration
             bin_idx = min(int(forecast.prediction.value * 10), 9)
             calibration_bins[bin_idx]["predictions"].append(forecast.prediction.value)
-            calibration_bins[bin_idx]["outcomes"].append(1.0 if simulated_outcome else 0.0)
+            calibration_bins[bin_idx]["outcomes"].append(
+                1.0 if simulated_outcome else 0.0
+            )
 
         avg_brier = total_brier / len(forecasts)
 
@@ -176,20 +187,25 @@ class TournamentSimulator:
 
         for bin_data in calibration_bins.values():
             if bin_data["predictions"]:
-                avg_prediction = sum(bin_data["predictions"]) / len(bin_data["predictions"])
+                avg_prediction = sum(bin_data["predictions"]) / len(
+                    bin_data["predictions"]
+                )
                 avg_outcome = sum(bin_data["outcomes"]) / len(bin_data["outcomes"])
                 bin_size = len(bin_data["predictions"])
                 calibration_error += bin_size * abs(avg_prediction - avg_outcome)
                 total_predictions += bin_size
 
-        calibration_score = 1.0 - (calibration_error / total_predictions if total_predictions > 0 else 1.0)
+        calibration_score = 1.0 - (
+            calibration_error / total_predictions if total_predictions > 0 else 1.0
+        )
 
         return {
             "accuracy": 1.0 - avg_brier,  # Convert Brier to accuracy-like metric
             "calibration": calibration_score,
             "brier_score": avg_brier,
             "completion_rate": len(forecasts) / len(questions) if questions else 0.0,
-            "avg_confidence": sum(f.confidence.value for f in forecasts) / len(forecasts)
+            "avg_confidence": sum(f.confidence.value for f in forecasts)
+            / len(forecasts),
         }
 
 
@@ -214,7 +230,7 @@ class TestTournamentSimulation:
                 "close_time": "2029-12-01T00:00:00Z",
                 "resolve_time": "2030-01-01T00:00:00Z",
                 "categories": ["AI", "Technology"],
-                "tags": ["agi", "artificial-intelligence"]
+                "tags": ["agi", "artificial-intelligence"],
             },
             {
                 "id": 1002,
@@ -224,7 +240,7 @@ class TestTournamentSimulation:
                 "close_time": "2029-12-01T00:00:00Z",
                 "resolve_time": "2030-12-31T00:00:00Z",
                 "categories": ["Climate", "Environment"],
-                "tags": ["climate-change", "temperature"]
+                "tags": ["climate-change", "temperature"],
             },
             {
                 "id": 1003,
@@ -234,8 +250,8 @@ class TestTournamentSimulation:
                 "close_time": "2029-12-01T00:00:00Z",
                 "resolve_time": "2030-12-31T00:00:00Z",
                 "categories": ["Space", "Technology"],
-                "tags": ["mars", "spacex", "space-exploration"]
-            }
+                "tags": ["mars", "spacex", "space-exploration"],
+            },
         ]
 
         return TournamentScenario(
@@ -245,7 +261,7 @@ class TestTournamentSimulation:
             competitive_pressure=0.5,
             expected_accuracy_threshold=0.7,
             expected_calibration_threshold=0.8,
-            resource_constraints={}
+            resource_constraints={},
         )
 
     @pytest.fixture
@@ -253,16 +269,18 @@ class TestTournamentSimulation:
         """High-pressure tournament scenario."""
         questions = []
         for i in range(10):
-            questions.append({
-                "id": 2000 + i,
-                "title": f"High-pressure question {i+1}",
-                "description": f"Complex forecasting question {i+1}",
-                "type": "binary",
-                "close_time": "2025-12-01T00:00:00Z",
-                "resolve_time": "2026-01-01T00:00:00Z",
-                "categories": ["Technology"],
-                "tags": ["high-pressure"]
-            })
+            questions.append(
+                {
+                    "id": 2000 + i,
+                    "title": f"High-pressure question {i+1}",
+                    "description": f"Complex forecasting question {i+1}",
+                    "type": "binary",
+                    "close_time": "2025-12-01T00:00:00Z",
+                    "resolve_time": "2026-01-01T00:00:00Z",
+                    "categories": ["Technology"],
+                    "tags": ["high-pressure"],
+                }
+            )
 
         return TournamentScenario(
             name="High Pressure Tournament",
@@ -273,23 +291,26 @@ class TestTournamentSimulation:
             expected_calibration_threshold=0.7,
             resource_constraints={
                 "limited_api_calls": True,
-                "max_api_calls_per_question": 3
-            }
+                "max_api_calls_per_question": 3,
+            },
         )
 
     @pytest.mark.asyncio
-    async def test_basic_tournament_simulation(self, tournament_simulator, basic_tournament_scenario):
+    async def test_basic_tournament_simulation(
+        self, tournament_simulator, basic_tournament_scenario
+    ):
         """Test basic tournament simulation workflow."""
+
         # Mock forecast service to return realistic forecasts
         async def mock_generate_forecast(question, agent_types, timeout):
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.4 + random.random() * 0.2),  # 0.4-0.6 range
-                confidence=Confidence(0.7 + random.random() * 0.2),   # 0.7-0.9 range
+                confidence=Confidence(0.7 + random.random() * 0.2),  # 0.7-0.9 range
                 reasoning=f"Mocked reasoning for question {question.id}",
                 method="ensemble",
                 sources=["mock_source_1", "mock_source_2"],
-                metadata={"api_calls": 2, "execution_time": 1.5}
+                metadata={"api_calls": 2, "execution_time": 1.5},
             )
 
         tournament_simulator.forecast_service.generate_forecast = AsyncMock(
@@ -297,7 +318,9 @@ class TestTournamentSimulation:
         )
 
         # Run tournament simulation
-        result = await tournament_simulator.simulate_tournament(basic_tournament_scenario)
+        result = await tournament_simulator.simulate_tournament(
+            basic_tournament_scenario
+        )
 
         # Verify tournament completion
         assert result.scenario_name == "Basic Tournament"
@@ -317,7 +340,9 @@ class TestTournamentSimulation:
         assert len(result.errors) <= 1  # Minimal errors expected
 
     @pytest.mark.asyncio
-    async def test_high_pressure_tournament(self, tournament_simulator, high_pressure_scenario):
+    async def test_high_pressure_tournament(
+        self, tournament_simulator, high_pressure_scenario
+    ):
         """Test high-pressure tournament conditions."""
         # Mock forecast service with occasional timeouts
         call_count = 0
@@ -342,7 +367,10 @@ class TestTournamentSimulation:
                 reasoning=f"Rushed analysis for question {question.id}",
                 method="ensemble",
                 sources=["limited_source"],
-                metadata={"api_calls": 1, "execution_time": 0.8}  # Faster but less thorough
+                metadata={
+                    "api_calls": 1,
+                    "execution_time": 0.8,
+                },  # Faster but less thorough
             )
 
         tournament_simulator.forecast_service.generate_forecast = AsyncMock(
@@ -367,7 +395,9 @@ class TestTournamentSimulation:
         assert avg_api_calls <= 3  # Resource constraint respected
 
     @pytest.mark.asyncio
-    async def test_tournament_recovery_resilience(self, tournament_simulator, basic_tournament_scenario):
+    async def test_tournament_recovery_resilience(
+        self, tournament_simulator, basic_tournament_scenario
+    ):
         """Test tournament recovery from failures."""
         failure_count = 0
 
@@ -386,7 +416,7 @@ class TestTournamentSimulation:
                 reasoning=f"Recovered forecast for question {question.id}",
                 method="ensemble",
                 sources=["recovery_source"],
-                metadata={"api_calls": 1, "execution_time": 1.0}
+                metadata={"api_calls": 1, "execution_time": 1.0},
             )
 
         tournament_simulator.forecast_service.generate_forecast = AsyncMock(
@@ -394,20 +424,27 @@ class TestTournamentSimulation:
         )
 
         # Run tournament with failures
-        result = await tournament_simulator.simulate_tournament(basic_tournament_scenario)
+        result = await tournament_simulator.simulate_tournament(
+            basic_tournament_scenario
+        )
 
         # Verify recovery behavior
         assert result.completed_forecasts >= 1  # At least one successful forecast
         assert len(result.errors) == 2  # Two failures recorded
-        assert result.performance_metrics["completion_rate"] >= 0.33  # Partial completion
+        assert (
+            result.performance_metrics["completion_rate"] >= 0.33
+        )  # Partial completion
 
         # Verify system continued despite failures
         assert result.execution_time > 0
         assert "Simulated failure" in str(result.errors)
 
     @pytest.mark.asyncio
-    async def test_tournament_performance_benchmarks(self, tournament_simulator, basic_tournament_scenario):
+    async def test_tournament_performance_benchmarks(
+        self, tournament_simulator, basic_tournament_scenario
+    ):
         """Test tournament performance benchmarks."""
+
         # Mock high-performance forecast service
         async def mock_fast_forecast(question, agent_types, timeout):
             # Simulate fast, accurate forecasting
@@ -416,11 +453,11 @@ class TestTournamentSimulation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.42),  # Consistent prediction
-                confidence=Confidence(0.85),   # High confidence
+                confidence=Confidence(0.85),  # High confidence
                 reasoning=f"Optimized forecast for question {question.id}",
                 method="ensemble",
                 sources=["benchmark_source_1", "benchmark_source_2"],
-                metadata={"api_calls": 1, "execution_time": 0.1}
+                metadata={"api_calls": 1, "execution_time": 0.1},
             )
 
         tournament_simulator.forecast_service.generate_forecast = AsyncMock(
@@ -428,7 +465,9 @@ class TestTournamentSimulation:
         )
 
         # Run benchmark tournament
-        result = await tournament_simulator.simulate_tournament(basic_tournament_scenario)
+        result = await tournament_simulator.simulate_tournament(
+            basic_tournament_scenario
+        )
 
         # Verify performance benchmarks
         assert result.completed_forecasts == result.total_questions  # 100% completion
@@ -443,16 +482,18 @@ class TestTournamentSimulation:
     @pytest.mark.asyncio
     async def test_competitive_pressure_effects(self, tournament_simulator):
         """Test effects of different competitive pressure levels."""
-        base_questions = [{
-            "id": 3001,
-            "title": "Test pressure question",
-            "description": "Testing competitive pressure effects",
-            "type": "binary",
-            "close_time": "2025-12-01T00:00:00Z",
-            "resolve_time": "2026-01-01T00:00:00Z",
-            "categories": ["Test"],
-            "tags": ["pressure-test"]
-        }]
+        base_questions = [
+            {
+                "id": 3001,
+                "title": "Test pressure question",
+                "description": "Testing competitive pressure effects",
+                "type": "binary",
+                "close_time": "2025-12-01T00:00:00Z",
+                "resolve_time": "2026-01-01T00:00:00Z",
+                "categories": ["Test"],
+                "tags": ["pressure-test"],
+            }
+        ]
 
         pressure_levels = [0.1, 0.5, 0.9]  # Low, medium, high pressure
         results = []
@@ -465,7 +506,7 @@ class TestTournamentSimulation:
                 competitive_pressure=pressure,
                 expected_accuracy_threshold=0.7,
                 expected_calibration_threshold=0.8,
-                resource_constraints={}
+                resource_constraints={},
             )
 
             # Mock forecast service with pressure-sensitive behavior
@@ -486,7 +527,7 @@ class TestTournamentSimulation:
                     reasoning=f"Pressure-affected forecast (pressure={pressure})",
                     method="ensemble",
                     sources=["pressure_source"],
-                    metadata={"api_calls": 1, "execution_time": processing_time}
+                    metadata={"api_calls": 1, "execution_time": processing_time},
                 )
 
             tournament_simulator.forecast_service.generate_forecast = AsyncMock(

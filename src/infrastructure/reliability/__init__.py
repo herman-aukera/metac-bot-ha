@@ -28,74 +28,72 @@ Usage:
     result = await recovery_manager.recover_from_error(error, context)
 """
 
-from .error_classification import (
-    ErrorClassifier,
-    ErrorRecoveryManager,
-    ErrorContext,
-    ErrorCategory,
-    ErrorSeverity,
-    RecoveryStrategy,
-    RecoveryAction,
-    ForecastingError,
-    ModelError,
-    BudgetError,
-    APIError,
-    QualityError
-)
-
-from .fallback_strategies import (
-    ModelTierFallbackManager,
-    CrossProviderFallbackManager,
-    EmergencyModeManager,
-    ErrorLoggingAndAlertingSystem,
-    IntelligentFallbackOrchestrator,
-    FallbackOption,
-    FallbackTier,
-    PerformanceLevel,
-    FallbackResult,
-    AlertConfig
-)
-
 from .comprehensive_error_recovery import (
     ComprehensiveErrorRecoveryManager,
     RecoveryConfiguration,
-    RecoveryResult
+    RecoveryResult,
+)
+from .error_classification import (
+    APIError,
+    BudgetError,
+    ErrorCategory,
+    ErrorClassifier,
+    ErrorContext,
+    ErrorRecoveryManager,
+    ErrorSeverity,
+    ForecastingError,
+    ModelError,
+    QualityError,
+    RecoveryAction,
+    RecoveryStrategy,
+)
+from .fallback_strategies import (
+    AlertConfig,
+    CrossProviderFallbackManager,
+    EmergencyModeManager,
+    ErrorLoggingAndAlertingSystem,
+    FallbackOption,
+    FallbackResult,
+    FallbackTier,
+    IntelligentFallbackOrchestrator,
+    ModelTierFallbackManager,
+    PerformanceLevel,
 )
 
 __all__ = [
     # Error Classification
-    'ErrorClassifier',
-    'ErrorRecoveryManager',
-    'ErrorContext',
-    'ErrorCategory',
-    'ErrorSeverity',
-    'RecoveryStrategy',
-    'RecoveryAction',
-    'ForecastingError',
-    'ModelError',
-    'BudgetError',
-    'APIError',
-    'QualityError',
-
+    "ErrorClassifier",
+    "ErrorRecoveryManager",
+    "ErrorContext",
+    "ErrorCategory",
+    "ErrorSeverity",
+    "RecoveryStrategy",
+    "RecoveryAction",
+    "ForecastingError",
+    "ModelError",
+    "BudgetError",
+    "APIError",
+    "QualityError",
     # Fallback Strategies
-    'ModelTierFallbackManager',
-    'CrossProviderFallbackManager',
-    'EmergencyModeManager',
-    'ErrorLoggingAndAlertingSystem',
-    'IntelligentFallbackOrchestrator',
-    'FallbackOption',
-    'FallbackTier',
-    'PerformanceLevel',
-    'FallbackResult',
-    'AlertConfig',
-
+    "ModelTierFallbackManager",
+    "CrossProviderFallbackManager",
+    "EmergencyModeManager",
+    "ErrorLoggingAndAlertingSystem",
+    "IntelligentFallbackOrchestrator",
+    "FallbackOption",
+    "FallbackTier",
+    "PerformanceLevel",
+    "FallbackResult",
+    "AlertConfig",
     # Comprehensive Recovery
-    'ComprehensiveErrorRecoveryManager',
-    'RecoveryConfiguration',
-    'RecoveryResult'
+    "ComprehensiveErrorRecoveryManager",
+    "RecoveryConfiguration",
+    "RecoveryResult",
 ]
 
 # Version information
 __version__ = "1.0.0"
 __author__ = "OpenRouter Tri-Model Optimization Team"
-__description__ = "Comprehensive error handling and recovery system for tournament forecasting"
+__description__ = (
+    "Comprehensive error handling and recovery system for tournament forecasting"
+)

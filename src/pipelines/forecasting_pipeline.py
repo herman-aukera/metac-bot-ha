@@ -1,23 +1,25 @@
 """
 Forecasting pipeline that orchestrates the end-to-end forecasting process.
 """
+
 import asyncio
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import structlog
 
-from ..domain.entities.question import Question
-from ..domain.entities.forecast import Forecast
-from ..domain.services.forecasting_service import ForecastingService
 from ..agents.base_agent import BaseAgent
 from ..agents.chain_of_thought_agent import ChainOfThoughtAgent
-from ..agents.tot_agent import TreeOfThoughtAgent
-from ..agents.react_agent import ReActAgent
 from ..agents.ensemble_agent_simple import EnsembleAgentSimple
+from ..agents.react_agent import ReActAgent
+from ..agents.tot_agent import TreeOfThoughtAgent
+from ..domain.entities.forecast import Forecast
+from ..domain.entities.question import Question
+from ..domain.services.forecasting_service import ForecastingService
 from ..infrastructure.config.settings import Settings
 from ..infrastructure.external_apis.llm_client import LLMClient
-from ..infrastructure.external_apis.search_client import SearchClient
 from ..infrastructure.external_apis.metaculus_client import MetaculusClient
+from ..infrastructure.external_apis.search_client import SearchClient
 
 logger = structlog.get_logger(__name__)
 
@@ -31,20 +33,22 @@ class ForecastingPipeline:
         llm_client: Optional[LLMClient] = None,
         search_client: Optional[SearchClient] = None,
         metaculus_client: Optional[MetaculusClient] = None,
-        config: Optional[Any] = None  # For backward compatibility with tests
+        config: Optional[Any] = None,  # For backward compatibility with tests
     ):
         # Handle backward compatibility
         if config is not None and settings is None:
-            self.settings = config if hasattr(config, 'bot') else Settings()
+            self.settings = config if hasattr(config, "bot") else Settings()
         else:
             self.settings = settings or Settings()
 
         # Ensure we have required clients (create mocks if not provided)
         if llm_client is None:
             from unittest.mock import Mock
+
             llm_client = Mock()
         if search_client is None:
             from unittest.mock import Mock
+
             search_client = Mock()
 
         self.llm_client = llm_client
@@ -63,33 +67,32 @@ class ForecastingPipeline:
             default_model_config = {
                 "temperature": 0.7,
                 "max_tokens": 2000,
-                "top_p": 0.9
+                "top_p": 0.9,
             }
 
             # Individual reasoning agents
             self.agents["cot"] = ChainOfThoughtAgent(
-                name="chain_of_thought",
-                model_config=default_model_config
+                name="chain_of_thought", model_config=default_model_config
             )
 
             # Set dependencies after initialization
-            if hasattr(self.agents["cot"], 'llm_client'):
+            if hasattr(self.agents["cot"], "llm_client"):
                 self.agents["cot"].llm_client = self.llm_client
-            if hasattr(self.agents["cot"], 'search_client'):
+            if hasattr(self.agents["cot"], "search_client"):
                 self.agents["cot"].search_client = self.search_client
 
             self.agents["tot"] = TreeOfThoughtAgent(
                 name="tree_of_thought",
                 model_config=default_model_config,
                 llm_client=self.llm_client,
-                search_client=self.search_client
+                search_client=self.search_client,
             )
 
             self.agents["react"] = ReActAgent(
                 name="react",
                 model_config=default_model_config,
                 llm_client=self.llm_client,
-                search_client=self.search_client
+                search_client=self.search_client,
             )
 
             # Ensemble agent that combines multiple approaches
@@ -98,10 +101,12 @@ class ForecastingPipeline:
                 name="ensemble",
                 model_config=default_model_config,
                 agents=base_agents,
-                forecasting_service=self.forecasting_service
+                forecasting_service=self.forecasting_service,
             )
 
-            logger.info("Initialized all forecasting agents", agent_count=len(self.agents))
+            logger.info(
+                "Initialized all forecasting agents", agent_count=len(self.agents)
+            )
 
         except Exception as e:
             logger.error("Failed to initialize agents", error=str(e))
@@ -112,7 +117,7 @@ class ForecastingPipeline:
         question: Question,
         agent_names: Optional[List[str]] = None,
         include_research: bool = True,
-        max_research_depth: int = 3
+        max_research_depth: int = 3,
     ) -> Forecast:
         """
         Generate a forecast for a given question using specified agents.
@@ -131,7 +136,7 @@ class ForecastingPipeline:
             question_id=question.id,
             question_title=question.title,
             agent_names=agent_names,
-            include_research=include_research
+            include_research=include_research,
         )
 
         try:
@@ -144,7 +149,7 @@ class ForecastingPipeline:
                 "chain_of_thought": "cot",
                 "tree_of_thought": "tot",
                 "react": "react",
-                "ensemble": "ensemble"
+                "ensemble": "ensemble",
             }
 
             # Map agent names to actual keys
@@ -155,7 +160,9 @@ class ForecastingPipeline:
                 elif name in agent_name_mapping:
                     mapped_agent_names.append(agent_name_mapping[name])
                 else:
-                    raise ValueError(f"Invalid agent name: {name}. Available: {list(self.agents.keys())} or {list(agent_name_mapping.keys())}")
+                    raise ValueError(
+                        f"Invalid agent name: {name}. Available: {list(self.agents.keys())} or {list(agent_name_mapping.keys())}"
+                    )
 
             agent_names = mapped_agent_names
 
@@ -166,15 +173,30 @@ class ForecastingPipeline:
 
                 logger.info("Generating prediction", agent=agent_name)
                 # Use the agent's forecast method instead of predict
-                search_config = {"max_depth": max_research_depth} if include_research else {}
-                forecast = await agent.forecast(question=question, search_config=search_config)
-                predictions.append(forecast.predictions[0] if forecast.predictions else None)
+                search_config = (
+                    {"max_depth": max_research_depth} if include_research else {}
+                )
+                forecast = await agent.forecast(
+                    question=question, search_config=search_config
+                )
+                predictions.append(
+                    forecast.predictions[0] if forecast.predictions else None
+                )
 
                 logger.info(
                     "Generated prediction",
                     agent=agent_name,
-                    probability=forecast.final_prediction.result.binary_probability if forecast.final_prediction and forecast.final_prediction.result else "N/A",
-                    confidence=forecast.final_prediction.confidence if forecast.final_prediction else "N/A"
+                    probability=(
+                        forecast.final_prediction.result.binary_probability
+                        if forecast.final_prediction
+                        and forecast.final_prediction.result
+                        else "N/A"
+                    ),
+                    confidence=(
+                        forecast.final_prediction.confidence
+                        if forecast.final_prediction
+                        else "N/A"
+                    ),
                 )
 
             # Aggregate predictions into final forecast
@@ -192,12 +214,14 @@ class ForecastingPipeline:
                     metadata={
                         "agent_used": agent_names[0],
                         "pipeline_version": "1.0",
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
                 )
             else:
                 # Multiple predictions - aggregate using confidence weighting
-                final_probability = self.forecasting_service.confidence_weighted_average(predictions)
+                final_probability = (
+                    self.forecasting_service.confidence_weighted_average(predictions)
+                )
 
                 forecast = Forecast.create(
                     question_id=question.id,
@@ -208,8 +232,8 @@ class ForecastingPipeline:
                         "agents_used": agent_names,
                         "pipeline_version": "1.0",
                         "timestamp": datetime.utcnow().isoformat(),
-                        "prediction_count": len(predictions)
-                    }
+                        "prediction_count": len(predictions),
+                    },
                 )
 
             logger.info(
@@ -217,7 +241,7 @@ class ForecastingPipeline:
                 question_id=question.id,
                 final_probability=forecast.final_prediction.result.binary_probability,
                 prediction_count=len(predictions),
-                aggregation_method=forecast.ensemble_method
+                aggregation_method=forecast.ensemble_method,
             )
 
             return forecast
@@ -227,7 +251,7 @@ class ForecastingPipeline:
                 "Failed to generate forecast",
                 question_id=question.id,
                 error=str(e),
-                agent_names=agent_names
+                agent_names=agent_names,
             )
             raise
 
@@ -237,7 +261,7 @@ class ForecastingPipeline:
         agent_names: Optional[List[str]] = None,
         include_research: bool = True,
         max_research_depth: int = 3,
-        batch_size: int = 5
+        batch_size: int = 5,
     ) -> List[Forecast]:
         """
         Generate forecasts for multiple questions in batches.
@@ -256,18 +280,20 @@ class ForecastingPipeline:
             "Starting batch forecast",
             question_count=len(questions),
             agent_names=agent_names,
-            batch_size=batch_size
+            batch_size=batch_size,
         )
 
         forecasts = []
 
         # Process questions in batches to avoid overwhelming APIs
         for i in range(0, len(questions), batch_size):
-            batch = questions[i:i + batch_size]
+            batch = questions[i : i + batch_size]
             batch_num = i // batch_size + 1
             total_batches = (len(questions) + batch_size - 1) // batch_size
 
-            logger.info(f"Processing batch {batch_num}/{total_batches}", batch_size=len(batch))
+            logger.info(
+                f"Processing batch {batch_num}/{total_batches}", batch_size=len(batch)
+            )
 
             # Create tasks for concurrent processing
             tasks = [
@@ -275,7 +301,7 @@ class ForecastingPipeline:
                     question=question,
                     agent_names=agent_names,
                     include_research=include_research,
-                    max_research_depth=max_research_depth
+                    max_research_depth=max_research_depth,
                 )
                 for question in batch
             ]
@@ -290,7 +316,7 @@ class ForecastingPipeline:
                         "Failed to generate forecast in batch",
                         question_id=batch[j].id,
                         question_title=batch[j].title,
-                        error=str(result)
+                        error=str(result),
                     )
                     # Could add error handling strategy here (retry, skip, etc.)
                 else:
@@ -304,15 +330,13 @@ class ForecastingPipeline:
             "Completed batch forecast",
             total_questions=len(questions),
             successful_forecasts=len(forecasts),
-            failed_forecasts=len(questions) - len(forecasts)
+            failed_forecasts=len(questions) - len(forecasts),
         )
 
         return forecasts
 
     async def benchmark_agents(
-        self,
-        questions: List[Question],
-        agent_names: Optional[List[str]] = None
+        self, questions: List[Question], agent_names: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Benchmark different agents against a set of questions.
@@ -327,7 +351,11 @@ class ForecastingPipeline:
         if agent_names is None:
             agent_names = list(self.agents.keys())
 
-        logger.info("Starting agent benchmarking", agents=agent_names, question_count=len(questions))
+        logger.info(
+            "Starting agent benchmarking",
+            agents=agent_names,
+            question_count=len(questions),
+        )
 
         results = {}
 
@@ -338,7 +366,7 @@ class ForecastingPipeline:
                 questions=questions,
                 agent_names=[agent_name],
                 include_research=True,
-                max_research_depth=2  # Reduced for benchmarking speed
+                max_research_depth=2,  # Reduced for benchmarking speed
             )
 
             # Calculate performance metrics
@@ -349,7 +377,8 @@ class ForecastingPipeline:
             )
 
             avg_confidence = sum(
-                pred.get_confidence_score() for forecast in agent_forecasts
+                pred.get_confidence_score()
+                for forecast in agent_forecasts
                 for pred in forecast.predictions
             ) / max(1, sum(len(forecast.predictions) for forecast in agent_forecasts))
 
@@ -357,7 +386,7 @@ class ForecastingPipeline:
                 "forecasts_generated": len(agent_forecasts),
                 "avg_processing_time": total_time / max(1, len(agent_forecasts)),
                 "avg_confidence": avg_confidence,
-                "success_rate": len(agent_forecasts) / len(questions)
+                "success_rate": len(agent_forecasts) / len(questions),
             }
 
         logger.info("Completed agent benchmarking", results=results)
@@ -405,7 +434,7 @@ class ForecastingPipeline:
         question_id: int,
         agent_type: str = "chain_of_thought",
         include_research: bool = True,
-        collect_metrics: bool = False
+        collect_metrics: bool = False,
     ) -> Dict[str, Any]:
         """
         Run forecasting for a single question by ID.
@@ -419,7 +448,11 @@ class ForecastingPipeline:
         Returns:
             Dictionary with question_id and forecast data
         """
-        logger.info("Running single question forecast", question_id=question_id, agent_type=agent_type)
+        logger.info(
+            "Running single question forecast",
+            question_id=question_id,
+            agent_type=agent_type,
+        )
 
         start_time = datetime.utcnow() if collect_metrics else None
         metrics = {"api_calls": 0} if collect_metrics else None
@@ -433,6 +466,7 @@ class ForecastingPipeline:
 
             # Convert to Question entity
             from ..application.ingestion_service import IngestionService
+
             ingestion_service = IngestionService()
             question = await ingestion_service.convert_question_data(question_data)
 
@@ -440,7 +474,7 @@ class ForecastingPipeline:
             forecast = await self.generate_forecast(
                 question=question,
                 agent_names=[agent_type],
-                include_research=include_research
+                include_research=include_research,
             )
 
             # Format response to match expected test format
@@ -448,19 +482,39 @@ class ForecastingPipeline:
                 "question_id": question_id,
                 "forecast": {
                     "prediction": forecast.final_prediction.result.binary_probability,
-                    "confidence": forecast.predictions[0].get_confidence_score() if forecast.predictions else 0.0,
+                    "confidence": (
+                        forecast.predictions[0].get_confidence_score()
+                        if forecast.predictions
+                        else 0.0
+                    ),
                     "method": agent_type,
-                    "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
-                    "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []
+                    "reasoning": (
+                        forecast.predictions[0].reasoning
+                        if forecast.predictions
+                        else ""
+                    ),
+                    "sources": (
+                        [
+                            source.url
+                            for report in forecast.research_reports
+                            for source in report.sources
+                        ]
+                        if forecast.research_reports
+                        else []
+                    ),
                 },
-                "metadata": forecast.metadata
+                "metadata": forecast.metadata,
             }
 
             logger.info("Completed single question forecast", question_id=question_id)
             return result
 
         except Exception as e:
-            logger.error("Failed to forecast single question", question_id=question_id, error=str(e))
+            logger.error(
+                "Failed to forecast single question",
+                question_id=question_id,
+                error=str(e),
+            )
             raise
 
     async def run_batch_forecast(
@@ -468,7 +522,7 @@ class ForecastingPipeline:
         question_ids: List[int],
         agent_type: str = "chain_of_thought",
         include_research: bool = True,
-        batch_size: int = 5
+        batch_size: int = 5,
     ) -> List[Dict[str, Any]]:
         """
         Run forecasting for multiple questions by ID.
@@ -482,7 +536,11 @@ class ForecastingPipeline:
         Returns:
             List of dictionaries with question_id and forecast data
         """
-        logger.info("Running batch forecast", question_count=len(question_ids), agent_type=agent_type)
+        logger.info(
+            "Running batch forecast",
+            question_count=len(question_ids),
+            agent_type=agent_type,
+        )
 
         try:
             # Get questions from Metaculus
@@ -495,6 +553,7 @@ class ForecastingPipeline:
 
                 # Convert to Question entity
                 from ..application.ingestion_service import IngestionService
+
                 ingestion_service = IngestionService()
                 question = await ingestion_service.convert_question_data(question_data)
                 questions.append(question)
@@ -504,23 +563,41 @@ class ForecastingPipeline:
                 questions=questions,
                 agent_names=[agent_type],
                 include_research=include_research,
-                batch_size=batch_size
+                batch_size=batch_size,
             )
 
             # Format results to match expected test format
             results = []
             for i, forecast in enumerate(forecasts):
-                if i < len(question_ids):  # Ensure we don't exceed the original question_ids list
+                if i < len(
+                    question_ids
+                ):  # Ensure we don't exceed the original question_ids list
                     result = {
                         "question_id": question_ids[i],
                         "forecast": {
                             "prediction": forecast.final_prediction.result.binary_probability,
-                            "confidence": forecast.predictions[0].get_confidence_score() if forecast.predictions else 0.0,
+                            "confidence": (
+                                forecast.predictions[0].get_confidence_score()
+                                if forecast.predictions
+                                else 0.0
+                            ),
                             "method": agent_type,
-                            "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
-                            "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []
+                            "reasoning": (
+                                forecast.predictions[0].reasoning
+                                if forecast.predictions
+                                else ""
+                            ),
+                            "sources": (
+                                [
+                                    source.url
+                                    for report in forecast.research_reports
+                                    for source in report.sources
+                                ]
+                                if forecast.research_reports
+                                else []
+                            ),
                         },
-                        "metadata": forecast.metadata
+                        "metadata": forecast.metadata,
                     }
                     results.append(result)
 
@@ -528,14 +605,16 @@ class ForecastingPipeline:
             return results
 
         except Exception as e:
-            logger.error("Failed to run batch forecast", question_ids=question_ids, error=str(e))
+            logger.error(
+                "Failed to run batch forecast", question_ids=question_ids, error=str(e)
+            )
             raise
 
     async def run_ensemble_forecast(
         self,
         question_id: int,
         agent_types: List[str] = None,
-        include_research: bool = True
+        include_research: bool = True,
     ) -> Dict[str, Any]:
         """
         Run ensemble forecasting using multiple agents for a single question.
@@ -551,7 +630,11 @@ class ForecastingPipeline:
         if agent_types is None:
             agent_types = ["chain_of_thought", "tree_of_thought", "react"]
 
-        logger.info("Running ensemble forecast", question_id=question_id, agent_types=agent_types)
+        logger.info(
+            "Running ensemble forecast",
+            question_id=question_id,
+            agent_types=agent_types,
+        )
 
         try:
             # Get question from Metaculus
@@ -562,6 +645,7 @@ class ForecastingPipeline:
 
             # Convert to Question entity
             from ..application.ingestion_service import IngestionService
+
             ingestion_service = IngestionService()
             question = await ingestion_service.convert_question_data(question_data)
 
@@ -572,35 +656,58 @@ class ForecastingPipeline:
                     forecast = await self.generate_forecast(
                         question=question,
                         agent_names=[agent_type],
-                        include_research=include_research
+                        include_research=include_research,
                     )
 
                     individual_forecast = {
                         "agent": agent_type,
                         "prediction": forecast.final_prediction.result.binary_probability,
-                        "confidence": forecast.predictions[0].confidence if forecast.predictions else 0.0,
-                        "reasoning": forecast.predictions[0].reasoning if forecast.predictions else "",
-                        "sources": [source.url for report in forecast.research_reports for source in report.sources] if forecast.research_reports else []
+                        "confidence": (
+                            forecast.predictions[0].confidence
+                            if forecast.predictions
+                            else 0.0
+                        ),
+                        "reasoning": (
+                            forecast.predictions[0].reasoning
+                            if forecast.predictions
+                            else ""
+                        ),
+                        "sources": (
+                            [
+                                source.url
+                                for report in forecast.research_reports
+                                for source in report.sources
+                            ]
+                            if forecast.research_reports
+                            else []
+                        ),
                     }
                     individual_forecasts.append(individual_forecast)
 
                 except Exception as e:
-                    logger.error(f"Failed to generate forecast for agent {agent_type}", error=str(e))
+                    logger.error(
+                        f"Failed to generate forecast for agent {agent_type}",
+                        error=str(e),
+                    )
 
             # Generate ensemble forecast using all agents
             ensemble_forecast = await self.generate_forecast(
                 question=question,
                 agent_names=agent_types,
-                include_research=include_research
+                include_research=include_research,
             )
 
             # Format ensemble result
             ensemble_result = {
                 "prediction": ensemble_forecast.final_prediction.result.binary_probability,
-                "confidence": ensemble_forecast.predictions[0].confidence if ensemble_forecast.predictions else 0.0,
+                "confidence": (
+                    ensemble_forecast.predictions[0].confidence
+                    if ensemble_forecast.predictions
+                    else 0.0
+                ),
                 "method": "ensemble",
                 "reasoning": f"Ensemble of {len(agent_types)} agents: {', '.join(agent_types)}",
-                "sources": []
+                "sources": [],
             }
 
             # Add all sources from individual forecasts
@@ -611,12 +718,18 @@ class ForecastingPipeline:
                 "question_id": question_id,
                 "ensemble_forecast": ensemble_result,
                 "individual_forecasts": individual_forecasts,
-                "metadata": ensemble_forecast.metadata
+                "metadata": ensemble_forecast.metadata,
             }
 
-            logger.info("Completed ensemble forecast", question_id=question_id, agent_count=len(individual_forecasts))
+            logger.info(
+                "Completed ensemble forecast",
+                question_id=question_id,
+                agent_count=len(individual_forecasts),
+            )
             return result
 
         except Exception as e:
-            logger.error("Failed to run ensemble forecast", question_id=question_id, error=str(e))
+            logger.error(
+                "Failed to run ensemble forecast", question_id=question_id, error=str(e)
+            )
             raise

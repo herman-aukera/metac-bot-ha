@@ -1,9 +1,13 @@
 """
 Tests for the task complexity analyzer.
 """
+
 import pytest
+
 from src.infrastructure.config.task_complexity_analyzer import (
-    TaskComplexityAnalyzer, ComplexityLevel, ComplexityAssessment
+    ComplexityAssessment,
+    ComplexityLevel,
+    TaskComplexityAnalyzer,
 )
 
 
@@ -35,7 +39,9 @@ class TestTaskComplexityAnalyzer:
 
         assert assessment.level in [ComplexityLevel.MEDIUM, ComplexityLevel.SIMPLE]
         # Check that the assessment has reasonable factors
-        assert assessment.factors["medium_score"] > 0  # Should detect market-related content
+        assert (
+            assessment.factors["medium_score"] > 0
+        )  # Should detect market-related content
         assert assessment.score > 2.0  # Should have some complexity
 
     def test_complex_question_assessment(self):
@@ -59,10 +65,12 @@ class TestTaskComplexityAnalyzer:
             score=2.0,
             factors={},
             recommended_model="openai/gpt-4o-mini",
-            reasoning="Simple task"
+            reasoning="Simple task",
         )
 
-        model = self.analyzer.get_model_for_task("forecast", simple_assessment, "normal")
+        model = self.analyzer.get_model_for_task(
+            "forecast", simple_assessment, "normal"
+        )
         assert model == "openai/gpt-4o-mini"
 
         # Complex task should use full model in normal budget
@@ -71,14 +79,18 @@ class TestTaskComplexityAnalyzer:
             score=8.0,
             factors={},
             recommended_model="openai/gpt-4o",
-            reasoning="Complex task"
+            reasoning="Complex task",
         )
 
-        model = self.analyzer.get_model_for_task("forecast", complex_assessment, "normal")
+        model = self.analyzer.get_model_for_task(
+            "forecast", complex_assessment, "normal"
+        )
         assert model == "openai/gpt-4o"
 
         # Complex task should downgrade in conservative budget
-        model = self.analyzer.get_model_for_task("forecast", complex_assessment, "conservative")
+        model = self.analyzer.get_model_for_task(
+            "forecast", complex_assessment, "conservative"
+        )
         assert model == "openai/gpt-4o-mini"
 
     def test_cost_estimation(self):
@@ -88,10 +100,12 @@ class TestTaskComplexityAnalyzer:
             score=4.0,
             factors={},
             recommended_model="openai/gpt-4o-mini",
-            reasoning="Medium complexity"
+            reasoning="Medium complexity",
         )
 
-        cost_estimate = self.analyzer.estimate_cost_per_task(assessment, "forecast", "normal")
+        cost_estimate = self.analyzer.estimate_cost_per_task(
+            assessment, "forecast", "normal"
+        )
 
         assert cost_estimate["complexity"] == "medium"
         assert cost_estimate["task_type"] == "forecast"
@@ -106,12 +120,16 @@ class TestTaskComplexityAnalyzer:
             score=8.0,
             factors={},
             recommended_model="openai/gpt-4o",
-            reasoning="Complex task"
+            reasoning="Complex task",
         )
 
         # Research should generally use cheaper models
-        research_model = self.analyzer.get_model_for_task("research", assessment, "normal")
-        forecast_model = self.analyzer.get_model_for_task("forecast", assessment, "normal")
+        research_model = self.analyzer.get_model_for_task(
+            "research", assessment, "normal"
+        )
+        forecast_model = self.analyzer.get_model_for_task(
+            "forecast", assessment, "normal"
+        )
 
         # In normal budget, complex forecasts can use GPT-4o but research uses mini
         assert research_model == "openai/gpt-4o-mini"
@@ -124,19 +142,25 @@ class TestTaskComplexityAnalyzer:
             score=8.0,
             factors={},
             recommended_model="openai/gpt-4o",
-            reasoning="Complex task"
+            reasoning="Complex task",
         )
 
         # Normal budget allows premium model
-        normal_model = self.analyzer.get_model_for_task("forecast", assessment, "normal")
+        normal_model = self.analyzer.get_model_for_task(
+            "forecast", assessment, "normal"
+        )
         assert normal_model == "openai/gpt-4o"
 
         # Conservative budget downgrades to cheaper model
-        conservative_model = self.analyzer.get_model_for_task("forecast", assessment, "conservative")
+        conservative_model = self.analyzer.get_model_for_task(
+            "forecast", assessment, "conservative"
+        )
         assert conservative_model == "openai/gpt-4o-mini"
 
         # Emergency budget always uses cheapest model
-        emergency_model = self.analyzer.get_model_for_task("forecast", assessment, "emergency")
+        emergency_model = self.analyzer.get_model_for_task(
+            "forecast", assessment, "emergency"
+        )
         assert emergency_model == "openai/gpt-4o-mini"
 
     def test_complexity_indicators(self):
@@ -161,7 +185,9 @@ class TestTaskComplexityAnalyzer:
     def test_length_based_complexity(self):
         """Test how text length affects complexity assessment."""
         short_text = "Will X happen?"
-        long_text = "Will X happen? " + "This is additional context. " * 100  # Very long text
+        long_text = (
+            "Will X happen? " + "This is additional context. " * 100
+        )  # Very long text
 
         short_assessment = self.analyzer.assess_question_complexity(short_text)
         long_assessment = self.analyzer.assess_question_complexity(long_text)

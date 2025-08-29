@@ -2,14 +2,16 @@
 Tests for ForecastingStageService with GPT-5 and calibration.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from src.domain.services.forecasting_stage_service import (
+    CalibrationMetrics,
     ForecastingStageService,
     ForecastResult,
-    CalibrationMetrics,
-    UncertaintyQuantification
+    UncertaintyQuantification,
 )
 
 
@@ -35,7 +37,9 @@ class TestForecastingStageService:
         return ForecastingStageService(mock_tri_model_router)
 
     @pytest.mark.asyncio
-    async def test_binary_forecast_generation(self, forecasting_service, mock_tri_model_router):
+    async def test_binary_forecast_generation(
+        self, forecasting_service, mock_tri_model_router
+    ):
         """Test binary forecast generation with calibration."""
 
         # Mock GPT-5 response
@@ -67,8 +71,8 @@ class TestForecastingStageService:
             context={
                 "background_info": "Background context",
                 "resolution_criteria": "Resolves YES if...",
-                "fine_print": "Additional details"
-            }
+                "fine_print": "Additional details",
+            },
         )
 
         # Verify result structure
@@ -84,14 +88,19 @@ class TestForecastingStageService:
 
         # Verify calibration analysis
         assert result.calibration_score > 0.5  # Should detect good calibration
-        assert not result.overconfidence_detected  # 35% with uncertainty is well-calibrated
+        assert (
+            not result.overconfidence_detected
+        )  # 35% with uncertainty is well-calibrated
 
         # Verify uncertainty quantification
         assert result.uncertainty_bounds is not None
         assert "lower_bound" in result.uncertainty_bounds
         assert "upper_bound" in result.uncertainty_bounds
+
     @pytest.mark.asyncio
-    async def test_multiple_choice_forecast(self, forecasting_service, mock_tri_model_router):
+    async def test_multiple_choice_forecast(
+        self, forecasting_service, mock_tri_model_router
+    ):
         """Test multiple choice forecast generation."""
 
         mock_response = """
@@ -125,8 +134,8 @@ class TestForecastingStageService:
                 "options": ["Option A", "Option B", "Option C", "Option D"],
                 "background_info": "Context",
                 "resolution_criteria": "Criteria",
-                "fine_print": "Details"
-            }
+                "fine_print": "Details",
+            },
         )
 
         assert result.forecast_type == "multiple_choice"
@@ -180,8 +189,8 @@ class TestForecastingStageService:
                 "fine_print": "Details",
                 "unit_of_measure": "units",
                 "lower_bound": 0,
-                "upper_bound": 1000
-            }
+                "upper_bound": 1000,
+            },
         )
 
         assert result.forecast_type == "numeric"
@@ -193,7 +202,9 @@ class TestForecastingStageService:
         assert result.prediction[90] == 420
 
     @pytest.mark.asyncio
-    async def test_overconfidence_detection(self, forecasting_service, mock_tri_model_router):
+    async def test_overconfidence_detection(
+        self, forecasting_service, mock_tri_model_router
+    ):
         """Test overconfidence detection in forecasts."""
 
         # Mock overconfident response
@@ -209,7 +220,7 @@ class TestForecastingStageService:
             question="Will X happen?",
             question_type="binary",
             research_data="Limited research...",
-            context={}
+            context={},
         )
 
         # Should detect overconfidence
@@ -226,7 +237,7 @@ class TestForecastingStageService:
             "confidence": 0.6,
             "reasoning": "Well-reasoned analysis with multiple factors considered",
             "uncertainty_factors": ["Factor 1", "Factor 2", "Factor 3"],
-            "base_rate_mentioned": True
+            "base_rate_mentioned": True,
         }
 
         raw_response = """
@@ -242,7 +253,9 @@ class TestForecastingStageService:
 
         assert isinstance(calibration, CalibrationMetrics)
         assert calibration.base_rate_consideration > 0.5
-        assert calibration.scenario_analysis_score > 0.3  # Adjusted for actual implementation
+        assert (
+            calibration.scenario_analysis_score > 0.3
+        )  # Adjusted for actual implementation
         assert calibration.uncertainty_acknowledgment > 0.5
         assert calibration.final_calibration_score > 0.6
 
@@ -253,7 +266,7 @@ class TestForecastingStageService:
         parsed_forecast = {
             "prediction": 0.6,
             "confidence": 0.7,
-            "uncertainty_factors": ["Gap 1", "Gap 2"]
+            "uncertainty_factors": ["Gap 1", "Gap 2"],
         }
 
         raw_response = """

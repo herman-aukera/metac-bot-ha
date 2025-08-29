@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from ..value_objects.reasoning_trace import ReasoningTrace
@@ -11,6 +11,7 @@ from ..value_objects.reasoning_trace import ReasoningTrace
 
 class PredictionConfidence(Enum):
     """Confidence levels for predictions."""
+
     VERY_LOW = "very_low"
     LOW = "low"
     MEDIUM = "medium"
@@ -20,6 +21,7 @@ class PredictionConfidence(Enum):
 
 class PredictionMethod(Enum):
     """Methods used to generate predictions."""
+
     CHAIN_OF_THOUGHT = "chain_of_thought"
     TREE_OF_THOUGHT = "tree_of_thought"
     REACT = "react"
@@ -31,6 +33,7 @@ class PredictionMethod(Enum):
 @dataclass
 class PredictionResult:
     """Represents the actual prediction value(s)."""
+
     binary_probability: Optional[float] = None
     numeric_value: Optional[float] = None
     numeric_distribution: Optional[Dict[str, float]] = None
@@ -45,6 +48,7 @@ class Prediction:
     Contains the prediction value, confidence, reasoning,
     and metadata about how the prediction was generated.
     """
+
     id: UUID
     question_id: UUID
     research_report_id: UUID
@@ -112,7 +116,7 @@ class Prediction:
         method: PredictionMethod,
         reasoning: str,
         created_by: str,
-        **kwargs
+        **kwargs,
     ) -> "Prediction":
         """Generic factory method for predictions."""
         return cls(
@@ -144,7 +148,7 @@ class Prediction:
         method: PredictionMethod,
         reasoning: str,
         created_by: str,
-        **kwargs
+        **kwargs,
     ) -> "Prediction":
         """Factory method for binary predictions."""
         if not 0 <= probability <= 1:
@@ -181,7 +185,7 @@ class Prediction:
         method: PredictionMethod,
         reasoning: str,
         created_by: str,
-        **kwargs
+        **kwargs,
     ) -> "Prediction":
         """Factory method for numeric predictions."""
         result = PredictionResult(numeric_value=value)
@@ -215,7 +219,7 @@ class Prediction:
         method: PredictionMethod,
         reasoning: str,
         created_by: str,
-        **kwargs
+        **kwargs,
     ) -> "Prediction":
         """Factory method for multiple choice predictions."""
         # Validate probabilities sum to 1
@@ -260,7 +264,9 @@ class Prediction:
         """Add bias check result."""
         self.bias_checks_performed.append(f"{bias_type}: {check_result}")
 
-    def set_uncertainty_quantification(self, uncertainty_data: Dict[str, float]) -> None:
+    def set_uncertainty_quantification(
+        self, uncertainty_data: Dict[str, float]
+    ) -> None:
         """Set uncertainty quantification data."""
         self.uncertainty_quantification = uncertainty_data
 
@@ -296,9 +302,9 @@ class Prediction:
     def has_sufficient_reasoning_documentation(self) -> bool:
         """Check if prediction has sufficient reasoning documentation."""
         return (
-            self.reasoning_trace is not None and
-            len(self.reasoning_steps) > 0 and
-            len(self.reasoning) > 50  # Minimum reasoning length
+            self.reasoning_trace is not None
+            and len(self.reasoning_steps) > 0
+            and len(self.reasoning) > 50  # Minimum reasoning length
         )
 
     def get_uncertainty_summary(self) -> Dict[str, Any]:
@@ -306,8 +312,14 @@ class Prediction:
         summary = {
             "has_confidence_interval": self.confidence_interval is not None,
             "has_bounds": self.lower_bound is not None and self.upper_bound is not None,
-            "uncertainty_sources": len(self.uncertainty_quantification) if self.uncertainty_quantification else 0,
-            "bias_checks_count": len(self.bias_checks_performed) if self.bias_checks_performed else 0
+            "uncertainty_sources": (
+                len(self.uncertainty_quantification)
+                if self.uncertainty_quantification
+                else 0
+            ),
+            "bias_checks_count": (
+                len(self.bias_checks_performed) if self.bias_checks_performed else 0
+            ),
         }
 
         if self.uncertainty_quantification:
@@ -351,7 +363,9 @@ class Prediction:
 
         # Evidence quality bonus
         if self.evidence_quality_scores:
-            avg_quality = sum(self.evidence_quality_scores.values()) / len(self.evidence_quality_scores)
+            avg_quality = sum(self.evidence_quality_scores.values()) / len(
+                self.evidence_quality_scores
+            )
             base_score += avg_quality * 0.2
 
         return min(1.0, base_score)

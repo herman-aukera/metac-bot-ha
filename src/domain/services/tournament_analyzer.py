@@ -1,23 +1,27 @@
 """Tournament analyzer service for dynamics analysis and competitive intelligence."""
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from uuid import UUID
 import statistics
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
 
-from ..entities.question import Question
 from ..entities.forecast import Forecast
+from ..entities.question import Question
 from ..value_objects.tournament_strategy import (
-    QuestionCategory, TournamentPhase, RiskProfile, TournamentStrategy,
-    CompetitiveIntelligence
+    CompetitiveIntelligence,
+    QuestionCategory,
+    RiskProfile,
+    TournamentPhase,
+    TournamentStrategy,
 )
 
 
 @dataclass
 class TournamentPattern:
     """Detected pattern in tournament dynamics."""
+
     pattern_type: str
     description: str
     confidence: float
@@ -30,6 +34,7 @@ class TournamentPattern:
 @dataclass
 class MarketInefficiency:
     """Detected market inefficiency for competitive advantage."""
+
     inefficiency_type: str
     category: QuestionCategory
     severity: float
@@ -43,6 +48,7 @@ class MarketInefficiency:
 @dataclass
 class CompetitivePosition:
     """Current competitive position analysis."""
+
     overall_rank: Optional[int]
     category_rankings: Dict[QuestionCategory, int]
     performance_trends: Dict[str, float]
@@ -73,7 +79,7 @@ class TournamentAnalyzer:
         tournament_id: str,
         questions: List[Question],
         forecasts: List[Forecast],
-        historical_data: Optional[Dict[str, Any]] = None
+        historical_data: Optional[Dict[str, Any]] = None,
     ) -> List[TournamentPattern]:
         """
         Detect patterns in tournament dynamics and meta-game analysis.
@@ -103,7 +109,9 @@ class TournamentAnalyzer:
 
         # Analyze competitive behavior patterns
         if historical_data:
-            patterns.extend(self._analyze_competitive_patterns(historical_data, forecasts))
+            patterns.extend(
+                self._analyze_competitive_patterns(historical_data, forecasts)
+            )
 
         # Cache results
         self._pattern_cache[tournament_id] = patterns
@@ -115,7 +123,7 @@ class TournamentAnalyzer:
         tournament_id: str,
         questions: List[Question],
         market_data: Optional[Dict[str, Any]] = None,
-        competitor_forecasts: Optional[List[Forecast]] = None
+        competitor_forecasts: Optional[List[Forecast]] = None,
     ) -> List[MarketInefficiency]:
         """
         Detect market inefficiencies for competitive advantage.
@@ -133,20 +141,28 @@ class TournamentAnalyzer:
 
         # Analyze prediction variance inefficiencies
         if market_data:
-            inefficiencies.extend(self._detect_variance_inefficiencies(questions, market_data))
+            inefficiencies.extend(
+                self._detect_variance_inefficiencies(questions, market_data)
+            )
 
         # Analyze category specialization gaps
-        inefficiencies.extend(self._detect_specialization_gaps(questions, competitor_forecasts))
+        inefficiencies.extend(
+            self._detect_specialization_gaps(questions, competitor_forecasts)
+        )
 
         # Analyze timing inefficiencies
-        inefficiencies.extend(self._detect_timing_inefficiencies(questions, competitor_forecasts))
+        inefficiencies.extend(
+            self._detect_timing_inefficiencies(questions, competitor_forecasts)
+        )
 
         # Analyze complexity-based inefficiencies
         inefficiencies.extend(self._detect_complexity_inefficiencies(questions))
 
         # Analyze consensus inefficiencies
         if competitor_forecasts:
-            inefficiencies.extend(self._detect_consensus_inefficiencies(questions, competitor_forecasts))
+            inefficiencies.extend(
+                self._detect_consensus_inefficiencies(questions, competitor_forecasts)
+            )
 
         # Cache results
         self._inefficiency_cache[tournament_id] = inefficiencies
@@ -159,7 +175,7 @@ class TournamentAnalyzer:
         our_forecasts: List[Forecast],
         questions: List[Question],
         tournament_standings: Optional[Dict[str, float]] = None,
-        competitor_data: Optional[Dict[str, Any]] = None
+        competitor_data: Optional[Dict[str, Any]] = None,
     ) -> CompetitivePosition:
         """
         Analyze current competitive position in tournament.
@@ -178,7 +194,9 @@ class TournamentAnalyzer:
         overall_rank = None
         if tournament_standings:
             our_score = tournament_standings.get("our_bot", 0.0)
-            better_scores = sum(1 for score in tournament_standings.values() if score > our_score)
+            better_scores = sum(
+                1 for score in tournament_standings.values() if score > our_score
+            )
             overall_rank = better_scores + 1
 
         # Calculate category rankings
@@ -187,7 +205,9 @@ class TournamentAnalyzer:
         )
 
         # Calculate performance trends
-        performance_trends = self._calculate_performance_trends(our_forecasts, questions)
+        performance_trends = self._calculate_performance_trends(
+            our_forecasts, questions
+        )
 
         # Perform SWOT analysis
         strengths, weaknesses, opportunities, threats = self._perform_swot_analysis(
@@ -207,7 +227,7 @@ class TournamentAnalyzer:
             weaknesses=weaknesses,
             opportunities=opportunities,
             threats=threats,
-            recommended_actions=recommended_actions
+            recommended_actions=recommended_actions,
         )
 
     def optimize_tournament_scoring(
@@ -215,7 +235,7 @@ class TournamentAnalyzer:
         tournament_id: str,
         questions: List[Question],
         current_strategy: TournamentStrategy,
-        performance_data: Optional[Dict[str, Any]] = None
+        performance_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Optimize tournament-specific scoring strategies.
@@ -234,11 +254,13 @@ class TournamentAnalyzer:
             "resource_reallocation": {},
             "timing_optimizations": {},
             "category_focus_changes": {},
-            "risk_profile_adjustments": {}
+            "risk_profile_adjustments": {},
         }
 
         # Analyze current scoring efficiency
-        scoring_efficiency = self._analyze_scoring_efficiency(questions, current_strategy, performance_data)
+        scoring_efficiency = self._analyze_scoring_efficiency(
+            questions, current_strategy, performance_data
+        )
 
         # Optimize confidence thresholds
         optimizations["confidence_adjustments"] = self._optimize_confidence_thresholds(
@@ -268,9 +290,7 @@ class TournamentAnalyzer:
         return optimizations
 
     def update_competitive_intelligence(
-        self,
-        tournament_id: str,
-        new_data: Dict[str, Any]
+        self, tournament_id: str, new_data: Dict[str, Any]
     ) -> CompetitiveIntelligence:
         """
         Update competitive intelligence with new tournament data.
@@ -283,8 +303,7 @@ class TournamentAnalyzer:
             Updated competitive intelligence
         """
         current_intelligence = self._competitive_intelligence_cache.get(
-            tournament_id,
-            CompetitiveIntelligence.create_empty(tournament_id)
+            tournament_id, CompetitiveIntelligence.create_empty(tournament_id)
         )
 
         # Update standings
@@ -296,7 +315,7 @@ class TournamentAnalyzer:
                 competitor_patterns=current_intelligence.competitor_patterns,
                 scoring_trends=current_intelligence.scoring_trends,
                 question_difficulty_distribution=current_intelligence.question_difficulty_distribution,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
         # Update market inefficiencies
@@ -310,7 +329,7 @@ class TournamentAnalyzer:
                 competitor_patterns=current_intelligence.competitor_patterns,
                 scoring_trends=current_intelligence.scoring_trends,
                 question_difficulty_distribution=current_intelligence.question_difficulty_distribution,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
         # Update competitor patterns
@@ -324,7 +343,7 @@ class TournamentAnalyzer:
                 competitor_patterns=patterns,
                 scoring_trends=current_intelligence.scoring_trends,
                 question_difficulty_distribution=current_intelligence.question_difficulty_distribution,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
         # Cache updated intelligence
@@ -332,7 +351,9 @@ class TournamentAnalyzer:
 
         return current_intelligence
 
-    def _analyze_question_distribution_patterns(self, questions: List[Question]) -> List[TournamentPattern]:
+    def _analyze_question_distribution_patterns(
+        self, questions: List[Question]
+    ) -> List[TournamentPattern]:
         """Analyze patterns in question distribution."""
         patterns = []
 
@@ -348,19 +369,29 @@ class TournamentAnalyzer:
             for category, count in category_counts.items():
                 proportion = count / total_questions
                 if proportion > 0.3:  # High concentration
-                    patterns.append(TournamentPattern(
-                        pattern_type="category_concentration",
-                        description=f"High concentration of {category.value} questions ({proportion:.1%})",
-                        confidence=0.8,
-                        impact_score=proportion,
-                        categories_affected=[category],
-                        time_period=(datetime.utcnow() - timedelta(days=30), datetime.utcnow()),
-                        supporting_evidence={"proportion": proportion, "count": count}
-                    ))
+                    patterns.append(
+                        TournamentPattern(
+                            pattern_type="category_concentration",
+                            description=f"High concentration of {category.value} questions ({proportion:.1%})",
+                            confidence=0.8,
+                            impact_score=proportion,
+                            categories_affected=[category],
+                            time_period=(
+                                datetime.utcnow() - timedelta(days=30),
+                                datetime.utcnow(),
+                            ),
+                            supporting_evidence={
+                                "proportion": proportion,
+                                "count": count,
+                            },
+                        )
+                    )
 
         return patterns
 
-    def _analyze_scoring_patterns(self, forecasts: List[Forecast], questions: List[Question]) -> List[TournamentPattern]:
+    def _analyze_scoring_patterns(
+        self, forecasts: List[Forecast], questions: List[Question]
+    ) -> List[TournamentPattern]:
         """Analyze patterns in scoring and forecast performance."""
         patterns = []
 
@@ -371,7 +402,9 @@ class TournamentAnalyzer:
         category_accuracy = defaultdict(list)
         for forecast in forecasts:
             if forecast.accuracy_score is not None:
-                question = next((q for q in questions if q.id == forecast.question_id), None)
+                question = next(
+                    (q for q in questions if q.id == forecast.question_id), None
+                )
                 if question:
                     category = question.categorize_question()
                     category_accuracy[category].append(forecast.accuracy_score)
@@ -381,29 +414,47 @@ class TournamentAnalyzer:
             if len(scores) >= 3:  # Minimum sample size
                 avg_accuracy = statistics.mean(scores)
                 if avg_accuracy > 0.7:  # High performance
-                    patterns.append(TournamentPattern(
-                        pattern_type="high_category_performance",
-                        description=f"Strong performance in {category.value} questions (avg: {avg_accuracy:.2f})",
-                        confidence=0.7,
-                        impact_score=avg_accuracy,
-                        categories_affected=[category],
-                        time_period=(datetime.utcnow() - timedelta(days=30), datetime.utcnow()),
-                        supporting_evidence={"average_accuracy": avg_accuracy, "sample_size": len(scores)}
-                    ))
+                    patterns.append(
+                        TournamentPattern(
+                            pattern_type="high_category_performance",
+                            description=f"Strong performance in {category.value} questions (avg: {avg_accuracy:.2f})",
+                            confidence=0.7,
+                            impact_score=avg_accuracy,
+                            categories_affected=[category],
+                            time_period=(
+                                datetime.utcnow() - timedelta(days=30),
+                                datetime.utcnow(),
+                            ),
+                            supporting_evidence={
+                                "average_accuracy": avg_accuracy,
+                                "sample_size": len(scores),
+                            },
+                        )
+                    )
                 elif avg_accuracy < 0.4:  # Poor performance
-                    patterns.append(TournamentPattern(
-                        pattern_type="low_category_performance",
-                        description=f"Weak performance in {category.value} questions (avg: {avg_accuracy:.2f})",
-                        confidence=0.7,
-                        impact_score=1.0 - avg_accuracy,
-                        categories_affected=[category],
-                        time_period=(datetime.utcnow() - timedelta(days=30), datetime.utcnow()),
-                        supporting_evidence={"average_accuracy": avg_accuracy, "sample_size": len(scores)}
-                    ))
+                    patterns.append(
+                        TournamentPattern(
+                            pattern_type="low_category_performance",
+                            description=f"Weak performance in {category.value} questions (avg: {avg_accuracy:.2f})",
+                            confidence=0.7,
+                            impact_score=1.0 - avg_accuracy,
+                            categories_affected=[category],
+                            time_period=(
+                                datetime.utcnow() - timedelta(days=30),
+                                datetime.utcnow(),
+                            ),
+                            supporting_evidence={
+                                "average_accuracy": avg_accuracy,
+                                "sample_size": len(scores),
+                            },
+                        )
+                    )
 
         return patterns
 
-    def _analyze_temporal_patterns(self, questions: List[Question], forecasts: List[Forecast]) -> List[TournamentPattern]:
+    def _analyze_temporal_patterns(
+        self, questions: List[Question], forecasts: List[Forecast]
+    ) -> List[TournamentPattern]:
         """Analyze temporal patterns in tournament dynamics."""
         patterns = []
 
@@ -411,27 +462,40 @@ class TournamentAnalyzer:
         if forecasts:
             submission_times = []
             for forecast in forecasts:
-                question = next((q for q in questions if q.id == forecast.question_id), None)
+                question = next(
+                    (q for q in questions if q.id == forecast.question_id), None
+                )
                 if question and question.close_time:
-                    time_to_close = (question.close_time - forecast.created_at).total_seconds() / 3600  # hours
+                    time_to_close = (
+                        question.close_time - forecast.created_at
+                    ).total_seconds() / 3600  # hours
                     submission_times.append(time_to_close)
 
             if submission_times:
                 avg_time_to_close = statistics.mean(submission_times)
                 if avg_time_to_close < 24:  # Last-minute submissions
-                    patterns.append(TournamentPattern(
-                        pattern_type="late_submission_pattern",
-                        description=f"Tendency for late submissions (avg: {avg_time_to_close:.1f} hours before close)",
-                        confidence=0.6,
-                        impact_score=0.3,
-                        categories_affected=[],
-                        time_period=(datetime.utcnow() - timedelta(days=30), datetime.utcnow()),
-                        supporting_evidence={"average_hours_before_close": avg_time_to_close}
-                    ))
+                    patterns.append(
+                        TournamentPattern(
+                            pattern_type="late_submission_pattern",
+                            description=f"Tendency for late submissions (avg: {avg_time_to_close:.1f} hours before close)",
+                            confidence=0.6,
+                            impact_score=0.3,
+                            categories_affected=[],
+                            time_period=(
+                                datetime.utcnow() - timedelta(days=30),
+                                datetime.utcnow(),
+                            ),
+                            supporting_evidence={
+                                "average_hours_before_close": avg_time_to_close
+                            },
+                        )
+                    )
 
         return patterns
 
-    def _analyze_category_patterns(self, questions: List[Question], forecasts: List[Forecast]) -> List[TournamentPattern]:
+    def _analyze_category_patterns(
+        self, questions: List[Question], forecasts: List[Forecast]
+    ) -> List[TournamentPattern]:
         """Analyze category-specific patterns."""
         patterns = []
 
@@ -446,41 +510,65 @@ class TournamentAnalyzer:
             if len(difficulties) >= 3:
                 avg_difficulty = statistics.mean(difficulties)
                 if avg_difficulty > 0.7:
-                    patterns.append(TournamentPattern(
-                        pattern_type="high_category_difficulty",
-                        description=f"{category.value} questions are particularly difficult (avg: {avg_difficulty:.2f})",
-                        confidence=0.7,
-                        impact_score=avg_difficulty,
-                        categories_affected=[category],
-                        time_period=(datetime.utcnow() - timedelta(days=30), datetime.utcnow()),
-                        supporting_evidence={"average_difficulty": avg_difficulty, "sample_size": len(difficulties)}
-                    ))
+                    patterns.append(
+                        TournamentPattern(
+                            pattern_type="high_category_difficulty",
+                            description=f"{category.value} questions are particularly difficult (avg: {avg_difficulty:.2f})",
+                            confidence=0.7,
+                            impact_score=avg_difficulty,
+                            categories_affected=[category],
+                            time_period=(
+                                datetime.utcnow() - timedelta(days=30),
+                                datetime.utcnow(),
+                            ),
+                            supporting_evidence={
+                                "average_difficulty": avg_difficulty,
+                                "sample_size": len(difficulties),
+                            },
+                        )
+                    )
 
         return patterns
 
-    def _analyze_competitive_patterns(self, historical_data: Dict[str, Any], forecasts: List[Forecast]) -> List[TournamentPattern]:
+    def _analyze_competitive_patterns(
+        self, historical_data: Dict[str, Any], forecasts: List[Forecast]
+    ) -> List[TournamentPattern]:
         """Analyze competitive behavior patterns."""
         patterns = []
 
         # Analyze consensus patterns
         if "consensus_data" in historical_data:
             consensus_data = historical_data["consensus_data"]
-            high_consensus_questions = [q for q, data in consensus_data.items() if data.get("variance", 1.0) < 0.1]
+            high_consensus_questions = [
+                q
+                for q, data in consensus_data.items()
+                if data.get("variance", 1.0) < 0.1
+            ]
 
             if len(high_consensus_questions) > len(consensus_data) * 0.3:
-                patterns.append(TournamentPattern(
-                    pattern_type="high_consensus_environment",
-                    description="Tournament shows high consensus on many questions",
-                    confidence=0.6,
-                    impact_score=0.4,
-                    categories_affected=[],
-                    time_period=(datetime.utcnow() - timedelta(days=30), datetime.utcnow()),
-                    supporting_evidence={"high_consensus_proportion": len(high_consensus_questions) / len(consensus_data)}
-                ))
+                patterns.append(
+                    TournamentPattern(
+                        pattern_type="high_consensus_environment",
+                        description="Tournament shows high consensus on many questions",
+                        confidence=0.6,
+                        impact_score=0.4,
+                        categories_affected=[],
+                        time_period=(
+                            datetime.utcnow() - timedelta(days=30),
+                            datetime.utcnow(),
+                        ),
+                        supporting_evidence={
+                            "high_consensus_proportion": len(high_consensus_questions)
+                            / len(consensus_data)
+                        },
+                    )
+                )
 
         return patterns
 
-    def _detect_variance_inefficiencies(self, questions: List[Question], market_data: Dict[str, Any]) -> List[MarketInefficiency]:
+    def _detect_variance_inefficiencies(
+        self, questions: List[Question], market_data: Dict[str, Any]
+    ) -> List[MarketInefficiency]:
         """Detect inefficiencies based on prediction variance."""
         inefficiencies = []
 
@@ -489,20 +577,24 @@ class TournamentAnalyzer:
             if question_data and "variance" in question_data:
                 variance = question_data["variance"]
                 if variance > 0.3:  # High variance indicates inefficiency
-                    inefficiencies.append(MarketInefficiency(
-                        inefficiency_type="high_variance",
-                        category=question.categorize_question(),
-                        severity=min(1.0, variance),
-                        opportunity_score=min(0.8, variance * 2),
-                        description=f"High prediction variance ({variance:.2f}) indicates market uncertainty",
-                        questions_affected=[question.id],
-                        detection_time=datetime.utcnow(),
-                        exploitation_strategy="confident_contrarian"
-                    ))
+                    inefficiencies.append(
+                        MarketInefficiency(
+                            inefficiency_type="high_variance",
+                            category=question.categorize_question(),
+                            severity=min(1.0, variance),
+                            opportunity_score=min(0.8, variance * 2),
+                            description=f"High prediction variance ({variance:.2f}) indicates market uncertainty",
+                            questions_affected=[question.id],
+                            detection_time=datetime.utcnow(),
+                            exploitation_strategy="confident_contrarian",
+                        )
+                    )
 
         return inefficiencies
 
-    def _detect_specialization_gaps(self, questions: List[Question], competitor_forecasts: Optional[List[Forecast]]) -> List[MarketInefficiency]:
+    def _detect_specialization_gaps(
+        self, questions: List[Question], competitor_forecasts: Optional[List[Forecast]]
+    ) -> List[MarketInefficiency]:
         """Detect gaps in category specialization."""
         inefficiencies = []
 
@@ -513,31 +605,41 @@ class TournamentAnalyzer:
         competitor_category_performance = defaultdict(list)
         for forecast in competitor_forecasts:
             if forecast.accuracy_score is not None:
-                question = next((q for q in questions if q.id == forecast.question_id), None)
+                question = next(
+                    (q for q in questions if q.id == forecast.question_id), None
+                )
                 if question:
                     category = question.categorize_question()
-                    competitor_category_performance[category].append(forecast.accuracy_score)
+                    competitor_category_performance[category].append(
+                        forecast.accuracy_score
+                    )
 
         # Identify underperforming categories
         for category, scores in competitor_category_performance.items():
             if len(scores) >= 3:
                 avg_performance = statistics.mean(scores)
                 if avg_performance < 0.5:  # Poor competitor performance
-                    category_questions = [q.id for q in questions if q.categorize_question() == category]
-                    inefficiencies.append(MarketInefficiency(
-                        inefficiency_type="specialization_gap",
-                        category=category,
-                        severity=1.0 - avg_performance,
-                        opportunity_score=min(0.9, (1.0 - avg_performance) * 1.5),
-                        description=f"Competitors underperforming in {category.value} (avg: {avg_performance:.2f})",
-                        questions_affected=category_questions,
-                        detection_time=datetime.utcnow(),
-                        exploitation_strategy="category_specialization"
-                    ))
+                    category_questions = [
+                        q.id for q in questions if q.categorize_question() == category
+                    ]
+                    inefficiencies.append(
+                        MarketInefficiency(
+                            inefficiency_type="specialization_gap",
+                            category=category,
+                            severity=1.0 - avg_performance,
+                            opportunity_score=min(0.9, (1.0 - avg_performance) * 1.5),
+                            description=f"Competitors underperforming in {category.value} (avg: {avg_performance:.2f})",
+                            questions_affected=category_questions,
+                            detection_time=datetime.utcnow(),
+                            exploitation_strategy="category_specialization",
+                        )
+                    )
 
         return inefficiencies
 
-    def _detect_timing_inefficiencies(self, questions: List[Question], competitor_forecasts: Optional[List[Forecast]]) -> List[MarketInefficiency]:
+    def _detect_timing_inefficiencies(
+        self, questions: List[Question], competitor_forecasts: Optional[List[Forecast]]
+    ) -> List[MarketInefficiency]:
         """Detect timing-based inefficiencies."""
         inefficiencies = []
 
@@ -547,27 +649,35 @@ class TournamentAnalyzer:
         # Analyze submission timing patterns
         late_submissions = []
         for forecast in competitor_forecasts:
-            question = next((q for q in questions if q.id == forecast.question_id), None)
+            question = next(
+                (q for q in questions if q.id == forecast.question_id), None
+            )
             if question and question.close_time:
-                hours_before_close = (question.close_time - forecast.created_at).total_seconds() / 3600
+                hours_before_close = (
+                    question.close_time - forecast.created_at
+                ).total_seconds() / 3600
                 if hours_before_close < 6:  # Very late submission
                     late_submissions.append(question.id)
 
         if len(late_submissions) > len(competitor_forecasts) * 0.3:
-            inefficiencies.append(MarketInefficiency(
-                inefficiency_type="timing_inefficiency",
-                category=QuestionCategory.OTHER,
-                severity=0.6,
-                opportunity_score=0.4,
-                description="Many competitors making last-minute submissions",
-                questions_affected=late_submissions,
-                detection_time=datetime.utcnow(),
-                exploitation_strategy="early_research_advantage"
-            ))
+            inefficiencies.append(
+                MarketInefficiency(
+                    inefficiency_type="timing_inefficiency",
+                    category=QuestionCategory.OTHER,
+                    severity=0.6,
+                    opportunity_score=0.4,
+                    description="Many competitors making last-minute submissions",
+                    questions_affected=late_submissions,
+                    detection_time=datetime.utcnow(),
+                    exploitation_strategy="early_research_advantage",
+                )
+            )
 
         return inefficiencies
 
-    def _detect_complexity_inefficiencies(self, questions: List[Question]) -> List[MarketInefficiency]:
+    def _detect_complexity_inefficiencies(
+        self, questions: List[Question]
+    ) -> List[MarketInefficiency]:
         """Detect inefficiencies based on question complexity."""
         inefficiencies = []
 
@@ -578,20 +688,24 @@ class TournamentAnalyzer:
                 high_complexity_questions.append(question.id)
 
         if high_complexity_questions:
-            inefficiencies.append(MarketInefficiency(
-                inefficiency_type="complexity_avoidance",
-                category=QuestionCategory.OTHER,
-                severity=0.7,
-                opportunity_score=0.6,
-                description=f"{len(high_complexity_questions)} high-complexity questions may be underresearched",
-                questions_affected=high_complexity_questions,
-                detection_time=datetime.utcnow(),
-                exploitation_strategy="deep_research_advantage"
-            ))
+            inefficiencies.append(
+                MarketInefficiency(
+                    inefficiency_type="complexity_avoidance",
+                    category=QuestionCategory.OTHER,
+                    severity=0.7,
+                    opportunity_score=0.6,
+                    description=f"{len(high_complexity_questions)} high-complexity questions may be underresearched",
+                    questions_affected=high_complexity_questions,
+                    detection_time=datetime.utcnow(),
+                    exploitation_strategy="deep_research_advantage",
+                )
+            )
 
         return inefficiencies
 
-    def _detect_consensus_inefficiencies(self, questions: List[Question], competitor_forecasts: List[Forecast]) -> List[MarketInefficiency]:
+    def _detect_consensus_inefficiencies(
+        self, questions: List[Question], competitor_forecasts: List[Forecast]
+    ) -> List[MarketInefficiency]:
         """Detect consensus-based inefficiencies."""
         inefficiencies = []
 
@@ -603,22 +717,30 @@ class TournamentAnalyzer:
         # Analyze consensus strength
         for question_id, forecasts in question_forecasts.items():
             if len(forecasts) >= 3:
-                predictions = [f.prediction.probability for f in forecasts if hasattr(f.prediction, 'probability')]
+                predictions = [
+                    f.prediction.probability
+                    for f in forecasts
+                    if hasattr(f.prediction, "probability")
+                ]
                 if len(predictions) >= 3:
                     variance = statistics.variance(predictions)
                     if variance < 0.05:  # Very low variance = strong consensus
-                        question = next((q for q in questions if q.id == question_id), None)
+                        question = next(
+                            (q for q in questions if q.id == question_id), None
+                        )
                         if question:
-                            inefficiencies.append(MarketInefficiency(
-                                inefficiency_type="consensus_trap",
-                                category=question.categorize_question(),
-                                severity=0.5,
-                                opportunity_score=0.3,
-                                description=f"Strong consensus (variance: {variance:.3f}) may indicate groupthink",
-                                questions_affected=[question_id],
-                                detection_time=datetime.utcnow(),
-                                exploitation_strategy="contrarian_analysis"
-                            ))
+                            inefficiencies.append(
+                                MarketInefficiency(
+                                    inefficiency_type="consensus_trap",
+                                    category=question.categorize_question(),
+                                    severity=0.5,
+                                    opportunity_score=0.3,
+                                    description=f"Strong consensus (variance: {variance:.3f}) may indicate groupthink",
+                                    questions_affected=[question_id],
+                                    detection_time=datetime.utcnow(),
+                                    exploitation_strategy="contrarian_analysis",
+                                )
+                            )
 
         return inefficiencies
 
@@ -626,7 +748,7 @@ class TournamentAnalyzer:
         self,
         our_forecasts: List[Forecast],
         questions: List[Question],
-        competitor_data: Optional[Dict[str, Any]]
+        competitor_data: Optional[Dict[str, Any]],
     ) -> Dict[QuestionCategory, int]:
         """Calculate our ranking in each category."""
         rankings = {}
@@ -635,7 +757,9 @@ class TournamentAnalyzer:
         our_category_performance = defaultdict(list)
         for forecast in our_forecasts:
             if forecast.accuracy_score is not None:
-                question = next((q for q in questions if q.id == forecast.question_id), None)
+                question = next(
+                    (q for q in questions if q.id == forecast.question_id), None
+                )
                 if question:
                     category = question.categorize_question()
                     our_category_performance[category].append(forecast.accuracy_score)
@@ -650,14 +774,18 @@ class TournamentAnalyzer:
                     competitor_avgs = competitor_performance.get(category.value, [])
 
                     if competitor_avgs:
-                        better_performers = sum(1 for avg in competitor_avgs if avg > our_avg)
+                        better_performers = sum(
+                            1 for avg in competitor_avgs if avg > our_avg
+                        )
                         rankings[category] = better_performers + 1
                     else:
                         rankings[category] = 1  # No competition data
 
         return rankings
 
-    def _calculate_performance_trends(self, our_forecasts: List[Forecast], questions: List[Question]) -> Dict[str, float]:
+    def _calculate_performance_trends(
+        self, our_forecasts: List[Forecast], questions: List[Question]
+    ) -> Dict[str, float]:
         """Calculate performance trends over time."""
         trends = {}
 
@@ -672,14 +800,20 @@ class TournamentAnalyzer:
         early_forecasts = sorted_forecasts[:mid_point]
         recent_forecasts = sorted_forecasts[mid_point:]
 
-        early_scores = [f.accuracy_score for f in early_forecasts if f.accuracy_score is not None]
-        recent_scores = [f.accuracy_score for f in recent_forecasts if f.accuracy_score is not None]
+        early_scores = [
+            f.accuracy_score for f in early_forecasts if f.accuracy_score is not None
+        ]
+        recent_scores = [
+            f.accuracy_score for f in recent_forecasts if f.accuracy_score is not None
+        ]
 
         if early_scores and recent_scores:
             early_avg = statistics.mean(early_scores)
             recent_avg = statistics.mean(recent_scores)
             trends["accuracy_trend"] = recent_avg - early_avg
-            trends["improvement_rate"] = (recent_avg - early_avg) / early_avg if early_avg > 0 else 0.0
+            trends["improvement_rate"] = (
+                (recent_avg - early_avg) / early_avg if early_avg > 0 else 0.0
+            )
 
         return trends
 
@@ -688,7 +822,7 @@ class TournamentAnalyzer:
         our_forecasts: List[Forecast],
         questions: List[Question],
         tournament_standings: Optional[Dict[str, float]],
-        competitor_data: Optional[Dict[str, Any]]
+        competitor_data: Optional[Dict[str, Any]],
     ) -> Tuple[List[str], List[str], List[str], List[str]]:
         """Perform SWOT analysis for competitive positioning."""
         strengths = []
@@ -700,7 +834,9 @@ class TournamentAnalyzer:
         category_performance = defaultdict(list)
         for forecast in our_forecasts:
             if forecast.accuracy_score is not None:
-                question = next((q for q in questions if q.id == forecast.question_id), None)
+                question = next(
+                    (q for q in questions if q.id == forecast.question_id), None
+                )
                 if question:
                     category = question.categorize_question()
                     category_performance[category].append(forecast.accuracy_score)
@@ -709,7 +845,9 @@ class TournamentAnalyzer:
             if scores:
                 avg_score = statistics.mean(scores)
                 if avg_score > 0.7:
-                    strengths.append(f"Strong performance in {category.value} questions")
+                    strengths.append(
+                        f"Strong performance in {category.value} questions"
+                    )
                 elif avg_score < 0.4:
                     weaknesses.append(f"Weak performance in {category.value} questions")
 
@@ -732,28 +870,38 @@ class TournamentAnalyzer:
         weaknesses: List[str],
         opportunities: List[str],
         threats: List[str],
-        category_rankings: Dict[QuestionCategory, int]
+        category_rankings: Dict[QuestionCategory, int],
     ) -> List[str]:
         """Generate strategic recommendations based on analysis."""
         recommendations = []
 
         # Leverage strengths
-        strong_categories = [cat for cat, rank in category_rankings.items() if rank <= 3]
+        strong_categories = [
+            cat for cat, rank in category_rankings.items() if rank <= 3
+        ]
         if strong_categories:
-            recommendations.append(f"Focus resources on strong categories: {', '.join(cat.value for cat in strong_categories)}")
+            recommendations.append(
+                f"Focus resources on strong categories: {', '.join(cat.value for cat in strong_categories)}"
+            )
 
         # Address weaknesses
         weak_categories = [cat for cat, rank in category_rankings.items() if rank > 5]
         if weak_categories:
-            recommendations.append(f"Improve performance in weak categories: {', '.join(cat.value for cat in weak_categories)}")
+            recommendations.append(
+                f"Improve performance in weak categories: {', '.join(cat.value for cat in weak_categories)}"
+            )
 
         # Exploit opportunities
         if "Untapped questions" in str(opportunities):
-            recommendations.append("Increase forecasting coverage to capture more scoring opportunities")
+            recommendations.append(
+                "Increase forecasting coverage to capture more scoring opportunities"
+            )
 
         # Mitigate threats
         if "Not in top 3" in str(threats):
-            recommendations.append("Implement aggressive strategy to improve tournament ranking")
+            recommendations.append(
+                "Implement aggressive strategy to improve tournament ranking"
+            )
 
         return recommendations
 
@@ -761,16 +909,20 @@ class TournamentAnalyzer:
         self,
         questions: List[Question],
         current_strategy: TournamentStrategy,
-        performance_data: Optional[Dict[str, Any]]
+        performance_data: Optional[Dict[str, Any]],
     ) -> Dict[str, float]:
         """Analyze current scoring efficiency."""
         efficiency = {}
 
         # Calculate category efficiency
         for category in QuestionCategory:
-            category_questions = [q for q in questions if q.categorize_question() == category]
+            category_questions = [
+                q for q in questions if q.categorize_question() == category
+            ]
             if category_questions:
-                specialization = current_strategy.category_specializations.get(category, 0.5)
+                specialization = current_strategy.category_specializations.get(
+                    category, 0.5
+                )
                 threshold = current_strategy.get_category_confidence_threshold(category)
 
                 # Simple efficiency metric
@@ -782,13 +934,15 @@ class TournamentAnalyzer:
         self,
         questions: List[Question],
         current_strategy: TournamentStrategy,
-        scoring_efficiency: Dict[str, float]
+        scoring_efficiency: Dict[str, float],
     ) -> Dict[str, float]:
         """Optimize confidence thresholds for better scoring."""
         optimizations = {}
 
         for category in QuestionCategory:
-            current_threshold = current_strategy.get_category_confidence_threshold(category)
+            current_threshold = current_strategy.get_category_confidence_threshold(
+                category
+            )
             efficiency = scoring_efficiency.get(category.value, 0.5)
 
             if efficiency < 0.3:  # Low efficiency
@@ -804,7 +958,7 @@ class TournamentAnalyzer:
         self,
         questions: List[Question],
         current_strategy: TournamentStrategy,
-        scoring_efficiency: Dict[str, float]
+        scoring_efficiency: Dict[str, float],
     ) -> Dict[str, float]:
         """Optimize resource allocation across categories."""
         optimizations = {}
@@ -835,9 +989,7 @@ class TournamentAnalyzer:
         return optimizations
 
     def _optimize_submission_timing(
-        self,
-        questions: List[Question],
-        current_strategy: TournamentStrategy
+        self, questions: List[Question], current_strategy: TournamentStrategy
     ) -> Dict[str, Any]:
         """Optimize submission timing strategy."""
         optimizations = {}
@@ -847,7 +999,9 @@ class TournamentAnalyzer:
         medium_term_questions = [q for q in questions if 3 < q.days_until_close() <= 14]
         long_term_questions = [q for q in questions if q.days_until_close() > 14]
 
-        optimizations["urgent_priority"] = len(urgent_questions) / len(questions) if questions else 0
+        optimizations["urgent_priority"] = (
+            len(urgent_questions) / len(questions) if questions else 0
+        )
         optimizations["medium_term_allocation"] = 0.6 if medium_term_questions else 0.3
         optimizations["long_term_allocation"] = 0.3 if long_term_questions else 0.1
 
@@ -863,7 +1017,7 @@ class TournamentAnalyzer:
         self,
         questions: List[Question],
         current_strategy: TournamentStrategy,
-        scoring_efficiency: Dict[str, float]
+        scoring_efficiency: Dict[str, float],
     ) -> Dict[str, float]:
         """Optimize category focus based on tournament composition."""
         optimizations = {}
@@ -878,7 +1032,9 @@ class TournamentAnalyzer:
 
         for category, count in category_distribution.items():
             proportion = count / total_questions if total_questions > 0 else 0
-            current_specialization = current_strategy.category_specializations.get(category, 0.5)
+            current_specialization = current_strategy.category_specializations.get(
+                category, 0.5
+            )
             efficiency = scoring_efficiency.get(category.value, 0.5)
 
             # Increase focus on high-proportion, high-efficiency categories
@@ -894,7 +1050,7 @@ class TournamentAnalyzer:
         self,
         questions: List[Question],
         current_strategy: TournamentStrategy,
-        performance_data: Optional[Dict[str, Any]]
+        performance_data: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Optimize risk profile based on tournament position."""
         optimizations = {}
@@ -905,10 +1061,14 @@ class TournamentAnalyzer:
 
             if progress > 0.8:  # Late tournament
                 optimizations["recommended_profile"] = RiskProfile.AGGRESSIVE.value
-                optimizations["rationale"] = "Late tournament phase - take calculated risks"
+                optimizations["rationale"] = (
+                    "Late tournament phase - take calculated risks"
+                )
             elif progress < 0.3:  # Early tournament
                 optimizations["recommended_profile"] = RiskProfile.CONSERVATIVE.value
-                optimizations["rationale"] = "Early tournament phase - build solid foundation"
+                optimizations["rationale"] = (
+                    "Early tournament phase - build solid foundation"
+                )
             else:  # Mid tournament
                 optimizations["recommended_profile"] = RiskProfile.MODERATE.value
                 optimizations["rationale"] = "Mid tournament phase - balanced approach"

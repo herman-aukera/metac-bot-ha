@@ -3,16 +3,25 @@ Unit tests for enhanced tri-model router components.
 Tests model configuration, content analysis, and routing logic.
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
+import pytest
+
+from src.infrastructure.config.budget_aware_operation_manager import (
+    BudgetThreshold,
+    EmergencyProtocol,
+    OperationModeTransitionLog,
+)
+
 # Import actual classes that exist
 from src.infrastructure.config.tri_model_router import (
-    ModelConfig, ModelStatus, ContentAnalysis, TaskType, ComplexityLevel, ModelTier
-)
-from src.infrastructure.config.budget_aware_operation_manager import (
-    EmergencyProtocol, BudgetThreshold, OperationModeTransitionLog
+    ComplexityLevel,
+    ContentAnalysis,
+    ModelConfig,
+    ModelStatus,
+    ModelTier,
+    TaskType,
 )
 
 
@@ -28,7 +37,7 @@ class TestModelConfiguration:
             temperature=0.7,
             timeout=30,
             allowed_tries=3,
-            description="GPT-5 for complex analysis"
+            description="GPT-5 for complex analysis",
         )
 
         assert config.model_name == "openai/gpt-5"
@@ -46,7 +55,7 @@ class TestModelConfiguration:
             temperature=0.7,
             timeout=60,
             allowed_tries=3,
-            description="GPT-5 for maximum reasoning capability"
+            description="GPT-5 for maximum reasoning capability",
         )
 
         # GPT-5 Mini
@@ -57,7 +66,7 @@ class TestModelConfiguration:
             temperature=0.7,
             timeout=30,
             allowed_tries=3,
-            description="GPT-5 Mini for balanced performance"
+            description="GPT-5 Mini for balanced performance",
         )
 
         # GPT-5 Nano
@@ -68,12 +77,17 @@ class TestModelConfiguration:
             temperature=0.7,
             timeout=15,
             allowed_tries=3,
-            description="GPT-5 Nano for speed optimization"
+            description="GPT-5 Nano for speed optimization",
         )
 
         # Verify pricing hierarchy
-        assert gpt5_config.cost_per_million_input > gpt5_mini_config.cost_per_million_input
-        assert gpt5_mini_config.cost_per_million_input > gpt5_nano_config.cost_per_million_input
+        assert (
+            gpt5_config.cost_per_million_input > gpt5_mini_config.cost_per_million_input
+        )
+        assert (
+            gpt5_mini_config.cost_per_million_input
+            > gpt5_nano_config.cost_per_million_input
+        )
 
     def test_free_model_configuration(self):
         """Test free model fallback configuration."""
@@ -84,7 +98,7 @@ class TestModelConfiguration:
             temperature=0.7,
             timeout=45,
             allowed_tries=2,
-            description="Free model for budget exhaustion"
+            description="Free model for budget exhaustion",
         )
 
         assert free_model_config.cost_per_million_input == 0.0
@@ -102,7 +116,7 @@ class TestModelStatus:
             model_name="openai/gpt-5",
             is_available=True,
             last_check=datetime.now().timestamp(),
-            response_time=1.2
+            response_time=1.2,
         )
 
         assert status.tier == "full"
@@ -118,7 +132,7 @@ class TestModelStatus:
             is_available=False,
             last_check=datetime.now().timestamp(),
             error_message="Rate limit exceeded",
-            response_time=None
+            response_time=None,
         )
 
         assert failed_status.is_available is False
@@ -139,7 +153,7 @@ class TestContentAnalysis:
             urgency=0.3,
             estimated_tokens=100,
             word_count=10,
-            complexity_indicators=["simple"]
+            complexity_indicators=["simple"],
         )
 
         assert simple_analysis.complexity_score < 0.5
@@ -154,7 +168,7 @@ class TestContentAnalysis:
             urgency=0.8,
             estimated_tokens=1000,
             word_count=100,
-            complexity_indicators=["analyze", "technical", "complex"]
+            complexity_indicators=["analyze", "technical", "complex"],
         )
 
         assert complex_analysis.complexity_score > 0.7
@@ -167,7 +181,10 @@ class TestContentAnalysis:
             ("What is 2+2?", 0.1),  # Very simple
             ("Summarize this article", 0.1),  # Simple
             ("Analyze market trends", 0.2),  # Medium - adjusted for actual algorithm
-            ("Predict geopolitical implications of AI regulation", 0.4)  # Complex - adjusted for actual algorithm
+            (
+                "Predict geopolitical implications of AI regulation",
+                0.4,
+            ),  # Complex - adjusted for actual algorithm
         ]
 
         for content, expected_min_complexity in test_cases:
@@ -178,8 +195,14 @@ class TestContentAnalysis:
         """Helper method to analyze content complexity."""
         # Simple complexity scoring based on content
         complexity_indicators = [
-            "analyze", "predict", "implications", "geopolitical",
-            "comprehensive", "detailed", "complex", "multifaceted"
+            "analyze",
+            "predict",
+            "implications",
+            "geopolitical",
+            "comprehensive",
+            "detailed",
+            "complex",
+            "multifaceted",
         ]
 
         content_lower = content.lower()
@@ -206,7 +229,11 @@ class TestContentAnalysis:
             urgency=0.5,
             estimated_tokens=len(content.split()) * 1.3,  # Rough token estimate
             word_count=len(content.split()),
-            complexity_indicators=[indicator for indicator in complexity_indicators if indicator in content_lower]
+            complexity_indicators=[
+                indicator
+                for indicator in complexity_indicators
+                if indicator in content_lower
+            ],
         )
 
 
@@ -236,9 +263,13 @@ class TestTaskTypeClassification:
         content_lower = content.lower()
         if any(word in content_lower for word in ["verify", "validate", "check"]):
             return "validation"
-        elif any(word in content_lower for word in ["research", "analyze", "investigate"]):
+        elif any(
+            word in content_lower for word in ["research", "analyze", "investigate"]
+        ):
             return "research"
-        elif any(word in content_lower for word in ["predict", "forecast", "probability"]):
+        elif any(
+            word in content_lower for word in ["predict", "forecast", "probability"]
+        ):
             return "forecast"
         else:
             return "simple"
@@ -251,7 +282,13 @@ class TestBudgetAwareComponents:
         """Test emergency protocol level definitions."""
         # Test all protocol levels exist
         protocols = list(EmergencyProtocol)
-        expected_protocols = ["NONE", "BUDGET_WARNING", "BUDGET_CRITICAL", "SYSTEM_FAILURE", "MANUAL_OVERRIDE"]
+        expected_protocols = [
+            "NONE",
+            "BUDGET_WARNING",
+            "BUDGET_CRITICAL",
+            "SYSTEM_FAILURE",
+            "MANUAL_OVERRIDE",
+        ]
 
         for expected in expected_protocols:
             assert any(p.name == expected for p in protocols)
@@ -266,7 +303,7 @@ class TestBudgetAwareComponents:
             operation_mode=OperationMode.CONSERVATIVE,
             emergency_protocol=EmergencyProtocol.BUDGET_WARNING,
             description="Conservative operation mode threshold",
-            actions=["reduce_model_costs", "prefer_mini_models"]
+            actions=["reduce_model_costs", "prefer_mini_models"],
         )
 
         assert threshold.percentage == 0.70
@@ -287,7 +324,7 @@ class TestBudgetAwareComponents:
             threshold_crossed="70% utilization",
             emergency_protocol=EmergencyProtocol.BUDGET_WARNING,
             performance_impact={"accuracy_change": -0.05},
-            cost_savings_estimate=15.0
+            cost_savings_estimate=15.0,
         )
 
         assert transition_log.from_mode == OperationMode.NORMAL
@@ -305,7 +342,7 @@ class TestModelSelectionLogic:
         tier_mappings = {
             "nano": ["openai/gpt-5-nano"],
             "mini": ["openai/gpt-5-mini"],
-            "full": ["openai/gpt-5"]
+            "full": ["openai/gpt-5"],
         }
 
         for tier, models in tier_mappings.items():
@@ -316,15 +353,13 @@ class TestModelSelectionLogic:
         """Test cost-based routing decisions."""
         # High budget - allow premium models
         high_budget_selection = self._select_model_by_budget(
-            budget_utilization=0.3,
-            task_complexity=0.8
+            budget_utilization=0.3, task_complexity=0.8
         )
         assert "gpt-5" in high_budget_selection
 
         # Low budget - prefer cheaper models
         low_budget_selection = self._select_model_by_budget(
-            budget_utilization=0.9,
-            task_complexity=0.8
+            budget_utilization=0.9, task_complexity=0.8
         )
         assert "free" in low_budget_selection or "nano" in low_budget_selection
 
@@ -337,7 +372,9 @@ class TestModelSelectionLogic:
         else:
             return "full"
 
-    def _select_model_by_budget(self, budget_utilization: float, task_complexity: float) -> str:
+    def _select_model_by_budget(
+        self, budget_utilization: float, task_complexity: float
+    ) -> str:
         """Helper method for budget-based model selection."""
         if budget_utilization > 0.85:
             # Emergency mode - use free models

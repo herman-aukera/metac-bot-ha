@@ -3,13 +3,13 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Dict, Any, Generator
+from typing import Any, Dict, Generator
 from unittest.mock import patch
 
 import pytest
 import yaml
 
-from src.infrastructure.config.settings import Settings, AggregationMethod
+from src.infrastructure.config.settings import AggregationMethod, Settings
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "pool_size": 5,
             "max_overflow": 10,
             "pool_timeout": 30,
-            "pool_recycle": 3600
+            "pool_recycle": 3600,
         },
         "llm": {
             "provider": "openai",
@@ -40,7 +40,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "timeout": 60,
             "max_retries": 3,
             "structured_output": True,
-            "parallel_requests": 5
+            "parallel_requests": 5,
         },
         "search": {
             "sources": ["duckduckgo", "wikipedia"],
@@ -48,7 +48,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "timeout": 30,
             "cache_ttl": 3600,
             "deduplicate": True,
-            "language": "en"
+            "language": "en",
         },
         "metaculus": {
             "api_key": "test-metaculus-key",
@@ -57,7 +57,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "max_retries": 3,
             "submit_predictions": False,
             "dry_run": True,
-            "rate_limit_per_minute": 60
+            "rate_limit_per_minute": 60,
         },
         "agent": {
             "max_iterations": 5,
@@ -65,7 +65,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "confidence_threshold": 0.7,
             "use_memory": True,
             "memory_size": 100,
-            "debug_mode": True
+            "debug_mode": True,
         },
         "ensemble": {
             "aggregation_method": "weighted_average",
@@ -73,7 +73,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "max_agents": 5,
             "confidence_weights": True,
             "diversity_bonus": 0.1,
-            "timeout": 600
+            "timeout": 600,
         },
         "pipeline": {
             "parallel_execution": True,
@@ -82,7 +82,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "circuit_breaker_threshold": 5,
             "circuit_breaker_timeout": 300,
             "cache_enabled": True,
-            "cache_ttl": 1800
+            "cache_ttl": 1800,
         },
         "bot": {
             "name": "MetaculusBot-Test",
@@ -92,7 +92,7 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "research_depth": "medium",
             "uncertainty_quantification": True,
             "explanation_required": True,
-            "min_confidence": 0.6
+            "min_confidence": 0.6,
         },
         "logging": {
             "level": "DEBUG",
@@ -102,14 +102,14 @@ def test_config_yaml(temp_dir: Path) -> Path:
             "file_max_size": "10MB",
             "file_backup_count": 3,
             "console_enabled": True,
-            "structured_enabled": True
-        }
+            "structured_enabled": True,
+        },
     }
-    
+
     config_file = temp_dir / "test_config.yaml"
     with open(config_file, "w") as f:
         yaml.dump(config_data, f)
-    
+
     return config_file
 
 
@@ -129,9 +129,9 @@ def test_env_vars() -> Generator[Dict[str, str], None, None]:
         "AGENT_MAX_ITERATIONS": "5",
         "ENSEMBLE_AGGREGATION_METHOD": "weighted_average",
         "PIPELINE_PARALLEL_EXECUTION": "true",
-        "BOT_NAME": "MetaculusBot-Test"
+        "BOT_NAME": "MetaculusBot-Test",
     }
-    
+
     with patch.dict(os.environ, env_vars):
         yield env_vars
 
@@ -158,7 +158,7 @@ def sample_question_data() -> Dict[str, Any]:
         "tags": ["artificial-intelligence", "agi", "technology"],
         "current_prediction": 0.35,
         "prediction_count": 1000,
-        "comment_count": 150
+        "comment_count": 150,
     }
 
 
@@ -172,10 +172,10 @@ def sample_forecast_data() -> Dict[str, Any]:
         "reasoning": "Based on current AI progress and expert opinions...",
         "sources": [
             "https://example.com/ai-progress-report",
-            "https://example.com/expert-survey"
+            "https://example.com/expert-survey",
         ],
         "method": "chain_of_thought",
-        "created_at": "2025-05-26T10:00:00Z"
+        "created_at": "2025-05-26T10:00:00Z",
     }
 
 
@@ -189,21 +189,21 @@ def sample_research_data() -> Dict[str, Any]:
                 "url": "https://example.com/ai-report",
                 "title": "AI Progress Report 2025",
                 "content": "Recent advances in AI have shown significant progress...",
-                "relevance_score": 0.9
+                "relevance_score": 0.9,
             },
             {
                 "url": "https://example.com/expert-opinion",
                 "title": "Expert Opinion on AGI Timeline",
                 "content": "Experts believe that AGI could be achieved within...",
-                "relevance_score": 0.8
-            }
+                "relevance_score": 0.8,
+            },
         ],
         "summary": "Current AI research suggests moderate progress toward AGI...",
         "key_insights": [
             "Large language models showing emergent capabilities",
             "Robotics integration improving rapidly",
-            "Compute requirements still significant"
-        ]
+            "Compute requirements still significant",
+        ],
     }
 
 
@@ -220,16 +220,12 @@ def mock_openai_response():
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": "Based on my analysis, I estimate a 42% probability that AGI will be achieved by 2030."
+                    "content": "Based on my analysis, I estimate a 42% probability that AGI will be achieved by 2030.",
                 },
-                "finish_reason": "stop"
+                "finish_reason": "stop",
             }
         ],
-        "usage": {
-            "prompt_tokens": 150,
-            "completion_tokens": 50,
-            "total_tokens": 200
-        }
+        "usage": {"prompt_tokens": 150, "completion_tokens": 50, "total_tokens": 200},
     }
 
 
@@ -246,13 +242,9 @@ def mock_metaculus_response():
         "resolve_time": "2030-12-31T23:59:59Z",
         "categories": ["AI", "Technology"],
         "tags": ["artificial-intelligence", "agi", "technology"],
-        "community_prediction": {
-            "median": 0.35,
-            "mean": 0.38,
-            "count": 1000
-        },
+        "community_prediction": {"median": 0.35, "mean": 0.38, "count": 1000},
         "my_predictions": [],
-        "status": "open"
+        "status": "open",
     }
 
 
@@ -264,59 +256,60 @@ def mock_search_results():
             "title": "AI Progress Report 2025",
             "url": "https://example.com/ai-report",
             "snippet": "Recent advances in AI have shown significant progress toward general intelligence...",
-            "source": "duckduckgo"
+            "source": "duckduckgo",
         },
         {
             "title": "Expert Survey on AGI Timeline",
             "url": "https://example.com/expert-survey",
             "snippet": "Survey of AI researchers indicates mixed opinions on AGI timeline...",
-            "source": "duckduckgo"
+            "source": "duckduckgo",
         },
         {
             "title": "Artificial General Intelligence",
             "url": "https://en.wikipedia.org/wiki/Artificial_general_intelligence",
             "snippet": "Artificial general intelligence (AGI) is the intelligence of a machine that can understand...",
-            "source": "wikipedia"
-        }
+            "source": "wikipedia",
+        },
     ]
 
 
 @pytest.fixture
 def mock_llm_client():
     """Mock LLM client."""
-    from unittest.mock import Mock, AsyncMock
+    from unittest.mock import AsyncMock, Mock
+
     client = Mock()
-    
+
     # Mock generate method
     client.generate = AsyncMock(return_value="Mocked LLM response")
     client.generate_response = AsyncMock(return_value="Mocked LLM response")
-    
+
     # Mock chat_completion method to return JSON responses for different calls
     async def chat_completion_side_effect(*args, **kwargs):
         # Check the messages to determine what type of response to return
-        messages = kwargs.get('messages', [])
+        messages = kwargs.get("messages", [])
         if messages and len(messages) > 0:
-            content = messages[-1].get('content', '')
-            
+            content = messages[-1].get("content", "")
+
             # For question deconstruction
-            if 'deconstruct' in content.lower() or 'breakdown' in content.lower():
+            if "deconstruct" in content.lower() or "breakdown" in content.lower():
                 return '{"research_areas": ["AI progress metrics", "expert opinions", "funding trends"]}'
-            
+
             # For research analysis
-            elif 'analyze' in content.lower() or 'research' in content.lower():
+            elif "analyze" in content.lower() or "research" in content.lower():
                 return '{"executive_summary": "AI progress is steady", "detailed_analysis": "Detailed analysis", "key_factors": ["Compute power"], "base_rates": {"AGI by 2030": 0.3}, "confidence_level": 0.8, "reasoning_steps": ["Analyzed metrics"], "evidence_for": ["Rapid advancements"], "evidence_against": ["Complexity"], "uncertainties": ["Black swan events"]}'
-            
+
             # For prediction generation
-            elif 'probability' in content.lower() or 'prediction' in content.lower():
+            elif "probability" in content.lower() or "prediction" in content.lower():
                 return '{"probability": 0.42, "confidence": "high", "reasoning": "Based on analysis", "reasoning_steps": ["Synthesized findings"], "lower_bound": 0.30, "upper_bound": 0.55, "confidence_interval": 0.25}'
-            
+
             # For meta-reasoning
-            elif 'meta' in content.lower():
-                return 'PROBABILITY: 0.42\nCONFIDENCE: 0.8\nREASONING: Meta-analysis of agent predictions suggests moderate likelihood.'
-        
+            elif "meta" in content.lower():
+                return "PROBABILITY: 0.42\nCONFIDENCE: 0.8\nREASONING: Meta-analysis of agent predictions suggests moderate likelihood."
+
         # Default response
         return '{"result": "default response", "probability": 0.5, "confidence": 0.7}'
-    
+
     client.chat_completion = AsyncMock(side_effect=chat_completion_side_effect)
     return client
 
@@ -324,7 +317,8 @@ def mock_llm_client():
 @pytest.fixture
 def mock_search_client():
     """Mock search client."""
-    from unittest.mock import Mock, AsyncMock
+    from unittest.mock import AsyncMock, Mock
+
     client = Mock()
     client.search = AsyncMock()
     client.health_check = AsyncMock(return_value=True)

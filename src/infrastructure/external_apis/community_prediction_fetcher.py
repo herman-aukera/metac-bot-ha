@@ -1,11 +1,12 @@
 """Community prediction fetcher for anchoring strategies."""
 
+import asyncio
 import logging
 import statistics
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
 import httpx
-import asyncio
 
 from ...domain.services.tournament_calibration_service import CommunityPredictionData
 
@@ -19,7 +20,9 @@ class CommunityPredictionFetcher:
         self.cache = {}  # Simple cache for community data
         self.cache_duration = timedelta(hours=1)  # Cache for 1 hour
 
-    async def fetch_community_predictions(self, question_id: str) -> Optional[CommunityPredictionData]:
+    async def fetch_community_predictions(
+        self, question_id: str
+    ) -> Optional[CommunityPredictionData]:
         """Fetch community prediction data for a question."""
 
         # Check cache first
@@ -27,7 +30,9 @@ class CommunityPredictionFetcher:
         if cache_key in self.cache:
             cached_data, cached_time = self.cache[cache_key]
             if datetime.utcnow() - cached_time < self.cache_duration:
-                self.logger.debug(f"Using cached community data for question {question_id}")
+                self.logger.debug(
+                    f"Using cached community data for question {question_id}"
+                )
                 return cached_data
 
         try:
@@ -44,16 +49,20 @@ class CommunityPredictionFetcher:
                 self.logger.info(
                     f"Fetched community predictions for question {question_id}",
                     median=community_data.median_prediction,
-                    count=community_data.prediction_count
+                    count=community_data.prediction_count,
                 )
 
             return community_data
 
         except Exception as e:
-            self.logger.error(f"Error fetching community predictions for question {question_id}: {e}")
+            self.logger.error(
+                f"Error fetching community predictions for question {question_id}: {e}"
+            )
             return None
 
-    async def _fetch_from_metaculus_api(self, question_id: str) -> Optional[CommunityPredictionData]:
+    async def _fetch_from_metaculus_api(
+        self, question_id: str
+    ) -> Optional[CommunityPredictionData]:
         """Fetch community data using authenticated Metaculus API."""
 
         if not self.metaculus_client or not self.metaculus_client.session_token:
@@ -62,14 +71,14 @@ class CommunityPredictionFetcher:
         try:
             async with httpx.AsyncClient() as client:
                 headers = {
-                    'Authorization': f'Token {self.metaculus_client.session_token}',
-                    'Content-Type': 'application/json'
+                    "Authorization": f"Token {self.metaculus_client.session_token}",
+                    "Content-Type": "application/json",
                 }
 
                 # Fetch question details with community predictions
                 response = await client.get(
                     f"{self.metaculus_client.base_url}/questions/{question_id}/",
-                    headers=headers
+                    headers=headers,
                 )
 
                 if response.status_code == 200:
@@ -85,7 +94,9 @@ class CommunityPredictionFetcher:
             self.logger.error(f"Error in authenticated API fetch: {e}")
             return None
 
-    async def _fetch_from_public_api(self, question_id: str) -> Optional[CommunityPredictionData]:
+    async def _fetch_from_public_api(
+        self, question_id: str
+    ) -> Optional[CommunityPredictionData]:
         """Fetch community data using public Metaculus API."""
 
         try:
@@ -108,49 +119,57 @@ class CommunityPredictionFetcher:
             self.logger.error(f"Error in public API fetch: {e}")
             return None
 
-    def _parse_community_data(self, question_data: Dict) -> Optional[CommunityPredictionData]:
+    def _parse_community_data(
+        self, question_data: Dict
+    ) -> Optional[CommunityPredictionData]:
         """Parse community prediction data from Metaculus API response."""
 
         try:
             # Extract community prediction statistics
-            community_prediction = question_data.get('community_prediction')
+            community_prediction = question_data.get("community_prediction")
             if not community_prediction:
                 return None
 
             # Handle different question types
-            if question_data.get('type') == 'binary':
-                median_prediction = community_prediction.get('full', {}).get('q2')
-                mean_prediction = community_prediction.get('full', {}).get('mean')
+            if question_data.get("type") == "binary":
+                median_prediction = community_prediction.get("full", {}).get("q2")
+                mean_prediction = community_prediction.get("full", {}).get("mean")
 
                 # Get confidence interval
-                q1 = community_prediction.get('full', {}).get('q1')
-                q3 = community_prediction.get('full', {}).get('q3')
-                confidence_interval = (q1, q3) if q1 is not None and q3 is not None else None
+                q1 = community_prediction.get("full", {}).get("q1")
+                q3 = community_prediction.get("full", {}).get("q3")
+                confidence_interval = (
+                    (q1, q3) if q1 is not None and q3 is not None else None
+                )
 
-            elif question_data.get('type') == 'continuous':
+            elif question_data.get("type") == "continuous":
                 # For continuous questions, use the median and mean
-                median_prediction = community_prediction.get('full', {}).get('q2')
-                mean_prediction = community_prediction.get('full', {}).get('mean')
+                median_prediction = community_prediction.get("full", {}).get("q2")
+                mean_prediction = community_prediction.get("full", {}).get("mean")
 
-                q1 = community_prediction.get('full', {}).get('q1')
-                q3 = community_prediction.get('full', {}).get('q3')
-                confidence_interval = (q1, q3) if q1 is not None and q3 is not None else None
+                q1 = community_prediction.get("full", {}).get("q1")
+                q3 = community_prediction.get("full", {}).get("q3")
+                confidence_interval = (
+                    (q1, q3) if q1 is not None and q3 is not None else None
+                )
 
             else:
                 # For other types, try to extract what we can
-                median_prediction = community_prediction.get('full', {}).get('q2')
-                mean_prediction = community_prediction.get('full', {}).get('mean')
+                median_prediction = community_prediction.get("full", {}).get("q2")
+                mean_prediction = community_prediction.get("full", {}).get("mean")
                 confidence_interval = None
 
             # Get prediction count
-            prediction_count = question_data.get('number_of_predictions', 0)
+            prediction_count = question_data.get("number_of_predictions", 0)
 
             # Get last update time
-            last_activity = question_data.get('last_activity_time')
+            last_activity = question_data.get("last_activity_time")
             last_updated = None
             if last_activity:
                 try:
-                    last_updated = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                    last_updated = datetime.fromisoformat(
+                        last_activity.replace("Z", "+00:00")
+                    )
                 except:
                     pass
 
@@ -159,14 +178,16 @@ class CommunityPredictionFetcher:
                 mean_prediction=mean_prediction,
                 prediction_count=prediction_count,
                 confidence_interval=confidence_interval,
-                last_updated=last_updated
+                last_updated=last_updated,
             )
 
         except Exception as e:
             self.logger.error(f"Error parsing community data: {e}")
             return None
 
-    def get_cached_community_data(self, question_id: str) -> Optional[CommunityPredictionData]:
+    def get_cached_community_data(
+        self, question_id: str
+    ) -> Optional[CommunityPredictionData]:
         """Get cached community data if available and fresh."""
 
         cache_key = f"community_{question_id}"
@@ -197,12 +218,11 @@ class CommunityPredictionFetcher:
         return {
             "total_entries": len(self.cache),
             "fresh_entries": fresh_entries,
-            "stale_entries": stale_entries
+            "stale_entries": stale_entries,
         }
 
     async def fetch_multiple_community_predictions(
-        self,
-        question_ids: List[str]
+        self, question_ids: List[str]
     ) -> Dict[str, Optional[CommunityPredictionData]]:
         """Fetch community predictions for multiple questions concurrently."""
 
@@ -226,13 +246,11 @@ class CommunityPredictionFetcher:
         return community_data
 
     def estimate_community_prediction(
-        self,
-        question_type: str,
-        base_rate: Optional[float] = None
+        self, question_type: str, base_rate: Optional[float] = None
     ) -> Optional[CommunityPredictionData]:
         """Estimate community prediction when actual data is unavailable."""
 
-        if question_type == 'binary':
+        if question_type == "binary":
             # For binary questions, use base rate or default to 0.5
             estimated_median = base_rate if base_rate is not None else 0.5
 
@@ -240,9 +258,11 @@ class CommunityPredictionFetcher:
                 median_prediction=estimated_median,
                 mean_prediction=estimated_median,
                 prediction_count=0,  # Indicate this is estimated
-                confidence_interval=(max(0.1, estimated_median - 0.2),
-                                   min(0.9, estimated_median + 0.2)),
-                last_updated=datetime.utcnow()
+                confidence_interval=(
+                    max(0.1, estimated_median - 0.2),
+                    min(0.9, estimated_median + 0.2),
+                ),
+                last_updated=datetime.utcnow(),
             )
 
         return None

@@ -2,13 +2,14 @@
 
 import os
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
-from enum import Enum
 from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, Optional
 
 
 class TournamentMode(Enum):
     """Tournament operation modes."""
+
     DEVELOPMENT = "development"
     TOURNAMENT = "tournament"
     QUARTERLY_CUP = "quarterly_cup"
@@ -39,12 +40,12 @@ class TournamentConfig:
 
     # Tournament scope management - NEW
     tournament_start_date: Optional[str] = None  # ISO format: "2025-09-01"
-    tournament_end_date: Optional[str] = None    # ISO format: "2025-12-31"
-    expected_total_questions: int = 75           # 50-100 questions for entire tournament
+    tournament_end_date: Optional[str] = None  # ISO format: "2025-12-31"
+    expected_total_questions: int = 75  # 50-100 questions for entire tournament
     min_expected_questions: int = 50
     max_expected_questions: int = 100
-    questions_processed: int = 0                 # Track progress
-    sustainable_daily_rate: float = 1.0          # Questions per day on average
+    questions_processed: int = 0  # Track progress
+    sustainable_daily_rate: float = 1.0  # Questions per day on average
 
     # Compliance settings
     publish_reports: bool = True
@@ -68,7 +69,7 @@ class TournamentConfig:
                 "Technology",
                 "Economics",
                 "Politics",
-                "Science"
+                "Science",
             ]
 
     @classmethod
@@ -89,19 +90,32 @@ class TournamentConfig:
         return cls(
             tournament_id=int(os.getenv("AIB_TOURNAMENT_ID", "32813")),
             tournament_slug=os.getenv("TOURNAMENT_SLUG", "fall-aib-2025"),
-            tournament_name=os.getenv("TOURNAMENT_NAME", "Fall 2025 AI Forecasting Benchmark"),
+            tournament_name=os.getenv(
+                "TOURNAMENT_NAME", "Fall 2025 AI Forecasting Benchmark"
+            ),
             mode=mode,
             scheduling_interval_hours=int(os.getenv("SCHEDULING_FREQUENCY_HOURS", "4")),
-            deadline_aware_scheduling=os.getenv("DEADLINE_AWARE_SCHEDULING", "true").lower() == "true",
-            critical_period_frequency_hours=int(os.getenv("CRITICAL_PERIOD_FREQUENCY_HOURS", "2")),
+            deadline_aware_scheduling=os.getenv(
+                "DEADLINE_AWARE_SCHEDULING", "true"
+            ).lower()
+            == "true",
+            critical_period_frequency_hours=int(
+                os.getenv("CRITICAL_PERIOD_FREQUENCY_HOURS", "2")
+            ),
             final_24h_frequency_hours=int(os.getenv("FINAL_24H_FREQUENCY_HOURS", "1")),
             tournament_scope=os.getenv("TOURNAMENT_SCOPE", "seasonal"),
             max_concurrent_questions=int(os.getenv("TOURNAMENT_MAX_QUESTIONS", "5")),
-            max_research_reports_per_question=int(os.getenv("TOURNAMENT_MAX_RESEARCH_REPORTS", "1")),
-            max_predictions_per_report=int(os.getenv("TOURNAMENT_MAX_PREDICTIONS", "5")),
+            max_research_reports_per_question=int(
+                os.getenv("TOURNAMENT_MAX_RESEARCH_REPORTS", "1")
+            ),
+            max_predictions_per_report=int(
+                os.getenv("TOURNAMENT_MAX_PREDICTIONS", "5")
+            ),
             # Tournament scope management
-            tournament_start_date=os.getenv("TOURNAMENT_START_DATE"),  # e.g., "2025-09-01"
-            tournament_end_date=os.getenv("TOURNAMENT_END_DATE"),      # e.g., "2025-12-31"
+            tournament_start_date=os.getenv(
+                "TOURNAMENT_START_DATE"
+            ),  # e.g., "2025-09-01"
+            tournament_end_date=os.getenv("TOURNAMENT_END_DATE"),  # e.g., "2025-12-31"
             expected_total_questions=int(os.getenv("EXPECTED_TOTAL_QUESTIONS", "75")),
             min_expected_questions=int(os.getenv("MIN_EXPECTED_QUESTIONS", "50")),
             max_expected_questions=int(os.getenv("MAX_EXPECTED_QUESTIONS", "100")),
@@ -110,11 +124,20 @@ class TournamentConfig:
             # Other settings
             publish_reports=os.getenv("PUBLISH_REPORTS", "true").lower() == "true",
             dry_run=os.getenv("DRY_RUN", "false").lower() == "true",
-            skip_previously_forecasted=os.getenv("SKIP_PREVIOUSLY_FORECASTED", "true").lower() == "true",
-            enable_question_filtering=os.getenv("ENABLE_QUESTION_FILTERING", "true").lower() == "true",
-            min_confidence_threshold=float(os.getenv("MIN_CONFIDENCE_THRESHOLD", "0.6")),
-            enable_proxy_credits=os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true",
-            asknews_quota_limit=int(os.getenv("ASKNEWS_QUOTA_LIMIT", "9000"))
+            skip_previously_forecasted=os.getenv(
+                "SKIP_PREVIOUSLY_FORECASTED", "true"
+            ).lower()
+            == "true",
+            enable_question_filtering=os.getenv(
+                "ENABLE_QUESTION_FILTERING", "true"
+            ).lower()
+            == "true",
+            min_confidence_threshold=float(
+                os.getenv("MIN_CONFIDENCE_THRESHOLD", "0.6")
+            ),
+            enable_proxy_credits=os.getenv("ENABLE_PROXY_CREDITS", "true").lower()
+            == "true",
+            asknews_quota_limit=int(os.getenv("ASKNEWS_QUOTA_LIMIT", "9000")),
         )
 
     def is_tournament_mode(self) -> bool:
@@ -149,7 +172,9 @@ class TournamentConfig:
             # Normal period: standard frequency
             return self.scheduling_interval_hours
 
-    def should_run_now(self, hours_until_deadline: float, hours_since_last_run: float) -> bool:
+    def should_run_now(
+        self, hours_until_deadline: float, hours_since_last_run: float
+    ) -> bool:
         """Determine if the bot should run now based on deadline-aware scheduling."""
         required_frequency = self.get_deadline_aware_frequency(hours_until_deadline)
         return hours_since_last_run >= required_frequency
@@ -162,7 +187,7 @@ class TournamentConfig:
             "critical_period_frequency_hours": self.critical_period_frequency_hours,
             "final_24h_frequency_hours": self.final_24h_frequency_hours,
             "tournament_scope": self.tournament_scope,
-            "cron_schedule": self.get_cron_schedule()
+            "cron_schedule": self.get_cron_schedule(),
         }
 
     def should_filter_questions(self) -> bool:
@@ -179,8 +204,10 @@ class TournamentConfig:
         # Category-based scoring
         categories = question_data.get("categories", [])
         for category in categories:
-            if any(priority_cat.lower() in category.lower()
-                   for priority_cat in self.priority_categories):
+            if any(
+                priority_cat.lower() in category.lower()
+                for priority_cat in self.priority_categories
+            ):
                 score += 0.3
 
         # Recency scoring (newer questions get higher priority)
@@ -230,8 +257,12 @@ class TournamentConfig:
             duration_days = 120
 
         # Calculate progress
-        progress_percentage = (self.questions_processed / self.expected_total_questions) * 100
-        remaining_questions = max(0, self.expected_total_questions - self.questions_processed)
+        progress_percentage = (
+            self.questions_processed / self.expected_total_questions
+        ) * 100
+        remaining_questions = max(
+            0, self.expected_total_questions - self.questions_processed
+        )
 
         # Calculate sustainable rate
         if duration_days > 0:
@@ -247,10 +278,13 @@ class TournamentConfig:
             "progress_percentage": round(progress_percentage, 2),
             "sustainable_daily_rate": round(calculated_daily_rate, 2),
             "current_daily_rate": self.sustainable_daily_rate,
-            "is_on_track": self.questions_processed <= (self.expected_total_questions * 0.8)  # Allow 20% buffer
+            "is_on_track": self.questions_processed
+            <= (self.expected_total_questions * 0.8),  # Allow 20% buffer
         }
 
-    def calculate_sustainable_forecasting_rate(self, days_elapsed: int = 0) -> Dict[str, float]:
+    def calculate_sustainable_forecasting_rate(
+        self, days_elapsed: int = 0
+    ) -> Dict[str, float]:
         """Calculate sustainable forecasting rates based on tournament scope."""
         duration_days = self.get_tournament_duration_days() or 120  # Default 4 months
 
@@ -265,8 +299,12 @@ class TournamentConfig:
         # Adjust based on current progress if days_elapsed provided
         if days_elapsed > 0 and days_elapsed < duration_days:
             remaining_days = duration_days - days_elapsed
-            remaining_questions = max(0, total_questions_target - self.questions_processed)
-            adjusted_daily_rate = remaining_questions / remaining_days if remaining_days > 0 else 0
+            remaining_questions = max(
+                0, total_questions_target - self.questions_processed
+            )
+            adjusted_daily_rate = (
+                remaining_questions / remaining_days if remaining_days > 0 else 0
+            )
         else:
             adjusted_daily_rate = questions_per_day
 
@@ -276,7 +314,7 @@ class TournamentConfig:
             "questions_per_month": round(questions_per_month, 2),
             "adjusted_daily_rate": round(adjusted_daily_rate, 2),
             "total_target": total_questions_target,
-            "tournament_duration_days": duration_days
+            "tournament_duration_days": duration_days,
         }
 
     def should_throttle_forecasting(self, current_daily_rate: float) -> bool:
@@ -341,7 +379,7 @@ class TournamentConfig:
             "priority_categories": self.priority_categories,
             "min_confidence_threshold": self.min_confidence_threshold,
             "enable_proxy_credits": self.enable_proxy_credits,
-            "asknews_quota_limit": self.asknews_quota_limit
+            "asknews_quota_limit": self.asknews_quota_limit,
         }
 
 
@@ -358,20 +396,30 @@ class TournamentScopeManager:
 
         # Check scope setting
         if self.config.tournament_scope != "seasonal":
-            issues.append(f"Tournament scope is '{self.config.tournament_scope}', should be 'seasonal'")
+            issues.append(
+                f"Tournament scope is '{self.config.tournament_scope}', should be 'seasonal'"
+            )
             recommendations.append("Set TOURNAMENT_SCOPE=seasonal in environment")
 
         # Check question expectations
         sustainable_rates = self.config.calculate_sustainable_forecasting_rate()
         daily_rate = sustainable_rates["questions_per_day"]
 
-        if daily_rate > 5.0:  # More than 5 questions per day seems too high for seasonal
-            issues.append(f"Daily question rate of {daily_rate:.1f} seems too high for seasonal tournament")
-            recommendations.append("Reduce EXPECTED_TOTAL_QUESTIONS or increase tournament duration")
+        if (
+            daily_rate > 5.0
+        ):  # More than 5 questions per day seems too high for seasonal
+            issues.append(
+                f"Daily question rate of {daily_rate:.1f} seems too high for seasonal tournament"
+            )
+            recommendations.append(
+                "Reduce EXPECTED_TOTAL_QUESTIONS or increase tournament duration"
+            )
 
         # Check scheduling frequency
         if self.config.scheduling_interval_hours < 2:
-            issues.append(f"Scheduling interval of {self.config.scheduling_interval_hours}h is too frequent for seasonal scope")
+            issues.append(
+                f"Scheduling interval of {self.config.scheduling_interval_hours}h is too frequent for seasonal scope"
+            )
             recommendations.append("Increase SCHEDULING_FREQUENCY_HOURS to 4 or higher")
 
         return {
@@ -380,7 +428,7 @@ class TournamentScopeManager:
             "recommendations": recommendations,
             "current_scope": self.config.tournament_scope,
             "expected_daily_rate": daily_rate,
-            "scheduling_frequency": self.config.scheduling_interval_hours
+            "scheduling_frequency": self.config.scheduling_interval_hours,
         }
 
     def get_scope_summary(self) -> Dict[str, Any]:
@@ -395,18 +443,18 @@ class TournamentScopeManager:
                 "name": self.config.tournament_name,
                 "scope": self.config.tournament_scope,
                 "start_date": self.config.tournament_start_date,
-                "end_date": self.config.tournament_end_date
+                "end_date": self.config.tournament_end_date,
             },
             "question_expectations": {
                 "total_expected": self.config.expected_total_questions,
                 "range": f"{self.config.min_expected_questions}-{self.config.max_expected_questions}",
                 "processed": self.config.questions_processed,
-                "remaining": progress["remaining_questions"]
+                "remaining": progress["remaining_questions"],
             },
             "sustainable_rates": rates,
             "progress": progress,
             "validation": validation,
-            "recommended_frequency": self.config.get_recommended_scheduling_frequency()
+            "recommended_frequency": self.config.get_recommended_scheduling_frequency(),
         }
 
 

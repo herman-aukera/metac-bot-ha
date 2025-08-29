@@ -1,12 +1,14 @@
 """
 Integration tests for task complexity analyzer with enhanced LLM configuration.
 """
-import pytest
+
 import os
 from unittest.mock import Mock, patch
 
+import pytest
+
 # Mock the API key manager to avoid requiring real API keys for tests
-with patch('src.infrastructure.config.api_keys.api_key_manager') as mock_api_manager:
+with patch("src.infrastructure.config.api_keys.api_key_manager") as mock_api_manager:
     mock_api_manager.get_api_key.return_value = "test-api-key"
     from src.infrastructure.config.enhanced_llm_config import EnhancedLLMConfig
     from src.infrastructure.config.task_complexity_analyzer import ComplexityLevel
@@ -18,7 +20,9 @@ class TestComplexityAnalyzerIntegration:
     def setup_method(self):
         """Set up test fixtures."""
         # Mock the API key manager for testing
-        with patch('src.infrastructure.config.api_keys.api_key_manager') as mock_api_manager:
+        with patch(
+            "src.infrastructure.config.api_keys.api_key_manager"
+        ) as mock_api_manager:
             mock_api_manager.get_api_key.return_value = "test-api-key"
             self.enhanced_config = EnhancedLLMConfig()
 
@@ -45,7 +49,11 @@ class TestComplexityAnalyzerIntegration:
 
         # Verify complexity assessment
         complexity = analysis["complexity_assessment"]
-        assert complexity.level in [ComplexityLevel.SIMPLE, ComplexityLevel.MEDIUM, ComplexityLevel.COMPLEX]
+        assert complexity.level in [
+            ComplexityLevel.SIMPLE,
+            ComplexityLevel.MEDIUM,
+            ComplexityLevel.COMPLEX,
+        ]
         assert complexity.score >= 0
         assert len(complexity.reasoning) > 10
 
@@ -63,7 +71,7 @@ class TestComplexityAnalyzerIntegration:
         # Simple question
         simple_assessment = self.enhanced_config.assess_question_complexity(
             "Will the next iPhone be released in September 2024?",
-            "Apple typically releases iPhones in September."
+            "Apple typically releases iPhones in September.",
         )
 
         simple_llm = self.enhanced_config.get_llm_for_task(
@@ -73,7 +81,7 @@ class TestComplexityAnalyzerIntegration:
         # Complex question
         complex_assessment = self.enhanced_config.assess_question_complexity(
             "Will there be a systemic global financial crisis involving multiple interdependent factors?",
-            "This involves complex economic relationships, geopolitical tensions, and uncertain market dynamics."
+            "This involves complex economic relationships, geopolitical tensions, and uncertain market dynamics.",
         )
 
         complex_llm = self.enhanced_config.get_llm_for_task(
@@ -82,8 +90,8 @@ class TestComplexityAnalyzerIntegration:
 
         # Verify different models are selected based on complexity
         # (In normal budget mode, complex questions should get better models)
-        assert hasattr(simple_llm, 'model')
-        assert hasattr(complex_llm, 'model')
+        assert hasattr(simple_llm, "model")
+        assert hasattr(complex_llm, "model")
 
         # Both should be valid model configurations
         assert simple_llm.model is not None
@@ -94,7 +102,7 @@ class TestComplexityAnalyzerIntegration:
         # Create a complex assessment
         complex_assessment = self.enhanced_config.assess_question_complexity(
             "Will there be multiple interconnected geopolitical crises affecting global markets?",
-            "This involves complex international dynamics and economic interdependencies."
+            "This involves complex international dynamics and economic interdependencies.",
         )
 
         # Test different budget scenarios
@@ -103,7 +111,7 @@ class TestComplexityAnalyzerIntegration:
             "forecast", complexity_assessment=complex_assessment
         )
 
-        assert hasattr(llm, 'model')
+        assert hasattr(llm, "model")
         assert llm.model is not None
 
     def test_cost_estimation_with_complexity(self):
@@ -112,7 +120,9 @@ class TestComplexityAnalyzerIntegration:
         prompt = f"Forecast this question: {question_text}"
 
         # Get complexity assessment
-        complexity_assessment = self.enhanced_config.assess_question_complexity(question_text)
+        complexity_assessment = self.enhanced_config.assess_question_complexity(
+            question_text
+        )
 
         # Estimate cost with complexity
         estimated_cost, details = self.enhanced_config.estimate_task_cost(
@@ -133,7 +143,9 @@ class TestComplexityAnalyzerIntegration:
         prompt = f"Research this question: {question_text}"
 
         # Get complexity assessment
-        complexity_assessment = self.enhanced_config.assess_question_complexity(question_text)
+        complexity_assessment = self.enhanced_config.assess_question_complexity(
+            question_text
+        )
 
         # Check affordability
         can_afford, details = self.enhanced_config.can_afford_task(
@@ -156,7 +168,7 @@ class TestComplexityAnalyzerIntegration:
 
         # Test old-style LLM selection
         llm = self.enhanced_config.get_llm_for_task("forecast", complexity_str)
-        assert hasattr(llm, 'model')
+        assert hasattr(llm, "model")
 
     def test_configuration_logging(self):
         """Test that configuration status can be logged without errors."""

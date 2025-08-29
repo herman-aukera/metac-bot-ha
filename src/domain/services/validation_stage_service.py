@@ -5,9 +5,9 @@ Implements task 4.2 requirements with evidence traceability and hallucination de
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ValidationResult:
     """Result from validation stage analysis."""
+
     is_valid: bool
     quality_score: float
     evidence_traceability_score: float
@@ -30,6 +31,7 @@ class ValidationResult:
 @dataclass
 class QualityIssue:
     """Represents a quality issue found during validation."""
+
     issue_type: str
     severity: str  # "low", "medium", "high", "critical"
     description: str
@@ -59,8 +61,12 @@ class ValidationStageService:
         self.evidence_threshold = 0.6
         self.consistency_threshold = 0.8
 
-    async def validate_content(self, content: str, task_type: str = "research_synthesis",
-                             context: Dict[str, Any] = None) -> ValidationResult:
+    async def validate_content(
+        self,
+        content: str,
+        task_type: str = "research_synthesis",
+        context: Dict[str, Any] = None,
+    ) -> ValidationResult:
         """
         Execute comprehensive validation using GPT-5-nano for quality assurance.
 
@@ -79,19 +85,29 @@ class ValidationStageService:
 
         try:
             # Step 1: Create validation prompts optimized for gpt-5-nano
-            validation_prompts = await self._create_validation_prompts(content, task_type, context)
+            validation_prompts = await self._create_validation_prompts(
+                content, task_type, context
+            )
 
             # Step 2: Execute evidence traceability verification
-            evidence_result = await self._verify_evidence_traceability(content, validation_prompts["evidence"])
+            evidence_result = await self._verify_evidence_traceability(
+                content, validation_prompts["evidence"]
+            )
 
             # Step 3: Execute hallucination detection
-            hallucination_result = await self._detect_hallucinations(content, validation_prompts["hallucination"])
+            hallucination_result = await self._detect_hallucinations(
+                content, validation_prompts["hallucination"]
+            )
 
             # Step 4: Execute logical consistency checking
-            consistency_result = await self._check_logical_consistency(content, validation_prompts["consistency"])
+            consistency_result = await self._check_logical_consistency(
+                content, validation_prompts["consistency"]
+            )
 
             # Step 5: Generate quality scoring
-            quality_score = await self._calculate_quality_score(content, validation_prompts["quality"])
+            quality_score = await self._calculate_quality_score(
+                content, validation_prompts["quality"]
+            )
 
             # Step 6: Identify and compile issues
             issues = await self._identify_quality_issues(
@@ -108,10 +124,14 @@ class ValidationStageService:
                 logical_consistency_score=consistency_result.score,
                 issues_identified=[issue.description for issue in issues],
                 recommendations=[issue.recommendation for issue in issues],
-                confidence_level=self._determine_confidence_level(quality_score.overall_score),
+                confidence_level=self._determine_confidence_level(
+                    quality_score.overall_score
+                ),
                 execution_time=execution_time,
-                cost_estimate=evidence_result.cost + hallucination_result.cost +
-                             consistency_result.cost + quality_score.cost
+                cost_estimate=evidence_result.cost
+                + hallucination_result.cost
+                + consistency_result.cost
+                + quality_score.cost,
             )
 
         except Exception as e:
@@ -128,10 +148,12 @@ class ValidationStageService:
                 recommendations=["Retry validation with different approach"],
                 confidence_level="low",
                 execution_time=execution_time,
-                cost_estimate=0.0
+                cost_estimate=0.0,
             )
-    async def _create_validation_prompts(self, content: str, task_type: str,
-                                       context: Dict[str, Any]) -> Dict[str, str]:
+
+    async def _create_validation_prompts(
+        self, content: str, task_type: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Create validation prompts optimized for gpt-5-nano capabilities."""
 
         # Import anti-slop prompts for base validation structure
@@ -256,8 +278,9 @@ Provide brief justification for scores.
             "evidence": evidence_prompt,
             "hallucination": hallucination_prompt,
             "consistency": consistency_prompt,
-            "quality": quality_prompt
+            "quality": quality_prompt,
         }
+
     async def _verify_evidence_traceability(self, content: str, prompt: str) -> Any:
         """Execute evidence traceability verification using GPT-5-nano."""
 
@@ -281,7 +304,9 @@ Provide brief justification for scores.
 
             # Parse evidence verification result
             citations_found = self._extract_number_from_text(result, "Citations Found:")
-            evidence_score = self._extract_score_from_text(result, "Overall Evidence Score:")
+            evidence_score = self._extract_score_from_text(
+                result, "Overall Evidence Score:"
+            )
             gaps = self._extract_list_from_text(result, "Evidence Gaps:")
 
             # Estimate cost for GPT-5-nano
@@ -293,12 +318,13 @@ Provide brief justification for scores.
                 citations_found=citations_found or 0,
                 citations_expected=content.count("[Source:") if content else 0,
                 gaps_identified=gaps,
-                cost=cost
+                cost=cost,
             )
 
         except Exception as e:
             self.logger.error(f"Evidence verification failed: {e}")
             return EvidenceResult(0.0, 0, 0, [f"Error: {str(e)}"], 0.0)
+
     async def _detect_hallucinations(self, content: str, prompt: str) -> Any:
         """Execute hallucination detection using GPT-5-nano."""
 
@@ -312,42 +338,65 @@ Provide brief justification for scores.
             cost: float
 
         if not self.tri_model_router:
-            return HallucinationResult(True, "high", ["Router unavailable"], "low", 1.0, 0.0)
+            return HallucinationResult(
+                True, "high", ["Router unavailable"], "low", 1.0, 0.0
+            )
 
         try:
             nano_model = self.tri_model_router.models.get("nano")
             if not nano_model:
-                return HallucinationResult(True, "high", ["GPT-5-nano unavailable"], "low", 1.0, 0.0)
+                return HallucinationResult(
+                    True, "high", ["GPT-5-nano unavailable"], "low", 1.0, 0.0
+                )
 
             result = await nano_model.invoke(prompt)
 
             # Parse hallucination detection result
-            hallucinations = self._extract_list_from_text(result, "Potential Hallucinations:")
-            severity = self._extract_value_from_text(result, "Severity:", ["LOW", "MEDIUM", "HIGH"])
-            confidence = self._extract_value_from_text(result, "Confidence in Detection:", ["LOW", "MEDIUM", "HIGH"])
-            risk_score = self._extract_score_from_text(result, "Hallucination Risk Score:")
-            status = self._extract_value_from_text(result, "Status:", ["CLEAN", "SUSPICIOUS", "PROBLEMATIC"])
+            hallucinations = self._extract_list_from_text(
+                result, "Potential Hallucinations:"
+            )
+            severity = self._extract_value_from_text(
+                result, "Severity:", ["LOW", "MEDIUM", "HIGH"]
+            )
+            confidence = self._extract_value_from_text(
+                result, "Confidence in Detection:", ["LOW", "MEDIUM", "HIGH"]
+            )
+            risk_score = self._extract_score_from_text(
+                result, "Hallucination Risk Score:"
+            )
+            status = self._extract_value_from_text(
+                result, "Status:", ["CLEAN", "SUSPICIOUS", "PROBLEMATIC"]
+            )
 
             # Estimate cost for GPT-5-nano
             estimated_tokens = len(prompt.split()) + len(result.split())
             cost = (estimated_tokens / 1_000_000) * 0.05
 
             # Filter out empty or invalid hallucination examples
-            valid_hallucinations = [h for h in hallucinations if h and h.strip() and
-                                   not h.lower().startswith(('none', 'severity:', 'confidence:'))]
+            valid_hallucinations = [
+                h
+                for h in hallucinations
+                if h
+                and h.strip()
+                and not h.lower().startswith(("none", "severity:", "confidence:"))
+            ]
 
             return HallucinationResult(
-                detected=status in ["SUSPICIOUS", "PROBLEMATIC"] or len(valid_hallucinations) > 0,
+                detected=status in ["SUSPICIOUS", "PROBLEMATIC"]
+                or len(valid_hallucinations) > 0,
                 severity=severity.lower() if severity else "medium",
                 examples=valid_hallucinations,
                 confidence=confidence.lower() if confidence else "medium",
                 risk_score=(risk_score / 10.0) if risk_score else 0.5,
-                cost=cost
+                cost=cost,
             )
 
         except Exception as e:
             self.logger.error(f"Hallucination detection failed: {e}")
-            return HallucinationResult(True, "high", [f"Error: {str(e)}"], "low", 1.0, 0.0)
+            return HallucinationResult(
+                True, "high", [f"Error: {str(e)}"], "low", 1.0, 0.0
+            )
+
     async def _check_logical_consistency(self, content: str, prompt: str) -> Any:
         """Execute logical consistency checking using GPT-5-nano."""
 
@@ -360,20 +409,30 @@ Provide brief justification for scores.
             cost: float
 
         if not self.tri_model_router:
-            return ConsistencyResult(0.0, ["Router unavailable"], [], "MAJOR_ISSUES", 0.0)
+            return ConsistencyResult(
+                0.0, ["Router unavailable"], [], "MAJOR_ISSUES", 0.0
+            )
 
         try:
             nano_model = self.tri_model_router.models.get("nano")
             if not nano_model:
-                return ConsistencyResult(0.0, ["GPT-5-nano unavailable"], [], "MAJOR_ISSUES", 0.0)
+                return ConsistencyResult(
+                    0.0, ["GPT-5-nano unavailable"], [], "MAJOR_ISSUES", 0.0
+                )
 
             result = await nano_model.invoke(prompt)
 
             # Parse consistency check result
-            contradictions = self._extract_list_from_text(result, "Contradictions Found:")
+            contradictions = self._extract_list_from_text(
+                result, "Contradictions Found:"
+            )
             logic_issues = self._extract_list_from_text(result, "Logic Issues:")
-            consistency_score = self._extract_score_from_text(result, "Consistency Score:")
-            status = self._extract_value_from_text(result, "Status:", ["CONSISTENT", "MINOR_ISSUES", "MAJOR_ISSUES"])
+            consistency_score = self._extract_score_from_text(
+                result, "Consistency Score:"
+            )
+            status = self._extract_value_from_text(
+                result, "Status:", ["CONSISTENT", "MINOR_ISSUES", "MAJOR_ISSUES"]
+            )
 
             # Estimate cost for GPT-5-nano
             estimated_tokens = len(prompt.split()) + len(result.split())
@@ -384,12 +443,13 @@ Provide brief justification for scores.
                 contradictions=contradictions,
                 logic_issues=logic_issues,
                 status=status if status else "MINOR_ISSUES",
-                cost=cost
+                cost=cost,
             )
 
         except Exception as e:
             self.logger.error(f"Consistency check failed: {e}")
             return ConsistencyResult(0.0, [f"Error: {str(e)}"], [], "MAJOR_ISSUES", 0.0)
+
     async def _calculate_quality_score(self, content: str, prompt: str) -> Any:
         """Calculate comprehensive quality score using GPT-5-nano."""
 
@@ -421,7 +481,9 @@ Provide brief justification for scores.
             relevance = self._extract_score_from_text(result, "Relevance Score:")
             reliability = self._extract_score_from_text(result, "Reliability Score:")
             overall = self._extract_score_from_text(result, "Overall Quality Score:")
-            status = self._extract_value_from_text(result, "Status:", ["EXCELLENT", "GOOD", "FAIR", "POOR"])
+            status = self._extract_value_from_text(
+                result, "Status:", ["EXCELLENT", "GOOD", "FAIR", "POOR"]
+            )
 
             # Estimate cost for GPT-5-nano
             estimated_tokens = len(prompt.split()) + len(result.split())
@@ -435,99 +497,130 @@ Provide brief justification for scores.
                 relevance_score=(relevance / 10.0) if relevance else 0.5,
                 reliability_score=(reliability / 10.0) if reliability else 0.5,
                 status=status if status else "FAIR",
-                cost=cost
+                cost=cost,
             )
 
         except Exception as e:
             self.logger.error(f"Quality scoring failed: {e}")
             return QualityScore(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "POOR", 0.0)
-    async def _identify_quality_issues(self, evidence_result, hallucination_result,
-                                      consistency_result, quality_score) -> List[QualityIssue]:
+
+    async def _identify_quality_issues(
+        self, evidence_result, hallucination_result, consistency_result, quality_score
+    ) -> List[QualityIssue]:
         """Identify and compile quality issues from validation results."""
         issues = []
 
         # Evidence traceability issues
         if evidence_result.score < self.evidence_threshold:
-            issues.append(QualityIssue(
-                issue_type="evidence_traceability",
-                severity="high" if evidence_result.score < 0.3 else "medium",
-                description=f"Poor evidence traceability (score: {evidence_result.score:.2f})",
-                location="citations",
-                recommendation="Add proper source citations with [Source: URL/Publication, Date] format"
-            ))
+            issues.append(
+                QualityIssue(
+                    issue_type="evidence_traceability",
+                    severity="high" if evidence_result.score < 0.3 else "medium",
+                    description=f"Poor evidence traceability (score: {evidence_result.score:.2f})",
+                    location="citations",
+                    recommendation="Add proper source citations with [Source: URL/Publication, Date] format",
+                )
+            )
 
         for gap in evidence_result.gaps_identified:
-            if gap and gap.strip() and not gap.lower().startswith('none'):
-                issues.append(QualityIssue(
-                    issue_type="evidence_gap",
-                    severity="medium",
-                    description=f"Evidence gap identified: {gap}",
-                    location="content",
-                    recommendation="Provide supporting evidence or acknowledge uncertainty"
-                ))
+            if gap and gap.strip() and not gap.lower().startswith("none"):
+                issues.append(
+                    QualityIssue(
+                        issue_type="evidence_gap",
+                        severity="medium",
+                        description=f"Evidence gap identified: {gap}",
+                        location="content",
+                        recommendation="Provide supporting evidence or acknowledge uncertainty",
+                    )
+                )
 
         # Hallucination issues
         if hallucination_result.detected:
             severity = hallucination_result.severity
-            issues.append(QualityIssue(
-                issue_type="hallucination",
-                severity=severity,
-                description=f"Potential hallucinations detected (risk: {hallucination_result.risk_score:.2f})",
-                location="content",
-                recommendation="Verify claims against reliable sources and remove unsupported statements"
-            ))
+            issues.append(
+                QualityIssue(
+                    issue_type="hallucination",
+                    severity=severity,
+                    description=f"Potential hallucinations detected (risk: {hallucination_result.risk_score:.2f})",
+                    location="content",
+                    recommendation="Verify claims against reliable sources and remove unsupported statements",
+                )
+            )
 
         for example in hallucination_result.examples:
-            if example and example.strip() and not example.lower().startswith(('none', 'severity:', 'confidence:')):
-                issues.append(QualityIssue(
-                    issue_type="specific_hallucination",
-                    severity="medium",
-                    description=f"Potential hallucination: {example}",
-                    location="content",
-                    recommendation="Verify this specific claim or remove if unverifiable"
-                ))
+            if (
+                example
+                and example.strip()
+                and not example.lower().startswith(("none", "severity:", "confidence:"))
+            ):
+                issues.append(
+                    QualityIssue(
+                        issue_type="specific_hallucination",
+                        severity="medium",
+                        description=f"Potential hallucination: {example}",
+                        location="content",
+                        recommendation="Verify this specific claim or remove if unverifiable",
+                    )
+                )
 
         # Logical consistency issues
         if consistency_result.score < self.consistency_threshold:
-            issues.append(QualityIssue(
-                issue_type="logical_consistency",
-                severity="high" if consistency_result.score < 0.5 else "medium",
-                description=f"Poor logical consistency (score: {consistency_result.score:.2f})",
-                location="reasoning",
-                recommendation="Review logical flow and resolve contradictions"
-            ))
+            issues.append(
+                QualityIssue(
+                    issue_type="logical_consistency",
+                    severity="high" if consistency_result.score < 0.5 else "medium",
+                    description=f"Poor logical consistency (score: {consistency_result.score:.2f})",
+                    location="reasoning",
+                    recommendation="Review logical flow and resolve contradictions",
+                )
+            )
 
         for contradiction in consistency_result.contradictions:
-            if contradiction and contradiction.strip() and not contradiction.lower().startswith('none'):
-                issues.append(QualityIssue(
-                    issue_type="contradiction",
-                    severity="high",
-                    description=f"Contradiction found: {contradiction}",
-                    location="content",
-                    recommendation="Resolve contradiction or acknowledge conflicting information"
-                ))
+            if (
+                contradiction
+                and contradiction.strip()
+                and not contradiction.lower().startswith("none")
+            ):
+                issues.append(
+                    QualityIssue(
+                        issue_type="contradiction",
+                        severity="high",
+                        description=f"Contradiction found: {contradiction}",
+                        location="content",
+                        recommendation="Resolve contradiction or acknowledge conflicting information",
+                    )
+                )
 
         for logic_issue in consistency_result.logic_issues:
-            if logic_issue and logic_issue.strip() and not logic_issue.lower().startswith('none'):
-                issues.append(QualityIssue(
-                    issue_type="logic_error",
-                    severity="medium",
-                    description=f"Logic issue: {logic_issue}",
-                    location="reasoning",
-                    recommendation="Review and correct logical reasoning"
-                ))
+            if (
+                logic_issue
+                and logic_issue.strip()
+                and not logic_issue.lower().startswith("none")
+            ):
+                issues.append(
+                    QualityIssue(
+                        issue_type="logic_error",
+                        severity="medium",
+                        description=f"Logic issue: {logic_issue}",
+                        location="reasoning",
+                        recommendation="Review and correct logical reasoning",
+                    )
+                )
 
         # Overall quality issues
         if quality_score.overall_score < self.quality_threshold:
-            issues.append(QualityIssue(
-                issue_type="overall_quality",
-                severity="high" if quality_score.overall_score < 0.4 else "medium",
-                description=f"Overall quality below threshold (score: {quality_score.overall_score:.2f})",
-                location="content",
-                recommendation="Improve content quality across all dimensions"
-            ))
+            issues.append(
+                QualityIssue(
+                    issue_type="overall_quality",
+                    severity="high" if quality_score.overall_score < 0.4 else "medium",
+                    description=f"Overall quality below threshold (score: {quality_score.overall_score:.2f})",
+                    location="content",
+                    recommendation="Improve content quality across all dimensions",
+                )
+            )
 
         return issues
+
     def _determine_confidence_level(self, quality_score: float) -> str:
         """Determine confidence level based on quality score."""
         if quality_score >= 0.8:
@@ -540,14 +633,15 @@ Provide brief justification for scores.
     def _extract_number_from_text(self, text: str, prefix: str) -> Optional[int]:
         """Extract number from text after a specific prefix."""
         try:
-            lines = text.split('\n')
+            lines = text.split("\n")
             for line in lines:
                 if prefix in line:
                     # Extract number from line like "Citations Found: 5/10 claims cited"
                     parts = line.split(prefix)[1].strip()
                     # Look for first number
                     import re
-                    numbers = re.findall(r'\d+', parts)
+
+                    numbers = re.findall(r"\d+", parts)
                     if numbers:
                         return int(numbers[0])
             return None
@@ -557,24 +651,27 @@ Provide brief justification for scores.
     def _extract_score_from_text(self, text: str, prefix: str) -> Optional[float]:
         """Extract score from text after a specific prefix."""
         try:
-            lines = text.split('\n')
+            lines = text.split("\n")
             for line in lines:
                 if prefix in line:
                     # Extract score from line like "Overall Evidence Score: 7/10"
                     parts = line.split(prefix)[1].strip()
                     import re
+
                     # Look for pattern like "7/10" or "7.5/10" or just "7.5"
-                    score_match = re.search(r'(\d+(?:\.\d+)?)', parts)
+                    score_match = re.search(r"(\d+(?:\.\d+)?)", parts)
                     if score_match:
                         return float(score_match.group(1))
             return None
         except Exception:
             return None
 
-    def _extract_value_from_text(self, text: str, prefix: str, valid_values: List[str]) -> Optional[str]:
+    def _extract_value_from_text(
+        self, text: str, prefix: str, valid_values: List[str]
+    ) -> Optional[str]:
         """Extract value from text after a specific prefix, checking against valid values."""
         try:
-            lines = text.split('\n')
+            lines = text.split("\n")
             for line in lines:
                 if prefix in line:
                     parts = line.split(prefix)[1].strip()
@@ -589,7 +686,7 @@ Provide brief justification for scores.
         """Extract list items from text after a specific prefix."""
         try:
             items = []
-            lines = text.split('\n')
+            lines = text.split("\n")
             found_prefix = False
 
             for line in lines:
@@ -598,70 +695,102 @@ Provide brief justification for scores.
                     # Check if there's content on the same line after the prefix
                     after_prefix = line.split(prefix)[1].strip()
                     # Only add if it's not a placeholder or empty
-                    if (after_prefix and
-                        not after_prefix.startswith('[') and
-                        after_prefix != '[List any gaps]' and
-                        not after_prefix.lower().startswith(('none', 'severity:', 'confidence:', 'logic issues:'))):
+                    if (
+                        after_prefix
+                        and not after_prefix.startswith("[")
+                        and after_prefix != "[List any gaps]"
+                        and not after_prefix.lower().startswith(
+                            ("none", "severity:", "confidence:", "logic issues:")
+                        )
+                    ):
                         items.append(after_prefix)
                     continue
 
                 if found_prefix:
                     line = line.strip()
                     # Stop if we hit another section, score line, or status line
-                    if (line.startswith(('###', '##')) or
-                        'Score:' in line or
-                        'Status:' in line or
-                        'Severity:' in line or
-                        'Confidence:' in line or
-                        (not line and len(items) > 0)):
+                    if (
+                        line.startswith(("###", "##"))
+                        or "Score:" in line
+                        or "Status:" in line
+                        or "Severity:" in line
+                        or "Confidence:" in line
+                        or (not line and len(items) > 0)
+                    ):
                         break
                     # Add list items (lines starting with -, •, or numbers)
-                    if line.startswith(('-', '•', '1.', '2.', '3.', '4.', '5.')):
-                        item = line.lstrip('-•123456789. ')
-                        if not item.lower().startswith(('none', 'severity:', 'confidence:')):
+                    if line.startswith(("-", "•", "1.", "2.", "3.", "4.", "5.")):
+                        item = line.lstrip("-•123456789. ")
+                        if not item.lower().startswith(
+                            ("none", "severity:", "confidence:")
+                        ):
                             items.append(item)
-                    elif (line and
-                          not line.startswith('[') and
-                          not line.lower().startswith(('none', 'severity:', 'confidence:', 'logic issues:'))):
+                    elif (
+                        line
+                        and not line.startswith("[")
+                        and not line.lower().startswith(
+                            ("none", "severity:", "confidence:", "logic issues:")
+                        )
+                    ):
                         items.append(line)
 
             # Filter out invalid items
             valid_items = []
             for item in items:
-                if (item and
-                    item.strip() and
-                    item != '[List any gaps]' and
-                    not item.lower().startswith(('none', 'severity:', 'confidence:', 'logic issues:'))):
+                if (
+                    item
+                    and item.strip()
+                    and item != "[List any gaps]"
+                    and not item.lower().startswith(
+                        ("none", "severity:", "confidence:", "logic issues:")
+                    )
+                ):
                     valid_items.append(item)
 
             return valid_items
         except Exception:
             return []
-    async def generate_quality_report(self, validation_result: ValidationResult,
-                                     content: str) -> str:
+
+    async def generate_quality_report(
+        self, validation_result: ValidationResult, content: str
+    ) -> str:
         """Generate automated quality issue identification and reporting."""
 
         report_sections = []
 
         # Header
         report_sections.append("# VALIDATION QUALITY REPORT")
-        report_sections.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        report_sections.append(f"Execution Time: {validation_result.execution_time:.2f}s")
+        report_sections.append(
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        report_sections.append(
+            f"Execution Time: {validation_result.execution_time:.2f}s"
+        )
         report_sections.append(f"Cost Estimate: ${validation_result.cost_estimate:.4f}")
         report_sections.append("")
 
         # Overall Assessment
         status = "✅ VALID" if validation_result.is_valid else "❌ INVALID"
         report_sections.append(f"## Overall Status: {status}")
-        report_sections.append(f"**Quality Score:** {validation_result.quality_score:.2f}/1.0")
-        report_sections.append(f"**Confidence Level:** {validation_result.confidence_level.upper()}")
+        report_sections.append(
+            f"**Quality Score:** {validation_result.quality_score:.2f}/1.0"
+        )
+        report_sections.append(
+            f"**Confidence Level:** {validation_result.confidence_level.upper()}"
+        )
         report_sections.append("")
 
         # Detailed Scores
         report_sections.append("## Detailed Assessment")
-        report_sections.append(f"- **Evidence Traceability:** {validation_result.evidence_traceability_score:.2f}/1.0")
-        report_sections.append(f"- **Hallucination Detection:** {'⚠️ DETECTED' if validation_result.hallucination_detected else '✅ CLEAN'}")
-        report_sections.append(f"- **Logical Consistency:** {validation_result.logical_consistency_score:.2f}/1.0")
+        report_sections.append(
+            f"- **Evidence Traceability:** {validation_result.evidence_traceability_score:.2f}/1.0"
+        )
+        report_sections.append(
+            f"- **Hallucination Detection:** {'⚠️ DETECTED' if validation_result.hallucination_detected else '✅ CLEAN'}"
+        )
+        report_sections.append(
+            f"- **Logical Consistency:** {validation_result.logical_consistency_score:.2f}/1.0"
+        )
         report_sections.append("")
 
         # Issues Identified
@@ -685,7 +814,9 @@ Provide brief justification for scores.
         report_sections.append("## Content Analysis Summary")
         report_sections.append(f"- **Word Count:** {word_count}")
         report_sections.append(f"- **Citations Found:** {citation_count}")
-        report_sections.append(f"- **Citation Density:** {(citation_count/max(word_count/100, 1)):.1f} per 100 words")
+        report_sections.append(
+            f"- **Citation Density:** {(citation_count/max(word_count/100, 1)):.1f} per 100 words"
+        )
 
         return "\n".join(report_sections)
 
@@ -704,6 +835,6 @@ Provide brief justification for scores.
                 "logical_consistency_checking",
                 "quality_scoring",
                 "automated_issue_identification",
-                "quality_reporting"
-            ]
+                "quality_reporting",
+            ],
         }

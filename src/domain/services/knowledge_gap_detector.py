@@ -6,25 +6,32 @@ research strategies based on information quality. It provides research depth opt
 and source diversification to ensure comprehensive evidence gathering.
 """
 
-from typing import List, Dict, Any, Optional, Set, Tuple, Union
+import statistics
+from abc import ABC, abstractmethod
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import structlog
-from abc import ABC, abstractmethod
-import statistics
-from collections import defaultdict, Counter
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from .authoritative_source_manager import AuthoritativeSource, SourceType, ExpertiseArea, KnowledgeBase
-from .conflict_resolver import SynthesizedConclusion, UncertaintyLevel
-from ..entities.research_report import ResearchSource, ResearchQuality
+import structlog
+
 from ..entities.question import Question
+from ..entities.research_report import ResearchQuality, ResearchSource
+from .authoritative_source_manager import (
+    AuthoritativeSource,
+    ExpertiseArea,
+    KnowledgeBase,
+    SourceType,
+)
+from .conflict_resolver import SynthesizedConclusion, UncertaintyLevel
 
 logger = structlog.get_logger(__name__)
 
 
 class GapType(Enum):
     """Types of knowledge gaps that can be detected."""
+
     INSUFFICIENT_SOURCES = "insufficient_sources"
     SOURCE_DIVERSITY_GAP = "source_diversity_gap"
     TEMPORAL_GAP = "temporal_gap"
@@ -39,6 +46,7 @@ class GapType(Enum):
 
 class GapSeverity(Enum):
     """Severity levels for knowledge gaps."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -47,6 +55,7 @@ class GapSeverity(Enum):
 
 class ResearchStrategy(Enum):
     """Adaptive research strategies based on gap analysis."""
+
     INTENSIVE_SEARCH = "intensive_search"
     DIVERSIFICATION_FOCUS = "diversification_focus"
     EXPERT_CONSULTATION = "expert_consultation"
@@ -59,6 +68,7 @@ class ResearchStrategy(Enum):
 @dataclass
 class KnowledgeGap:
     """Represents an identified knowledge gap with analysis and recommendations."""
+
     gap_id: str
     gap_type: GapType
     severity: GapSeverity
@@ -93,6 +103,7 @@ class KnowledgeGap:
 @dataclass
 class ResearchQualityAssessment:
     """Assessment of current research quality and gaps."""
+
     overall_quality: ResearchQuality
     confidence_level: float
     completeness_score: float  # 0.0 to 1.0
@@ -121,6 +132,7 @@ class ResearchQualityAssessment:
 @dataclass
 class AdaptiveResearchPlan:
     """Adaptive research plan based on gap analysis."""
+
     plan_id: str
     strategy: ResearchStrategy
     priority_gaps: List[KnowledgeGap]
@@ -152,7 +164,7 @@ class GapDetectionStrategy(ABC):
         self,
         sources: List[AuthoritativeSource],
         question: Question,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> List[KnowledgeGap]:
         """Detect knowledge gaps in the provided sources."""
         pass
@@ -172,14 +184,14 @@ class SourceDiversityDetector(GapDetectionStrategy):
             "knowledge_bases": 2,
             "expertise_areas": 2,
             "publication_venues": 3,
-            "geographic_regions": 2
+            "geographic_regions": 2,
         }
 
     def detect_gaps(
         self,
         sources: List[AuthoritativeSource],
         question: Question,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> List[KnowledgeGap]:
         """Detect source diversity gaps."""
         gaps = []
@@ -187,34 +199,39 @@ class SourceDiversityDetector(GapDetectionStrategy):
         # Analyze source type diversity
         source_types = set()
         for source in sources:
-            if hasattr(source, 'source_type'):
+            if hasattr(source, "source_type"):
                 source_types.add(source.source_type)
 
         if len(source_types) < self.minimum_thresholds["source_types"]:
             gap = KnowledgeGap(
                 gap_id="",
                 gap_type=GapType.SOURCE_DIVERSITY_GAP,
-                severity=GapSeverity.HIGH if len(source_types) <= 1 else GapSeverity.MEDIUM,
+                severity=(
+                    GapSeverity.HIGH if len(source_types) <= 1 else GapSeverity.MEDIUM
+                ),
                 description=f"Limited source type diversity: only {len(source_types)} types found",
                 impact_on_forecast=0.6,
                 confidence_reduction=0.3,
-                missing_elements=[f"Need {self.minimum_thresholds['source_types'] - len(source_types)} more source types"],
+                missing_elements=[
+                    f"Need {self.minimum_thresholds['source_types'] - len(source_types)} more source types"
+                ],
                 research_suggestions=[
                     "Search academic databases",
                     "Consult expert opinions",
                     "Review government data",
-                    "Check institutional reports"
+                    "Check institutional reports",
                 ],
-                current_coverage=len(source_types) / self.minimum_thresholds["source_types"],
+                current_coverage=len(source_types)
+                / self.minimum_thresholds["source_types"],
                 desired_coverage=1.0,
-                time_sensitivity=0.7
+                time_sensitivity=0.7,
             )
             gaps.append(gap)
 
         # Analyze knowledge base diversity
         knowledge_bases = set()
         for source in sources:
-            if hasattr(source, 'knowledge_base') and source.knowledge_base:
+            if hasattr(source, "knowledge_base") and source.knowledge_base:
                 knowledge_bases.add(source.knowledge_base)
 
         if len(knowledge_bases) < self.minimum_thresholds["knowledge_bases"]:
@@ -225,22 +242,25 @@ class SourceDiversityDetector(GapDetectionStrategy):
                 description=f"Limited knowledge base diversity: only {len(knowledge_bases)} bases used",
                 impact_on_forecast=0.4,
                 confidence_reduction=0.2,
-                missing_elements=[f"Need {self.minimum_thresholds['knowledge_bases'] - len(knowledge_bases)} more knowledge bases"],
+                missing_elements=[
+                    f"Need {self.minimum_thresholds['knowledge_bases'] - len(knowledge_bases)} more knowledge bases"
+                ],
                 research_suggestions=[
                     "Search additional academic databases",
                     "Consult specialized repositories",
-                    "Review expert networks"
+                    "Review expert networks",
                 ],
-                current_coverage=len(knowledge_bases) / self.minimum_thresholds["knowledge_bases"],
+                current_coverage=len(knowledge_bases)
+                / self.minimum_thresholds["knowledge_bases"],
                 desired_coverage=1.0,
-                time_sensitivity=0.5
+                time_sensitivity=0.5,
             )
             gaps.append(gap)
 
         # Analyze expertise area coverage
         expertise_areas = set()
         for source in sources:
-            if hasattr(source, 'expert_profile') and source.expert_profile:
+            if hasattr(source, "expert_profile") and source.expert_profile:
                 expertise_areas.update(source.expert_profile.expertise_areas)
 
         if len(expertise_areas) < self.minimum_thresholds["expertise_areas"]:
@@ -251,15 +271,18 @@ class SourceDiversityDetector(GapDetectionStrategy):
                 description=f"Limited expertise area coverage: only {len(expertise_areas)} areas represented",
                 impact_on_forecast=0.7,
                 confidence_reduction=0.4,
-                missing_elements=[f"Need {self.minimum_thresholds['expertise_areas'] - len(expertise_areas)} more expertise areas"],
+                missing_elements=[
+                    f"Need {self.minimum_thresholds['expertise_areas'] - len(expertise_areas)} more expertise areas"
+                ],
                 research_suggestions=[
                     "Consult experts from different domains",
                     "Search interdisciplinary sources",
-                    "Review cross-domain research"
+                    "Review cross-domain research",
                 ],
-                current_coverage=len(expertise_areas) / self.minimum_thresholds["expertise_areas"],
+                current_coverage=len(expertise_areas)
+                / self.minimum_thresholds["expertise_areas"],
                 desired_coverage=1.0,
-                time_sensitivity=0.8
+                time_sensitivity=0.8,
             )
             gaps.append(gap)
 
@@ -277,7 +300,7 @@ class TemporalCoverageDetector(GapDetectionStrategy):
             "very_recent": timedelta(days=30),
             "recent": timedelta(days=90),
             "current": timedelta(days=365),
-            "historical": timedelta(days=1825)  # 5 years
+            "historical": timedelta(days=1825),  # 5 years
         }
         self.minimum_recent_sources = 2
 
@@ -285,7 +308,7 @@ class TemporalCoverageDetector(GapDetectionStrategy):
         self,
         sources: List[AuthoritativeSource],
         question: Question,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> List[KnowledgeGap]:
         """Detect temporal coverage gaps."""
         gaps = []
@@ -305,11 +328,11 @@ class TemporalCoverageDetector(GapDetectionStrategy):
                 research_suggestions=[
                     "Find sources with clear publication dates",
                     "Verify source recency",
-                    "Search for recent developments"
+                    "Search for recent developments",
                 ],
                 current_coverage=0.0,
                 desired_coverage=1.0,
-                time_sensitivity=0.9
+                time_sensitivity=0.9,
             )
             gaps.append(gap)
             return gaps
@@ -322,7 +345,7 @@ class TemporalCoverageDetector(GapDetectionStrategy):
             "recent": 0,
             "current": 0,
             "historical": 0,
-            "outdated": 0
+            "outdated": 0,
         }
 
         for source in dated_sources:
@@ -350,16 +373,18 @@ class TemporalCoverageDetector(GapDetectionStrategy):
                 description=f"Insufficient recent sources: only {recent_sources} found",
                 impact_on_forecast=0.7,
                 confidence_reduction=0.4,
-                missing_elements=[f"Need {self.minimum_recent_sources - recent_sources} more recent sources"],
+                missing_elements=[
+                    f"Need {self.minimum_recent_sources - recent_sources} more recent sources"
+                ],
                 research_suggestions=[
                     "Search for recent news and developments",
                     "Check latest academic publications",
                     "Consult current expert opinions",
-                    "Review recent data releases"
+                    "Review recent data releases",
                 ],
                 current_coverage=recent_sources / self.minimum_recent_sources,
                 desired_coverage=1.0,
-                time_sensitivity=0.9
+                time_sensitivity=0.9,
             )
             gaps.append(gap)
 
@@ -377,11 +402,11 @@ class TemporalCoverageDetector(GapDetectionStrategy):
                 research_suggestions=[
                     "Replace outdated sources with recent ones",
                     "Verify if outdated information is still relevant",
-                    "Search for updated research"
+                    "Search for updated research",
                 ],
                 current_coverage=1.0 - outdated_ratio,
                 desired_coverage=0.8,  # Allow some historical context
-                time_sensitivity=0.6
+                time_sensitivity=0.6,
             )
             gaps.append(gap)
 
@@ -395,11 +420,7 @@ class CredibilityGapDetector(GapDetectionStrategy):
     """Detects gaps in source credibility and quality."""
 
     def __init__(self):
-        self.credibility_thresholds = {
-            "high": 0.8,
-            "medium": 0.6,
-            "low": 0.4
-        }
+        self.credibility_thresholds = {"high": 0.8, "medium": 0.6, "low": 0.4}
         self.minimum_high_credibility_sources = 2
         self.minimum_average_credibility = 0.6
 
@@ -407,7 +428,7 @@ class CredibilityGapDetector(GapDetectionStrategy):
         self,
         sources: List[AuthoritativeSource],
         question: Question,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> List[KnowledgeGap]:
         """Detect credibility gaps in sources."""
         gaps = []
@@ -419,10 +440,16 @@ class CredibilityGapDetector(GapDetectionStrategy):
         credibility_scores = [s.credibility_score for s in sources]
         avg_credibility = statistics.mean(credibility_scores)
 
-        high_credibility_count = sum(1 for score in credibility_scores
-                                   if score >= self.credibility_thresholds["high"])
-        low_credibility_count = sum(1 for score in credibility_scores
-                                  if score < self.credibility_thresholds["low"])
+        high_credibility_count = sum(
+            1
+            for score in credibility_scores
+            if score >= self.credibility_thresholds["high"]
+        )
+        low_credibility_count = sum(
+            1
+            for score in credibility_scores
+            if score < self.credibility_thresholds["low"]
+        )
 
         # Check for insufficient high-credibility sources
         if high_credibility_count < self.minimum_high_credibility_sources:
@@ -433,16 +460,19 @@ class CredibilityGapDetector(GapDetectionStrategy):
                 description=f"Insufficient high-credibility sources: only {high_credibility_count} found",
                 impact_on_forecast=0.6,
                 confidence_reduction=0.4,
-                missing_elements=[f"Need {self.minimum_high_credibility_sources - high_credibility_count} more high-credibility sources"],
+                missing_elements=[
+                    f"Need {self.minimum_high_credibility_sources - high_credibility_count} more high-credibility sources"
+                ],
                 research_suggestions=[
                     "Search academic databases",
                     "Consult peer-reviewed sources",
                     "Review government publications",
-                    "Check institutional reports"
+                    "Check institutional reports",
                 ],
-                current_coverage=high_credibility_count / self.minimum_high_credibility_sources,
+                current_coverage=high_credibility_count
+                / self.minimum_high_credibility_sources,
                 desired_coverage=1.0,
-                time_sensitivity=0.7
+                time_sensitivity=0.7,
             )
             gaps.append(gap)
 
@@ -459,11 +489,11 @@ class CredibilityGapDetector(GapDetectionStrategy):
                 research_suggestions=[
                     "Replace low-credibility sources",
                     "Verify source authenticity",
-                    "Search authoritative databases"
+                    "Search authoritative databases",
                 ],
                 current_coverage=avg_credibility / self.minimum_average_credibility,
                 desired_coverage=1.0,
-                time_sensitivity=0.6
+                time_sensitivity=0.6,
             )
             gaps.append(gap)
 
@@ -481,11 +511,11 @@ class CredibilityGapDetector(GapDetectionStrategy):
                 research_suggestions=[
                     "Filter out unreliable sources",
                     "Verify source credibility",
-                    "Search for authoritative alternatives"
+                    "Search for authoritative alternatives",
                 ],
                 current_coverage=1.0 - low_credibility_ratio,
                 desired_coverage=0.8,
-                time_sensitivity=0.5
+                time_sensitivity=0.5,
             )
             gaps.append(gap)
 
@@ -502,7 +532,7 @@ class QuantitativeDataDetector(GapDetectionStrategy):
         self,
         sources: List[AuthoritativeSource],
         question: Question,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> List[KnowledgeGap]:
         """Detect quantitative data gaps."""
         gaps = []
@@ -512,13 +542,25 @@ class QuantitativeDataDetector(GapDetectionStrategy):
         qualitative_sources = 0
 
         quantitative_indicators = [
-            "data", "statistics", "numbers", "percentage", "rate", "trend",
-            "measurement", "survey", "study", "analysis", "research", "findings"
+            "data",
+            "statistics",
+            "numbers",
+            "percentage",
+            "rate",
+            "trend",
+            "measurement",
+            "survey",
+            "study",
+            "analysis",
+            "research",
+            "findings",
         ]
 
         for source in sources:
             content = (source.summary + " " + source.title).lower()
-            has_quantitative = any(indicator in content for indicator in quantitative_indicators)
+            has_quantitative = any(
+                indicator in content for indicator in quantitative_indicators
+            )
 
             if has_quantitative:
                 quantitative_sources += 1
@@ -538,16 +580,20 @@ class QuantitativeDataDetector(GapDetectionStrategy):
                     description=f"Insufficient quantitative data: only {quantitative_ratio:.1%} of sources",
                     impact_on_forecast=0.5,
                     confidence_reduction=0.3,
-                    missing_elements=["Statistical data", "Empirical evidence", "Quantitative analysis"],
+                    missing_elements=[
+                        "Statistical data",
+                        "Empirical evidence",
+                        "Quantitative analysis",
+                    ],
                     research_suggestions=[
                         "Search for statistical databases",
                         "Look for empirical studies",
                         "Find survey data",
-                        "Check government statistics"
+                        "Check government statistics",
                     ],
                     current_coverage=quantitative_ratio,
                     desired_coverage=0.6,
-                    time_sensitivity=0.6
+                    time_sensitivity=0.6,
                 )
                 gaps.append(gap)
 
@@ -572,7 +618,7 @@ class KnowledgeGapDetector:
             "source_diversity": SourceDiversityDetector(),
             "temporal_coverage": TemporalCoverageDetector(),
             "credibility_gaps": CredibilityGapDetector(),
-            "quantitative_data": QuantitativeDataDetector()
+            "quantitative_data": QuantitativeDataDetector(),
         }
 
         # Configuration for gap analysis
@@ -580,38 +626,38 @@ class KnowledgeGapDetector:
             "minimum_sources": 5,
             "minimum_credibility": 0.6,
             "maximum_gap_tolerance": 0.3,
-            "critical_gap_threshold": 0.7
+            "critical_gap_threshold": 0.7,
         }
 
         # Strategy selection weights
         self.strategy_weights = {
             GapType.INSUFFICIENT_SOURCES: {
                 ResearchStrategy.INTENSIVE_SEARCH: 0.8,
-                ResearchStrategy.DIVERSIFICATION_FOCUS: 0.6
+                ResearchStrategy.DIVERSIFICATION_FOCUS: 0.6,
             },
             GapType.SOURCE_DIVERSITY_GAP: {
                 ResearchStrategy.DIVERSIFICATION_FOCUS: 0.9,
-                ResearchStrategy.METHODOLOGICAL_TRIANGULATION: 0.7
+                ResearchStrategy.METHODOLOGICAL_TRIANGULATION: 0.7,
             },
             GapType.EXPERTISE_GAP: {
                 ResearchStrategy.EXPERT_CONSULTATION: 0.9,
-                ResearchStrategy.DIVERSIFICATION_FOCUS: 0.6
+                ResearchStrategy.DIVERSIFICATION_FOCUS: 0.6,
             },
             GapType.TEMPORAL_GAP: {
                 ResearchStrategy.TEMPORAL_EXPANSION: 0.8,
-                ResearchStrategy.INTENSIVE_SEARCH: 0.6
+                ResearchStrategy.INTENSIVE_SEARCH: 0.6,
             },
             GapType.CREDIBILITY_GAP: {
                 ResearchStrategy.INTENSIVE_SEARCH: 0.7,
-                ResearchStrategy.EXPERT_CONSULTATION: 0.8
-            }
+                ResearchStrategy.EXPERT_CONSULTATION: 0.8,
+            },
         }
 
     def detect_knowledge_gaps(
         self,
         sources: List[AuthoritativeSource],
         question: Question,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> List[KnowledgeGap]:
         """
         Detect knowledge gaps in the provided sources.
@@ -627,7 +673,7 @@ class KnowledgeGapDetector:
         logger.info(
             "Detecting knowledge gaps",
             source_count=len(sources),
-            question_id=str(question.id)
+            question_id=str(question.id),
         )
 
         context = context or {}
@@ -649,14 +695,12 @@ class KnowledgeGapDetector:
                 logger.info(
                     "Gap detection completed",
                     detector=detector_name,
-                    gaps_found=len(gaps)
+                    gaps_found=len(gaps),
                 )
 
             except Exception as e:
                 logger.error(
-                    "Gap detection failed",
-                    detector=detector_name,
-                    error=str(e)
+                    "Gap detection failed", detector=detector_name, error=str(e)
                 )
 
         # Remove duplicate gaps and prioritize
@@ -667,7 +711,7 @@ class KnowledgeGapDetector:
             "Knowledge gap detection completed",
             total_gaps=len(all_gaps),
             unique_gaps=len(unique_gaps),
-            prioritized_gaps=len(prioritized_gaps)
+            prioritized_gaps=len(prioritized_gaps),
         )
 
         return prioritized_gaps
@@ -676,7 +720,7 @@ class KnowledgeGapDetector:
         self,
         sources: List[AuthoritativeSource],
         question: Question,
-        gaps: Optional[List[KnowledgeGap]] = None
+        gaps: Optional[List[KnowledgeGap]] = None,
     ) -> ResearchQualityAssessment:
         """
         Assess the overall quality of research and identify improvement areas.
@@ -692,7 +736,7 @@ class KnowledgeGapDetector:
         logger.info(
             "Assessing research quality",
             source_count=len(sources),
-            question_id=str(question.id)
+            question_id=str(question.id),
         )
 
         # Detect gaps if not provided
@@ -701,26 +745,33 @@ class KnowledgeGapDetector:
 
         # Calculate basic metrics
         source_count = len(sources)
-        avg_credibility = statistics.mean([s.credibility_score for s in sources]) if sources else 0.0
+        avg_credibility = (
+            statistics.mean([s.credibility_score for s in sources]) if sources else 0.0
+        )
 
         # Assess source diversity
         source_types = set()
         knowledge_bases = set()
         for source in sources:
-            if hasattr(source, 'source_type'):
+            if hasattr(source, "source_type"):
                 source_types.add(source.source_type)
-            if hasattr(source, 'knowledge_base') and source.knowledge_base:
+            if hasattr(source, "knowledge_base") and source.knowledge_base:
                 knowledge_bases.add(source.knowledge_base)
 
-        source_diversity_score = min(1.0, (len(source_types) + len(knowledge_bases)) / 8.0)
+        source_diversity_score = min(
+            1.0, (len(source_types) + len(knowledge_bases)) / 8.0
+        )
 
         # Assess temporal coverage
         dated_sources = [s for s in sources if s.publish_date]
         if dated_sources:
             now = datetime.utcnow()
-            recent_sources = sum(1 for s in dated_sources
-                               if (now - s.publish_date).days <= 365)
-            temporal_coverage_score = min(1.0, recent_sources / max(1, len(dated_sources)))
+            recent_sources = sum(
+                1 for s in dated_sources if (now - s.publish_date).days <= 365
+            )
+            temporal_coverage_score = min(
+                1.0, recent_sources / max(1, len(dated_sources))
+            )
         else:
             temporal_coverage_score = 0.0
 
@@ -729,7 +780,7 @@ class KnowledgeGapDetector:
             min(1.0, source_count / self.analysis_config["minimum_sources"]),
             avg_credibility,
             source_diversity_score,
-            temporal_coverage_score
+            temporal_coverage_score,
         ]
         completeness_score = statistics.mean(completeness_factors)
 
@@ -752,8 +803,10 @@ class KnowledgeGapDetector:
         # Credibility distribution
         credibility_distribution = {
             "high (0.8+)": sum(1 for s in sources if s.credibility_score >= 0.8),
-            "medium (0.6-0.8)": sum(1 for s in sources if 0.6 <= s.credibility_score < 0.8),
-            "low (<0.6)": sum(1 for s in sources if s.credibility_score < 0.6)
+            "medium (0.6-0.8)": sum(
+                1 for s in sources if 0.6 <= s.credibility_score < 0.8
+            ),
+            "low (<0.6)": sum(1 for s in sources if s.credibility_score < 0.6),
         }
 
         # Select recommended strategy
@@ -769,7 +822,7 @@ class KnowledgeGapDetector:
         uncertainty_sources = [
             f"Knowledge gaps: {len(gaps)}",
             f"Average credibility: {avg_credibility:.2f}",
-            f"Source diversity: {source_diversity_score:.2f}"
+            f"Source diversity: {source_diversity_score:.2f}",
         ]
 
         assessment = ResearchQualityAssessment(
@@ -788,9 +841,15 @@ class KnowledgeGapDetector:
             resource_allocation=resource_allocation,
             uncertainty_sources=uncertainty_sources,
             confidence_intervals={
-                "credibility": (max(0.0, avg_credibility - 0.1), min(1.0, avg_credibility + 0.1)),
-                "completeness": (max(0.0, completeness_score - 0.1), min(1.0, completeness_score + 0.1))
-            }
+                "credibility": (
+                    max(0.0, avg_credibility - 0.1),
+                    min(1.0, avg_credibility + 0.1),
+                ),
+                "completeness": (
+                    max(0.0, completeness_score - 0.1),
+                    min(1.0, completeness_score + 0.1),
+                ),
+            },
         )
 
         logger.info(
@@ -798,7 +857,7 @@ class KnowledgeGapDetector:
             overall_quality=overall_quality.value,
             confidence_level=confidence_level,
             gaps_count=len(gaps),
-            critical_gaps=len(critical_gaps)
+            critical_gaps=len(critical_gaps),
         )
 
         return assessment
@@ -807,7 +866,7 @@ class KnowledgeGapDetector:
         self,
         assessment: ResearchQualityAssessment,
         question: Question,
-        constraints: Optional[Dict[str, Any]] = None
+        constraints: Optional[Dict[str, Any]] = None,
     ) -> AdaptiveResearchPlan:
         """
         Create an adaptive research plan based on quality assessment.
@@ -823,21 +882,24 @@ class KnowledgeGapDetector:
         logger.info(
             "Creating adaptive research plan",
             strategy=assessment.recommended_strategy.value,
-            gaps_count=len(assessment.identified_gaps)
+            gaps_count=len(assessment.identified_gaps),
         )
 
         constraints = constraints or {}
 
         # Select priority gaps to address
         priority_gaps = self._select_priority_gaps(
-            assessment.identified_gaps,
-            constraints.get("max_gaps", 5)
+            assessment.identified_gaps, constraints.get("max_gaps", 5)
         )
 
         # Generate specific research actions
         search_expansions = self._generate_search_expansions(priority_gaps, question)
-        expert_consultations = self._generate_expert_consultations(priority_gaps, question)
-        source_diversification = self._generate_diversification_actions(priority_gaps, question)
+        expert_consultations = self._generate_expert_consultations(
+            priority_gaps, question
+        )
+        source_diversification = self._generate_diversification_actions(
+            priority_gaps, question
+        )
 
         # Calculate time allocation
         total_time = constraints.get("total_time", timedelta(hours=8))
@@ -850,14 +912,14 @@ class KnowledgeGapDetector:
         target_improvements = {
             "completeness_score": min(1.0, assessment.completeness_score + 0.2),
             "confidence_level": min(0.95, assessment.confidence_level + 0.15),
-            "source_diversity": min(1.0, assessment.source_diversity_score + 0.3)
+            "source_diversity": min(1.0, assessment.source_diversity_score + 0.3),
         }
 
         # Set minimum thresholds
         minimum_thresholds = {
             "completeness_score": 0.7,
             "confidence_level": 0.6,
-            "critical_gaps_resolved": 0.8
+            "critical_gaps_resolved": 0.8,
         }
 
         # Estimate improvements
@@ -867,7 +929,9 @@ class KnowledgeGapDetector:
         )
 
         # Calculate total allocated time in hours for cost-benefit ratio
-        total_allocated_seconds = sum(td.total_seconds() for td in time_allocation.values())
+        total_allocated_seconds = sum(
+            td.total_seconds() for td in time_allocation.values()
+        )
         total_allocated_hours = total_allocated_seconds / 3600
 
         plan = AdaptiveResearchPlan(
@@ -883,14 +947,14 @@ class KnowledgeGapDetector:
             minimum_thresholds=minimum_thresholds,
             estimated_duration=total_time,
             confidence_improvement_estimate=confidence_improvement,
-            cost_benefit_ratio=confidence_improvement / max(0.1, total_allocated_hours)
+            cost_benefit_ratio=confidence_improvement / max(0.1, total_allocated_hours),
         )
 
         logger.info(
             "Adaptive research plan created",
             plan_id=plan.plan_id,
             priority_gaps=len(priority_gaps),
-            estimated_improvement=confidence_improvement
+            estimated_improvement=confidence_improvement,
         )
 
         return plan
@@ -919,21 +983,19 @@ class KnowledgeGapDetector:
                 GapSeverity.CRITICAL: 1.0,
                 GapSeverity.HIGH: 0.8,
                 GapSeverity.MEDIUM: 0.6,
-                GapSeverity.LOW: 0.4
+                GapSeverity.LOW: 0.4,
             }
 
             severity_score = severity_weights.get(gap.severity, 0.5)
             impact_score = gap.impact_on_forecast
             time_score = gap.time_sensitivity
 
-            return (severity_score * 0.4 + impact_score * 0.4 + time_score * 0.2)
+            return severity_score * 0.4 + impact_score * 0.4 + time_score * 0.2
 
         return sorted(gaps, key=gap_priority_score, reverse=True)
 
     def _select_research_strategy(
-        self,
-        gaps: List[KnowledgeGap],
-        completeness_score: float
+        self, gaps: List[KnowledgeGap], completeness_score: float
     ) -> ResearchStrategy:
         """Select the most appropriate research strategy based on gaps."""
 
@@ -956,9 +1018,7 @@ class KnowledgeGapDetector:
             return ResearchStrategy.DIVERSIFICATION_FOCUS
 
     def _generate_priority_actions(
-        self,
-        gaps: List[KnowledgeGap],
-        sources: List[AuthoritativeSource]
+        self, gaps: List[KnowledgeGap], sources: List[AuthoritativeSource]
     ) -> List[str]:
         """Generate priority actions based on identified gaps."""
         actions = []
@@ -974,20 +1034,24 @@ class KnowledgeGapDetector:
             elif gap_type == GapType.TEMPORAL_GAP:
                 actions.append("Search for more recent sources and developments")
             elif gap_type == GapType.CREDIBILITY_GAP:
-                actions.append("Replace low-credibility sources with authoritative ones")
+                actions.append(
+                    "Replace low-credibility sources with authoritative ones"
+                )
             elif gap_type == GapType.EXPERTISE_GAP:
                 actions.append("Consult experts from relevant domains")
 
         return actions[:5]  # Return top 5 actions
 
-    def _calculate_resource_allocation(self, gaps: List[KnowledgeGap]) -> Dict[str, float]:
+    def _calculate_resource_allocation(
+        self, gaps: List[KnowledgeGap]
+    ) -> Dict[str, float]:
         """Calculate recommended resource allocation based on gaps."""
         allocation = {
             "search_expansion": 0.3,
             "source_verification": 0.2,
             "expert_consultation": 0.2,
             "analysis_synthesis": 0.2,
-            "quality_assurance": 0.1
+            "quality_assurance": 0.1,
         }
 
         # Adjust based on gap types
@@ -1009,7 +1073,9 @@ class KnowledgeGapDetector:
         total = sum(allocation.values())
         return {k: v / total for k, v in allocation.items()}
 
-    def _select_priority_gaps(self, gaps: List[KnowledgeGap], max_gaps: int) -> List[KnowledgeGap]:
+    def _select_priority_gaps(
+        self, gaps: List[KnowledgeGap], max_gaps: int
+    ) -> List[KnowledgeGap]:
         """Select priority gaps to address based on impact and feasibility."""
 
         # Score gaps based on impact, severity, and addressability
@@ -1019,43 +1085,44 @@ class KnowledgeGapDetector:
                 GapSeverity.CRITICAL: 1.0,
                 GapSeverity.HIGH: 0.8,
                 GapSeverity.MEDIUM: 0.6,
-                GapSeverity.LOW: 0.4
+                GapSeverity.LOW: 0.4,
             }
             severity_score = severity_weights.get(gap.severity, 0.5)
 
             # Prefer gaps that are more addressable (higher time sensitivity)
             addressability_score = gap.time_sensitivity
 
-            return impact_score * 0.4 + severity_score * 0.4 + addressability_score * 0.2
+            return (
+                impact_score * 0.4 + severity_score * 0.4 + addressability_score * 0.2
+            )
 
         scored_gaps = sorted(gaps, key=gap_score, reverse=True)
         return scored_gaps[:max_gaps]
 
     def _generate_search_expansions(
-        self,
-        gaps: List[KnowledgeGap],
-        question: Question
+        self, gaps: List[KnowledgeGap], question: Question
     ) -> List[Dict[str, Any]]:
         """Generate specific search expansion actions."""
         expansions = []
 
         for gap in gaps:
-            if gap.gap_type in [GapType.INSUFFICIENT_SOURCES, GapType.SOURCE_DIVERSITY_GAP]:
+            if gap.gap_type in [
+                GapType.INSUFFICIENT_SOURCES,
+                GapType.SOURCE_DIVERSITY_GAP,
+            ]:
                 expansion = {
                     "gap_id": gap.gap_id,
                     "action": "expand_search",
                     "target": gap.missing_elements,
                     "suggestions": gap.research_suggestions,
-                    "priority": gap.severity.value
+                    "priority": gap.severity.value,
                 }
                 expansions.append(expansion)
 
         return expansions
 
     def _generate_expert_consultations(
-        self,
-        gaps: List[KnowledgeGap],
-        question: Question
+        self, gaps: List[KnowledgeGap], question: Question
     ) -> List[Dict[str, Any]]:
         """Generate expert consultation recommendations."""
         consultations = []
@@ -1067,16 +1134,14 @@ class KnowledgeGapDetector:
                     "action": "consult_expert",
                     "expertise_needed": gap.missing_elements,
                     "consultation_type": "domain_expert",
-                    "priority": gap.severity.value
+                    "priority": gap.severity.value,
                 }
                 consultations.append(consultation)
 
         return consultations
 
     def _generate_diversification_actions(
-        self,
-        gaps: List[KnowledgeGap],
-        question: Question
+        self, gaps: List[KnowledgeGap], question: Question
     ) -> List[Dict[str, Any]]:
         """Generate source diversification actions."""
         actions = []
@@ -1088,16 +1153,14 @@ class KnowledgeGapDetector:
                     "action": "diversify_sources",
                     "target_types": gap.missing_elements,
                     "current_coverage": gap.current_coverage,
-                    "target_coverage": gap.desired_coverage
+                    "target_coverage": gap.desired_coverage,
                 }
                 actions.append(action)
 
         return actions
 
     def _allocate_time(
-        self,
-        gaps: List[KnowledgeGap],
-        total_time: timedelta
+        self, gaps: List[KnowledgeGap], total_time: timedelta
     ) -> Dict[str, timedelta]:
         """Allocate time across different research activities."""
 
@@ -1107,7 +1170,7 @@ class KnowledgeGapDetector:
             "search_expansion": total_time * 0.4,
             "source_verification": total_time * 0.2,
             "expert_consultation": total_time * 0.2,
-            "synthesis": total_time * 0.1
+            "synthesis": total_time * 0.1,
         }
 
         # Adjust based on gap severity
@@ -1120,7 +1183,9 @@ class KnowledgeGapDetector:
 
         return allocation
 
-    def _calculate_effort_distribution(self, gaps: List[KnowledgeGap]) -> Dict[str, float]:
+    def _calculate_effort_distribution(
+        self, gaps: List[KnowledgeGap]
+    ) -> Dict[str, float]:
         """Calculate effort distribution across gap types."""
 
         if not gaps:

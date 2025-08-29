@@ -1,18 +1,19 @@
 """ForecastService application layer for managing forecasts."""
 
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-from uuid import uuid4, UUID
+from typing import Any, Dict, List, Optional
+from uuid import UUID, uuid4
 
-from src.domain.entities.question import Question, QuestionType
 from src.domain.entities.forecast import Forecast, ForecastStatus, calculate_brier_score
+from src.domain.entities.question import Question, QuestionType
 from src.domain.entities.research_report import ResearchReport
-from src.domain.value_objects.probability import Probability
 from src.domain.value_objects.confidence import ConfidenceLevel
+from src.domain.value_objects.probability import Probability
 
 
 class ForecastValidationError(Exception):
     """Exception raised when forecast validation fails."""
+
     pass
 
 
@@ -28,7 +29,7 @@ class ForecastService:
         question_categorizer=None,
         risk_management_service=None,
         performance_tracking=None,
-        calibration_service=None
+        calibration_service=None,
     ):
         """Initialize forecast service with dependencies."""
         self.forecasting_service = forecasting_service
@@ -45,7 +46,7 @@ class ForecastService:
         question: Question,
         probability: Probability,
         confidence: ConfidenceLevel,
-        reasoning: str
+        reasoning: str,
     ) -> None:
         """
         Validate a forecast before creation.
@@ -61,11 +62,15 @@ class ForecastService:
         """
         # Check if question is open
         if not question.is_open():
-            raise ForecastValidationError("Question is closed and cannot accept new forecasts")
+            raise ForecastValidationError(
+                "Question is closed and cannot accept new forecasts"
+            )
 
         # Only support binary questions for now
         if question.question_type != QuestionType.BINARY:
-            raise ForecastValidationError("Only binary questions are supported for forecasting")
+            raise ForecastValidationError(
+                "Only binary questions are supported for forecasting"
+            )
 
         # Validate reasoning
         if not reasoning or reasoning.strip() == "":
@@ -84,7 +89,7 @@ class ForecastService:
         forecaster_id: UUID,
         probability: Probability,
         confidence: ConfidenceLevel,
-        reasoning: str
+        reasoning: str,
     ) -> Forecast:
         """
         Create a new forecast after validation.
@@ -109,7 +114,10 @@ class ForecastService:
         # This is a simplified wrapper that creates a basic forecast
         # For more sophisticated forecasts, use generate_forecast instead
         from src.domain.entities.prediction import (
-            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+            Prediction,
+            PredictionConfidence,
+            PredictionMethod,
+            PredictionResult,
         )
 
         # Convert confidence level to prediction confidence
@@ -121,7 +129,9 @@ class ForecastService:
             1.0: PredictionConfidence.VERY_HIGH,
         }
         # Find closest confidence level
-        closest_conf = min(confidence_mapping.keys(), key=lambda x: abs(x - confidence.value))
+        closest_conf = min(
+            confidence_mapping.keys(), key=lambda x: abs(x - confidence.value)
+        )
         pred_confidence = confidence_mapping[closest_conf]
 
         # Create a simple research report
@@ -135,7 +145,7 @@ class ForecastService:
             confidence=pred_confidence,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning=reasoning,
-            created_by=str(forecaster_id)
+            created_by=str(forecaster_id),
         )
 
         # Create forecast using the factory method
@@ -144,7 +154,7 @@ class ForecastService:
             research_reports=[research_report],
             predictions=[prediction],
             final_prediction=prediction,
-            reasoning_summary=reasoning
+            reasoning_summary=reasoning,
         )
 
     def score_forecast(self, forecast: Forecast, question: Question) -> Optional[float]:
@@ -174,15 +184,10 @@ class ForecastService:
             return None
 
         # Use the existing calculate_brier_score function
-        return calculate_brier_score(
-            forecast=final_prob,
-            outcome=1 if outcome else 0
-        )
+        return calculate_brier_score(forecast=final_prob, outcome=1 if outcome else 0)
 
     def batch_score_forecasts(
-        self,
-        forecasts: List[Forecast],
-        questions: List[Question]
+        self, forecasts: List[Forecast], questions: List[Question]
     ) -> List[Optional[float]]:
         """
         Score multiple forecasts in batch.
@@ -226,9 +231,7 @@ class ForecastService:
         return sum(valid_scores) / len(valid_scores)
 
     def get_forecast_summary(
-        self,
-        forecasts: List[Forecast],
-        questions: List[Question]
+        self, forecasts: List[Forecast], questions: List[Question]
     ) -> Dict[str, Any]:
         """
         Generate a summary of forecasts and their performance.
@@ -247,7 +250,7 @@ class ForecastService:
             "total_forecasts": len(forecasts),
             "scored_forecasts": len([s for s in scores if s is not None]),
             "average_score": average_score,
-            "scores": scores
+            "scores": scores,
         }
 
     def _is_extreme_probability(self, probability: Probability) -> bool:
@@ -280,16 +283,24 @@ class ForecastService:
             ForecastValidationError: If the question cannot be forecasted
         """
         import random
+
         from src.domain.entities.prediction import (
-            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+            Prediction,
+            PredictionConfidence,
+            PredictionMethod,
+            PredictionResult,
         )
         from src.domain.entities.research_report import (
-            ResearchReport, ResearchSource, ResearchQuality
+            ResearchQuality,
+            ResearchReport,
+            ResearchSource,
         )
 
         # Validate that we can forecast this question
         if not question.is_open():
-            raise ForecastValidationError("Cannot generate forecast for closed question")
+            raise ForecastValidationError(
+                "Cannot generate forecast for closed question"
+            )
 
         # Support multiple question types
         if question.question_type == QuestionType.BINARY:
@@ -299,16 +310,24 @@ class ForecastService:
         elif question.question_type == QuestionType.MULTIPLE_CHOICE:
             return self._generate_multiple_choice_forecast(question)
         else:
-            raise ForecastValidationError(f"Question type {question.question_type.value} is not yet supported")
+            raise ForecastValidationError(
+                f"Question type {question.question_type.value} is not yet supported"
+            )
 
     def _generate_binary_forecast(self, question: Question) -> Forecast:
         """Generate forecast for binary questions."""
         import random
+
         from src.domain.entities.prediction import (
-            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+            Prediction,
+            PredictionConfidence,
+            PredictionMethod,
+            PredictionResult,
         )
         from src.domain.entities.research_report import (
-            ResearchReport, ResearchSource, ResearchQuality
+            ResearchQuality,
+            ResearchReport,
+            ResearchSource,
         )
 
         # Mock AI prediction logic: use community prediction if available,
@@ -349,14 +368,21 @@ class ForecastService:
                 probability=ai_probability,
                 confidence=confidence,
                 method=method,
-                reasoning=self._generate_mock_reasoning(question, ai_probability, base_probability),
+                reasoning=self._generate_mock_reasoning(
+                    question, ai_probability, base_probability
+                ),
                 created_by="ai_forecast_service",
-                method_metadata={"base_probability": base_probability, "variation": variation}
+                method_metadata={
+                    "base_probability": base_probability,
+                    "variation": variation,
+                },
             )
             predictions.append(prediction)
 
         # Create final prediction (ensemble of all predictions)
-        final_probability = sum(p.result.binary_probability for p in predictions) / len(predictions)
+        final_probability = sum(p.result.binary_probability for p in predictions) / len(
+            predictions
+        )
 
         final_prediction = Prediction.create_binary_prediction(
             question_id=question.id,
@@ -366,7 +392,7 @@ class ForecastService:
             method=PredictionMethod.ENSEMBLE,
             reasoning=f"Ensemble of {len(predictions)} predictions with final probability {final_probability:.3f}",
             created_by="ai_forecast_service",
-            method_metadata={"component_predictions": len(predictions)}
+            method_metadata={"component_predictions": len(predictions)},
         )
 
         # Create forecast using the factory method
@@ -377,19 +403,30 @@ class ForecastService:
             final_prediction=final_prediction,
             reasoning_summary=f"AI-generated forecast with {len(predictions)} prediction methods",
             ensemble_method="simple_average",
-            weight_distribution={method.value: 1.0/len(methods) for method in methods},
-            consensus_strength=1.0 - (max(p.result.binary_probability for p in predictions) -
-                                     min(p.result.binary_probability for p in predictions))
+            weight_distribution={
+                method.value: 1.0 / len(methods) for method in methods
+            },
+            consensus_strength=1.0
+            - (
+                max(p.result.binary_probability for p in predictions)
+                - min(p.result.binary_probability for p in predictions)
+            ),
         )
 
     def _generate_numeric_forecast(self, question: Question) -> Forecast:
         """Generate forecast for numeric questions."""
         import random
+
         from src.domain.entities.prediction import (
-            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+            Prediction,
+            PredictionConfidence,
+            PredictionMethod,
+            PredictionResult,
         )
         from src.domain.entities.research_report import (
-            ResearchReport, ResearchSource, ResearchQuality
+            ResearchQuality,
+            ResearchReport,
+            ResearchSource,
         )
 
         # Extract bounds
@@ -401,11 +438,16 @@ class ForecastService:
         base_value = min_val + (range_val * 0.5)  # Default to middle of range
         if question.metadata and "community_prediction" in question.metadata:
             community_pred = question.metadata["community_prediction"]
-            if isinstance(community_pred, (int, float)) and min_val <= community_pred <= max_val:
+            if (
+                isinstance(community_pred, (int, float))
+                and min_val <= community_pred <= max_val
+            ):
                 base_value = float(community_pred)
 
         # Create a mock research report
-        research_report = self._create_mock_research_report(question, (base_value - min_val) / range_val)
+        research_report = self._create_mock_research_report(
+            question, (base_value - min_val) / range_val
+        )
 
         # Generate multiple prediction variants
         predictions = []
@@ -417,7 +459,9 @@ class ForecastService:
             predicted_value = max(min_val, min(max_val, base_value + variation))
 
             # Generate confidence based on distance from bounds
-            distance_from_bounds = min(predicted_value - min_val, max_val - predicted_value)
+            distance_from_bounds = min(
+                predicted_value - min_val, max_val - predicted_value
+            )
             normalized_distance = distance_from_bounds / (range_val / 2)
 
             if normalized_distance > 0.6:
@@ -434,14 +478,18 @@ class ForecastService:
                 value=predicted_value,
                 confidence=confidence,
                 method=method,
-                reasoning=self._generate_numeric_reasoning(question, predicted_value, base_value),
+                reasoning=self._generate_numeric_reasoning(
+                    question, predicted_value, base_value
+                ),
                 created_by="ai_forecast_service",
-                method_metadata={"base_value": base_value, "variation": variation}
+                method_metadata={"base_value": base_value, "variation": variation},
             )
             predictions.append(prediction)
 
         # Create final prediction (ensemble average)
-        final_value = sum(p.result.numeric_value for p in predictions) / len(predictions)
+        final_value = sum(p.result.numeric_value for p in predictions) / len(
+            predictions
+        )
 
         final_prediction = Prediction.create_numeric_prediction(
             question_id=question.id,
@@ -451,7 +499,7 @@ class ForecastService:
             method=PredictionMethod.ENSEMBLE,
             reasoning=f"Ensemble of {len(predictions)} predictions with final value {final_value:.2f}",
             created_by="ai_forecast_service",
-            method_metadata={"component_predictions": len(predictions)}
+            method_metadata={"component_predictions": len(predictions)},
         )
 
         # Create forecast
@@ -462,23 +510,37 @@ class ForecastService:
             final_prediction=final_prediction,
             reasoning_summary=f"AI-generated numeric forecast with {len(predictions)} prediction methods",
             ensemble_method="simple_average",
-            weight_distribution={method.value: 1.0/len(methods) for method in methods},
-            consensus_strength=1.0 - abs(max(p.result.numeric_value for p in predictions) -
-                                        min(p.result.numeric_value for p in predictions)) / range_val
+            weight_distribution={
+                method.value: 1.0 / len(methods) for method in methods
+            },
+            consensus_strength=1.0
+            - abs(
+                max(p.result.numeric_value for p in predictions)
+                - min(p.result.numeric_value for p in predictions)
+            )
+            / range_val,
         )
 
     def _generate_multiple_choice_forecast(self, question: Question) -> Forecast:
         """Generate forecast for multiple choice questions."""
         import random
+
         from src.domain.entities.prediction import (
-            Prediction, PredictionResult, PredictionConfidence, PredictionMethod
+            Prediction,
+            PredictionConfidence,
+            PredictionMethod,
+            PredictionResult,
         )
         from src.domain.entities.research_report import (
-            ResearchReport, ResearchSource, ResearchQuality
+            ResearchQuality,
+            ResearchReport,
+            ResearchSource,
         )
 
         if not question.choices:
-            raise ForecastValidationError("Multiple choice question must have choices defined")
+            raise ForecastValidationError(
+                "Multiple choice question must have choices defined"
+            )
 
         # Create mock probability distribution across choices
         choices = question.choices
@@ -538,9 +600,11 @@ class ForecastService:
                 choice_probabilities=dict(zip(choices, varied_probs)),
                 confidence=confidence,
                 method=method,
-                reasoning=self._generate_choice_reasoning(question, predicted_choice, varied_probs, choices),
+                reasoning=self._generate_choice_reasoning(
+                    question, predicted_choice, varied_probs, choices
+                ),
                 created_by="ai_forecast_service",
-                method_metadata={"base_probabilities": dict(zip(choices, base_probs))}
+                method_metadata={"base_probabilities": dict(zip(choices, base_probs))},
             )
             predictions.append(prediction)
 
@@ -548,7 +612,8 @@ class ForecastService:
         ensemble_probs = {}
         for choice in choices:
             ensemble_probs[choice] = sum(
-                p.result.multiple_choice_probabilities.get(choice, 0) for p in predictions
+                p.result.multiple_choice_probabilities.get(choice, 0)
+                for p in predictions
             ) / len(predictions)
 
         # Final choice is the one with highest ensemble probability
@@ -562,7 +627,7 @@ class ForecastService:
             method=PredictionMethod.ENSEMBLE,
             reasoning=f"Ensemble of {len(predictions)} predictions favoring '{final_choice}' with {ensemble_probs[final_choice]:.1%} probability",
             created_by="ai_forecast_service",
-            method_metadata={"component_predictions": len(predictions)}
+            method_metadata={"component_predictions": len(predictions)},
         )
 
         # Create forecast
@@ -573,11 +638,17 @@ class ForecastService:
             final_prediction=final_prediction,
             reasoning_summary=f"AI-generated multiple choice forecast with {len(predictions)} prediction methods",
             ensemble_method="probability_averaging",
-            weight_distribution={method.value: 1.0/len(methods) for method in methods},
-            consensus_strength=ensemble_probs[final_choice]  # Strength based on winning choice probability
+            weight_distribution={
+                method.value: 1.0 / len(methods) for method in methods
+            },
+            consensus_strength=ensemble_probs[
+                final_choice
+            ],  # Strength based on winning choice probability
         )
 
-    def _generate_mock_reasoning(self, question: Question, predicted_probability: float, base_probability: float) -> str:
+    def _generate_mock_reasoning(
+        self, question: Question, predicted_probability: float, base_probability: float
+    ) -> str:
         """Generate reasoning for binary predictions."""
         reasoning_parts = [
             f"Analysis of binary question: {question.title}",
@@ -592,20 +663,28 @@ class ForecastService:
             f"Assessment:",
             f"Based on comprehensive analysis, the probability of a positive outcome "
             f"is estimated at {predicted_probability:.1%}. This assessment incorporates "
-            f"base rate analysis, current indicators, and expert opinion synthesis."
+            f"base rate analysis, current indicators, and expert opinion synthesis.",
         ]
 
         # Add interpretation based on probability level
         if predicted_probability > 0.7:
-            reasoning_parts.append(f"The high probability reflects strong supporting evidence.")
+            reasoning_parts.append(
+                f"The high probability reflects strong supporting evidence."
+            )
         elif predicted_probability < 0.3:
-            reasoning_parts.append(f"The low probability reflects limited supporting evidence.")
+            reasoning_parts.append(
+                f"The low probability reflects limited supporting evidence."
+            )
         else:
-            reasoning_parts.append(f"The moderate probability reflects mixed evidence and uncertainty.")
+            reasoning_parts.append(
+                f"The moderate probability reflects mixed evidence and uncertainty."
+            )
 
         return "\n".join(reasoning_parts)
 
-    def _generate_numeric_reasoning(self, question: Question, predicted_value: float, base_value: float) -> str:
+    def _generate_numeric_reasoning(
+        self, question: Question, predicted_value: float, base_value: float
+    ) -> str:
         """Generate reasoning for numeric predictions."""
         reasoning_parts = [
             f"Analysis of numeric question: {question.title}",
@@ -620,12 +699,17 @@ class ForecastService:
             f"Assessment:",
             f"Based on quantitative analysis and expert opinion synthesis, "
             f"the predicted value is {predicted_value:.2f}. This estimate considers "
-            f"both baseline trends and potential variability factors."
+            f"both baseline trends and potential variability factors.",
         ]
         return "\n".join(reasoning_parts)
 
-    def _generate_choice_reasoning(self, question: Question, predicted_choice: str,
-                                 probabilities: List[float], choices: List[str]) -> str:
+    def _generate_choice_reasoning(
+        self,
+        question: Question,
+        predicted_choice: str,
+        probabilities: List[float],
+        choices: List[str],
+    ) -> str:
         """Generate reasoning for multiple choice predictions."""
         choice_prob = probabilities[choices.index(predicted_choice)]
 
@@ -640,18 +724,22 @@ class ForecastService:
             marker = "→" if choice == predicted_choice else " "
             reasoning_parts.append(f"{marker} {choice}: {prob:.1%}")
 
-        reasoning_parts.extend([
-            f"",
-            f"Assessment:",
-            f"Based on available evidence and analysis, '{predicted_choice}' appears "
-            f"to be the most likely outcome with {choice_prob:.1%} probability. "
-            f"This assessment considers historical precedents, expert opinions, "
-            f"and current indicators relevant to this question."
-        ])
+        reasoning_parts.extend(
+            [
+                f"",
+                f"Assessment:",
+                f"Based on available evidence and analysis, '{predicted_choice}' appears "
+                f"to be the most likely outcome with {choice_prob:.1%} probability. "
+                f"This assessment considers historical precedents, expert opinions, "
+                f"and current indicators relevant to this question.",
+            ]
+        )
 
         return "\n".join(reasoning_parts)
 
-    def _create_mock_research_report(self, question: Question, base_probability: float) -> 'ResearchReport':
+    def _create_mock_research_report(
+        self, question: Question, base_probability: float
+    ) -> "ResearchReport":
         """
         Create a mock research report for a question.
 
@@ -663,7 +751,9 @@ class ForecastService:
             Mock research report
         """
         from src.domain.entities.research_report import (
-            ResearchReport, ResearchSource, ResearchQuality
+            ResearchQuality,
+            ResearchReport,
+            ResearchSource,
         )
 
         # Create mock sources
@@ -673,15 +763,15 @@ class ForecastService:
                 title="Historical Analysis of Similar Events",
                 summary="Analysis of historical precedents for this type of question",
                 credibility_score=0.8,
-                source_type="analysis"
+                source_type="analysis",
             ),
             ResearchSource(
                 url="https://example.com/source2",
                 title="Expert Opinions and Market Indicators",
                 summary="Current expert opinions and prediction market data",
                 credibility_score=0.7,
-                source_type="expert_opinion"
-            )
+                source_type="expert_opinion",
+            ),
         ]
 
         # Create research report
@@ -690,16 +780,16 @@ class ForecastService:
             title=f"Research Report: {question.title}",
             executive_summary=f"Comprehensive analysis suggests base probability of {base_probability:.1%}",
             detailed_analysis=f"Detailed analysis of question: {question.title}\n\n"
-                              f"Key considerations include historical precedents, expert opinions, "
-                              f"and current market indicators. Base rate analysis suggests "
-                              f"probability around {base_probability:.1%}.",
+            f"Key considerations include historical precedents, expert opinions, "
+            f"and current market indicators. Base rate analysis suggests "
+            f"probability around {base_probability:.1%}.",
             sources=sources,
             created_by="ai_research_service",
             key_factors=[
                 "Historical precedents",
                 "Expert opinions",
                 "Market indicators",
-                "Time horizon considerations"
+                "Time horizon considerations",
             ],
             base_rates={"historical_rate": base_probability},
             quality=ResearchQuality.MEDIUM,
@@ -709,9 +799,9 @@ class ForecastService:
                 "Identified relevant historical precedents",
                 "Gathered expert opinions and market data",
                 "Analyzed base rates and trends",
-                "Synthesized findings into probability estimate"
+                "Synthesized findings into probability estimate",
             ],
             evidence_for=["Supporting historical cases", "Positive expert sentiment"],
             evidence_against=["Contrarian expert views", "Market uncertainty"],
-            uncertainties=["Limited historical data", "Evolving circumstances"]
+            uncertainties=["Limited historical data", "Evolving circumstances"],
         )

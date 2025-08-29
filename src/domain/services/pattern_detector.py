@@ -1,26 +1,27 @@
 """Pattern detector for tournament adaptation and competitive intelligence."""
 
-from typing import List, Dict, Any, Optional, Tuple, Set
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
-import statistics
 import math
+import statistics
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
 from uuid import UUID
-from collections import defaultdict, Counter
+
 import structlog
 
 from ..entities.forecast import Forecast, ForecastStatus
-from ..entities.prediction import Prediction, PredictionMethod, PredictionConfidence
+from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
 from ..entities.question import Question, QuestionType
 from ..value_objects.tournament_strategy import TournamentStrategy
-
 
 logger = structlog.get_logger(__name__)
 
 
 class PatternType(Enum):
     """Types of patterns that can be detected."""
+
     QUESTION_TYPE_PERFORMANCE = "question_type_performance"
     TEMPORAL_PERFORMANCE = "temporal_performance"
     CONFIDENCE_CALIBRATION = "confidence_calibration"
@@ -35,6 +36,7 @@ class PatternType(Enum):
 
 class AdaptationStrategy(Enum):
     """Types of adaptation strategies."""
+
     INCREASE_CONFIDENCE = "increase_confidence"
     DECREASE_CONFIDENCE = "decrease_confidence"
     CHANGE_METHOD_PREFERENCE = "change_method_preference"
@@ -50,6 +52,7 @@ class AdaptationStrategy(Enum):
 @dataclass
 class DetectedPattern:
     """A detected pattern in forecasting performance or tournament dynamics."""
+
     pattern_type: PatternType
     title: str
     description: str
@@ -70,6 +73,7 @@ class DetectedPattern:
 @dataclass
 class AdaptationRecommendation:
     """Recommendation for strategy adaptation based on detected patterns."""
+
     strategy_type: AdaptationStrategy
     title: str
     description: str
@@ -90,6 +94,7 @@ class AdaptationRecommendation:
 @dataclass
 class CompetitiveIntelligence:
     """Competitive intelligence derived from tournament analysis."""
+
     tournament_id: str
     market_gaps: List[Dict[str, Any]]
     competitor_weaknesses: List[Dict[str, Any]]
@@ -134,7 +139,7 @@ class PatternDetector:
             PatternType.MARKET_INEFFICIENCY: self._detect_market_inefficiencies,
             PatternType.SEASONAL_TRENDS: self._detect_seasonal_patterns,
             PatternType.COMPLEXITY_CORRELATION: self._detect_complexity_patterns,
-            PatternType.ENSEMBLE_SYNERGY: self._detect_ensemble_patterns
+            PatternType.ENSEMBLE_SYNERGY: self._detect_ensemble_patterns,
         }
 
     def detect_patterns(
@@ -142,7 +147,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]] = None,
-        tournament_context: Optional[Dict[str, Any]] = None
+        tournament_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Detect patterns in forecasting data for tournament adaptation.
@@ -164,31 +169,37 @@ class PatternDetector:
             forecast_count=len(forecasts),
             question_count=len(questions),
             has_ground_truth=ground_truth is not None,
-            analysis_timestamp=datetime.utcnow()
+            analysis_timestamp=datetime.utcnow(),
         )
 
         # Detect patterns using all available detectors
         all_patterns = []
         for pattern_type, detector_func in self.pattern_detectors.items():
             try:
-                patterns = detector_func(forecasts, questions, ground_truth, tournament_context)
+                patterns = detector_func(
+                    forecasts, questions, ground_truth, tournament_context
+                )
                 all_patterns.extend(patterns)
             except Exception as e:
                 logger.warning(
                     "Pattern detection failed",
                     pattern_type=pattern_type.value,
-                    error=str(e)
+                    error=str(e),
                 )
 
         # Filter patterns by confidence and significance
         significant_patterns = [
-            pattern for pattern in all_patterns
+            pattern
+            for pattern in all_patterns
             if pattern.confidence >= self.pattern_confidence_threshold
-            and pattern.statistical_significance <= self.statistical_significance_threshold
+            and pattern.statistical_significance
+            <= self.statistical_significance_threshold
         ]
 
         # Generate adaptation recommendations
-        recommendations = self._generate_adaptation_recommendations(significant_patterns, tournament_context)
+        recommendations = self._generate_adaptation_recommendations(
+            significant_patterns, tournament_context
+        )
 
         # Generate competitive intelligence
         competitive_intel = self._generate_competitive_intelligence(
@@ -209,18 +220,28 @@ class PatternDetector:
             "total_patterns_detected": len(all_patterns),
             "significant_patterns": len(significant_patterns),
             "patterns_by_type": self._group_patterns_by_type(significant_patterns),
-            "detected_patterns": [self._serialize_pattern(p) for p in significant_patterns],
-            "adaptation_recommendations": [self._serialize_recommendation(r) for r in recommendations],
-            "competitive_intelligence": self._serialize_competitive_intelligence(competitive_intel) if competitive_intel else None,
+            "detected_patterns": [
+                self._serialize_pattern(p) for p in significant_patterns
+            ],
+            "adaptation_recommendations": [
+                self._serialize_recommendation(r) for r in recommendations
+            ],
+            "competitive_intelligence": (
+                self._serialize_competitive_intelligence(competitive_intel)
+                if competitive_intel
+                else None
+            ),
             "meta_patterns": meta_patterns,
-            "strategy_evolution_suggestions": self._generate_strategy_evolution_suggestions(significant_patterns)
+            "strategy_evolution_suggestions": self._generate_strategy_evolution_suggestions(
+                significant_patterns
+            ),
         }
 
         logger.info(
             "Pattern detection completed",
             significant_patterns=len(significant_patterns),
             recommendations=len(recommendations),
-            has_competitive_intel=competitive_intel is not None
+            has_competitive_intel=competitive_intel is not None,
         )
 
         return results
@@ -230,7 +251,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect patterns related to question type performance."""
         patterns = []
@@ -242,31 +263,44 @@ class PatternDetector:
         for i, forecast in enumerate(forecasts):
             question_type = question_type_map.get(forecast.question_id)
             if question_type and ground_truth and i < len(ground_truth):
-                accuracy = 1.0 if (forecast.prediction > 0.5) == ground_truth[i] else 0.0
-                type_performance[question_type].append({
-                    'forecast': forecast,
-                    'accuracy': accuracy,
-                    'confidence': forecast.confidence,
-                    'brier_score': (forecast.prediction - (1.0 if ground_truth[i] else 0.0)) ** 2
-                })
+                accuracy = (
+                    1.0 if (forecast.prediction > 0.5) == ground_truth[i] else 0.0
+                )
+                type_performance[question_type].append(
+                    {
+                        "forecast": forecast,
+                        "accuracy": accuracy,
+                        "confidence": forecast.confidence,
+                        "brier_score": (
+                            forecast.prediction - (1.0 if ground_truth[i] else 0.0)
+                        )
+                        ** 2,
+                    }
+                )
 
         # Analyze performance by question type
         for question_type, performance_data in type_performance.items():
             if len(performance_data) < self.min_samples_for_pattern:
                 continue
 
-            accuracies = [p['accuracy'] for p in performance_data]
-            brier_scores = [p['brier_score'] for p in performance_data]
+            accuracies = [p["accuracy"] for p in performance_data]
+            brier_scores = [p["brier_score"] for p in performance_data]
 
             avg_accuracy = statistics.mean(accuracies)
             avg_brier = statistics.mean(brier_scores)
 
             # Compare to overall performance
-            overall_accuracy = statistics.mean([
-                1.0 if (f.prediction > 0.5) == truth else 0.0
-                for f, truth in zip(forecasts, ground_truth or [])
-                if truth is not None
-            ]) if ground_truth else 0.5
+            overall_accuracy = (
+                statistics.mean(
+                    [
+                        1.0 if (f.prediction > 0.5) == truth else 0.0
+                        for f, truth in zip(forecasts, ground_truth or [])
+                        if truth is not None
+                    ]
+                )
+                if ground_truth
+                else 0.5
+            )
 
             performance_diff = avg_accuracy - overall_accuracy
 
@@ -285,22 +319,35 @@ class PatternDetector:
                         "sample_size": len(performance_data),
                         "avg_accuracy": avg_accuracy,
                         "avg_brier_score": avg_brier,
-                        "performance_difference": performance_diff
+                        "performance_difference": performance_diff,
                     },
-                    affected_questions=[p['forecast'].question_id for p in performance_data],
-                    affected_agents=list(set(p['forecast'].final_prediction.created_by for p in performance_data)),
-                    first_observed=min(p['forecast'].created_at for p in performance_data),
-                    last_observed=max(p['forecast'].created_at for p in performance_data),
+                    affected_questions=[
+                        p["forecast"].question_id for p in performance_data
+                    ],
+                    affected_agents=list(
+                        set(
+                            p["forecast"].final_prediction.created_by
+                            for p in performance_data
+                        )
+                    ),
+                    first_observed=min(
+                        p["forecast"].created_at for p in performance_data
+                    ),
+                    last_observed=max(
+                        p["forecast"].created_at for p in performance_data
+                    ),
                     trend_direction=trend,
-                    statistical_significance=0.01 if abs(performance_diff) > 0.15 else 0.05,
+                    statistical_significance=(
+                        0.01 if abs(performance_diff) > 0.15 else 0.05
+                    ),
                     examples=[
                         {
-                            "question_id": str(p['forecast'].question_id),
-                            "accuracy": p['accuracy'],
-                            "confidence": p['confidence']
+                            "question_id": str(p["forecast"].question_id),
+                            "accuracy": p["accuracy"],
+                            "confidence": p["confidence"],
                         }
                         for p in performance_data[:3]
-                    ]
+                    ],
                 )
                 patterns.append(pattern)
 
@@ -311,7 +358,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect temporal patterns in performance."""
         patterns = []
@@ -321,8 +368,12 @@ class PatternDetector:
 
         # Sort forecasts by creation time
         sorted_forecasts = sorted(
-            [(f, truth) for f, truth in zip(forecasts, ground_truth) if truth is not None],
-            key=lambda x: x[0].created_at
+            [
+                (f, truth)
+                for f, truth in zip(forecasts, ground_truth)
+                if truth is not None
+            ],
+            key=lambda x: x[0].created_at,
         )
 
         if len(sorted_forecasts) < 10:
@@ -333,26 +384,32 @@ class PatternDetector:
         windows = []
 
         for i in range(0, len(sorted_forecasts) - window_size + 1, window_size // 2):
-            window_data = sorted_forecasts[i:i + window_size]
-            window_accuracy = statistics.mean([
-                1.0 if (f.prediction > 0.5) == truth else 0.0
-                for f, truth in window_data
-            ])
+            window_data = sorted_forecasts[i : i + window_size]
+            window_accuracy = statistics.mean(
+                [
+                    1.0 if (f.prediction > 0.5) == truth else 0.0
+                    for f, truth in window_data
+                ]
+            )
             window_confidence = statistics.mean([f.confidence for f, _ in window_data])
-            window_time = statistics.mean([f.created_at.timestamp() for f, _ in window_data])
+            window_time = statistics.mean(
+                [f.created_at.timestamp() for f, _ in window_data]
+            )
 
-            windows.append({
-                'time': datetime.fromtimestamp(window_time),
-                'accuracy': window_accuracy,
-                'confidence': window_confidence,
-                'sample_size': len(window_data)
-            })
+            windows.append(
+                {
+                    "time": datetime.fromtimestamp(window_time),
+                    "accuracy": window_accuracy,
+                    "confidence": window_confidence,
+                    "sample_size": len(window_data),
+                }
+            )
 
         if len(windows) < 3:
             return patterns
 
         # Detect trends
-        accuracies = [w['accuracy'] for w in windows]
+        accuracies = [w["accuracy"] for w in windows]
         times = list(range(len(windows)))
 
         # Simple linear trend detection
@@ -361,10 +418,12 @@ class PatternDetector:
             mean_time = statistics.mean(times)
             mean_acc = statistics.mean(accuracies)
 
-            numerator = sum((t - mean_time) * (a - mean_acc) for t, a in zip(times, accuracies))
+            numerator = sum(
+                (t - mean_time) * (a - mean_acc) for t, a in zip(times, accuracies)
+            )
             denominator = math.sqrt(
-                sum((t - mean_time) ** 2 for t in times) *
-                sum((a - mean_acc) ** 2 for a in accuracies)
+                sum((t - mean_time) ** 2 for t in times)
+                * sum((a - mean_acc) ** 2 for a in accuracies)
             )
 
             if denominator > 0:
@@ -384,23 +443,29 @@ class PatternDetector:
                             "correlation": correlation,
                             "trend_strength": abs(correlation),
                             "window_count": len(windows),
-                            "time_span_days": (windows[-1]['time'] - windows[0]['time']).days,
-                            "accuracy_range": [min(accuracies), max(accuracies)]
+                            "time_span_days": (
+                                windows[-1]["time"] - windows[0]["time"]
+                            ).days,
+                            "accuracy_range": [min(accuracies), max(accuracies)],
                         },
                         affected_questions=[f.question_id for f in forecasts],
-                        affected_agents=list(set(f.final_prediction.created_by for f in forecasts)),
-                        first_observed=windows[0]['time'],
-                        last_observed=windows[-1]['time'],
+                        affected_agents=list(
+                            set(f.final_prediction.created_by for f in forecasts)
+                        ),
+                        first_observed=windows[0]["time"],
+                        last_observed=windows[-1]["time"],
                         trend_direction=trend_direction,
-                        statistical_significance=0.01 if abs(correlation) > 0.7 else 0.05,
+                        statistical_significance=(
+                            0.01 if abs(correlation) > 0.7 else 0.05
+                        ),
                         examples=[
                             {
-                                "time_window": w['time'].isoformat(),
-                                "accuracy": w['accuracy'],
-                                "confidence": w['confidence']
+                                "time_window": w["time"].isoformat(),
+                                "accuracy": w["accuracy"],
+                                "confidence": w["confidence"],
                             }
                             for w in windows[:3]
-                        ]
+                        ],
                     )
                     patterns.append(pattern)
 
@@ -411,7 +476,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect confidence calibration patterns."""
         patterns = []
@@ -420,11 +485,7 @@ class PatternDetector:
             return patterns
 
         # Group forecasts by confidence level
-        confidence_bins = {
-            "low": [],
-            "medium": [],
-            "high": []
-        }
+        confidence_bins = {"low": [], "medium": [], "high": []}
 
         for forecast, truth in zip(forecasts, ground_truth):
             if truth is None:
@@ -445,12 +506,18 @@ class PatternDetector:
                 continue
 
             avg_accuracy = statistics.mean(accuracies)
-            expected_accuracy = 0.3 if conf_level == "low" else 0.6 if conf_level == "medium" else 0.8
+            expected_accuracy = (
+                0.3 if conf_level == "low" else 0.6 if conf_level == "medium" else 0.8
+            )
 
             calibration_error = abs(avg_accuracy - expected_accuracy)
 
             if calibration_error > 0.15:  # Significant miscalibration
-                miscalibration_type = "overconfident" if avg_accuracy < expected_accuracy else "underconfident"
+                miscalibration_type = (
+                    "overconfident"
+                    if avg_accuracy < expected_accuracy
+                    else "underconfident"
+                )
 
                 pattern = DetectedPattern(
                     pattern_type=PatternType.CONFIDENCE_CALIBRATION,
@@ -465,14 +532,16 @@ class PatternDetector:
                         "actual_accuracy": avg_accuracy,
                         "expected_accuracy": expected_accuracy,
                         "calibration_error": calibration_error,
-                        "miscalibration_type": miscalibration_type
+                        "miscalibration_type": miscalibration_type,
                     },
                     affected_questions=[],  # Would need to track which forecasts
-                    affected_agents=list(set(f.final_prediction.created_by for f in forecasts)),
+                    affected_agents=list(
+                        set(f.final_prediction.created_by for f in forecasts)
+                    ),
                     first_observed=min(f.created_at for f in forecasts),
                     last_observed=max(f.created_at for f in forecasts),
                     trend_direction="stable",  # Would need temporal analysis
-                    statistical_significance=0.01 if calibration_error > 0.25 else 0.05
+                    statistical_significance=0.01 if calibration_error > 0.25 else 0.05,
                 )
                 patterns.append(pattern)
 
@@ -483,7 +552,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect patterns in method effectiveness."""
         patterns = []
@@ -502,12 +571,14 @@ class PatternDetector:
             accuracy = 1.0 if (forecast.prediction > 0.5) == truth else 0.0
             brier_score = (forecast.prediction - (1.0 if truth else 0.0)) ** 2
 
-            method_performance[method].append({
-                'accuracy': accuracy,
-                'brier_score': brier_score,
-                'confidence': forecast.confidence,
-                'forecast': forecast
-            })
+            method_performance[method].append(
+                {
+                    "accuracy": accuracy,
+                    "brier_score": brier_score,
+                    "confidence": forecast.confidence,
+                    "forecast": forecast,
+                }
+            )
 
         # Analyze method performance
         method_stats = {}
@@ -516,21 +587,32 @@ class PatternDetector:
                 continue
 
             method_stats[method] = {
-                'accuracy': statistics.mean([p['accuracy'] for p in performance_data]),
-                'brier_score': statistics.mean([p['brier_score'] for p in performance_data]),
-                'confidence': statistics.mean([p['confidence'] for p in performance_data]),
-                'sample_size': len(performance_data),
-                'data': performance_data
+                "accuracy": statistics.mean([p["accuracy"] for p in performance_data]),
+                "brier_score": statistics.mean(
+                    [p["brier_score"] for p in performance_data]
+                ),
+                "confidence": statistics.mean(
+                    [p["confidence"] for p in performance_data]
+                ),
+                "sample_size": len(performance_data),
+                "data": performance_data,
             }
 
         if len(method_stats) < 2:
             return patterns
 
         # Find best and worst performing methods
-        best_method = max(method_stats.keys(), key=lambda m: method_stats[m]['accuracy'])
-        worst_method = min(method_stats.keys(), key=lambda m: method_stats[m]['accuracy'])
+        best_method = max(
+            method_stats.keys(), key=lambda m: method_stats[m]["accuracy"]
+        )
+        worst_method = min(
+            method_stats.keys(), key=lambda m: method_stats[m]["accuracy"]
+        )
 
-        performance_gap = method_stats[best_method]['accuracy'] - method_stats[worst_method]['accuracy']
+        performance_gap = (
+            method_stats[best_method]["accuracy"]
+            - method_stats[worst_method]["accuracy"]
+        )
 
         if performance_gap > 0.15:  # Significant difference
             pattern = DetectedPattern(
@@ -548,13 +630,15 @@ class PatternDetector:
                         method: {
                             "accuracy": stats["accuracy"],
                             "brier_score": stats["brier_score"],
-                            "sample_size": stats["sample_size"]
+                            "sample_size": stats["sample_size"],
                         }
                         for method, stats in method_stats.items()
-                    }
+                    },
                 },
                 affected_questions=[f.question_id for f in forecasts],
-                affected_agents=list(set(f.final_prediction.created_by for f in forecasts)),
+                affected_agents=list(
+                    set(f.final_prediction.created_by for f in forecasts)
+                ),
                 first_observed=min(f.created_at for f in forecasts),
                 last_observed=max(f.created_at for f in forecasts),
                 trend_direction="stable",  # Would need temporal analysis
@@ -563,10 +647,10 @@ class PatternDetector:
                     {
                         "method": method,
                         "accuracy": stats["accuracy"],
-                        "sample_size": stats["sample_size"]
+                        "sample_size": stats["sample_size"],
                     }
                     for method, stats in list(method_stats.items())[:3]
-                ]
+                ],
             )
             patterns.append(pattern)
 
@@ -577,7 +661,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect tournament-specific dynamics patterns."""
         patterns = []
@@ -586,19 +670,25 @@ class PatternDetector:
             return patterns
 
         # Analyze submission timing patterns
-        if 'deadlines' in tournament_context:
-            timing_pattern = self._analyze_submission_timing(forecasts, tournament_context['deadlines'])
+        if "deadlines" in tournament_context:
+            timing_pattern = self._analyze_submission_timing(
+                forecasts, tournament_context["deadlines"]
+            )
             if timing_pattern:
                 patterns.append(timing_pattern)
 
         # Analyze competitive pressure patterns
-        if 'competitor_data' in tournament_context:
-            competitive_pattern = self._analyze_competitive_pressure(forecasts, tournament_context['competitor_data'])
+        if "competitor_data" in tournament_context:
+            competitive_pattern = self._analyze_competitive_pressure(
+                forecasts, tournament_context["competitor_data"]
+            )
             if competitive_pattern:
                 patterns.append(competitive_pattern)
 
         # Analyze question difficulty patterns
-        difficulty_pattern = self._analyze_question_difficulty(forecasts, questions, ground_truth)
+        difficulty_pattern = self._analyze_question_difficulty(
+            forecasts, questions, ground_truth
+        )
         if difficulty_pattern:
             patterns.append(difficulty_pattern)
 
@@ -609,7 +699,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect competitive positioning patterns."""
         patterns = []
@@ -628,7 +718,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect market inefficiencies for exploitation."""
         patterns = []
@@ -647,7 +737,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect seasonal or cyclical patterns."""
         patterns = []
@@ -661,7 +751,9 @@ class PatternDetector:
 
         for i, forecast in enumerate(forecasts):
             if ground_truth and i < len(ground_truth) and ground_truth[i] is not None:
-                accuracy = 1.0 if (forecast.prediction > 0.5) == ground_truth[i] else 0.0
+                accuracy = (
+                    1.0 if (forecast.prediction > 0.5) == ground_truth[i] else 0.0
+                )
 
                 month = forecast.created_at.month
                 weekday = forecast.created_at.weekday()
@@ -679,9 +771,15 @@ class PatternDetector:
 
             if len(month_accuracies) >= 3:
                 accuracy_values = list(month_accuracies.values())
-                if max(accuracy_values) - min(accuracy_values) > 0.2:  # Significant seasonal variation
-                    best_month = max(month_accuracies.keys(), key=lambda m: month_accuracies[m])
-                    worst_month = min(month_accuracies.keys(), key=lambda m: month_accuracies[m])
+                if (
+                    max(accuracy_values) - min(accuracy_values) > 0.2
+                ):  # Significant seasonal variation
+                    best_month = max(
+                        month_accuracies.keys(), key=lambda m: month_accuracies[m]
+                    )
+                    worst_month = min(
+                        month_accuracies.keys(), key=lambda m: month_accuracies[m]
+                    )
 
                     pattern = DetectedPattern(
                         pattern_type=PatternType.SEASONAL_TRENDS,
@@ -694,14 +792,16 @@ class PatternDetector:
                             "monthly_accuracies": month_accuracies,
                             "best_month": best_month,
                             "worst_month": worst_month,
-                            "variation": max(accuracy_values) - min(accuracy_values)
+                            "variation": max(accuracy_values) - min(accuracy_values),
                         },
                         affected_questions=[f.question_id for f in forecasts],
-                        affected_agents=list(set(f.final_prediction.created_by for f in forecasts)),
+                        affected_agents=list(
+                            set(f.final_prediction.created_by for f in forecasts)
+                        ),
                         first_observed=min(f.created_at for f in forecasts),
                         last_observed=max(f.created_at for f in forecasts),
                         trend_direction="cyclical",
-                        statistical_significance=0.05
+                        statistical_significance=0.05,
                     )
                     patterns.append(pattern)
 
@@ -712,7 +812,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect patterns related to question complexity."""
         patterns = []
@@ -731,7 +831,7 @@ class PatternDetector:
         forecasts: List[Forecast],
         questions: List[Question],
         ground_truth: Optional[List[bool]],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[DetectedPattern]:
         """Detect ensemble synergy patterns."""
         patterns = []
@@ -740,21 +840,33 @@ class PatternDetector:
         ensemble_forecasts = [f for f in forecasts if f.method == "ensemble"]
         individual_forecasts = [f for f in forecasts if f.method != "ensemble"]
 
-        if len(ensemble_forecasts) < 5 or len(individual_forecasts) < 5 or not ground_truth:
+        if (
+            len(ensemble_forecasts) < 5
+            or len(individual_forecasts) < 5
+            or not ground_truth
+        ):
             return patterns
 
         # Calculate performance metrics
-        ensemble_accuracy = statistics.mean([
-            1.0 if (f.prediction > 0.5) == ground_truth[i] else 0.0
-            for i, f in enumerate(forecasts)
-            if f.method == "ensemble" and i < len(ground_truth) and ground_truth[i] is not None
-        ])
+        ensemble_accuracy = statistics.mean(
+            [
+                1.0 if (f.prediction > 0.5) == ground_truth[i] else 0.0
+                for i, f in enumerate(forecasts)
+                if f.method == "ensemble"
+                and i < len(ground_truth)
+                and ground_truth[i] is not None
+            ]
+        )
 
-        individual_accuracy = statistics.mean([
-            1.0 if (f.prediction > 0.5) == ground_truth[i] else 0.0
-            for i, f in enumerate(forecasts)
-            if f.method != "ensemble" and i < len(ground_truth) and ground_truth[i] is not None
-        ])
+        individual_accuracy = statistics.mean(
+            [
+                1.0 if (f.prediction > 0.5) == ground_truth[i] else 0.0
+                for i, f in enumerate(forecasts)
+                if f.method != "ensemble"
+                and i < len(ground_truth)
+                and ground_truth[i] is not None
+            ]
+        )
 
         ensemble_advantage = ensemble_accuracy - individual_accuracy
 
@@ -773,23 +885,25 @@ class PatternDetector:
                     "individual_accuracy": individual_accuracy,
                     "ensemble_advantage": ensemble_advantage,
                     "ensemble_count": len(ensemble_forecasts),
-                    "individual_count": len(individual_forecasts)
+                    "individual_count": len(individual_forecasts),
                 },
                 affected_questions=[f.question_id for f in ensemble_forecasts],
-                affected_agents=list(set(f.final_prediction.created_by for f in ensemble_forecasts)),
+                affected_agents=list(
+                    set(f.final_prediction.created_by for f in ensemble_forecasts)
+                ),
                 first_observed=min(f.created_at for f in ensemble_forecasts),
                 last_observed=max(f.created_at for f in ensemble_forecasts),
                 trend_direction="stable",
-                statistical_significance=0.01 if abs(ensemble_advantage) > 0.2 else 0.05
+                statistical_significance=(
+                    0.01 if abs(ensemble_advantage) > 0.2 else 0.05
+                ),
             )
             patterns.append(pattern)
 
         return patterns
 
     def _analyze_submission_timing(
-        self,
-        forecasts: List[Forecast],
-        deadlines: Dict[str, datetime]
+        self, forecasts: List[Forecast], deadlines: Dict[str, datetime]
     ) -> Optional[DetectedPattern]:
         """Analyze submission timing patterns."""
         # This would analyze optimal submission timing
@@ -797,9 +911,7 @@ class PatternDetector:
         return None
 
     def _analyze_competitive_pressure(
-        self,
-        forecasts: List[Forecast],
-        competitor_data: Dict[str, Any]
+        self, forecasts: List[Forecast], competitor_data: Dict[str, Any]
     ) -> Optional[DetectedPattern]:
         """Analyze competitive pressure effects."""
         # This would analyze how competitive pressure affects performance
@@ -810,7 +922,7 @@ class PatternDetector:
         self,
         forecasts: List[Forecast],
         questions: List[Question],
-        ground_truth: Optional[List[bool]]
+        ground_truth: Optional[List[bool]],
     ) -> Optional[DetectedPattern]:
         """Analyze question difficulty patterns."""
         # This would require question difficulty metrics
@@ -820,7 +932,7 @@ class PatternDetector:
     def _generate_adaptation_recommendations(
         self,
         patterns: List[DetectedPattern],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> List[AdaptationRecommendation]:
         """Generate adaptation recommendations based on detected patterns."""
         recommendations = []
@@ -853,7 +965,9 @@ class PatternDetector:
 
         return recommendations
 
-    def _recommend_question_type_adaptation(self, pattern: DetectedPattern) -> Optional[AdaptationRecommendation]:
+    def _recommend_question_type_adaptation(
+        self, pattern: DetectedPattern
+    ) -> Optional[AdaptationRecommendation]:
         """Recommend adaptations for question type patterns."""
         context = pattern.context
         performance_diff = context.get("performance_difference", 0)
@@ -873,13 +987,13 @@ class PatternDetector:
                 specific_actions=[
                     f"Increase resource allocation for {question_type} questions",
                     f"Develop specialized strategies for {question_type}",
-                    f"Train agents specifically on {question_type} patterns"
+                    f"Train agents specifically on {question_type} patterns",
                 ],
                 success_metrics=[
                     f"Increased accuracy on {question_type} questions",
-                    "Higher tournament ranking in relevant categories"
+                    "Higher tournament ranking in relevant categories",
                 ],
-                timeline="short_term"
+                timeline="short_term",
             )
 
         elif performance_diff < -0.1:  # Poor performance
@@ -896,18 +1010,20 @@ class PatternDetector:
                 specific_actions=[
                     f"Increase research depth for {question_type} questions",
                     f"Develop specialized methodologies for {question_type}",
-                    f"Consider abstaining from low-confidence {question_type} questions"
+                    f"Consider abstaining from low-confidence {question_type} questions",
                 ],
                 success_metrics=[
                     f"Reduced performance gap on {question_type} questions",
-                    "Improved overall tournament performance"
+                    "Improved overall tournament performance",
                 ],
-                timeline="medium_term"
+                timeline="medium_term",
             )
 
         return None
 
-    def _recommend_calibration_adaptation(self, pattern: DetectedPattern) -> Optional[AdaptationRecommendation]:
+    def _recommend_calibration_adaptation(
+        self, pattern: DetectedPattern
+    ) -> Optional[AdaptationRecommendation]:
         """Recommend adaptations for calibration patterns."""
         context = pattern.context
         miscalibration_type = context.get("miscalibration_type", "unknown")
@@ -927,13 +1043,13 @@ class PatternDetector:
                 specific_actions=[
                     f"Apply confidence penalty for {confidence_level} predictions",
                     "Implement calibration training",
-                    "Add uncertainty quantification"
+                    "Add uncertainty quantification",
                 ],
                 success_metrics=[
                     "Improved calibration error",
-                    "Better confidence-accuracy correlation"
+                    "Better confidence-accuracy correlation",
                 ],
-                timeline="short_term"
+                timeline="short_term",
             )
 
         elif miscalibration_type == "underconfident":
@@ -950,18 +1066,20 @@ class PatternDetector:
                 specific_actions=[
                     f"Boost confidence for well-supported {confidence_level} predictions",
                     "Improve evidence quality assessment",
-                    "Enhance reasoning validation"
+                    "Enhance reasoning validation",
                 ],
                 success_metrics=[
                     "Improved calibration error",
-                    "Better utilization of high-quality evidence"
+                    "Better utilization of high-quality evidence",
                 ],
-                timeline="medium_term"
+                timeline="medium_term",
             )
 
         return None
 
-    def _recommend_method_adaptation(self, pattern: DetectedPattern) -> Optional[AdaptationRecommendation]:
+    def _recommend_method_adaptation(
+        self, pattern: DetectedPattern
+    ) -> Optional[AdaptationRecommendation]:
         """Recommend adaptations for method effectiveness patterns."""
         context = pattern.context
         best_method = context.get("best_method", "unknown")
@@ -982,16 +1100,18 @@ class PatternDetector:
                 f"Increase weight for {best_method} in ensemble",
                 f"Reduce reliance on {worst_method}",
                 f"Investigate why {best_method} performs better",
-                f"Consider retiring {worst_method} if consistently poor"
+                f"Consider retiring {worst_method} if consistently poor",
             ],
             success_metrics=[
                 "Improved overall accuracy",
-                "Better method performance distribution"
+                "Better method performance distribution",
             ],
-            timeline="immediate"
+            timeline="immediate",
         )
 
-    def _recommend_temporal_adaptation(self, pattern: DetectedPattern) -> Optional[AdaptationRecommendation]:
+    def _recommend_temporal_adaptation(
+        self, pattern: DetectedPattern
+    ) -> Optional[AdaptationRecommendation]:
         """Recommend adaptations for temporal patterns."""
         context = pattern.context
         correlation = context.get("correlation", 0)
@@ -1010,13 +1130,13 @@ class PatternDetector:
                 specific_actions=[
                     "Increase confidence in recent predictions",
                     "Allocate more resources to current strategies",
-                    "Consider more aggressive tournament positioning"
+                    "Consider more aggressive tournament positioning",
                 ],
                 success_metrics=[
                     "Continued performance improvement",
-                    "Better tournament ranking"
+                    "Better tournament ranking",
                 ],
-                timeline="short_term"
+                timeline="short_term",
             )
 
         elif pattern.trend_direction == "declining":
@@ -1033,18 +1153,17 @@ class PatternDetector:
                 specific_actions=[
                     "Review and update forecasting methodologies",
                     "Increase validation and quality checks",
-                    "Consider strategy reset or major adjustments"
+                    "Consider strategy reset or major adjustments",
                 ],
-                success_metrics=[
-                    "Stabilized performance",
-                    "Reversed declining trend"
-                ],
-                timeline="immediate"
+                success_metrics=["Stabilized performance", "Reversed declining trend"],
+                timeline="immediate",
             )
 
         return None
 
-    def _recommend_ensemble_adaptation(self, pattern: DetectedPattern) -> Optional[AdaptationRecommendation]:
+    def _recommend_ensemble_adaptation(
+        self, pattern: DetectedPattern
+    ) -> Optional[AdaptationRecommendation]:
         """Recommend adaptations for ensemble patterns."""
         context = pattern.context
         ensemble_advantage = context.get("ensemble_advantage", 0)
@@ -1063,13 +1182,13 @@ class PatternDetector:
                 specific_actions=[
                     "Increase ensemble method usage",
                     "Optimize ensemble composition",
-                    "Invest in ensemble methodology improvements"
+                    "Invest in ensemble methodology improvements",
                 ],
                 success_metrics=[
                     "Increased overall accuracy",
-                    "Better ensemble performance"
+                    "Better ensemble performance",
                 ],
-                timeline="short_term"
+                timeline="short_term",
             )
 
         elif ensemble_advantage < -0.1:  # Negative synergy
@@ -1087,13 +1206,13 @@ class PatternDetector:
                     "Debug ensemble aggregation methods",
                     "Review individual agent selection",
                     "Consider simpler aggregation strategies",
-                    "Investigate ensemble weight optimization"
+                    "Investigate ensemble weight optimization",
                 ],
                 success_metrics=[
                     "Improved ensemble performance",
-                    "Positive ensemble synergy"
+                    "Positive ensemble synergy",
                 ],
-                timeline="medium_term"
+                timeline="medium_term",
             )
 
         return None
@@ -1103,7 +1222,7 @@ class PatternDetector:
         patterns: List[DetectedPattern],
         forecasts: List[Forecast],
         questions: List[Question],
-        tournament_context: Optional[Dict[str, Any]]
+        tournament_context: Optional[Dict[str, Any]],
     ) -> Optional[CompetitiveIntelligence]:
         """Generate competitive intelligence from patterns."""
         if not tournament_context:
@@ -1121,11 +1240,13 @@ class PatternDetector:
         for pattern in patterns:
             if pattern.pattern_type == PatternType.QUESTION_TYPE_PERFORMANCE:
                 if pattern.context.get("performance_difference", 0) > 0.1:
-                    market_gaps.append({
-                        "type": "question_type_advantage",
-                        "description": f"Strong performance on {pattern.context.get('question_type')} questions",
-                        "opportunity_score": pattern.strength
-                    })
+                    market_gaps.append(
+                        {
+                            "type": "question_type_advantage",
+                            "description": f"Strong performance on {pattern.context.get('question_type')} questions",
+                            "opportunity_score": pattern.strength,
+                        }
+                    )
 
         return CompetitiveIntelligence(
             tournament_id=tournament_id,
@@ -1133,21 +1254,23 @@ class PatternDetector:
             competitor_weaknesses=[],  # Would need competitor data
             optimal_positioning={
                 "focus_areas": [gap["description"] for gap in market_gaps],
-                "confidence_level": "medium"
+                "confidence_level": "medium",
             },
             timing_opportunities=[],  # Would need timing analysis
             question_type_advantages={},  # Would extract from patterns
             confidence_level_opportunities={},  # Would extract from patterns
             meta_game_insights=[
                 "Focus on identified question type advantages",
-                "Maintain current successful methodologies"
+                "Maintain current successful methodologies",
             ],
             strategic_recommendations=strategic_recommendations,
             timestamp=datetime.utcnow(),
-            confidence=0.6
+            confidence=0.6,
         )
 
-    def _detect_meta_patterns(self, patterns: List[DetectedPattern]) -> List[Dict[str, Any]]:
+    def _detect_meta_patterns(
+        self, patterns: List[DetectedPattern]
+    ) -> List[Dict[str, Any]]:
         """Detect meta-patterns across different pattern types."""
         meta_patterns = []
 
@@ -1155,53 +1278,78 @@ class PatternDetector:
         pattern_type_counts = Counter([p.pattern_type for p in patterns])
         if len(pattern_type_counts) > 1:
             most_common_type = pattern_type_counts.most_common(1)[0]
-            meta_patterns.append({
-                "type": "pattern_frequency",
-                "description": f"Most common pattern type: {most_common_type[0].value} ({most_common_type[1]} occurrences)",
-                "confidence": 0.8
-            })
+            meta_patterns.append(
+                {
+                    "type": "pattern_frequency",
+                    "description": f"Most common pattern type: {most_common_type[0].value} ({most_common_type[1]} occurrences)",
+                    "confidence": 0.8,
+                }
+            )
 
         # Pattern strength correlation
         high_strength_patterns = [p for p in patterns if p.strength > 0.2]
         if len(high_strength_patterns) > 2:
-            meta_patterns.append({
-                "type": "high_impact_patterns",
-                "description": f"Multiple high-strength patterns detected ({len(high_strength_patterns)} patterns)",
-                "confidence": 0.7,
-                "patterns": [p.title for p in high_strength_patterns]
-            })
+            meta_patterns.append(
+                {
+                    "type": "high_impact_patterns",
+                    "description": f"Multiple high-strength patterns detected ({len(high_strength_patterns)} patterns)",
+                    "confidence": 0.7,
+                    "patterns": [p.title for p in high_strength_patterns],
+                }
+            )
 
         return meta_patterns
 
-    def _generate_strategy_evolution_suggestions(self, patterns: List[DetectedPattern]) -> List[str]:
+    def _generate_strategy_evolution_suggestions(
+        self, patterns: List[DetectedPattern]
+    ) -> List[str]:
         """Generate high-level strategy evolution suggestions."""
         suggestions = []
 
         # Analyze pattern implications
-        performance_patterns = [p for p in patterns if p.pattern_type in [
-            PatternType.QUESTION_TYPE_PERFORMANCE,
-            PatternType.METHOD_EFFECTIVENESS,
-            PatternType.TEMPORAL_PERFORMANCE
-        ]]
+        performance_patterns = [
+            p
+            for p in patterns
+            if p.pattern_type
+            in [
+                PatternType.QUESTION_TYPE_PERFORMANCE,
+                PatternType.METHOD_EFFECTIVENESS,
+                PatternType.TEMPORAL_PERFORMANCE,
+            ]
+        ]
 
         if len(performance_patterns) > 2:
-            suggestions.append("Consider comprehensive strategy review based on multiple performance patterns")
+            suggestions.append(
+                "Consider comprehensive strategy review based on multiple performance patterns"
+            )
 
-        calibration_patterns = [p for p in patterns if p.pattern_type == PatternType.CONFIDENCE_CALIBRATION]
+        calibration_patterns = [
+            p for p in patterns if p.pattern_type == PatternType.CONFIDENCE_CALIBRATION
+        ]
         if calibration_patterns:
-            suggestions.append("Implement systematic calibration training and monitoring")
+            suggestions.append(
+                "Implement systematic calibration training and monitoring"
+            )
 
-        method_patterns = [p for p in patterns if p.pattern_type == PatternType.METHOD_EFFECTIVENESS]
+        method_patterns = [
+            p for p in patterns if p.pattern_type == PatternType.METHOD_EFFECTIVENESS
+        ]
         if method_patterns:
             suggestions.append("Optimize method selection and ensemble composition")
 
-        temporal_patterns = [p for p in patterns if p.pattern_type == PatternType.TEMPORAL_PERFORMANCE]
+        temporal_patterns = [
+            p for p in patterns if p.pattern_type == PatternType.TEMPORAL_PERFORMANCE
+        ]
         if temporal_patterns:
-            suggestions.append("Implement adaptive strategy that responds to performance trends")
+            suggestions.append(
+                "Implement adaptive strategy that responds to performance trends"
+            )
 
         return suggestions
 
-    def _group_patterns_by_type(self, patterns: List[DetectedPattern]) -> Dict[str, int]:
+    def _group_patterns_by_type(
+        self, patterns: List[DetectedPattern]
+    ) -> Dict[str, int]:
         """Group patterns by type for summary statistics."""
         return dict(Counter([p.pattern_type.value for p in patterns]))
 
@@ -1221,10 +1369,12 @@ class PatternDetector:
             "first_observed": pattern.first_observed.isoformat(),
             "last_observed": pattern.last_observed.isoformat(),
             "examples_count": len(pattern.examples),
-            "context": pattern.context
+            "context": pattern.context,
         }
 
-    def _serialize_recommendation(self, recommendation: AdaptationRecommendation) -> Dict[str, Any]:
+    def _serialize_recommendation(
+        self, recommendation: AdaptationRecommendation
+    ) -> Dict[str, Any]:
         """Serialize recommendation for JSON output."""
         return {
             "strategy_type": recommendation.strategy_type.value,
@@ -1240,10 +1390,12 @@ class PatternDetector:
             "success_metrics": recommendation.success_metrics,
             "timeline": recommendation.timeline,
             "dependencies": recommendation.dependencies,
-            "risks": recommendation.risks
+            "risks": recommendation.risks,
         }
 
-    def _serialize_competitive_intelligence(self, intelligence: CompetitiveIntelligence) -> Dict[str, Any]:
+    def _serialize_competitive_intelligence(
+        self, intelligence: CompetitiveIntelligence
+    ) -> Dict[str, Any]:
         """Serialize competitive intelligence for JSON output."""
         return {
             "tournament_id": intelligence.tournament_id,
@@ -1256,7 +1408,7 @@ class PatternDetector:
             "meta_game_insights": intelligence.meta_game_insights,
             "strategic_recommendations": intelligence.strategic_recommendations,
             "timestamp": intelligence.timestamp.isoformat(),
-            "confidence": intelligence.confidence
+            "confidence": intelligence.confidence,
         }
 
     def get_pattern_history(self, days: int = 30) -> Dict[str, Any]:
@@ -1264,7 +1416,8 @@ class PatternDetector:
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
         recent_patterns = [
-            pattern for pattern in self.detected_patterns
+            pattern
+            for pattern in self.detected_patterns
             if pattern.last_observed >= cutoff_date
         ]
 
@@ -1272,20 +1425,31 @@ class PatternDetector:
             "period_days": days,
             "total_patterns": len(recent_patterns),
             "patterns_by_type": self._group_patterns_by_type(recent_patterns),
-            "high_confidence_patterns": len([p for p in recent_patterns if p.confidence > 0.8]),
-            "actionable_patterns": len([p for p in recent_patterns if p.strength > 0.15])
+            "high_confidence_patterns": len(
+                [p for p in recent_patterns if p.confidence > 0.8]
+            ),
+            "actionable_patterns": len(
+                [p for p in recent_patterns if p.strength > 0.15]
+            ),
         }
 
     def get_adaptation_tracking(self) -> Dict[str, Any]:
         """Get tracking of adaptation recommendations and their implementation."""
         recent_recommendations = [
-            rec for rec in self.adaptation_recommendations
+            rec
+            for rec in self.adaptation_recommendations
             if rec.timeline in ["immediate", "short_term"]
         ]
 
         return {
             "total_recommendations": len(self.adaptation_recommendations),
-            "high_priority_recommendations": len([r for r in recent_recommendations if r.priority > 0.8]),
-            "recommendations_by_strategy": dict(Counter([r.strategy_type.value for r in recent_recommendations])),
-            "expected_total_impact": sum(r.expected_impact for r in recent_recommendations)
+            "high_priority_recommendations": len(
+                [r for r in recent_recommendations if r.priority > 0.8]
+            ),
+            "recommendations_by_strategy": dict(
+                Counter([r.strategy_type.value for r in recent_recommendations])
+            ),
+            "expected_total_impact": sum(
+                r.expected_impact for r in recent_recommendations
+            ),
         }

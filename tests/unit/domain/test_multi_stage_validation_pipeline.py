@@ -3,9 +3,10 @@ Unit tests for multi-stage validation pipeline components.
 Tests research stage, validation stage, and forecasting stage logic.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestMultiStageValidationPipeline:
@@ -18,7 +19,7 @@ class TestMultiStageValidationPipeline:
             "primary_source": "asknews",
             "synthesis_model": "gpt-5-mini",
             "fallback_models": ["gpt-oss-20b:free", "kimi-k2:free"],
-            "time_focus": "48_hours"
+            "time_focus": "48_hours",
         }
 
         assert research_config["primary_source"] == "asknews"
@@ -29,9 +30,13 @@ class TestMultiStageValidationPipeline:
         """Test validation stage configuration."""
         validation_config = {
             "model": "gpt-5-nano",
-            "checks": ["evidence_traceability", "logical_consistency", "hallucination_detection"],
+            "checks": [
+                "evidence_traceability",
+                "logical_consistency",
+                "hallucination_detection",
+            ],
             "quality_threshold": 7.0,
-            "timeout": 15
+            "timeout": 15,
         }
 
         assert validation_config["model"] == "gpt-5-nano"
@@ -45,7 +50,7 @@ class TestMultiStageValidationPipeline:
             "calibration_enabled": True,
             "uncertainty_quantification": True,
             "overconfidence_reduction": True,
-            "timeout": 60
+            "timeout": 60,
         }
 
         assert forecasting_config["model"] == "gpt-5"
@@ -64,7 +69,9 @@ class TestMultiStageValidationPipeline:
 
         # Test low quota warning
         quota_low = {"remaining": 100, "limit": 9000}
-        assert self._should_use_asknews(quota_low) is True  # Still usable but should warn
+        assert (
+            self._should_use_asknews(quota_low) is True
+        )  # Still usable but should warn
 
     def _should_use_asknews(self, quota_status: dict) -> bool:
         """Helper method to determine if AskNews should be used."""
@@ -188,8 +195,13 @@ class TestMultiStageValidationPipeline:
 
         # Check for suspicious claims
         suspicious_indicators = [
-            "secret meeting", "aliens", "quantum economics", "insider information",
-            "classified documents", "unreported", "exclusive access"
+            "secret meeting",
+            "aliens",
+            "quantum economics",
+            "insider information",
+            "classified documents",
+            "unreported",
+            "exclusive access",
         ]
 
         for indicator in suspicious_indicators:
@@ -201,7 +213,10 @@ class TestMultiStageValidationPipeline:
             risk_score += 0.2
 
         # Check for lack of attribution
-        if not any(attr in content_lower for attr in ["according", "based on", "from", "reported"]):
+        if not any(
+            attr in content_lower
+            for attr in ["according", "based on", "from", "reported"]
+        ):
             risk_score += 0.1
 
         return min(risk_score, 1.0)
@@ -221,7 +236,7 @@ class TestMultiStageValidationPipeline:
             "query": query,
             "time_filter": "48h",
             "sort_by": "date",
-            "max_results": 10
+            "max_results": 10,
         }
 
     def test_model_tier_optimization(self):
@@ -263,12 +278,12 @@ class TestMultiStageValidationPipeline:
             "asknews_failure": {
                 "fallback_to": "free_models",
                 "retry_attempts": 2,
-                "graceful_degradation": True
+                "graceful_degradation": True,
             },
             "model_failure": {
                 "fallback_chain": ["gpt-5-mini", "gpt-5-nano", "gpt-oss-20b:free"],
-                "timeout_handling": "progressive_timeout"
-            }
+                "timeout_handling": "progressive_timeout",
+            },
         }
 
         assert error_recovery_config["asknews_failure"]["fallback_to"] == "free_models"
@@ -279,7 +294,7 @@ class TestMultiStageValidationPipeline:
         pipeline_stages = [
             {"name": "research", "model": "gpt-5-mini", "timeout": 30},
             {"name": "validation", "model": "gpt-5-nano", "timeout": 15},
-            {"name": "forecasting", "model": "gpt-5", "timeout": 60}
+            {"name": "forecasting", "model": "gpt-5", "timeout": 60},
         ]
 
         # Verify stage progression

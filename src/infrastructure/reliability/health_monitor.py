@@ -2,9 +2,10 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Callable, Any, Set
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -12,6 +13,7 @@ logger = structlog.get_logger(__name__)
 
 class HealthStatus(Enum):
     """Health status levels."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -21,6 +23,7 @@ class HealthStatus(Enum):
 @dataclass
 class HealthCheck:
     """Individual health check configuration."""
+
     name: str
     check_function: Callable[[], Any]
     timeout: float = 10.0
@@ -33,6 +36,7 @@ class HealthCheck:
 @dataclass
 class HealthResult:
     """Result of a health check."""
+
     name: str
     status: HealthStatus
     message: str
@@ -65,7 +69,9 @@ class HealthMonitor:
         self.last_check_time = 0.0
 
         # Callbacks for status changes
-        self.status_change_callbacks: List[Callable[[str, HealthStatus, HealthStatus], None]] = []
+        self.status_change_callbacks: List[
+            Callable[[str, HealthStatus, HealthStatus], None]
+        ] = []
 
     def register_health_check(self, health_check: HealthCheck):
         """
@@ -75,12 +81,16 @@ class HealthMonitor:
             health_check: HealthCheck configuration
         """
         self.health_checks[health_check.name] = health_check
-        self.logger.info("Registered health check",
-                        name=health_check.name,
-                        critical=health_check.critical,
-                        interval=health_check.interval)
+        self.logger.info(
+            "Registered health check",
+            name=health_check.name,
+            critical=health_check.critical,
+            interval=health_check.interval,
+        )
 
-    def register_callback(self, callback: Callable[[str, HealthStatus, HealthStatus], None]):
+    def register_callback(
+        self, callback: Callable[[str, HealthStatus, HealthStatus], None]
+    ):
         """
         Register callback for health status changes.
 
@@ -98,9 +108,11 @@ class HealthMonitor:
 
         self.running = True
         self.monitor_task = asyncio.create_task(self._monitoring_loop())
-        self.logger.info("Started health monitoring",
-                        check_interval=self.check_interval,
-                        registered_checks=len(self.health_checks))
+        self.logger.info(
+            "Started health monitoring",
+            check_interval=self.check_interval,
+            registered_checks=len(self.health_checks),
+        )
 
     async def stop_monitoring(self):
         """Stop the health monitoring loop."""
@@ -154,13 +166,15 @@ class HealthMonitor:
             # Run check with timeout
             result = await asyncio.wait_for(
                 self._execute_check_function(check.check_function),
-                timeout=check.timeout
+                timeout=check.timeout,
             )
 
             duration = time.time() - start_time
 
             # Determine status based on result
-            if result is True or (isinstance(result, dict) and result.get('healthy', True)):
+            if result is True or (
+                isinstance(result, dict) and result.get("healthy", True)
+            ):
                 status = HealthStatus.HEALTHY
                 message = "Check passed"
                 details = result if isinstance(result, dict) else {}
@@ -183,7 +197,9 @@ class HealthMonitor:
 
         except Exception as e:
             duration = time.time() - start_time
-            status = HealthStatus.UNHEALTHY if not check.critical else HealthStatus.CRITICAL
+            status = (
+                HealthStatus.UNHEALTHY if not check.critical else HealthStatus.CRITICAL
+            )
             message = f"Check failed: {str(e)}"
             details = {}
             error = str(e)
@@ -197,7 +213,7 @@ class HealthMonitor:
             duration=duration,
             timestamp=time.time(),
             details=details,
-            error=error
+            error=error,
         )
 
         # Check for status change
@@ -209,14 +225,15 @@ class HealthMonitor:
 
         # Log result
         if status == HealthStatus.HEALTHY:
-            self.logger.debug("Health check passed",
-                            name=check.name, duration=duration)
+            self.logger.debug("Health check passed", name=check.name, duration=duration)
         else:
-            self.logger.warning("Health check failed",
-                              name=check.name,
-                              status=status.value,
-                              message=message,
-                              duration=duration)
+            self.logger.warning(
+                "Health check failed",
+                name=check.name,
+                status=status.value,
+                message=message,
+                duration=duration,
+            )
 
         # Notify callbacks of status change
         if old_status and old_status != status:
@@ -224,8 +241,11 @@ class HealthMonitor:
                 try:
                     callback(check.name, old_status, status)
                 except Exception as e:
-                    self.logger.error("Error in status change callback",
-                                    callback=callback.__name__, error=str(e))
+                    self.logger.error(
+                        "Error in status change callback",
+                        callback=callback.__name__,
+                        error=str(e),
+                    )
 
     async def _execute_check_function(self, func: Callable) -> Any:
         """Execute health check function, handling both sync and async."""
@@ -271,7 +291,8 @@ class HealthMonitor:
 
         # Count unhealthy checks
         unhealthy_count = sum(
-            1 for result in self.health_results.values()
+            1
+            for result in self.health_results.values()
             if result.status in [HealthStatus.UNHEALTHY, HealthStatus.DEGRADED]
         )
 
@@ -297,14 +318,15 @@ class HealthMonitor:
         status_counts = {}
         for status in HealthStatus:
             status_counts[status.value] = sum(
-                1 for result in self.health_results.values()
-                if result.status == status
+                1 for result in self.health_results.values() if result.status == status
             )
 
         return {
             "overall_status": overall_status.value,
             "total_checks": len(self.health_checks),
-            "enabled_checks": sum(1 for check in self.health_checks.values() if check.enabled),
+            "enabled_checks": sum(
+                1 for check in self.health_checks.values() if check.enabled
+            ),
             "status_counts": status_counts,
             "last_check_time": self.last_check_time,
             "monitoring_active": self.running,
@@ -312,11 +334,13 @@ class HealthMonitor:
                 "total_checks_run": self.total_checks,
                 "successful_checks": self.successful_checks,
                 "failed_checks": self.failed_checks,
-                "success_rate": self.successful_checks / max(1, self.total_checks)
-            }
+                "success_rate": self.successful_checks / max(1, self.total_checks),
+            },
         }
 
-    def get_check_results(self, tags: Optional[Set[str]] = None) -> Dict[str, HealthResult]:
+    def get_check_results(
+        self, tags: Optional[Set[str]] = None
+    ) -> Dict[str, HealthResult]:
         """
         Get health check results, optionally filtered by tags.
 
@@ -340,7 +364,8 @@ class HealthMonitor:
     def get_unhealthy_checks(self) -> List[HealthResult]:
         """Get list of unhealthy checks."""
         return [
-            result for result in self.health_results.values()
+            result
+            for result in self.health_results.values()
             if result.status != HealthStatus.HEALTHY
         ]
 
@@ -376,14 +401,14 @@ def create_api_health_check(name: str, url: str, timeout: float = 5.0) -> Health
             return {
                 "healthy": response.status_code < 400,
                 "status_code": response.status_code,
-                "response_time": response.elapsed.total_seconds()
+                "response_time": response.elapsed.total_seconds(),
             }
 
     return HealthCheck(
         name=name,
         check_function=check_api,
         timeout=timeout + 2.0,
-        tags={"api", "external"}
+        tags={"api", "external"},
     )
 
 
@@ -403,11 +428,13 @@ def create_database_health_check(name: str, connection_func: Callable) -> Health
         check_function=check_database,
         timeout=10.0,
         critical=True,
-        tags={"database", "critical"}
+        tags={"database", "critical"},
     )
 
 
-def create_memory_health_check(name: str = "memory", threshold_mb: int = 1000) -> HealthCheck:
+def create_memory_health_check(
+    name: str = "memory", threshold_mb: int = 1000
+) -> HealthCheck:
     """Create health check for memory usage."""
     import psutil
 
@@ -419,35 +446,31 @@ def create_memory_health_check(name: str = "memory", threshold_mb: int = 1000) -
             "healthy": memory_mb < threshold_mb,
             "memory_mb": memory_mb,
             "threshold_mb": threshold_mb,
-            "memory_percent": process.memory_percent()
+            "memory_percent": process.memory_percent(),
         }
 
     return HealthCheck(
-        name=name,
-        check_function=check_memory,
-        timeout=5.0,
-        tags={"system", "memory"}
+        name=name, check_function=check_memory, timeout=5.0, tags={"system", "memory"}
     )
 
 
-def create_disk_health_check(name: str = "disk", threshold_percent: float = 90.0) -> HealthCheck:
+def create_disk_health_check(
+    name: str = "disk", threshold_percent: float = 90.0
+) -> HealthCheck:
     """Create health check for disk usage."""
     import psutil
 
     def check_disk():
-        disk_usage = psutil.disk_usage('/')
+        disk_usage = psutil.disk_usage("/")
         used_percent = (disk_usage.used / disk_usage.total) * 100
 
         return {
             "healthy": used_percent < threshold_percent,
             "used_percent": used_percent,
             "threshold_percent": threshold_percent,
-            "free_gb": disk_usage.free / 1024 / 1024 / 1024
+            "free_gb": disk_usage.free / 1024 / 1024 / 1024,
         }
 
     return HealthCheck(
-        name=name,
-        check_function=check_disk,
-        timeout=5.0,
-        tags={"system", "disk"}
+        name=name, check_function=check_disk, timeout=5.0, tags={"system", "disk"}
     )

@@ -1,23 +1,29 @@
 """Tests for PerformanceAnalyzer service."""
 
-import pytest
 from datetime import datetime, timedelta
-from uuid import uuid4
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
-from src.domain.services.performance_analyzer import (
-    PerformanceAnalyzer,
-    PerformanceMetricType,
-    ImprovementOpportunityType,
-    PerformanceMetric,
-    ImprovementOpportunity,
-    PerformancePattern,
-    LearningInsight
-)
+import pytest
+
 from src.domain.entities.forecast import Forecast, ForecastStatus
-from src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence, PredictionResult
-from src.domain.entities.research_report import ResearchReport, ResearchQuality
+from src.domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+    PredictionResult,
+)
 from src.domain.entities.question import Question, QuestionType
+from src.domain.entities.research_report import ResearchQuality, ResearchReport
+from src.domain.services.performance_analyzer import (
+    ImprovementOpportunity,
+    ImprovementOpportunityType,
+    LearningInsight,
+    PerformanceAnalyzer,
+    PerformanceMetric,
+    PerformanceMetricType,
+    PerformancePattern,
+)
 
 
 class TestPerformanceAnalyzer:
@@ -37,14 +43,39 @@ class TestPerformanceAnalyzer:
 
         # Create diverse forecasts with different predictions and confidence levels
         forecast_data = [
-            (0.7, PredictionConfidence.HIGH, "agent_1", PredictionMethod.CHAIN_OF_THOUGHT),
-            (0.3, PredictionConfidence.MEDIUM, "agent_2", PredictionMethod.TREE_OF_THOUGHT),
+            (
+                0.7,
+                PredictionConfidence.HIGH,
+                "agent_1",
+                PredictionMethod.CHAIN_OF_THOUGHT,
+            ),
+            (
+                0.3,
+                PredictionConfidence.MEDIUM,
+                "agent_2",
+                PredictionMethod.TREE_OF_THOUGHT,
+            ),
             (0.8, PredictionConfidence.VERY_HIGH, "agent_1", PredictionMethod.REACT),
             (0.2, PredictionConfidence.LOW, "agent_3", PredictionMethod.AUTO_COT),
             (0.6, PredictionConfidence.MEDIUM, "agent_2", PredictionMethod.ENSEMBLE),
-            (0.9, PredictionConfidence.VERY_HIGH, "agent_1", PredictionMethod.CHAIN_OF_THOUGHT),
-            (0.1, PredictionConfidence.HIGH, "agent_3", PredictionMethod.TREE_OF_THOUGHT),  # Overconfident
-            (0.4, PredictionConfidence.LOW, "agent_2", PredictionMethod.REACT),  # Underconfident
+            (
+                0.9,
+                PredictionConfidence.VERY_HIGH,
+                "agent_1",
+                PredictionMethod.CHAIN_OF_THOUGHT,
+            ),
+            (
+                0.1,
+                PredictionConfidence.HIGH,
+                "agent_3",
+                PredictionMethod.TREE_OF_THOUGHT,
+            ),  # Overconfident
+            (
+                0.4,
+                PredictionConfidence.LOW,
+                "agent_2",
+                PredictionMethod.REACT,
+            ),  # Underconfident
         ]
 
         for i, (prob, conf, agent, method) in enumerate(forecast_data):
@@ -55,14 +86,14 @@ class TestPerformanceAnalyzer:
                 confidence=conf,
                 method=method,
                 reasoning=f"Test reasoning for prediction {i}",
-                created_by=agent
+                created_by=agent,
             )
 
             forecast = Forecast.create_new(
                 question_id=question_id,
                 research_reports=[],
                 predictions=[prediction],
-                final_prediction=prediction
+                final_prediction=prediction,
             )
             forecast.status = ForecastStatus.RESOLVED
             forecasts.append(forecast)
@@ -75,9 +106,13 @@ class TestPerformanceAnalyzer:
         # Ground truth that creates interesting patterns
         return [True, False, True, False, True, True, False, False]
 
-    def test_analyze_resolved_predictions_basic(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_analyze_resolved_predictions_basic(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test basic resolved prediction analysis."""
-        results = analyzer.analyze_resolved_predictions(sample_forecasts, sample_ground_truth)
+        results = analyzer.analyze_resolved_predictions(
+            sample_forecasts, sample_ground_truth
+        )
 
         assert "analysis_timestamp" in results
         assert "sample_size" in results
@@ -91,14 +126,24 @@ class TestPerformanceAnalyzer:
         assert 0 <= overall["accuracy"] <= 1
         assert overall["brier_score"] >= 0
 
-    def test_calculate_overall_metrics(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_calculate_overall_metrics(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test overall metrics calculation."""
-        metrics = analyzer._calculate_overall_metrics(sample_forecasts, sample_ground_truth)
+        metrics = analyzer._calculate_overall_metrics(
+            sample_forecasts, sample_ground_truth
+        )
 
         # Check all required metrics are present
         required_metrics = [
-            "brier_score", "log_score", "accuracy", "resolution",
-            "reliability", "sharpness", "discrimination", "base_rate"
+            "brier_score",
+            "log_score",
+            "accuracy",
+            "resolution",
+            "reliability",
+            "sharpness",
+            "discrimination",
+            "base_rate",
         ]
         for metric in required_metrics:
             assert metric in metrics
@@ -110,9 +155,13 @@ class TestPerformanceAnalyzer:
         assert 0 <= metrics["base_rate"] <= 1
         assert 0 <= metrics["discrimination"] <= 1
 
-    def test_calculate_agent_metrics(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_calculate_agent_metrics(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test agent-specific metrics calculation."""
-        metrics = analyzer._calculate_agent_metrics(sample_forecasts, sample_ground_truth)
+        metrics = analyzer._calculate_agent_metrics(
+            sample_forecasts, sample_ground_truth
+        )
 
         # Should have metrics for agents with sufficient samples
         assert len(metrics) > 0
@@ -124,9 +173,13 @@ class TestPerformanceAnalyzer:
             assert "confidence_correlation" in agent_metrics
             assert agent_metrics["prediction_count"] >= 3
 
-    def test_calculate_method_metrics(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_calculate_method_metrics(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test method-specific metrics calculation."""
-        metrics = analyzer._calculate_method_metrics(sample_forecasts, sample_ground_truth)
+        metrics = analyzer._calculate_method_metrics(
+            sample_forecasts, sample_ground_truth
+        )
 
         # Should have metrics for methods with sufficient samples
         for method, method_metrics in metrics.items():
@@ -136,7 +189,9 @@ class TestPerformanceAnalyzer:
 
     def test_analyze_calibration(self, analyzer, sample_forecasts, sample_ground_truth):
         """Test calibration analysis."""
-        calibration = analyzer._analyze_calibration(sample_forecasts, sample_ground_truth)
+        calibration = analyzer._analyze_calibration(
+            sample_forecasts, sample_ground_truth
+        )
 
         assert "expected_calibration_error" in calibration
         assert "maximum_calibration_error" in calibration
@@ -149,9 +204,13 @@ class TestPerformanceAnalyzer:
         assert 0 <= calibration["maximum_calibration_error"] <= 1
         assert isinstance(calibration["is_well_calibrated"], bool)
 
-    def test_identify_improvement_opportunities(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_identify_improvement_opportunities(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test improvement opportunity identification."""
-        overall_metrics = analyzer._calculate_overall_metrics(sample_forecasts, sample_ground_truth)
+        overall_metrics = analyzer._calculate_overall_metrics(
+            sample_forecasts, sample_ground_truth
+        )
         opportunities = analyzer._identify_improvement_opportunities(
             sample_forecasts, sample_ground_truth, overall_metrics
         )
@@ -166,9 +225,13 @@ class TestPerformanceAnalyzer:
             assert 0 <= opp.implementation_difficulty <= 1
             assert len(opp.recommended_actions) > 0
 
-    def test_detect_performance_patterns(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_detect_performance_patterns(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test performance pattern detection."""
-        patterns = analyzer._detect_performance_patterns(sample_forecasts, sample_ground_truth)
+        patterns = analyzer._detect_performance_patterns(
+            sample_forecasts, sample_ground_truth
+        )
 
         assert isinstance(patterns, list)
 
@@ -179,9 +242,13 @@ class TestPerformanceAnalyzer:
             assert 0 <= pattern.confidence <= 1
             assert isinstance(pattern.affected_contexts, list)
 
-    def test_detect_confidence_accuracy_pattern(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_detect_confidence_accuracy_pattern(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test confidence-accuracy pattern detection."""
-        pattern = analyzer._detect_confidence_accuracy_pattern(sample_forecasts, sample_ground_truth)
+        pattern = analyzer._detect_confidence_accuracy_pattern(
+            sample_forecasts, sample_ground_truth
+        )
 
         # With our sample data, we should detect overconfidence pattern
         if pattern:
@@ -189,24 +256,38 @@ class TestPerformanceAnalyzer:
             assert pattern.confidence > 0
             assert len(pattern.examples) > 0
 
-    def test_detect_method_performance_pattern(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_detect_method_performance_pattern(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test method performance pattern detection."""
-        pattern = analyzer._detect_method_performance_pattern(sample_forecasts, sample_ground_truth)
+        pattern = analyzer._detect_method_performance_pattern(
+            sample_forecasts, sample_ground_truth
+        )
 
         if pattern:
             assert pattern.pattern_type == "method_performance_difference"
             assert "method_scores" in pattern.metadata
             assert pattern.performance_impact != 0
 
-    def test_generate_learning_insights(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_generate_learning_insights(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test learning insight generation."""
-        overall_metrics = analyzer._calculate_overall_metrics(sample_forecasts, sample_ground_truth)
-        agent_metrics = analyzer._calculate_agent_metrics(sample_forecasts, sample_ground_truth)
-        method_metrics = analyzer._calculate_method_metrics(sample_forecasts, sample_ground_truth)
+        overall_metrics = analyzer._calculate_overall_metrics(
+            sample_forecasts, sample_ground_truth
+        )
+        agent_metrics = analyzer._calculate_agent_metrics(
+            sample_forecasts, sample_ground_truth
+        )
+        method_metrics = analyzer._calculate_method_metrics(
+            sample_forecasts, sample_ground_truth
+        )
         opportunities = analyzer._identify_improvement_opportunities(
             sample_forecasts, sample_ground_truth, overall_metrics
         )
-        patterns = analyzer._detect_performance_patterns(sample_forecasts, sample_ground_truth)
+        patterns = analyzer._detect_performance_patterns(
+            sample_forecasts, sample_ground_truth
+        )
 
         insights = analyzer._generate_learning_insights(
             overall_metrics, agent_metrics, method_metrics, opportunities, patterns
@@ -230,7 +311,9 @@ class TestPerformanceAnalyzer:
 
         initial_count = len(analyzer.performance_history)
 
-        analyzer._store_performance_metrics(overall_metrics, agent_metrics, method_metrics)
+        analyzer._store_performance_metrics(
+            overall_metrics, agent_metrics, method_metrics
+        )
 
         # Should have added metrics to history
         assert len(analyzer.performance_history) > initial_count
@@ -249,7 +332,9 @@ class TestPerformanceAnalyzer:
         ground_truth = [False, False, True, True, True]
         base_rate = 0.6
 
-        resolution = analyzer._calculate_resolution(predictions, ground_truth, base_rate)
+        resolution = analyzer._calculate_resolution(
+            predictions, ground_truth, base_rate
+        )
         reliability = analyzer._calculate_reliability(predictions, ground_truth)
 
         assert resolution >= 0
@@ -277,12 +362,14 @@ class TestPerformanceAnalyzer:
         forecasts = []
         ground_truth = []
 
-        for i, (conf, pred, truth) in enumerate([
-            (0.9, 0.9, True),   # High confidence, correct
-            (0.8, 0.8, True),   # High confidence, correct
-            (0.3, 0.3, False),  # Low confidence, correct
-            (0.2, 0.2, False),  # Low confidence, correct
-        ]):
+        for i, (conf, pred, truth) in enumerate(
+            [
+                (0.9, 0.9, True),  # High confidence, correct
+                (0.8, 0.8, True),  # High confidence, correct
+                (0.3, 0.3, False),  # Low confidence, correct
+                (0.2, 0.2, False),  # Low confidence, correct
+            ]
+        ):
             question_id = uuid4()
             research_report_id = uuid4()
 
@@ -290,17 +377,21 @@ class TestPerformanceAnalyzer:
                 question_id=question_id,
                 research_report_id=research_report_id,
                 probability=pred,
-                confidence=PredictionConfidence.HIGH if conf > 0.7 else PredictionConfidence.LOW,
+                confidence=(
+                    PredictionConfidence.HIGH
+                    if conf > 0.7
+                    else PredictionConfidence.LOW
+                ),
                 method=PredictionMethod.ENSEMBLE,
                 reasoning="Test reasoning",
-                created_by="test_agent"
+                created_by="test_agent",
             )
 
             forecast = Forecast.create_new(
                 question_id=question_id,
                 research_reports=[],
                 predictions=[prediction],
-                final_prediction=prediction
+                final_prediction=prediction,
             )
             # Set confidence manually for testing
             forecast.confidence_score = conf
@@ -308,8 +399,12 @@ class TestPerformanceAnalyzer:
             forecasts.append(forecast)
             ground_truth.append(truth)
 
-        correlation = analyzer._calculate_confidence_correlation(forecasts, ground_truth)
-        assert correlation >= 0  # Should be non-negative correlation (can be 0 if no variance)
+        correlation = analyzer._calculate_confidence_correlation(
+            forecasts, ground_truth
+        )
+        assert (
+            correlation >= 0
+        )  # Should be non-negative correlation (can be 0 if no variance)
 
     def test_get_performance_summary(self, analyzer):
         """Test performance summary generation."""
@@ -318,13 +413,13 @@ class TestPerformanceAnalyzer:
             PerformanceMetric(
                 metric_type=PerformanceMetricType.ACCURACY,
                 value=0.8,
-                timestamp=datetime.utcnow() - timedelta(days=1)
+                timestamp=datetime.utcnow() - timedelta(days=1),
             ),
             PerformanceMetric(
                 metric_type=PerformanceMetricType.BRIER_SCORE,
                 value=0.2,
-                timestamp=datetime.utcnow() - timedelta(days=2)
-            )
+                timestamp=datetime.utcnow() - timedelta(days=2),
+            ),
         ]
 
         analyzer.performance_history.extend(test_metrics)
@@ -348,7 +443,7 @@ class TestPerformanceAnalyzer:
             recommended_actions=["Test action"],
             potential_impact=0.1,
             implementation_difficulty=0.5,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         analyzer.improvement_opportunities.append(test_opportunity)
@@ -368,7 +463,9 @@ class TestPerformanceAnalyzer:
 
     def test_mismatched_lengths(self, analyzer, sample_forecasts):
         """Test handling of mismatched forecast and ground truth lengths."""
-        with pytest.raises(ValueError, match="Forecasts and ground truth must have same length"):
+        with pytest.raises(
+            ValueError, match="Forecasts and ground truth must have same length"
+        ):
             analyzer.analyze_resolved_predictions(sample_forecasts, [True, False])
 
     def test_insufficient_samples_handling(self, analyzer):
@@ -384,14 +481,14 @@ class TestPerformanceAnalyzer:
             confidence=PredictionConfidence.MEDIUM,
             method=PredictionMethod.ENSEMBLE,
             reasoning="Test reasoning",
-            created_by="test_agent"
+            created_by="test_agent",
         )
 
         forecast = Forecast.create_new(
             question_id=question_id,
             research_reports=[],
             predictions=[prediction],
-            final_prediction=prediction
+            final_prediction=prediction,
         )
 
         forecasts = [forecast]
@@ -417,14 +514,14 @@ class TestPerformanceAnalyzer:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.ENSEMBLE,
                 reasoning="Test reasoning",
-                created_by="test_agent"
+                created_by="test_agent",
             )
 
             forecast = Forecast.create_new(
                 question_id=question_id,
                 research_reports=[],
                 predictions=[prediction],
-                final_prediction=prediction
+                final_prediction=prediction,
             )
             forecasts.append(forecast)
 
@@ -434,7 +531,7 @@ class TestPerformanceAnalyzer:
 
         # Should handle extreme values without errors
         assert "overall_metrics" in results
-        assert results["overall_metrics"]["log_score"] < float('inf')
+        assert results["overall_metrics"]["log_score"] < float("inf")
 
     def test_serialization_methods(self, analyzer):
         """Test serialization of analysis objects."""
@@ -448,7 +545,7 @@ class TestPerformanceAnalyzer:
             recommended_actions=["action1", "action2"],
             potential_impact=0.15,
             implementation_difficulty=0.6,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         serialized = analyzer._serialize_opportunity(opportunity)
@@ -469,7 +566,7 @@ class TestPerformanceAnalyzer:
             performance_impact=-0.1,
             first_observed=datetime.utcnow() - timedelta(days=5),
             last_observed=datetime.utcnow(),
-            examples=[uuid4(), uuid4()]
+            examples=[uuid4(), uuid4()],
         )
 
         serialized_pattern = analyzer._serialize_pattern(pattern)
@@ -488,7 +585,7 @@ class TestPerformanceAnalyzer:
             actionable_recommendations=["rec1", "rec2"],
             expected_improvement=0.05,
             priority=0.8,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         serialized_insight = analyzer._serialize_insight(insight)
@@ -502,8 +599,14 @@ class TestPerformanceAnalyzer:
         """Test performance metric type enumeration."""
         # Ensure all expected metric types are available
         expected_types = [
-            "ACCURACY", "CALIBRATION", "BRIER_SCORE", "LOG_SCORE",
-            "RESOLUTION", "RELIABILITY", "SHARPNESS", "DISCRIMINATION"
+            "ACCURACY",
+            "CALIBRATION",
+            "BRIER_SCORE",
+            "LOG_SCORE",
+            "RESOLUTION",
+            "RELIABILITY",
+            "SHARPNESS",
+            "DISCRIMINATION",
         ]
 
         for expected_type in expected_types:
@@ -513,26 +616,42 @@ class TestPerformanceAnalyzer:
         """Test improvement opportunity type enumeration."""
         # Ensure all expected opportunity types are available
         expected_types = [
-            "OVERCONFIDENCE", "UNDERCONFIDENCE", "POOR_CALIBRATION",
-            "LOW_RESOLUTION", "INCONSISTENT_REASONING", "INSUFFICIENT_RESEARCH",
-            "BIAS_DETECTION", "METHOD_SELECTION", "ENSEMBLE_WEIGHTING",
-            "TIMING_OPTIMIZATION"
+            "OVERCONFIDENCE",
+            "UNDERCONFIDENCE",
+            "POOR_CALIBRATION",
+            "LOW_RESOLUTION",
+            "INCONSISTENT_REASONING",
+            "INSUFFICIENT_RESEARCH",
+            "BIAS_DETECTION",
+            "METHOD_SELECTION",
+            "ENSEMBLE_WEIGHTING",
+            "TIMING_OPTIMIZATION",
         ]
 
         for expected_type in expected_types:
             assert hasattr(ImprovementOpportunityType, expected_type)
 
-    def test_comprehensive_analysis_workflow(self, analyzer, sample_forecasts, sample_ground_truth):
+    def test_comprehensive_analysis_workflow(
+        self, analyzer, sample_forecasts, sample_ground_truth
+    ):
         """Test the complete analysis workflow."""
         # Run full analysis
-        results = analyzer.analyze_resolved_predictions(sample_forecasts, sample_ground_truth)
+        results = analyzer.analyze_resolved_predictions(
+            sample_forecasts, sample_ground_truth
+        )
 
         # Verify all expected sections are present
         expected_sections = [
-            "analysis_timestamp", "sample_size", "overall_metrics",
-            "agent_performance", "method_performance", "calibration_analysis",
-            "improvement_opportunities", "performance_patterns",
-            "learning_insights", "recommendations"
+            "analysis_timestamp",
+            "sample_size",
+            "overall_metrics",
+            "agent_performance",
+            "method_performance",
+            "calibration_analysis",
+            "improvement_opportunities",
+            "performance_patterns",
+            "learning_insights",
+            "recommendations",
         ]
 
         for section in expected_sections:
@@ -548,4 +667,6 @@ class TestPerformanceAnalyzer:
         # Verify data consistency
         assert results["sample_size"] == len(sample_forecasts)
         assert isinstance(results["overall_metrics"]["brier_score"], (int, float))
-        assert isinstance(results["calibration_analysis"]["expected_calibration_error"], (int, float))
+        assert isinstance(
+            results["calibration_analysis"]["expected_calibration_error"], (int, float)
+        )

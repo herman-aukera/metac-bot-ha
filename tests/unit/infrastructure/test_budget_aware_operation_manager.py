@@ -3,12 +3,15 @@ Unit tests for budget-aware operation manager components.
 Tests operation mode detection, cost optimization, and graceful degradation.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import pytest
 
 from src.infrastructure.config.budget_aware_operation_manager import (
-    EmergencyProtocol, BudgetThreshold, OperationModeTransitionLog
+    BudgetThreshold,
+    EmergencyProtocol,
+    OperationModeTransitionLog,
 )
 
 
@@ -19,7 +22,13 @@ class TestBudgetAwareOperationManager:
         """Test emergency protocol level definitions."""
         # Test all protocol levels exist
         protocols = list(EmergencyProtocol)
-        expected_protocols = ["NONE", "BUDGET_WARNING", "BUDGET_CRITICAL", "SYSTEM_FAILURE", "MANUAL_OVERRIDE"]
+        expected_protocols = [
+            "NONE",
+            "BUDGET_WARNING",
+            "BUDGET_CRITICAL",
+            "SYSTEM_FAILURE",
+            "MANUAL_OVERRIDE",
+        ]
 
         for expected in expected_protocols:
             assert any(p.name == expected for p in protocols)
@@ -34,7 +43,7 @@ class TestBudgetAwareOperationManager:
             operation_mode=OperationMode.CONSERVATIVE,
             emergency_protocol=EmergencyProtocol.BUDGET_WARNING,
             description="Conservative operation mode threshold",
-            actions=["reduce_model_costs", "prefer_mini_models"]
+            actions=["reduce_model_costs", "prefer_mini_models"],
         )
 
         assert threshold.percentage == 0.70
@@ -55,7 +64,7 @@ class TestBudgetAwareOperationManager:
             threshold_crossed="70% utilization",
             emergency_protocol=EmergencyProtocol.BUDGET_WARNING,
             performance_impact={"accuracy_change": -0.05},
-            cost_savings_estimate=15.0
+            cost_savings_estimate=15.0,
         )
 
         assert transition_log.from_mode == OperationMode.NORMAL
@@ -74,13 +83,17 @@ class TestOperationModeLogic:
             "normal": 0.70,
             "conservative": 0.85,
             "emergency": 0.95,
-            "critical": 1.00
+            "critical": 1.00,
         }
 
         # Test mode detection logic
         assert self._detect_operation_mode(0.50, thresholds) == "normal"
-        assert self._detect_operation_mode(0.86, thresholds) == "conservative"  # Above 0.85 threshold
-        assert self._detect_operation_mode(0.96, thresholds) == "emergency"  # Above 0.95 threshold
+        assert (
+            self._detect_operation_mode(0.86, thresholds) == "conservative"
+        )  # Above 0.85 threshold
+        assert (
+            self._detect_operation_mode(0.96, thresholds) == "emergency"
+        )  # Above 0.95 threshold
 
     def _detect_operation_mode(self, utilization: float, thresholds: dict) -> str:
         """Helper method to detect operation mode based on utilization."""
@@ -115,20 +128,20 @@ class TestOperationModeLogic:
                 "allow_premium_models": True,
                 "prefer_free_models": False,
                 "max_cost_per_operation": 2.50,
-                "research_depth_level": "comprehensive"
+                "research_depth_level": "comprehensive",
             },
             "conservative": {
                 "allow_premium_models": False,
                 "prefer_mid_tier_models": True,
                 "max_cost_per_operation": 0.75,
-                "research_depth_level": "moderate"
+                "research_depth_level": "moderate",
             },
             "emergency": {
                 "allow_premium_models": False,
                 "prefer_free_models": True,
                 "max_cost_per_operation": 0.05,
-                "research_depth_level": "minimal"
-            }
+                "research_depth_level": "minimal",
+            },
         }
         return strategies.get(mode, strategies["normal"])
 
@@ -139,19 +152,19 @@ class TestOperationModeLogic:
             "minimal": {
                 "disable_research_depth": False,
                 "use_cached_results": True,
-                "minimal_validation": False
+                "minimal_validation": False,
             },
             "moderate": {
                 "disable_research_depth": True,
                 "use_cached_results": True,
-                "minimal_validation": True
+                "minimal_validation": True,
             },
             "maximum": {
                 "disable_research_depth": True,
                 "use_cached_results": True,
                 "minimal_validation": True,
-                "emergency_mode_active": True
-            }
+                "emergency_mode_active": True,
+            },
         }
 
         # Verify degradation progression
@@ -214,7 +227,7 @@ class TestBudgetTracking:
             "questions_processed": 30,
             "estimated_total_questions": 75,
             "current_spent": 60.0,
-            "total_budget": 100.0
+            "total_budget": 100.0,
         }
 
         projection = self._project_budget_capacity(projection_params)
@@ -226,13 +239,17 @@ class TestBudgetTracking:
     def _project_budget_capacity(self, params: dict) -> dict:
         """Helper method to project budget capacity."""
         avg_cost_per_question = params["current_spent"] / params["questions_processed"]
-        projected_total_cost = avg_cost_per_question * params["estimated_total_questions"]
+        projected_total_cost = (
+            avg_cost_per_question * params["estimated_total_questions"]
+        )
         budget_sufficient = projected_total_cost <= params["total_budget"]
 
         return {
             "projected_total_cost": projected_total_cost,
             "budget_sufficient": budget_sufficient,
-            "recommended_adjustments": [] if budget_sufficient else ["reduce_model_costs"]
+            "recommended_adjustments": (
+                [] if budget_sufficient else ["reduce_model_costs"]
+            ),
         }
 
 
@@ -256,7 +273,7 @@ class TestModelSelectionOptimization:
             "normal": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
             "conservative": ["gpt-5-mini", "gpt-5-nano"],
             "emergency": ["gpt-oss-20b:free", "kimi-k2:free"],
-            "critical": ["gpt-oss-20b:free"]
+            "critical": ["gpt-oss-20b:free"],
         }
         return model_configs.get(mode, model_configs["normal"])
 
@@ -266,7 +283,7 @@ class TestModelSelectionOptimization:
             {"id": "t1", "priority": "high", "estimated_cost": 2.0},
             {"id": "t2", "priority": "medium", "estimated_cost": 1.0},
             {"id": "t3", "priority": "low", "estimated_cost": 0.5},
-            {"id": "t4", "priority": "high", "estimated_cost": 0.2}
+            {"id": "t4", "priority": "high", "estimated_cost": 0.2},
         ]
 
         # Normal mode - prioritize by importance
@@ -283,11 +300,20 @@ class TestModelSelectionOptimization:
         if mode == "normal":
             # Prioritize by importance
             priority_order = {"high": 3, "medium": 2, "low": 1}
-            return sorted(tasks, key=lambda t: priority_order.get(t["priority"], 0), reverse=True)
+            return sorted(
+                tasks, key=lambda t: priority_order.get(t["priority"], 0), reverse=True
+            )
         else:
             # Prioritize by cost efficiency (high priority, low cost)
             priority_order = {"high": 3, "medium": 2, "low": 1}
-            return sorted(tasks, key=lambda t: (priority_order.get(t["priority"], 0), -t["estimated_cost"]), reverse=True)
+            return sorted(
+                tasks,
+                key=lambda t: (
+                    priority_order.get(t["priority"], 0),
+                    -t["estimated_cost"],
+                ),
+                reverse=True,
+            )
 
 
 if __name__ == "__main__":

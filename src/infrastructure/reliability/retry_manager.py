@@ -3,9 +3,10 @@
 import asyncio
 import random
 import time
-from typing import Callable, Any, Optional, List, Type, Union
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Callable, List, Optional, Type, Union
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -13,6 +14,7 @@ logger = structlog.get_logger(__name__)
 
 class RetryStrategy(Enum):
     """Retry strategies."""
+
     FIXED_DELAY = "fixed_delay"
     EXPONENTIAL_BACKOFF = "exponential_backoff"
     LINEAR_BACKOFF = "linear_backoff"
@@ -22,6 +24,7 @@ class RetryStrategy(Enum):
 @dataclass
 class RetryPolicy:
     """Configuration for retry behavior."""
+
     max_attempts: int = 3
     base_delay: float = 1.0  # Base delay in seconds
     max_delay: float = 60.0  # Maximum delay in seconds
@@ -79,14 +82,20 @@ class RetryManager:
             self.total_attempts += 1
 
             try:
-                self.logger.debug("Executing function", attempt=attempt,
-                                max_attempts=self.policy.max_attempts)
+                self.logger.debug(
+                    "Executing function",
+                    attempt=attempt,
+                    max_attempts=self.policy.max_attempts,
+                )
 
                 result = await self._execute_function(func, *args, **kwargs)
 
                 if attempt > 1:
-                    self.logger.info("Function succeeded after retries",
-                                   attempt=attempt, total_attempts=self.total_attempts)
+                    self.logger.info(
+                        "Function succeeded after retries",
+                        attempt=attempt,
+                        total_attempts=self.total_attempts,
+                    )
 
                 self.successful_attempts += 1
                 return result
@@ -97,25 +106,31 @@ class RetryManager:
 
                 # Check if exception is retryable
                 if not self._is_retryable_exception(e):
-                    self.logger.error("Non-retryable exception, not retrying",
-                                    error=str(e), exception_type=type(e).__name__)
+                    self.logger.error(
+                        "Non-retryable exception, not retrying",
+                        error=str(e),
+                        exception_type=type(e).__name__,
+                    )
                     raise
 
                 # Don't retry on last attempt
                 if attempt == self.policy.max_attempts:
-                    self.logger.error("All retry attempts exhausted",
-                                    attempts=attempt, error=str(e))
+                    self.logger.error(
+                        "All retry attempts exhausted", attempts=attempt, error=str(e)
+                    )
                     break
 
                 # Calculate delay and wait
                 delay = self._calculate_delay(attempt)
                 self.retry_attempts += 1
 
-                self.logger.warning("Function failed, retrying",
-                                  attempt=attempt,
-                                  delay=delay,
-                                  error=str(e),
-                                  exception_type=type(e).__name__)
+                self.logger.warning(
+                    "Function failed, retrying",
+                    attempt=attempt,
+                    delay=delay,
+                    error=str(e),
+                    exception_type=type(e).__name__,
+                )
 
                 await asyncio.sleep(delay)
 
@@ -154,7 +169,9 @@ class RetryManager:
             delay = self.policy.base_delay
 
         elif self.policy.strategy == RetryStrategy.EXPONENTIAL_BACKOFF:
-            delay = self.policy.base_delay * (self.policy.backoff_multiplier ** (attempt - 1))
+            delay = self.policy.base_delay * (
+                self.policy.backoff_multiplier ** (attempt - 1)
+            )
 
         elif self.policy.strategy == RetryStrategy.LINEAR_BACKOFF:
             delay = self.policy.base_delay * attempt
@@ -195,20 +212,16 @@ class RetryManager:
             "successful_attempts": self.successful_attempts,
             "failed_attempts": self.failed_attempts,
             "retry_attempts": self.retry_attempts,
-            "success_rate": (
-                self.successful_attempts / max(1, self.total_attempts)
-            ),
-            "retry_rate": (
-                self.retry_attempts / max(1, self.total_attempts)
-            ),
+            "success_rate": (self.successful_attempts / max(1, self.total_attempts)),
+            "retry_rate": (self.retry_attempts / max(1, self.total_attempts)),
             "policy": {
                 "max_attempts": self.policy.max_attempts,
                 "base_delay": self.policy.base_delay,
                 "max_delay": self.policy.max_delay,
                 "strategy": self.policy.strategy.value,
                 "backoff_multiplier": self.policy.backoff_multiplier,
-                "jitter": self.policy.jitter
-            }
+                "jitter": self.policy.jitter,
+            },
         }
 
     def reset_metrics(self):
@@ -228,15 +241,16 @@ class RetryableOperation:
     without modifying their implementation.
     """
 
-    def __init__(self, policy: Optional[RetryPolicy] = None, name: Optional[str] = None):
+    def __init__(
+        self, policy: Optional[RetryPolicy] = None, name: Optional[str] = None
+    ):
         self.policy = policy or RetryPolicy()
         self.name = name
 
     def __call__(self, func: Callable) -> Callable:
         """Decorate function with retry logic."""
         retry_manager = RetryManager(
-            name=self.name or f"{func.__module__}.{func.__name__}",
-            policy=self.policy
+            name=self.name or f"{func.__module__}.{func.__name__}", policy=self.policy
         )
 
         async def wrapper(*args, **kwargs):
@@ -264,9 +278,7 @@ class RetryManagerRegistry:
         self.logger = logger.bind(component="retry_manager_registry")
 
     def get_retry_manager(
-        self,
-        name: str,
-        policy: Optional[RetryPolicy] = None
+        self, name: str, policy: Optional[RetryPolicy] = None
     ) -> RetryManager:
         """
         Get or create a retry manager.
@@ -286,10 +298,7 @@ class RetryManagerRegistry:
 
     def get_all_metrics(self) -> dict[str, dict]:
         """Get metrics for all retry managers."""
-        return {
-            name: rm.get_metrics()
-            for name, rm in self.retry_managers.items()
-        }
+        return {name: rm.get_metrics() for name, rm in self.retry_managers.items()}
 
     def reset_all_metrics(self):
         """Reset metrics for all retry managers."""
@@ -300,7 +309,9 @@ class RetryManagerRegistry:
     def get_total_metrics(self) -> dict:
         """Get aggregated metrics across all retry managers."""
         total_attempts = sum(rm.total_attempts for rm in self.retry_managers.values())
-        successful_attempts = sum(rm.successful_attempts for rm in self.retry_managers.values())
+        successful_attempts = sum(
+            rm.successful_attempts for rm in self.retry_managers.values()
+        )
         failed_attempts = sum(rm.failed_attempts for rm in self.retry_managers.values())
         retry_attempts = sum(rm.retry_attempts for rm in self.retry_managers.values())
 
@@ -311,7 +322,7 @@ class RetryManagerRegistry:
             "failed_attempts": failed_attempts,
             "retry_attempts": retry_attempts,
             "overall_success_rate": successful_attempts / max(1, total_attempts),
-            "overall_retry_rate": retry_attempts / max(1, total_attempts)
+            "overall_retry_rate": retry_attempts / max(1, total_attempts),
         }
 
 
@@ -340,7 +351,7 @@ def create_api_retry_policy() -> RetryPolicy:
             TypeError,
             KeyError,
             # Add authentication/authorization errors as needed
-        ]
+        ],
     )
 
 
@@ -357,7 +368,7 @@ def create_database_retry_policy() -> RetryPolicy:
             ConnectionError,
             TimeoutError,
             # Add database-specific exceptions as needed
-        ]
+        ],
     )
 
 
@@ -377,5 +388,5 @@ def create_tournament_retry_policy() -> RetryPolicy:
             TypeError,
             KeyError,
             AttributeError,
-        ]
+        ],
     )

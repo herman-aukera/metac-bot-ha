@@ -1,14 +1,20 @@
 """
 Simple ensemble agent implementation that satisfies the abstract base class requirements.
 """
-from typing import List, Dict, Any, Optional
+
+from typing import Any, Dict, List, Optional
+
 import structlog
 
-from .base_agent import BaseAgent
+from ..domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+)
 from ..domain.entities.question import Question
-from ..domain.entities.prediction import Prediction, PredictionConfidence, PredictionMethod
 from ..domain.entities.research_report import ResearchReport
 from ..domain.services.forecasting_service import ForecastingService
+from .base_agent import BaseAgent
 
 logger = structlog.get_logger(__name__)
 
@@ -17,7 +23,7 @@ class EnsembleAgentSimple(BaseAgent):
     """
     Simple ensemble agent that implements required abstract methods.
     """
-    
+
     def __init__(
         self,
         name: str,
@@ -28,20 +34,18 @@ class EnsembleAgentSimple(BaseAgent):
         super().__init__(name, model_config)
         self.agents = agents
         self.forecasting_service = forecasting_service
-        
+
         if not agents:
             raise ValueError("Ensemble agent requires at least one base agent")
-    
+
     async def conduct_research(
-        self, 
-        question: Question,
-        search_config: Optional[Dict[str, Any]] = None
+        self, question: Question, search_config: Optional[Dict[str, Any]] = None
     ) -> ResearchReport:
         """
         Conduct research by delegating to the first agent.
         """
         logger.info("Starting ensemble research", question_id=question.id)
-        
+
         if self.agents:
             return await self.agents[0].conduct_research(question, search_config)
         else:
@@ -51,19 +55,17 @@ class EnsembleAgentSimple(BaseAgent):
                 sources=[],
                 analysis="Ensemble agent with no base agents - minimal research",
                 research_depth=0,
-                research_time_spent=0.0
+                research_time_spent=0.0,
             )
-    
+
     async def generate_prediction(
-        self, 
-        question: Question, 
-        research_report: ResearchReport
+        self, question: Question, research_report: ResearchReport
     ) -> Prediction:
         """
         Generate a simple ensemble prediction.
         """
         logger.info("Generating ensemble prediction", question_id=question.id)
-        
+
         return Prediction.create_binary_prediction(
             question_id=question.id,
             research_report_id=research_report.id,
@@ -71,5 +73,5 @@ class EnsembleAgentSimple(BaseAgent):
             confidence=PredictionConfidence.MEDIUM,
             method=PredictionMethod.ENSEMBLE,
             reasoning="Simple ensemble prediction - placeholder implementation",
-            created_by=self.name
+            created_by=self.name,
         )

@@ -2,13 +2,14 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Callable, Any, Union
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
+
 import structlog
 
 from .circuit_breaker import CircuitBreaker, CircuitBreakerConfig
-from .rate_limiter import RateLimitedClient, RateLimitConfig
+from .rate_limiter import RateLimitConfig, RateLimitedClient
 from .retry_manager import RetryManager, RetryPolicy
 
 logger = structlog.get_logger(__name__)
@@ -16,6 +17,7 @@ logger = structlog.get_logger(__name__)
 
 class APIStatus(Enum):
     """API endpoint status."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -24,6 +26,7 @@ class APIStatus(Enum):
 
 class FailoverStrategy(Enum):
     """Failover strategies."""
+
     ROUND_ROBIN = "round_robin"
     PRIORITY = "priority"
     LEAST_LOADED = "least_loaded"
@@ -33,6 +36,7 @@ class FailoverStrategy(Enum):
 @dataclass
 class APIEndpoint:
     """API endpoint configuration."""
+
     name: str
     client: Any
     priority: int = 1  # Lower number = higher priority
@@ -53,11 +57,12 @@ class APIEndpoint:
 @dataclass
 class APIManagerConfig:
     """Configuration for API manager."""
+
     failover_strategy: FailoverStrategy = FailoverStrategy.PRIORITY
     health_check_interval: float = 60.0
     max_response_time_samples: int = 100
     unhealthy_threshold: int = 5  # Consecutive failures
-    recovery_threshold: int = 3   # Consecutive successes
+    recovery_threshold: int = 3  # Consecutive successes
     enable_circuit_breaker: bool = True
     enable_rate_limiting: bool = True
     enable_health_monitoring: bool = True
@@ -96,7 +101,7 @@ class APIManager:
         endpoint: APIEndpoint,
         circuit_breaker_config: Optional[CircuitBreakerConfig] = None,
         rate_limit_config: Optional[RateLimitConfig] = None,
-        retry_policy: Optional[RetryPolicy] = None
+        retry_policy: Optional[RetryPolicy] = None,
     ):
         """
         Add API endpoint with optional reliability components.
@@ -119,13 +124,12 @@ class APIManager:
         # Create rate limiter if enabled
         if self.config.enable_rate_limiting and rate_limit_config:
             from .rate_limiter import rate_limiter_manager
+
             rate_limiter = rate_limiter_manager.create_rate_limiter(
                 f"{self.name}_{endpoint.name}", rate_limit_config
             )
             self.rate_limiters[endpoint.name] = RateLimitedClient(
-                f"{self.name}_{endpoint.name}",
-                endpoint.client,
-                rate_limiter
+                f"{self.name}_{endpoint.name}", endpoint.client, rate_limiter
             )
 
         # Create retry manager
@@ -134,11 +138,13 @@ class APIManager:
                 f"{self.name}_{endpoint.name}", retry_policy
             )
 
-        self.logger.info("Added API endpoint",
-                        endpoint_name=endpoint.name,
-                        priority=endpoint.priority,
-                        circuit_breaker=self.config.enable_circuit_breaker,
-                        rate_limiting=self.config.enable_rate_limiting)
+        self.logger.info(
+            "Added API endpoint",
+            endpoint_name=endpoint.name,
+            priority=endpoint.priority,
+            circuit_breaker=self.config.enable_circuit_breaker,
+            rate_limiting=self.config.enable_rate_limiting,
+        )
 
     async def start_monitoring(self):
         """Start health monitoring for endpoints."""
@@ -151,8 +157,9 @@ class APIManager:
 
         self.running = True
         self.health_monitor_task = asyncio.create_task(self._health_monitoring_loop())
-        self.logger.info("Started API health monitoring",
-                        interval=self.config.health_check_interval)
+        self.logger.info(
+            "Started API health monitoring", interval=self.config.health_check_interval
+        )
 
     async def stop_monitoring(self):
         """Stop health monitoring."""
@@ -190,8 +197,11 @@ class APIManager:
             try:
                 await self._check_single_endpoint_health(endpoint)
             except Exception as e:
-                self.logger.error("Error checking endpoint health",
-                                endpoint_name=endpoint_name, error=str(e))
+                self.logger.error(
+                    "Error checking endpoint health",
+                    endpoint_name=endpoint_name,
+                    error=str(e),
+                )
 
     async def _check_single_endpoint_health(self, endpoint: APIEndpoint):
         """Check health of a single endpoint."""
@@ -224,10 +234,12 @@ class APIManager:
 
             endpoint.last_health_check = time.time()
 
-            self.logger.debug("Health check completed",
-                            endpoint_name=endpoint.name,
-                            status=endpoint.status.value,
-                            duration=duration)
+            self.logger.debug(
+                "Health check completed",
+                endpoint_name=endpoint.name,
+                status=endpoint.status.value,
+                duration=duration,
+            )
 
         except Exception as e:
             endpoint.error_count += 1
@@ -239,17 +251,15 @@ class APIManager:
             elif endpoint.error_count > 1:
                 endpoint.status = APIStatus.DEGRADED
 
-            self.logger.warning("Health check failed",
-                              endpoint_name=endpoint.name,
-                              error=str(e),
-                              error_count=endpoint.error_count)
+            self.logger.warning(
+                "Health check failed",
+                endpoint_name=endpoint.name,
+                error=str(e),
+                error_count=endpoint.error_count,
+            )
 
     async def call(
-        self,
-        method: str,
-        *args,
-        endpoint_name: Optional[str] = None,
-        **kwargs
+        self, method: str, *args, endpoint_name: Optional[str] = None, **kwargs
     ) -> Any:
         """
         Make API call with automatic failover.
@@ -284,9 +294,11 @@ class APIManager:
 
             except Exception as e:
                 last_exception = e
-                self.logger.warning("Endpoint call failed, trying next",
-                                  endpoint_name=endpoint.name,
-                                  error=str(e))
+                self.logger.warning(
+                    "Endpoint call failed, trying next",
+                    endpoint_name=endpoint.name,
+                    error=str(e),
+                )
 
                 # Update endpoint error count
                 endpoint.error_count += 1
@@ -294,8 +306,9 @@ class APIManager:
                 # Check if we should mark endpoint as unhealthy
                 if endpoint.error_count >= self.config.unhealthy_threshold:
                     endpoint.status = APIStatus.UNHEALTHY
-                    self.logger.error("Endpoint marked as unhealthy",
-                                    endpoint_name=endpoint.name)
+                    self.logger.error(
+                        "Endpoint marked as unhealthy", endpoint_name=endpoint.name
+                    )
 
                 continue
 
@@ -304,19 +317,17 @@ class APIManager:
         self.failover_count += 1
 
         if last_exception:
-            self.logger.error("All endpoints failed",
-                            endpoints_tried=len(endpoints_to_try),
-                            error=str(last_exception))
+            self.logger.error(
+                "All endpoints failed",
+                endpoints_tried=len(endpoints_to_try),
+                error=str(last_exception),
+            )
             raise last_exception
         else:
             raise RuntimeError("No available endpoints")
 
     async def _call_endpoint(
-        self,
-        endpoint: APIEndpoint,
-        method: str,
-        *args,
-        **kwargs
+        self, endpoint: APIEndpoint, method: str, *args, **kwargs
     ) -> Any:
         """
         Call specific endpoint with reliability components.
@@ -346,9 +357,7 @@ class APIManager:
                 else:
                     # Use circuit breaker directly
                     client_method = getattr(endpoint.client, method)
-                    result = await circuit_breaker.call(
-                        client_method, *args, **kwargs
-                    )
+                    result = await circuit_breaker.call(client_method, *args, **kwargs)
 
             elif endpoint.name in self.rate_limiters:
                 # Use rate-limited client only
@@ -374,10 +383,15 @@ class APIManager:
                 endpoint.response_times.pop(0)
 
             endpoint.success_count += 1
-            endpoint.error_count = max(0, endpoint.error_count - 1)  # Reduce error count
+            endpoint.error_count = max(
+                0, endpoint.error_count - 1
+            )  # Reduce error count
 
             # Update status if recovering
-            if endpoint.status != APIStatus.HEALTHY and endpoint.success_count >= self.config.recovery_threshold:
+            if (
+                endpoint.status != APIStatus.HEALTHY
+                and endpoint.success_count >= self.config.recovery_threshold
+            ):
                 endpoint.status = APIStatus.HEALTHY
                 self.logger.info("Endpoint recovered", endpoint_name=endpoint.name)
 
@@ -387,11 +401,13 @@ class APIManager:
             duration = time.time() - start_time
             endpoint.error_count += 1
 
-            self.logger.error("Endpoint call failed",
-                            endpoint_name=endpoint.name,
-                            method=method,
-                            duration=duration,
-                            error=str(e))
+            self.logger.error(
+                "Endpoint call failed",
+                endpoint_name=endpoint.name,
+                method=method,
+                duration=duration,
+                error=str(e),
+            )
             raise
 
     def _get_endpoints_by_strategy(self) -> List[APIEndpoint]:
@@ -402,7 +418,8 @@ class APIManager:
             List of endpoints in order to try
         """
         available_endpoints = [
-            ep for ep in self.endpoints.values()
+            ep
+            for ep in self.endpoints.values()
             if ep.enabled and ep.status != APIStatus.OFFLINE
         ]
 
@@ -418,9 +435,13 @@ class APIManager:
                 self.current_endpoint_index = 0
 
             # Rotate the list
-            rotated = (available_endpoints[self.current_endpoint_index:] +
-                      available_endpoints[:self.current_endpoint_index])
-            self.current_endpoint_index = (self.current_endpoint_index + 1) % len(available_endpoints)
+            rotated = (
+                available_endpoints[self.current_endpoint_index :]
+                + available_endpoints[: self.current_endpoint_index]
+            )
+            self.current_endpoint_index = (self.current_endpoint_index + 1) % len(
+                available_endpoints
+            )
             return rotated
 
         elif self.config.failover_strategy == FailoverStrategy.LEAST_LOADED:
@@ -431,7 +452,7 @@ class APIManager:
             # Sort by average response time
             def avg_response_time(ep):
                 if not ep.response_times:
-                    return float('inf')
+                    return float("inf")
                 return sum(ep.response_times) / len(ep.response_times)
 
             return sorted(available_endpoints, key=avg_response_time)
@@ -455,7 +476,9 @@ class APIManager:
 
         avg_response_time = 0.0
         if endpoint.response_times:
-            avg_response_time = sum(endpoint.response_times) / len(endpoint.response_times)
+            avg_response_time = sum(endpoint.response_times) / len(
+                endpoint.response_times
+            )
 
         return {
             "name": endpoint.name,
@@ -467,21 +490,17 @@ class APIManager:
             "avg_response_time": avg_response_time,
             "last_health_check": endpoint.last_health_check,
             "circuit_breaker": endpoint.name in self.circuit_breakers,
-            "rate_limited": endpoint.name in self.rate_limiters
+            "rate_limited": endpoint.name in self.rate_limiters,
         }
 
     def get_all_endpoint_status(self) -> Dict[str, Dict[str, Any]]:
         """Get status of all endpoints."""
-        return {
-            name: self.get_endpoint_status(name)
-            for name in self.endpoints.keys()
-        }
+        return {name: self.get_endpoint_status(name) for name in self.endpoints.keys()}
 
     def get_metrics(self) -> Dict[str, Any]:
         """Get API manager metrics."""
         healthy_endpoints = sum(
-            1 for ep in self.endpoints.values()
-            if ep.status == APIStatus.HEALTHY
+            1 for ep in self.endpoints.values() if ep.status == APIStatus.HEALTHY
         )
 
         return {
@@ -494,7 +513,7 @@ class APIManager:
             "failover_count": self.failover_count,
             "success_rate": self.successful_requests / max(1, self.total_requests),
             "failover_strategy": self.config.failover_strategy.value,
-            "monitoring_active": self.running
+            "monitoring_active": self.running,
         }
 
     def enable_endpoint(self, endpoint_name: str):
@@ -517,7 +536,8 @@ class APIManager:
             True if at least one endpoint is healthy
         """
         healthy_count = sum(
-            1 for ep in self.endpoints.values()
+            1
+            for ep in self.endpoints.values()
             if ep.enabled and ep.status == APIStatus.HEALTHY
         )
 

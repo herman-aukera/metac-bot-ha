@@ -1,17 +1,18 @@
 """Tests for the tournament analytics service."""
 
-import pytest
 from datetime import datetime, timedelta
 from uuid import uuid4
 
+import pytest
+
 from src.domain.services.tournament_analytics import (
-    TournamentAnalytics,
-    MarketInefficiencyType,
-    StrategicOpportunityType,
     CompetitorProfile,
     MarketInefficiency,
+    MarketInefficiencyType,
     StrategicOpportunity,
-    TournamentStandings
+    StrategicOpportunityType,
+    TournamentAnalytics,
+    TournamentStandings,
 )
 
 
@@ -40,8 +41,8 @@ class TestTournamentAnalytics:
                     "prediction_frequency": 0.9,
                     "category_performance": {
                         "politics": {"brier_score": 0.10},
-                        "economics": {"brier_score": 0.14}
-                    }
+                        "economics": {"brier_score": 0.14},
+                    },
                 },
                 {
                     "user_id": "user_2",
@@ -50,7 +51,7 @@ class TestTournamentAnalytics:
                     "questions_answered": 48,
                     "questions_resolved": 42,
                     "average_brier_score": 0.15,
-                    "calibration_score": 0.82
+                    "calibration_score": 0.82,
                 },
                 {
                     "user_id": "our_user",
@@ -59,7 +60,7 @@ class TestTournamentAnalytics:
                     "questions_answered": 35,
                     "questions_resolved": 30,
                     "average_brier_score": 0.18,
-                    "calibration_score": 0.78
+                    "calibration_score": 0.78,
                 },
                 {
                     "user_id": "user_4",
@@ -68,8 +69,8 @@ class TestTournamentAnalytics:
                     "questions_answered": 40,
                     "questions_resolved": 35,
                     "average_brier_score": 0.22,
-                    "calibration_score": 0.72
-                }
+                    "calibration_score": 0.72,
+                },
             ]
         }
 
@@ -82,32 +83,32 @@ class TestTournamentAnalytics:
                 "question_id": str(uuid4()),
                 "prediction": 0.8,
                 "timestamp": (base_time - timedelta(hours=24)).isoformat() + "Z",
-                "user_id": "user_1"
+                "user_id": "user_1",
             },
             {
                 "question_id": str(uuid4()),
                 "prediction": 0.85,
                 "timestamp": (base_time - timedelta(hours=20)).isoformat() + "Z",
-                "user_id": "user_2"
+                "user_id": "user_2",
             },
             {
                 "question_id": str(uuid4()),
                 "prediction": 0.9,
                 "timestamp": (base_time - timedelta(hours=16)).isoformat() + "Z",
-                "user_id": "user_3"
+                "user_id": "user_3",
             },
             {
                 "question_id": str(uuid4()),
                 "prediction": 0.95,
                 "timestamp": (base_time - timedelta(hours=12)).isoformat() + "Z",
-                "user_id": "user_4"
+                "user_id": "user_4",
             },
             {
                 "question_id": str(uuid4()),
                 "prediction": 0.92,
                 "timestamp": (base_time - timedelta(hours=8)).isoformat() + "Z",
-                "user_id": "user_5"
-            }
+                "user_id": "user_5",
+            },
         ]
 
     def test_initialization(self, tournament_analytics):
@@ -119,7 +120,9 @@ class TestTournamentAnalytics:
         assert tournament_analytics.inefficiency_detection_threshold == 0.7
         assert tournament_analytics.opportunity_confidence_threshold == 0.6
 
-    def test_analyze_tournament_standings(self, tournament_analytics, sample_standings_data):
+    def test_analyze_tournament_standings(
+        self, tournament_analytics, sample_standings_data
+    ):
         """Test tournament standings analysis."""
         tournament_id = 12345
         our_user_id = "our_user"
@@ -127,7 +130,7 @@ class TestTournamentAnalytics:
         standings = tournament_analytics.analyze_tournament_standings(
             tournament_id=tournament_id,
             standings_data=sample_standings_data,
-            our_user_id=our_user_id
+            our_user_id=our_user_id,
         )
 
         # Check basic standings information
@@ -151,13 +154,17 @@ class TestTournamentAnalytics:
 
         # Check competitive gaps
         assert "next_rank" in standings.competitive_gaps
-        assert standings.competitive_gaps["next_rank"] == 89.2 - 75.8  # Gap to second place
+        assert (
+            standings.competitive_gaps["next_rank"] == 89.2 - 75.8
+        )  # Gap to second place
 
         # Check improvement opportunities
         assert len(standings.improvement_opportunities) > 0
         assert isinstance(standings.improvement_opportunities[0], str)
 
-    def test_competitor_profile_analysis(self, tournament_analytics, sample_standings_data):
+    def test_competitor_profile_analysis(
+        self, tournament_analytics, sample_standings_data
+    ):
         """Test competitor profile analysis."""
         tournament_id = 12345
         our_user_id = "our_user"
@@ -190,20 +197,29 @@ class TestTournamentAnalytics:
         question_data = {"id": str(uuid4()), "title": "Test question"}
 
         # Create predictions with high proportion of extreme values
-        extreme_predictions = [0.05, 0.95, 0.02, 0.98, 0.03, 0.97, 0.5, 0.6]  # 6/8 = 75% extreme
+        extreme_predictions = [
+            0.05,
+            0.95,
+            0.02,
+            0.98,
+            0.03,
+            0.97,
+            0.5,
+            0.6,
+        ]  # 6/8 = 75% extreme
         community_predictions = [
             {"prediction": pred, "user_id": f"user_{i}"}
             for i, pred in enumerate(extreme_predictions)
         ]
 
         inefficiencies = tournament_analytics.detect_market_inefficiencies(
-            question_data=question_data,
-            community_predictions=community_predictions
+            question_data=question_data, community_predictions=community_predictions
         )
 
         # Should detect overconfidence bias
         overconfidence_inefficiencies = [
-            ineff for ineff in inefficiencies
+            ineff
+            for ineff in inefficiencies
             if ineff.inefficiency_type == MarketInefficiencyType.OVERCONFIDENCE_BIAS
         ]
         assert len(overconfidence_inefficiencies) > 0
@@ -221,21 +237,24 @@ class TestTournamentAnalytics:
         base_time = datetime.utcnow()
         clustered_predictions = []
         for i in range(12):
-            clustered_predictions.append({
-                "question_id": str(uuid4()),
-                "prediction": 0.65 + (i % 3) * 0.01,  # Very tight clustering around 0.65
-                "timestamp": (base_time - timedelta(hours=i)).isoformat() + "Z",
-                "user_id": f"user_{i}"
-            })
+            clustered_predictions.append(
+                {
+                    "question_id": str(uuid4()),
+                    "prediction": 0.65
+                    + (i % 3) * 0.01,  # Very tight clustering around 0.65
+                    "timestamp": (base_time - timedelta(hours=i)).isoformat() + "Z",
+                    "user_id": f"user_{i}",
+                }
+            )
 
         inefficiencies = tournament_analytics.detect_market_inefficiencies(
-            question_data=question_data,
-            community_predictions=clustered_predictions
+            question_data=question_data, community_predictions=clustered_predictions
         )
 
         # Should detect herding behavior
         herding_inefficiencies = [
-            ineff for ineff in inefficiencies
+            ineff
+            for ineff in inefficiencies
             if ineff.inefficiency_type == MarketInefficiencyType.HERDING_BEHAVIOR
         ]
         assert len(herding_inefficiencies) > 0
@@ -257,20 +276,18 @@ class TestTournamentAnalytics:
             else:
                 pred = 0.3 + i * 0.05
 
-            anchored_predictions.append({
-                "prediction": pred,
-                "user_id": f"user_{i}"
-            })
+            anchored_predictions.append({"prediction": pred, "user_id": f"user_{i}"})
 
         inefficiencies = tournament_analytics.detect_market_inefficiencies(
             question_data=question_data,
             community_predictions=anchored_predictions,
-            historical_patterns=historical_patterns
+            historical_patterns=historical_patterns,
         )
 
         # Should detect anchoring bias
         anchoring_inefficiencies = [
-            ineff for ineff in inefficiencies
+            ineff
+            for ineff in inefficiencies
             if ineff.inefficiency_type == MarketInefficiencyType.ANCHORING_BIAS
         ]
         assert len(anchoring_inefficiencies) > 0
@@ -289,28 +306,33 @@ class TestTournamentAnalytics:
 
         # Older predictions around 0.3
         for i in range(8):
-            predictions_with_shift.append({
-                "prediction": 0.3 + i * 0.02,
-                "timestamp": (base_time - timedelta(hours=48 + i)).isoformat() + "Z",
-                "user_id": f"old_user_{i}"
-            })
+            predictions_with_shift.append(
+                {
+                    "prediction": 0.3 + i * 0.02,
+                    "timestamp": (base_time - timedelta(hours=48 + i)).isoformat()
+                    + "Z",
+                    "user_id": f"old_user_{i}",
+                }
+            )
 
         # Recent predictions around 0.7 (significant shift)
         for i in range(5):
-            predictions_with_shift.append({
-                "prediction": 0.7 + i * 0.02,
-                "timestamp": (base_time - timedelta(hours=i)).isoformat() + "Z",
-                "user_id": f"new_user_{i}"
-            })
+            predictions_with_shift.append(
+                {
+                    "prediction": 0.7 + i * 0.02,
+                    "timestamp": (base_time - timedelta(hours=i)).isoformat() + "Z",
+                    "user_id": f"new_user_{i}",
+                }
+            )
 
         inefficiencies = tournament_analytics.detect_market_inefficiencies(
-            question_data=question_data,
-            community_predictions=predictions_with_shift
+            question_data=question_data, community_predictions=predictions_with_shift
         )
 
         # Should detect recency bias
         recency_inefficiencies = [
-            ineff for ineff in inefficiencies
+            ineff
+            for ineff in inefficiencies
             if ineff.inefficiency_type == MarketInefficiencyType.RECENCY_BIAS
         ]
         assert len(recency_inefficiencies) > 0
@@ -330,28 +352,36 @@ class TestTournamentAnalytics:
         for i in range(10):
             # Strong upward trend from 0.3 to 0.8
             prediction = 0.3 + (i / 9) * 0.5
-            momentum_predictions.append({
-                "question_id": str(uuid4()),
-                "prediction": prediction,
-                "timestamp": (base_time - timedelta(hours=24 - i * 2)).isoformat() + "Z",
-                "user_id": f"user_{i}"
-            })
+            momentum_predictions.append(
+                {
+                    "question_id": str(uuid4()),
+                    "prediction": prediction,
+                    "timestamp": (base_time - timedelta(hours=24 - i * 2)).isoformat()
+                    + "Z",
+                    "user_id": f"user_{i}",
+                }
+            )
 
         inefficiencies = tournament_analytics.detect_market_inefficiencies(
-            question_data=question_data,
-            community_predictions=momentum_predictions
+            question_data=question_data, community_predictions=momentum_predictions
         )
 
         # Should detect momentum effects
         momentum_inefficiencies = [
-            ineff for ineff in inefficiencies
-            if ineff.inefficiency_type in [MarketInefficiencyType.MOMENTUM_EFFECT, MarketInefficiencyType.CONTRARIAN_OPPORTUNITY]
+            ineff
+            for ineff in inefficiencies
+            if ineff.inefficiency_type
+            in [
+                MarketInefficiencyType.MOMENTUM_EFFECT,
+                MarketInefficiencyType.CONTRARIAN_OPPORTUNITY,
+            ]
         ]
         assert len(momentum_inefficiencies) > 0
 
         # Check for upward momentum detection
         upward_momentum = [
-            ineff for ineff in momentum_inefficiencies
+            ineff
+            for ineff in momentum_inefficiencies
             if "upward" in ineff.description.lower()
         ]
         assert len(upward_momentum) > 0
@@ -369,33 +399,39 @@ class TestTournamentAnalytics:
                 "title": "Early opportunity question",
                 "deadline": (base_time + timedelta(hours=72)).isoformat() + "Z",
                 "prediction_count": 5,  # Few predictions
-                "category": "politics"
+                "category": "politics",
             },
             {
                 "id": str(uuid4()),
                 "title": "Late opportunity question",
                 "deadline": (base_time + timedelta(hours=8)).isoformat() + "Z",
                 "prediction_count": 25,  # Many predictions
-                "category": "economics"
-            }
+                "category": "economics",
+            },
         ]
 
         opportunities = tournament_analytics.identify_strategic_opportunities(
             tournament_context=tournament_context,
             our_performance=our_performance,
-            question_pipeline=question_pipeline
+            question_pipeline=question_pipeline,
         )
 
         # Should identify timing opportunities
         timing_opportunities = [
-            opp for opp in opportunities
-            if opp.opportunity_type in [StrategicOpportunityType.EARLY_MOVER_ADVANTAGE, StrategicOpportunityType.LATE_MOVER_ADVANTAGE]
+            opp
+            for opp in opportunities
+            if opp.opportunity_type
+            in [
+                StrategicOpportunityType.EARLY_MOVER_ADVANTAGE,
+                StrategicOpportunityType.LATE_MOVER_ADVANTAGE,
+            ]
         ]
         assert len(timing_opportunities) > 0
 
         # Check early mover advantage
         early_mover = [
-            opp for opp in timing_opportunities
+            opp
+            for opp in timing_opportunities
             if opp.opportunity_type == StrategicOpportunityType.EARLY_MOVER_ADVANTAGE
         ]
         assert len(early_mover) > 0
@@ -408,12 +444,12 @@ class TestTournamentAnalytics:
             "category_performance": {
                 "politics": {
                     "brier_score": 0.15,  # Strong performance
-                    "question_count": 10
+                    "question_count": 10,
                 },
                 "economics": {
                     "brier_score": 0.35,  # Weak performance
-                    "question_count": 8
-                }
+                    "question_count": 8,
+                },
             }
         }
 
@@ -422,31 +458,33 @@ class TestTournamentAnalytics:
                 "id": str(uuid4()),
                 "title": "Politics question",
                 "category": "politics",
-                "deadline": (datetime.utcnow() + timedelta(hours=48)).isoformat() + "Z"
+                "deadline": (datetime.utcnow() + timedelta(hours=48)).isoformat() + "Z",
             },
             {
                 "id": str(uuid4()),
                 "title": "Economics question",
                 "category": "economics",
-                "deadline": (datetime.utcnow() + timedelta(hours=48)).isoformat() + "Z"
-            }
+                "deadline": (datetime.utcnow() + timedelta(hours=48)).isoformat() + "Z",
+            },
         ]
 
         opportunities = tournament_analytics.identify_strategic_opportunities(
             tournament_context=tournament_context,
             our_performance=our_performance,
-            question_pipeline=question_pipeline
+            question_pipeline=question_pipeline,
         )
 
         # Should identify niche expertise opportunity for politics
         expertise_opportunities = [
-            opp for opp in opportunities
+            opp
+            for opp in opportunities
             if opp.opportunity_type == StrategicOpportunityType.NICHE_EXPERTISE
         ]
         assert len(expertise_opportunities) > 0
 
         politics_opportunity = [
-            opp for opp in expertise_opportunities
+            opp
+            for opp in expertise_opportunities
             if "politics" in opp.description.lower()
         ]
         assert len(politics_opportunity) > 0
@@ -455,46 +493,44 @@ class TestTournamentAnalytics:
     def test_identify_positioning_opportunities(self, tournament_analytics):
         """Test competitive positioning opportunity identification."""
         # Test low ranking scenario (aggressive strategy)
-        low_ranking_context = {
-            "our_ranking": 85,
-            "total_participants": 100
-        }
+        low_ranking_context = {"our_ranking": 85, "total_participants": 100}
         our_performance = {}
         question_pipeline = []
 
         opportunities = tournament_analytics.identify_strategic_opportunities(
             tournament_context=low_ranking_context,
             our_performance=our_performance,
-            question_pipeline=question_pipeline
+            question_pipeline=question_pipeline,
         )
 
         # Should suggest aggressive strategy for low ranking
         aggressive_opportunities = [
-            opp for opp in opportunities
+            opp
+            for opp in opportunities
             if opp.opportunity_type == StrategicOpportunityType.CONSENSUS_EXPLOITATION
         ]
         assert len(aggressive_opportunities) > 0
 
         # Test middle ranking scenario (selective strategy)
-        middle_ranking_context = {
-            "our_ranking": 25,
-            "total_participants": 100
-        }
+        middle_ranking_context = {"our_ranking": 25, "total_participants": 100}
 
         opportunities = tournament_analytics.identify_strategic_opportunities(
             tournament_context=middle_ranking_context,
             our_performance=our_performance,
-            question_pipeline=question_pipeline
+            question_pipeline=question_pipeline,
         )
 
         # Should suggest selective strategy for middle ranking
         selective_opportunities = [
-            opp for opp in opportunities
+            opp
+            for opp in opportunities
             if opp.opportunity_type == StrategicOpportunityType.VOLATILITY_ARBITRAGE
         ]
         assert len(selective_opportunities) > 0
 
-    def test_generate_competitive_intelligence_report(self, tournament_analytics, sample_standings_data):
+    def test_generate_competitive_intelligence_report(
+        self, tournament_analytics, sample_standings_data
+    ):
         """Test competitive intelligence report generation."""
         tournament_id = 12345
         our_user_id = "our_user"
@@ -506,7 +542,9 @@ class TestTournamentAnalytics:
 
         # Add some market inefficiencies and opportunities
         question_data = {"id": str(uuid4()), "title": "Test question"}
-        community_predictions = [{"prediction": 0.95, "user_id": "user_1"}] * 10  # Extreme predictions
+        community_predictions = [
+            {"prediction": 0.95, "user_id": "user_1"}
+        ] * 10  # Extreme predictions
 
         tournament_analytics.detect_market_inefficiencies(
             question_data, community_predictions
@@ -514,8 +552,7 @@ class TestTournamentAnalytics:
 
         # Generate report
         report = tournament_analytics.generate_competitive_intelligence_report(
-            tournament_id=tournament_id,
-            include_recommendations=True
+            tournament_id=tournament_id, include_recommendations=True
         )
 
         # Check report structure
@@ -544,15 +581,15 @@ class TestTournamentAnalytics:
         participant_data = {
             "user_id": "test_user",
             "average_brier_score": 0.15,  # Excellent accuracy
-            "calibration_score": 0.85,    # Well calibrated
-            "questions_answered": 60,     # High volume
+            "calibration_score": 0.85,  # Well calibrated
+            "questions_answered": 60,  # High volume
             "prediction_frequency": 0.9,  # Consistent participation
-            "category_performance": {
-                "politics": {"brier_score": 0.12}  # Expert level
-            }
+            "category_performance": {"politics": {"brier_score": 0.12}},  # Expert level
         }
 
-        strengths = tournament_analytics._identify_competitor_strengths(participant_data)
+        strengths = tournament_analytics._identify_competitor_strengths(
+            participant_data
+        )
 
         assert "excellent_accuracy" in strengths
         assert "well_calibrated" in strengths
@@ -564,16 +601,16 @@ class TestTournamentAnalytics:
         """Test competitor weakness identification."""
         participant_data = {
             "user_id": "test_user",
-            "average_brier_score": 0.4,   # Poor accuracy
-            "calibration_score": 0.3,     # Poorly calibrated
+            "average_brier_score": 0.4,  # Poor accuracy
+            "calibration_score": 0.3,  # Poorly calibrated
             "prediction_variance": 0.25,  # Inconsistent
-            "questions_answered": 5,      # Low participation
-            "timing_patterns": {
-                "late_submissions": 0.7   # Poor timing
-            }
+            "questions_answered": 5,  # Low participation
+            "timing_patterns": {"late_submissions": 0.7},  # Poor timing
         }
 
-        weaknesses = tournament_analytics._identify_competitor_weaknesses(participant_data)
+        weaknesses = tournament_analytics._identify_competitor_weaknesses(
+            participant_data
+        )
 
         assert "poor_accuracy" in weaknesses
         assert "poorly_calibrated" in weaknesses
@@ -584,26 +621,17 @@ class TestTournamentAnalytics:
     def test_risk_profile_assessment(self, tournament_analytics):
         """Test risk profile assessment."""
         # Conservative profile
-        conservative_data = {
-            "average_confidence": 0.85,
-            "prediction_variance": 0.03
-        }
+        conservative_data = {"average_confidence": 0.85, "prediction_variance": 0.03}
         risk_profile = tournament_analytics._assess_risk_profile(conservative_data)
         assert risk_profile == "conservative"
 
         # Aggressive profile
-        aggressive_data = {
-            "average_confidence": 0.55,
-            "prediction_variance": 0.18
-        }
+        aggressive_data = {"average_confidence": 0.55, "prediction_variance": 0.18}
         risk_profile = tournament_analytics._assess_risk_profile(aggressive_data)
         assert risk_profile == "aggressive"
 
         # Moderate profile
-        moderate_data = {
-            "average_confidence": 0.7,
-            "prediction_variance": 0.1
-        }
+        moderate_data = {"average_confidence": 0.7, "prediction_variance": 0.1}
         risk_profile = tournament_analytics._assess_risk_profile(moderate_data)
         assert risk_profile == "moderate"
 
@@ -641,7 +669,7 @@ class TestTournamentAnalytics:
         assert "leader" in gaps
 
         assert gaps["next_rank"] == 89.2 - 75.8  # Gap to second place
-        assert gaps["leader"] == 95.5 - 75.8     # Gap to first place
+        assert gaps["leader"] == 95.5 - 75.8  # Gap to first place
 
     def test_improvement_opportunities_generation(self, tournament_analytics):
         """Test improvement opportunities generation."""
@@ -662,7 +690,7 @@ class TestTournamentAnalytics:
                 prediction_patterns={},
                 strengths=["excellent_accuracy", "well_calibrated"],
                 weaknesses=[],
-                last_updated=datetime.utcnow()
+                last_updated=datetime.utcnow(),
             ),
             CompetitorProfile(
                 competitor_id="user_2",
@@ -676,8 +704,8 @@ class TestTournamentAnalytics:
                 prediction_patterns={},
                 strengths=["excellent_accuracy", "high_volume"],
                 weaknesses=[],
-                last_updated=datetime.utcnow()
-            )
+                last_updated=datetime.utcnow(),
+            ),
         ]
 
         competitive_gaps = {"next_rank": 13.4, "top_10_percent": 15.0}
@@ -691,8 +719,7 @@ class TestTournamentAnalytics:
 
         # Should suggest accuracy improvement (common strength)
         accuracy_suggestions = [
-            opp for opp in opportunities
-            if "accuracy" in opp.lower()
+            opp for opp in opportunities if "accuracy" in opp.lower()
         ]
         assert len(accuracy_suggestions) > 0
 
@@ -712,7 +739,7 @@ class TestTournamentAnalytics:
             time_sensitivity=0.5,
             resource_requirements={},
             recommended_actions=[],
-            identified_at=current_time - timedelta(days=3)
+            identified_at=current_time - timedelta(days=3),
         )
 
         # Old opportunity (should be removed)
@@ -726,17 +753,23 @@ class TestTournamentAnalytics:
             time_sensitivity=0.5,
             resource_requirements={},
             recommended_actions=[],
-            identified_at=current_time - timedelta(days=10)
+            identified_at=current_time - timedelta(days=10),
         )
 
-        tournament_analytics.strategic_opportunities = [recent_opportunity, old_opportunity]
+        tournament_analytics.strategic_opportunities = [
+            recent_opportunity,
+            old_opportunity,
+        ]
 
         # Cleanup expired opportunities
         tournament_analytics._cleanup_expired_opportunities()
 
         # Should only keep recent opportunity
         assert len(tournament_analytics.strategic_opportunities) == 1
-        assert tournament_analytics.strategic_opportunities[0].title == "Recent opportunity"
+        assert (
+            tournament_analytics.strategic_opportunities[0].title
+            == "Recent opportunity"
+        )
 
     def test_analyze_performance_attribution(self, tournament_analytics):
         """Test performance attribution analysis."""
@@ -746,8 +779,8 @@ class TestTournamentAnalytics:
             "questions_answered": 45,
             "category_performance": {
                 "politics": {"brier_score": 0.20, "question_count": 15},
-                "economics": {"brier_score": 0.30, "question_count": 10}
-            }
+                "economics": {"brier_score": 0.30, "question_count": 10},
+            },
         }
 
         competitor_performance_data = [
@@ -757,8 +790,8 @@ class TestTournamentAnalytics:
                 "questions_answered": 50,
                 "category_performance": {
                     "politics": {"brier_score": 0.12},
-                    "economics": {"brier_score": 0.18}
-                }
+                    "economics": {"brier_score": 0.18},
+                },
             },
             {
                 "average_brier_score": 0.35,
@@ -766,9 +799,9 @@ class TestTournamentAnalytics:
                 "questions_answered": 30,
                 "category_performance": {
                     "politics": {"brier_score": 0.32},
-                    "economics": {"brier_score": 0.38}
-                }
-            }
+                    "economics": {"brier_score": 0.38},
+                },
+            },
         ]
 
         question_history = [
@@ -778,7 +811,7 @@ class TestTournamentAnalytics:
                 "confidence": 0.7,
                 "was_correct": True,
                 "category": "politics",
-                "hours_before_deadline": 48
+                "hours_before_deadline": 48,
             },
             {
                 "research_depth": 0.6,
@@ -786,7 +819,7 @@ class TestTournamentAnalytics:
                 "confidence": 0.6,
                 "was_correct": False,
                 "category": "economics",
-                "hours_before_deadline": 12
+                "hours_before_deadline": 12,
             },
             {
                 "research_depth": 0.9,
@@ -794,14 +827,14 @@ class TestTournamentAnalytics:
                 "confidence": 0.8,
                 "was_correct": True,
                 "category": "politics",
-                "hours_before_deadline": 72
-            }
+                "hours_before_deadline": 72,
+            },
         ]
 
         attribution = tournament_analytics.analyze_performance_attribution(
             our_performance_data=our_performance_data,
             competitor_performance_data=competitor_performance_data,
-            question_history=question_history
+            question_history=question_history,
         )
 
         # Check attribution structure
@@ -837,16 +870,11 @@ class TestTournamentAnalytics:
                 "research_depth_correlation": 0.4,  # Strong correlation
                 "confidence_accuracy_relationship": {
                     "high": {"average_accuracy": 0.8, "sample_size": 10}
-                }
+                },
             },
-            "calibration_analysis": {
-                "overall_calibration": 0.6  # Below optimal
-            },
+            "calibration_analysis": {"overall_calibration": 0.6},  # Below optimal
             "category_performance": {
-                "politics": {
-                    "competitive_advantage": False,
-                    "sample_size": 10
-                }
+                "politics": {"competitive_advantage": False, "sample_size": 10}
             },
             "timing_impact": {
                 "early_vs_late_performance": {
@@ -859,9 +887,9 @@ class TestTournamentAnalytics:
                     "description": "Accuracy gap to top performers",
                     "severity": "high",
                     "improvement_potential": 15,
-                    "recommendations": ["Improve research methodology"]
+                    "recommendations": ["Improve research methodology"],
                 }
-            ]
+            ],
         }
 
         current_standings = TournamentStandings(
@@ -874,29 +902,35 @@ class TestTournamentAnalytics:
             score_distribution={},
             competitive_gaps={"next_rank": 3.5},
             improvement_opportunities=[],
-            last_updated=datetime.utcnow()
+            last_updated=datetime.utcnow(),
         )
 
         recommendations = tournament_analytics.generate_optimization_recommendations(
             tournament_id=tournament_id,
             performance_attribution=performance_attribution,
-            current_standings=current_standings
+            current_standings=current_standings,
         )
 
         # Should generate multiple recommendations
         assert len(recommendations) > 0
 
         # Check for research optimization recommendation
-        research_recs = [r for r in recommendations if r["category"] == "research_optimization"]
+        research_recs = [
+            r for r in recommendations if r["category"] == "research_optimization"
+        ]
         assert len(research_recs) > 0
         assert research_recs[0]["priority"] == "high"
 
         # Check for calibration improvement recommendation
-        calibration_recs = [r for r in recommendations if r["category"] == "calibration_improvement"]
+        calibration_recs = [
+            r for r in recommendations if r["category"] == "calibration_improvement"
+        ]
         assert len(calibration_recs) > 0
 
         # Check for timing optimization recommendation
-        timing_recs = [r for r in recommendations if r["category"] == "timing_optimization"]
+        timing_recs = [
+            r for r in recommendations if r["category"] == "timing_optimization"
+        ]
         assert len(timing_recs) > 0
 
         # Verify recommendation structure
@@ -910,7 +944,9 @@ class TestTournamentAnalytics:
             assert "implementation_effort" in rec
             assert "timeline" in rec
 
-    def test_enhanced_competitive_intelligence_report(self, tournament_analytics, sample_standings_data):
+    def test_enhanced_competitive_intelligence_report(
+        self, tournament_analytics, sample_standings_data
+    ):
         """Test enhanced competitive intelligence report with new features."""
         tournament_id = 12345
         our_user_id = "our_user"
@@ -932,7 +968,7 @@ class TestTournamentAnalytics:
         report = tournament_analytics.generate_competitive_intelligence_report(
             tournament_id=tournament_id,
             include_recommendations=True,
-            include_performance_attribution=True
+            include_performance_attribution=True,
         )
 
         # Check enhanced report structure
@@ -980,14 +1016,26 @@ class TestTournamentAnalytics:
         """Test identification of competitive advantages."""
         our_performance = {
             "average_brier_score": 0.15,  # Better than average
-            "calibration_score": 0.85,   # Well calibrated
-            "questions_answered": 60     # High volume
+            "calibration_score": 0.85,  # Well calibrated
+            "questions_answered": 60,  # High volume
         }
 
         competitor_performance = [
-            {"average_brier_score": 0.25, "calibration_score": 0.70, "questions_answered": 40},
-            {"average_brier_score": 0.30, "calibration_score": 0.65, "questions_answered": 35},
-            {"average_brier_score": 0.20, "calibration_score": 0.75, "questions_answered": 45}
+            {
+                "average_brier_score": 0.25,
+                "calibration_score": 0.70,
+                "questions_answered": 40,
+            },
+            {
+                "average_brier_score": 0.30,
+                "calibration_score": 0.65,
+                "questions_answered": 35,
+            },
+            {
+                "average_brier_score": 0.20,
+                "calibration_score": 0.75,
+                "questions_answered": 45,
+            },
         ]
 
         advantages = tournament_analytics._identify_competitive_advantages(
@@ -998,23 +1046,29 @@ class TestTournamentAnalytics:
         assert len(advantages) > 0
 
         # Check for accuracy advantage
-        accuracy_advantages = [a for a in advantages if a["type"] == "accuracy_advantage"]
+        accuracy_advantages = [
+            a for a in advantages if a["type"] == "accuracy_advantage"
+        ]
         assert len(accuracy_advantages) > 0
         assert accuracy_advantages[0]["strength"] > 0.5
 
         # Check for calibration advantage
-        calibration_advantages = [a for a in advantages if a["type"] == "calibration_advantage"]
+        calibration_advantages = [
+            a for a in advantages if a["type"] == "calibration_advantage"
+        ]
         assert len(calibration_advantages) > 0
 
         # Check for participation advantage
-        participation_advantages = [a for a in advantages if a["type"] == "participation_advantage"]
+        participation_advantages = [
+            a for a in advantages if a["type"] == "participation_advantage"
+        ]
         assert len(participation_advantages) > 0
 
     def test_performance_gaps_analysis(self, tournament_analytics):
         """Test performance gaps analysis."""
         our_performance = {
             "average_brier_score": 0.30,  # Below top performers
-            "calibration_score": 0.60     # Below top performers
+            "calibration_score": 0.60,  # Below top performers
         }
 
         competitor_performance = [
@@ -1022,7 +1076,7 @@ class TestTournamentAnalytics:
             {"average_brier_score": 0.18, "calibration_score": 0.82},  # Top performer
             {"average_brier_score": 0.20, "calibration_score": 0.80},  # Top performer
             {"average_brier_score": 0.35, "calibration_score": 0.55},  # Below us
-            {"average_brier_score": 0.40, "calibration_score": 0.50}   # Below us
+            {"average_brier_score": 0.40, "calibration_score": 0.50},  # Below us
         ]
 
         gaps = tournament_analytics._analyze_performance_gaps(
@@ -1054,7 +1108,7 @@ class TestTournamentAnalytics:
                 potential_advantage=0.2,
                 detected_at=datetime.utcnow(),
                 expiration_estimate=None,
-                exploitation_strategy="Test"
+                exploitation_strategy="Test",
             ),
             MarketInefficiency(
                 inefficiency_type=MarketInefficiencyType.HERDING_BEHAVIOR,
@@ -1064,15 +1118,19 @@ class TestTournamentAnalytics:
                 potential_advantage=0.15,
                 detected_at=datetime.utcnow(),
                 expiration_estimate=None,
-                exploitation_strategy="Test"
-            )
+                exploitation_strategy="Test",
+            ),
         ]
 
-        efficiency_score = tournament_analytics._calculate_market_efficiency_score(high_inefficiencies)
+        efficiency_score = tournament_analytics._calculate_market_efficiency_score(
+            high_inefficiencies
+        )
         assert 0.0 <= efficiency_score <= 1.0
         assert efficiency_score < 0.9  # Should indicate inefficient market
 
         # No inefficiencies scenario
         no_inefficiencies = []
-        efficiency_score = tournament_analytics._calculate_market_efficiency_score(no_inefficiencies)
+        efficiency_score = tournament_analytics._calculate_market_efficiency_score(
+            no_inefficiencies
+        )
         assert efficiency_score == 1.0  # Perfectly efficient

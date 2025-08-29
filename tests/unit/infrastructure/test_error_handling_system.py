@@ -4,24 +4,39 @@ Tests error classification, fallback strategies, and recovery orchestration.
 """
 
 import asyncio
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
 import os
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from src.infrastructure.reliability.comprehensive_error_recovery import (
+    ComprehensiveErrorRecoveryManager,
+    RecoveryConfiguration,
+    RecoveryResult,
+)
 from src.infrastructure.reliability.error_classification import (
-    ErrorClassifier, ErrorRecoveryManager, ErrorContext, ErrorCategory,
-    ErrorSeverity, RecoveryStrategy, ForecastingError, ModelError,
-    BudgetError, APIError, QualityError
+    APIError,
+    BudgetError,
+    ErrorCategory,
+    ErrorClassifier,
+    ErrorContext,
+    ErrorRecoveryManager,
+    ErrorSeverity,
+    ForecastingError,
+    ModelError,
+    QualityError,
+    RecoveryStrategy,
 )
 from src.infrastructure.reliability.fallback_strategies import (
-    ModelTierFallbackManager, CrossProviderFallbackManager,
-    EmergencyModeManager, ErrorLoggingAndAlertingSystem,
-    IntelligentFallbackOrchestrator, FallbackOption, FallbackTier,
-    PerformanceLevel
-)
-from src.infrastructure.reliability.comprehensive_error_recovery import (
-    ComprehensiveErrorRecoveryManager, RecoveryConfiguration, RecoveryResult
+    CrossProviderFallbackManager,
+    EmergencyModeManager,
+    ErrorLoggingAndAlertingSystem,
+    FallbackOption,
+    FallbackTier,
+    IntelligentFallbackOrchestrator,
+    ModelTierFallbackManager,
+    PerformanceLevel,
 )
 
 
@@ -38,7 +53,7 @@ class TestErrorClassifier:
             budget_remaining=50.0,
             attempt_number=1,
             model_name="openai/gpt-5-mini",
-            provider="openrouter"
+            provider="openrouter",
         )
 
     def test_classify_rate_limit_error(self):
@@ -68,7 +83,7 @@ class TestErrorClassifier:
             model_tier="mini",
             operation_mode="critical",
             budget_remaining=0.0,
-            attempt_number=1
+            attempt_number=1,
         )
 
         error = Exception("Budget exhausted")
@@ -145,17 +160,25 @@ class TestModelTierFallbackManager:
             model_tier="full",
             operation_mode="normal",
             budget_remaining=50.0,
-            attempt_number=1
+            attempt_number=1,
         )
 
     @pytest.mark.asyncio
     async def test_execute_fallback_success(self):
         """Test successful model tier fallback."""
         # Mock availability check
-        with patch.object(self.fallback_manager, '_check_availability', return_value=True), \
-             patch.object(self.fallback_manager, '_test_fallback_option', return_value=True):
+        with (
+            patch.object(
+                self.fallback_manager, "_check_availability", return_value=True
+            ),
+            patch.object(
+                self.fallback_manager, "_test_fallback_option", return_value=True
+            ),
+        ):
 
-            result = await self.fallback_manager.execute_fallback("full", self.test_context, 50.0)
+            result = await self.fallback_manager.execute_fallback(
+                "full", self.test_context, 50.0
+            )
 
             assert result.success
             assert result.fallback_used is not None
@@ -165,9 +188,13 @@ class TestModelTierFallbackManager:
     async def test_execute_fallback_no_viable_options(self):
         """Test fallback when no viable options available."""
         # Mock no availability
-        with patch.object(self.fallback_manager, '_check_availability', return_value=False):
+        with patch.object(
+            self.fallback_manager, "_check_availability", return_value=False
+        ):
 
-            result = await self.fallback_manager.execute_fallback("full", self.test_context, 50.0)
+            result = await self.fallback_manager.execute_fallback(
+                "full", self.test_context, 50.0
+            )
 
             assert not result.success
             assert "No viable fallback options available" in result.message
@@ -178,7 +205,9 @@ class TestModelTierFallbackManager:
         fallback_chain = self.fallback_manager.fallback_chains["full"]
 
         # Test with low budget - should only return free models
-        with patch.object(self.fallback_manager, '_check_availability', return_value=True):
+        with patch.object(
+            self.fallback_manager, "_check_availability", return_value=True
+        ):
             viable_options = await self.fallback_manager._filter_viable_options(
                 fallback_chain, 10.0, self.test_context  # 10% budget remaining
             )
@@ -195,10 +224,12 @@ class TestModelTierFallbackManager:
             performance_level=PerformanceLevel.GOOD,
             cost_per_million=0.25,
             availability_check="test",
-            configuration={}
+            configuration={},
         )
 
-        impact = self.fallback_manager._calculate_performance_impact("full", fallback_option)
+        impact = self.fallback_manager._calculate_performance_impact(
+            "full", fallback_option
+        )
         assert 0.0 < impact < 1.0  # Should be reduced performance
 
     def test_calculate_cost_impact(self):
@@ -209,7 +240,7 @@ class TestModelTierFallbackManager:
             performance_level=PerformanceLevel.ACCEPTABLE,
             cost_per_million=0.0,  # Free model
             availability_check="test",
-            configuration={}
+            configuration={},
         )
 
         impact = self.fallback_manager._calculate_cost_impact("full", fallback_option)
@@ -228,16 +259,22 @@ class TestCrossProviderFallbackManager:
             operation_mode="normal",
             budget_remaining=50.0,
             attempt_number=1,
-            provider="openrouter"
+            provider="openrouter",
         )
 
     @pytest.mark.asyncio
     async def test_execute_provider_fallback_success(self):
         """Test successful provider fallback."""
-        with patch.object(self.fallback_manager, '_check_provider_availability', return_value=True), \
-             patch.object(self.fallback_manager, '_test_provider', return_value=True):
+        with (
+            patch.object(
+                self.fallback_manager, "_check_provider_availability", return_value=True
+            ),
+            patch.object(self.fallback_manager, "_test_provider", return_value=True),
+        ):
 
-            result = await self.fallback_manager.execute_provider_fallback("openrouter", self.test_context)
+            result = await self.fallback_manager.execute_provider_fallback(
+                "openrouter", self.test_context
+            )
 
             assert result.success
             assert result.fallback_used is not None
@@ -246,7 +283,9 @@ class TestCrossProviderFallbackManager:
     async def test_execute_provider_fallback_no_fallbacks(self):
         """Test provider fallback when no fallbacks available."""
         # Test with provider that has no fallbacks
-        result = await self.fallback_manager.execute_provider_fallback("unknown_provider", self.test_context)
+        result = await self.fallback_manager.execute_provider_fallback(
+            "unknown_provider", self.test_context
+        )
 
         assert not result.success
         assert "No fallback providers defined" in result.message
@@ -266,11 +305,15 @@ class TestCrossProviderFallbackManager:
     async def test_check_metaculus_proxy_availability(self):
         """Test Metaculus proxy availability check."""
         with patch.dict(os.environ, {"ENABLE_PROXY_CREDITS": "true"}):
-            available = await self.fallback_manager._check_metaculus_proxy_availability()
+            available = (
+                await self.fallback_manager._check_metaculus_proxy_availability()
+            )
             assert available
 
         with patch.dict(os.environ, {"ENABLE_PROXY_CREDITS": "false"}):
-            available = await self.fallback_manager._check_metaculus_proxy_availability()
+            available = (
+                await self.fallback_manager._check_metaculus_proxy_availability()
+            )
             assert not available
 
 
@@ -286,7 +329,7 @@ class TestEmergencyModeManager:
             model_tier="mini",
             operation_mode="critical",
             budget_remaining=2.0,
-            attempt_number=1
+            attempt_number=1,
         )
 
     @pytest.mark.asyncio
@@ -294,8 +337,12 @@ class TestEmergencyModeManager:
         """Test emergency mode activation."""
         error = BudgetError("Budget exhausted", 0.0, 10.0, self.test_context)
 
-        with patch.object(self.emergency_manager, '_send_emergency_alert', new_callable=AsyncMock):
-            recovery_action = await self.emergency_manager.activate_emergency_mode(error, self.test_context)
+        with patch.object(
+            self.emergency_manager, "_send_emergency_alert", new_callable=AsyncMock
+        ):
+            recovery_action = await self.emergency_manager.activate_emergency_mode(
+                error, self.test_context
+            )
 
             assert self.emergency_manager.is_emergency_active()
             assert recovery_action.strategy == RecoveryStrategy.EMERGENCY_MODE
@@ -309,7 +356,11 @@ class TestEmergencyModeManager:
         await self.emergency_manager.activate_emergency_mode(error, self.test_context)
 
         # Mock conditions for deactivation
-        with patch.object(self.emergency_manager, '_check_normal_operation_conditions', return_value=True):
+        with patch.object(
+            self.emergency_manager,
+            "_check_normal_operation_conditions",
+            return_value=True,
+        ):
             success = await self.emergency_manager.deactivate_emergency_mode()
 
             assert success
@@ -319,15 +370,23 @@ class TestEmergencyModeManager:
     async def test_check_normal_operation_conditions(self):
         """Test normal operation conditions check."""
         # Mock budget manager
-        self.mock_budget_manager.get_budget_status = AsyncMock(return_value={"remaining_percentage": 20.0})
+        self.mock_budget_manager.get_budget_status = AsyncMock(
+            return_value={"remaining_percentage": 20.0}
+        )
 
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}):
-            conditions_met = await self.emergency_manager._check_normal_operation_conditions()
+            conditions_met = (
+                await self.emergency_manager._check_normal_operation_conditions()
+            )
             assert conditions_met
 
         # Test with low budget
-        self.mock_budget_manager.get_budget_status = AsyncMock(return_value={"remaining_percentage": 2.0})
-        conditions_met = await self.emergency_manager._check_normal_operation_conditions()
+        self.mock_budget_manager.get_budget_status = AsyncMock(
+            return_value={"remaining_percentage": 2.0}
+        )
+        conditions_met = (
+            await self.emergency_manager._check_normal_operation_conditions()
+        )
         assert not conditions_met
 
     def test_get_emergency_status(self):
@@ -357,7 +416,7 @@ class TestErrorLoggingAndAlertingSystem:
             model_tier="mini",
             operation_mode="normal",
             budget_remaining=50.0,
-            attempt_number=1
+            attempt_number=1,
         )
 
     @pytest.mark.asyncio
@@ -369,10 +428,18 @@ class TestErrorLoggingAndAlertingSystem:
         recovery_action.parameters = {"delay": 5.0}
         recovery_action.success_probability = 0.8
 
-        with patch.object(self.logging_system, '_check_and_trigger_alerts', new_callable=AsyncMock), \
-             patch.object(self.logging_system, '_write_to_log_file', new_callable=AsyncMock):
+        with (
+            patch.object(
+                self.logging_system, "_check_and_trigger_alerts", new_callable=AsyncMock
+            ),
+            patch.object(
+                self.logging_system, "_write_to_log_file", new_callable=AsyncMock
+            ),
+        ):
 
-            await self.logging_system.log_error(error, self.test_context, recovery_action)
+            await self.logging_system.log_error(
+                error, self.test_context, recovery_action
+            )
 
             assert len(self.logging_system.error_log) == 1
             log_entry = self.logging_system.error_log[0]
@@ -385,8 +452,14 @@ class TestErrorLoggingAndAlertingSystem:
         error = Exception("Repeated error")
 
         # Log multiple errors of the same type
-        with patch.object(self.logging_system, '_send_alert', new_callable=AsyncMock) as mock_send_alert, \
-             patch.object(self.logging_system, '_write_to_log_file', new_callable=AsyncMock):
+        with (
+            patch.object(
+                self.logging_system, "_send_alert", new_callable=AsyncMock
+            ) as mock_send_alert,
+            patch.object(
+                self.logging_system, "_write_to_log_file", new_callable=AsyncMock
+            ),
+        ):
 
             # Log errors up to threshold
             for i in range(self.logging_system.alert_config.error_threshold):
@@ -399,16 +472,18 @@ class TestErrorLoggingAndAlertingSystem:
         """Test error summary generation."""
         # Add some test errors
         for i in range(3):
-            self.logging_system.error_log.append({
-                "timestamp": datetime.utcnow().isoformat(),
-                "error_type": "TestError",
-                "error_message": f"Test error {i}",
-                "context": {
-                    "task_type": "forecast",
-                    "model_tier": "mini",
-                    "operation_mode": "normal"
+            self.logging_system.error_log.append(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "error_type": "TestError",
+                    "error_message": f"Test error {i}",
+                    "context": {
+                        "task_type": "forecast",
+                        "model_tier": "mini",
+                        "operation_mode": "normal",
+                    },
                 }
-            })
+            )
 
         summary = self.logging_system.get_error_summary(hours=24)
         assert summary["total_errors"] == 3
@@ -423,7 +498,9 @@ class TestComprehensiveErrorRecoveryManager:
         """Set up test fixtures."""
         self.mock_router = Mock()
         self.mock_budget_manager = Mock()
-        self.config = RecoveryConfiguration(max_recovery_attempts=2, max_recovery_time=60.0)
+        self.config = RecoveryConfiguration(
+            max_recovery_attempts=2, max_recovery_time=60.0
+        )
 
         self.recovery_manager = ComprehensiveErrorRecoveryManager(
             self.mock_router, self.mock_budget_manager, self.config
@@ -434,7 +511,7 @@ class TestComprehensiveErrorRecoveryManager:
             model_tier="mini",
             operation_mode="normal",
             budget_remaining=50.0,
-            attempt_number=1
+            attempt_number=1,
         )
 
     @pytest.mark.asyncio
@@ -453,10 +530,12 @@ class TestComprehensiveErrorRecoveryManager:
 
         with patch.object(
             self.recovery_manager.fallback_orchestrator.model_fallback_manager,
-            'execute_fallback',
-            return_value=mock_fallback_result
+            "execute_fallback",
+            return_value=mock_fallback_result,
         ):
-            result = await self.recovery_manager.recover_from_error(error, self.test_context)
+            result = await self.recovery_manager.recover_from_error(
+                error, self.test_context
+            )
 
             assert result.success
             assert result.recovery_strategy == RecoveryStrategy.FALLBACK_MODEL
@@ -475,10 +554,12 @@ class TestComprehensiveErrorRecoveryManager:
 
         with patch.object(
             self.recovery_manager.fallback_orchestrator.emergency_manager,
-            'activate_emergency_mode',
-            return_value=mock_recovery_action
+            "activate_emergency_mode",
+            return_value=mock_recovery_action,
         ):
-            result = await self.recovery_manager.recover_from_error(error, self.test_context)
+            result = await self.recovery_manager.recover_from_error(
+                error, self.test_context
+            )
 
             assert result.success
             assert result.recovery_strategy == RecoveryStrategy.EMERGENCY_MODE
@@ -500,10 +581,12 @@ class TestComprehensiveErrorRecoveryManager:
 
         with patch.object(
             self.recovery_manager.fallback_orchestrator.provider_fallback_manager,
-            'execute_provider_fallback',
-            return_value=mock_fallback_result
+            "execute_provider_fallback",
+            return_value=mock_fallback_result,
         ):
-            result = await self.recovery_manager.recover_from_error(error, self.test_context)
+            result = await self.recovery_manager.recover_from_error(
+                error, self.test_context
+            )
 
             assert result.success
             assert result.recovery_strategy == RecoveryStrategy.FALLBACK_PROVIDER
@@ -519,10 +602,12 @@ class TestComprehensiveErrorRecoveryManager:
             model_tier="mini",
             operation_mode="normal",
             budget_remaining=50.0,
-            attempt_number=10  # Exceeds max attempts
+            attempt_number=10,  # Exceeds max attempts
         )
 
-        result = await self.recovery_manager.recover_from_error(error, high_attempt_context)
+        result = await self.recovery_manager.recover_from_error(
+            error, high_attempt_context
+        )
 
         assert not result.success
         assert result.recovery_strategy == RecoveryStrategy.ABORT
@@ -540,19 +625,29 @@ class TestComprehensiveErrorRecoveryManager:
             performance_impact=0.8,
             cost_impact=-0.1,
             message="Test recovery",
-            metadata={}
+            metadata={},
         )
 
         initial_total = self.recovery_manager.recovery_statistics["total_recoveries"]
-        initial_successful = self.recovery_manager.recovery_statistics["successful_recoveries"]
+        initial_successful = self.recovery_manager.recovery_statistics[
+            "successful_recoveries"
+        ]
 
         self.recovery_manager._update_recovery_statistics(recovery_result)
 
-        assert self.recovery_manager.recovery_statistics["total_recoveries"] == initial_total + 1
-        assert self.recovery_manager.recovery_statistics["successful_recoveries"] == initial_successful + 1
+        assert (
+            self.recovery_manager.recovery_statistics["total_recoveries"]
+            == initial_total + 1
+        )
+        assert (
+            self.recovery_manager.recovery_statistics["successful_recoveries"]
+            == initial_successful + 1
+        )
 
         # Check strategy effectiveness tracking
-        strategy_stats = self.recovery_manager.recovery_statistics["strategy_effectiveness"]["fallback_model"]
+        strategy_stats = self.recovery_manager.recovery_statistics[
+            "strategy_effectiveness"
+        ]["fallback_model"]
         assert strategy_stats["attempts"] == 1
         assert strategy_stats["successes"] == 1
         assert strategy_stats["success_rate"] == 1.0
@@ -561,16 +656,8 @@ class TestComprehensiveErrorRecoveryManager:
         """Test system health assessment."""
         # Add some recovery history
         self.recovery_manager.recovery_history = [
-            {
-                "timestamp": datetime.utcnow(),
-                "success": True,
-                "recovery_time": 5.0
-            },
-            {
-                "timestamp": datetime.utcnow(),
-                "success": False,
-                "recovery_time": 30.0
-            }
+            {"timestamp": datetime.utcnow(), "success": True, "recovery_time": 5.0},
+            {"timestamp": datetime.utcnow(), "success": False, "recovery_time": 30.0},
         ]
 
         health = self.recovery_manager._assess_system_health()
@@ -585,8 +672,10 @@ class TestComprehensiveErrorRecoveryManager:
         """Test recovery system testing functionality."""
         # Mock router availability detection
         if self.recovery_manager.tri_model_router:
-            self.recovery_manager.tri_model_router.detect_model_availability = AsyncMock(
-                return_value={"openai/gpt-5": True, "openai/gpt-5-mini": True}
+            self.recovery_manager.tri_model_router.detect_model_availability = (
+                AsyncMock(
+                    return_value={"openai/gpt-5": True, "openai/gpt-5-mini": True}
+                )
             )
 
         test_results = await self.recovery_manager.test_recovery_system()
@@ -596,7 +685,11 @@ class TestComprehensiveErrorRecoveryManager:
         assert "system_status" in test_results
 
         # Check that classification tests were run
-        classification_tests = [k for k in test_results["test_results"].keys() if k.startswith("classification_test")]
+        classification_tests = [
+            k
+            for k in test_results["test_results"].keys()
+            if k.startswith("classification_test")
+        ]
         assert len(classification_tests) > 0
 
 

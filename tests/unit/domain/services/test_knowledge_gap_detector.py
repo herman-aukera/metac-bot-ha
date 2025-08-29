@@ -5,33 +5,34 @@ Tests the knowledge gap detection, research quality assessment, and adaptive
 research planning functionality.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
-from src.domain.services.knowledge_gap_detector import (
-    KnowledgeGapDetector,
-    KnowledgeGap,
-    GapType,
-    GapSeverity,
-    ResearchStrategy,
-    ResearchQualityAssessment,
-    AdaptiveResearchPlan,
-    SourceDiversityDetector,
-    TemporalCoverageDetector,
-    CredibilityGapDetector,
-    QuantitativeDataDetector
-)
+import pytest
+
+from src.domain.entities.question import Question, QuestionStatus, QuestionType
+from src.domain.entities.research_report import ResearchQuality
 from src.domain.services.authoritative_source_manager import (
     AuthoritativeSource,
-    SourceType,
     ExpertiseArea,
+    ExpertProfile,
     KnowledgeBase,
-    ExpertProfile
+    SourceType,
 )
-from src.domain.entities.question import Question, QuestionType, QuestionStatus
-from src.domain.entities.research_report import ResearchQuality
+from src.domain.services.knowledge_gap_detector import (
+    AdaptiveResearchPlan,
+    CredibilityGapDetector,
+    GapSeverity,
+    GapType,
+    KnowledgeGap,
+    KnowledgeGapDetector,
+    QuantitativeDataDetector,
+    ResearchQualityAssessment,
+    ResearchStrategy,
+    SourceDiversityDetector,
+    TemporalCoverageDetector,
+)
 
 
 def create_test_question(title="Test question", metaculus_id=12346):
@@ -50,7 +51,7 @@ def create_test_question(title="Test question", metaculus_id=12346):
         metadata={},
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
-        resolution_criteria="Test criteria"
+        resolution_criteria="Test criteria",
     )
 
 
@@ -73,18 +74,20 @@ class TestKnowledgeGapDetector:
         sources = []
 
         # Academic source
-        sources.append(AuthoritativeSource(
-            url="https://arxiv.org/abs/2024.1001",
-            title="Recent Advances in AGI Research",
-            summary="Comprehensive review of AGI progress with statistical analysis",
-            source_type=SourceType.ACADEMIC_PAPER,
-            credibility_score=0.9,
-            credibility_factors={},
-            publish_date=datetime.utcnow() - timedelta(days=30),
-            authors=["Dr. AI Researcher"],
-            knowledge_base=KnowledgeBase.ARXIV,
-            peer_review_status="peer_reviewed"
-        ))
+        sources.append(
+            AuthoritativeSource(
+                url="https://arxiv.org/abs/2024.1001",
+                title="Recent Advances in AGI Research",
+                summary="Comprehensive review of AGI progress with statistical analysis",
+                source_type=SourceType.ACADEMIC_PAPER,
+                credibility_score=0.9,
+                credibility_factors={},
+                publish_date=datetime.utcnow() - timedelta(days=30),
+                authors=["Dr. AI Researcher"],
+                knowledge_base=KnowledgeBase.ARXIV,
+                peer_review_status="peer_reviewed",
+            )
+        )
 
         # Expert opinion
         expert_profile = ExpertProfile(
@@ -92,33 +95,37 @@ class TestKnowledgeGapDetector:
             institution="MIT AI Lab",
             expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],
             h_index=50,
-            reputation_score=0.95
+            reputation_score=0.95,
         )
 
-        sources.append(AuthoritativeSource(
-            url="https://expert-network.com/agi-timeline",
-            title="Expert Opinion on AGI Timeline",
-            summary="Expert analysis of AGI development trends and challenges",
-            source_type=SourceType.EXPERT_OPINION,
-            credibility_score=0.85,
-            credibility_factors={},
-            publish_date=datetime.utcnow() - timedelta(days=15),
-            expert_profile=expert_profile,
-            knowledge_base=KnowledgeBase.EXPERT_NETWORKS
-        ))
+        sources.append(
+            AuthoritativeSource(
+                url="https://expert-network.com/agi-timeline",
+                title="Expert Opinion on AGI Timeline",
+                summary="Expert analysis of AGI development trends and challenges",
+                source_type=SourceType.EXPERT_OPINION,
+                credibility_score=0.85,
+                credibility_factors={},
+                publish_date=datetime.utcnow() - timedelta(days=15),
+                expert_profile=expert_profile,
+                knowledge_base=KnowledgeBase.EXPERT_NETWORKS,
+            )
+        )
 
         # Government data
-        sources.append(AuthoritativeSource(
-            url="https://nsf.gov/ai-research-report",
-            title="National AI Research Investment Report",
-            summary="Government data on AI research funding and progress metrics",
-            source_type=SourceType.GOVERNMENT_DATA,
-            credibility_score=0.88,
-            credibility_factors={},
-            publish_date=datetime.utcnow() - timedelta(days=60),
-            institution="National Science Foundation",
-            knowledge_base=KnowledgeBase.GOVERNMENT_DATABASES
-        ))
+        sources.append(
+            AuthoritativeSource(
+                url="https://nsf.gov/ai-research-report",
+                title="National AI Research Investment Report",
+                summary="Government data on AI research funding and progress metrics",
+                source_type=SourceType.GOVERNMENT_DATA,
+                credibility_score=0.88,
+                credibility_factors={},
+                publish_date=datetime.utcnow() - timedelta(days=60),
+                institution="National Science Foundation",
+                knowledge_base=KnowledgeBase.GOVERNMENT_DATABASES,
+            )
+        )
 
         return sources
 
@@ -128,20 +135,24 @@ class TestKnowledgeGapDetector:
         sources = []
 
         # Only one source type, outdated
-        sources.append(AuthoritativeSource(
-            url="https://old-blog.com/ai-predictions",
-            title="Old AI Predictions",
-            summary="Outdated predictions about AI development",
-            source_type=SourceType.NEWS_ANALYSIS,
-            credibility_score=0.4,
-            credibility_factors={},
-            publish_date=datetime.utcnow() - timedelta(days=800),  # Very old
-            authors=["Blogger"]
-        ))
+        sources.append(
+            AuthoritativeSource(
+                url="https://old-blog.com/ai-predictions",
+                title="Old AI Predictions",
+                summary="Outdated predictions about AI development",
+                source_type=SourceType.NEWS_ANALYSIS,
+                credibility_score=0.4,
+                credibility_factors={},
+                publish_date=datetime.utcnow() - timedelta(days=800),  # Very old
+                authors=["Blogger"],
+            )
+        )
 
         return sources
 
-    def test_detect_knowledge_gaps_with_diverse_sources(self, detector, sample_question, diverse_sources):
+    def test_detect_knowledge_gaps_with_diverse_sources(
+        self, detector, sample_question, diverse_sources
+    ):
         """Test gap detection with diverse, high-quality sources."""
         gaps = detector.detect_knowledge_gaps(diverse_sources, sample_question)
 
@@ -162,7 +173,9 @@ class TestKnowledgeGapDetector:
             assert 0.0 <= gap.confidence_reduction <= 1.0
             assert gap.question_context == sample_question.title
 
-    def test_detect_knowledge_gaps_with_limited_sources(self, detector, sample_question, limited_sources):
+    def test_detect_knowledge_gaps_with_limited_sources(
+        self, detector, sample_question, limited_sources
+    ):
         """Test gap detection with limited, low-quality sources."""
         gaps = detector.detect_knowledge_gaps(limited_sources, sample_question)
 
@@ -178,7 +191,7 @@ class TestKnowledgeGapDetector:
         expected_gaps = {
             GapType.SOURCE_DIVERSITY_GAP,
             GapType.RECENT_DEVELOPMENTS_GAP,
-            GapType.CREDIBILITY_GAP
+            GapType.CREDIBILITY_GAP,
         }
         # At least some of these gaps should be present
         assert len(expected_gaps.intersection(gap_types)) >= 2
@@ -194,11 +207,16 @@ class TestKnowledgeGapDetector:
         critical_gaps = [g for g in gaps if g.severity == GapSeverity.CRITICAL]
         assert len(critical_gaps) >= 1
 
-    def test_assess_research_quality_high_quality(self, detector, sample_question, diverse_sources):
+    def test_assess_research_quality_high_quality(
+        self, detector, sample_question, diverse_sources
+    ):
         """Test research quality assessment with high-quality sources."""
         assessment = detector.assess_research_quality(diverse_sources, sample_question)
 
-        assert assessment.overall_quality in [ResearchQuality.HIGH, ResearchQuality.MEDIUM]
+        assert assessment.overall_quality in [
+            ResearchQuality.HIGH,
+            ResearchQuality.MEDIUM,
+        ]
         assert assessment.confidence_level >= 0.6
         assert assessment.completeness_score >= 0.6
         assert assessment.source_count == len(diverse_sources)
@@ -212,7 +230,9 @@ class TestKnowledgeGapDetector:
         assert len(assessment.priority_actions) > 0
         assert len(assessment.resource_allocation) > 0
 
-    def test_assess_research_quality_low_quality(self, detector, sample_question, limited_sources):
+    def test_assess_research_quality_low_quality(
+        self, detector, sample_question, limited_sources
+    ):
         """Test research quality assessment with low-quality sources."""
         assessment = detector.assess_research_quality(limited_sources, sample_question)
 
@@ -227,19 +247,20 @@ class TestKnowledgeGapDetector:
         # Should recommend intensive strategies
         assert assessment.recommended_strategy in [
             ResearchStrategy.INTENSIVE_SEARCH,
-            ResearchStrategy.DIVERSIFICATION_FOCUS
+            ResearchStrategy.DIVERSIFICATION_FOCUS,
         ]
 
-    def test_create_adaptive_research_plan(self, detector, sample_question, limited_sources):
+    def test_create_adaptive_research_plan(
+        self, detector, sample_question, limited_sources
+    ):
         """Test adaptive research plan creation."""
         assessment = detector.assess_research_quality(limited_sources, sample_question)
 
-        constraints = {
-            "total_time": timedelta(hours=6),
-            "max_gaps": 3
-        }
+        constraints = {"total_time": timedelta(hours=6), "max_gaps": 3}
 
-        plan = detector.create_adaptive_research_plan(assessment, sample_question, constraints)
+        plan = detector.create_adaptive_research_plan(
+            assessment, sample_question, constraints
+        )
 
         assert plan.plan_id
         assert plan.strategy
@@ -250,7 +271,9 @@ class TestKnowledgeGapDetector:
 
         # Time allocation should sum to total time
         total_allocated = sum(plan.time_allocation.values(), timedelta())
-        assert abs((total_allocated - constraints["total_time"]).total_seconds()) < 3600  # Within 1 hour
+        assert (
+            abs((total_allocated - constraints["total_time"]).total_seconds()) < 3600
+        )  # Within 1 hour
 
         # Effort distribution should sum to 1.0
         total_effort = sum(plan.effort_distribution.values())
@@ -271,7 +294,7 @@ class TestKnowledgeGapDetector:
                 description="Minor quantitative gap",
                 impact_on_forecast=0.2,
                 confidence_reduction=0.1,
-                time_sensitivity=0.3
+                time_sensitivity=0.3,
             ),
             KnowledgeGap(
                 gap_id="critical_gap",
@@ -280,7 +303,7 @@ class TestKnowledgeGapDetector:
                 description="Critical source shortage",
                 impact_on_forecast=0.9,
                 confidence_reduction=0.6,
-                time_sensitivity=0.9
+                time_sensitivity=0.9,
             ),
             KnowledgeGap(
                 gap_id="medium_gap",
@@ -289,8 +312,8 @@ class TestKnowledgeGapDetector:
                 description="Medium diversity gap",
                 impact_on_forecast=0.5,
                 confidence_reduction=0.3,
-                time_sensitivity=0.6
-            )
+                time_sensitivity=0.6,
+            ),
         ]
 
         prioritized = detector._prioritize_gaps(gaps)
@@ -312,7 +335,7 @@ class TestKnowledgeGapDetector:
                 description="Not enough sources",
                 impact_on_forecast=0.7,
                 confidence_reduction=0.4,
-                time_sensitivity=0.8
+                time_sensitivity=0.8,
             )
         ]
 
@@ -328,7 +351,7 @@ class TestKnowledgeGapDetector:
                 description="Limited diversity",
                 impact_on_forecast=0.5,
                 confidence_reduction=0.3,
-                time_sensitivity=0.6
+                time_sensitivity=0.6,
             )
         ]
 
@@ -345,7 +368,7 @@ class TestKnowledgeGapDetector:
                 description="Need more sources",
                 impact_on_forecast=0.7,
                 confidence_reduction=0.4,
-                time_sensitivity=0.8
+                time_sensitivity=0.8,
             ),
             KnowledgeGap(
                 gap_id="credibility",
@@ -354,8 +377,8 @@ class TestKnowledgeGapDetector:
                 description="Low credibility",
                 impact_on_forecast=0.5,
                 confidence_reduction=0.3,
-                time_sensitivity=0.6
-            )
+                time_sensitivity=0.6,
+            ),
         ]
 
         allocation = detector._calculate_resource_allocation(gaps)
@@ -369,7 +392,7 @@ class TestKnowledgeGapDetector:
             "source_verification",
             "expert_consultation",
             "analysis_synthesis",
-            "quality_assurance"
+            "quality_assurance",
         }
         assert set(allocation.keys()) == expected_categories
 
@@ -398,7 +421,7 @@ class TestSourceDiversityDetector:
                 summary="Summary 1",
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.8,
-                credibility_factors={}
+                credibility_factors={},
             ),
             AuthoritativeSource(
                 url="https://example2.com",
@@ -406,8 +429,8 @@ class TestSourceDiversityDetector:
                 summary="Summary 2",
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.8,
-                credibility_factors={}
-            )
+                credibility_factors={},
+            ),
         ]
 
         gaps = detector.detect_gaps(sources, sample_question, {})
@@ -427,7 +450,7 @@ class TestSourceDiversityDetector:
             name="Expert 1",
             institution="University",
             expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE],  # Only one area
-            reputation_score=0.9
+            reputation_score=0.9,
         )
 
         sources = [
@@ -438,7 +461,7 @@ class TestSourceDiversityDetector:
                 source_type=SourceType.EXPERT_OPINION,
                 credibility_score=0.9,
                 credibility_factors={},
-                expert_profile=expert_profile
+                expert_profile=expert_profile,
             )
         ]
 
@@ -474,7 +497,7 @@ class TestTemporalCoverageDetector:
                 source_type=SourceType.NEWS_ANALYSIS,
                 credibility_score=0.7,
                 credibility_factors={},
-                publish_date=None  # No date
+                publish_date=None,  # No date
             )
         ]
 
@@ -500,7 +523,7 @@ class TestTemporalCoverageDetector:
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.8,
                 credibility_factors={},
-                publish_date=now - timedelta(days=500)  # Very old
+                publish_date=now - timedelta(days=500),  # Very old
             ),
             AuthoritativeSource(
                 url="https://old2.com",
@@ -509,8 +532,8 @@ class TestTemporalCoverageDetector:
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.8,
                 credibility_factors={},
-                publish_date=now - timedelta(days=600)  # Very old
-            )
+                publish_date=now - timedelta(days=600),  # Very old
+            ),
         ]
 
         gaps = detector.detect_gaps(sources, sample_question, {})
@@ -544,7 +567,7 @@ class TestCredibilityGapDetector:
                 summary="Unreliable source",
                 source_type=SourceType.NEWS_ANALYSIS,
                 credibility_score=0.5,  # Low credibility
-                credibility_factors={}
+                credibility_factors={},
             ),
             AuthoritativeSource(
                 url="https://low2.com",
@@ -552,8 +575,8 @@ class TestCredibilityGapDetector:
                 summary="Another unreliable source",
                 source_type=SourceType.NEWS_ANALYSIS,
                 credibility_score=0.6,  # Medium credibility
-                credibility_factors={}
-            )
+                credibility_factors={},
+            ),
         ]
 
         gaps = detector.detect_gaps(sources, sample_question, {})
@@ -587,7 +610,7 @@ class TestQuantitativeDataDetector:
                 summary="Subjective analysis without data or statistics",
                 source_type=SourceType.EXPERT_OPINION,
                 credibility_score=0.7,
-                credibility_factors={}
+                credibility_factors={},
             ),
             AuthoritativeSource(
                 url="https://qualitative2.com",
@@ -595,8 +618,8 @@ class TestQuantitativeDataDetector:
                 summary="General commentary without numbers or measurements",
                 source_type=SourceType.NEWS_ANALYSIS,
                 credibility_score=0.6,
-                credibility_factors={}
-            )
+                credibility_factors={},
+            ),
         ]
 
         gaps = detector.detect_gaps(sources, sample_question, {})
@@ -618,7 +641,7 @@ class TestQuantitativeDataDetector:
                 summary="Comprehensive data analysis with statistics and trends",
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.9,
-                credibility_factors={}
+                credibility_factors={},
             ),
             AuthoritativeSource(
                 url="https://data2.com",
@@ -626,7 +649,7 @@ class TestQuantitativeDataDetector:
                 summary="Empirical study with survey data and measurements",
                 source_type=SourceType.PEER_REVIEWED,
                 credibility_score=0.8,
-                credibility_factors={}
+                credibility_factors={},
             ),
             AuthoritativeSource(
                 url="https://data3.com",
@@ -634,8 +657,8 @@ class TestQuantitativeDataDetector:
                 summary="Market analysis with percentage growth and rate trends",
                 source_type=SourceType.INSTITUTIONAL_REPORT,
                 credibility_score=0.8,
-                credibility_factors={}
-            )
+                credibility_factors={},
+            ),
         ]
 
         gaps = detector.detect_gaps(sources, sample_question, {})

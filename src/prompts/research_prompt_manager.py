@@ -4,9 +4,13 @@ This module provides a unified interface for selecting and using optimized
 research prompts based on question characteristics and budget constraints.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from ..domain.entities.question import Question
-from .optimized_research_prompts import OptimizedResearchPrompts, QuestionComplexityAnalyzer
+from .optimized_research_prompts import (
+    OptimizedResearchPrompts,
+    QuestionComplexityAnalyzer,
+)
 
 
 class ResearchPromptManager:
@@ -34,13 +38,16 @@ class ResearchPromptManager:
         # Token cost estimates for different models (per 1K tokens)
         self.model_costs = {
             "gpt-4o": {"input": 0.0025, "output": 0.01},
-            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006}
+            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
         }
 
-    def get_optimal_research_prompt(self, question: Question,
-                                  budget_remaining: Optional[float] = None,
-                                  force_complexity: Optional[str] = None,
-                                  force_focus: Optional[str] = None) -> Dict[str, Any]:
+    def get_optimal_research_prompt(
+        self,
+        question: Question,
+        budget_remaining: Optional[float] = None,
+        force_complexity: Optional[str] = None,
+        force_focus: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get the optimal research prompt for a given question and constraints.
 
@@ -54,8 +61,12 @@ class ResearchPromptManager:
             Dictionary containing prompt, metadata, and cost estimates
         """
         # Analyze question characteristics
-        complexity = force_complexity or self.complexity_analyzer.analyze_complexity(question)
-        focus_type = force_focus or self.complexity_analyzer.determine_focus_type(question)
+        complexity = force_complexity or self.complexity_analyzer.analyze_complexity(
+            question
+        )
+        focus_type = force_focus or self.complexity_analyzer.determine_focus_type(
+            question
+        )
 
         # Apply budget constraints if enabled
         if self.budget_aware and budget_remaining is not None:
@@ -63,9 +74,7 @@ class ResearchPromptManager:
 
         # Get the appropriate prompt
         prompt = self.optimized_prompts.get_research_prompt(
-            question=question,
-            complexity_level=complexity,
-            focus_type=focus_type
+            question=question, complexity_level=complexity, focus_type=focus_type
         )
 
         # Get token estimates
@@ -82,15 +91,18 @@ class ResearchPromptManager:
             "cost_estimates": cost_estimates,
             "recommended_model": self._recommend_model(complexity, budget_remaining),
             "metadata": {
-                "question_id": getattr(question, 'id', None),
+                "question_id": getattr(question, "id", None),
                 "question_type": question.question_type.value,
                 "categories": question.categories,
-                "close_date": question.close_time.isoformat() if question.close_time else None
-            }
+                "close_date": (
+                    question.close_time.isoformat() if question.close_time else None
+                ),
+            },
         }
 
-    def get_research_prompt_by_type(self, question: Question,
-                                  prompt_type: str) -> Dict[str, Any]:
+    def get_research_prompt_by_type(
+        self, question: Question, prompt_type: str
+    ) -> Dict[str, Any]:
         """
         Get a specific type of research prompt.
 
@@ -123,12 +135,14 @@ class ResearchPromptManager:
             "token_estimates": token_estimates,
             "cost_estimates": cost_estimates,
             "metadata": {
-                "question_id": getattr(question, 'id', None),
-                "question_type": question.question_type.value
-            }
+                "question_id": getattr(question, "id", None),
+                "question_type": question.question_type.value,
+            },
         }
 
-    def _apply_budget_constraints(self, complexity: str, budget_remaining: float) -> str:
+    def _apply_budget_constraints(
+        self, complexity: str, budget_remaining: float
+    ) -> str:
         """
         Apply budget constraints to complexity selection.
 
@@ -148,7 +162,9 @@ class ResearchPromptManager:
 
         return complexity
 
-    def _calculate_cost_estimates(self, token_estimates: Dict[str, int]) -> Dict[str, Dict[str, float]]:
+    def _calculate_cost_estimates(
+        self, token_estimates: Dict[str, int]
+    ) -> Dict[str, Dict[str, float]]:
         """
         Calculate cost estimates for different models.
 
@@ -170,12 +186,14 @@ class ResearchPromptManager:
             cost_estimates[model] = {
                 "input_cost": input_cost,
                 "output_cost": output_cost,
-                "total_cost": total_cost
+                "total_cost": total_cost,
             }
 
         return cost_estimates
 
-    def _recommend_model(self, complexity: str, budget_remaining: Optional[float]) -> str:
+    def _recommend_model(
+        self, complexity: str, budget_remaining: Optional[float]
+    ) -> str:
         """
         Recommend the appropriate model based on complexity and budget.
 
@@ -223,11 +241,15 @@ class ResearchPromptManager:
 
             metrics[prompt_type] = {
                 "tokens_per_dollar": {
-                    "gpt-4o": (token_est["input_tokens"] + token_est["expected_output"]) / cost_est["gpt-4o"]["total_cost"],
-                    "gpt-4o-mini": (token_est["input_tokens"] + token_est["expected_output"]) / cost_est["gpt-4o-mini"]["total_cost"]
+                    "gpt-4o": (token_est["input_tokens"] + token_est["expected_output"])
+                    / cost_est["gpt-4o"]["total_cost"],
+                    "gpt-4o-mini": (
+                        token_est["input_tokens"] + token_est["expected_output"]
+                    )
+                    / cost_est["gpt-4o-mini"]["total_cost"],
                 },
                 "cost_per_question": cost_est,
-                "token_estimates": token_est
+                "token_estimates": token_est,
             }
 
         return {
@@ -237,6 +259,6 @@ class ResearchPromptManager:
                 "best_balance": "standard",
                 "highest_quality": "comprehensive",
                 "time_sensitive": "news",
-                "historical_context": "base_rate"
-            }
+                "historical_context": "base_rate",
+            },
         }

@@ -8,24 +8,25 @@ tournament-specific analytics, and real-time performance monitoring.
 import json
 import logging
 import math
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta
-from enum import Enum
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Union, Tuple
-from uuid import UUID, uuid4
 import statistics
 import threading
 from collections import defaultdict, deque
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+from uuid import UUID, uuid4
 
+from ...infrastructure.logging.reasoning_logger import get_reasoning_logger
 from ..entities.forecast import Forecast
 from ..entities.prediction import Prediction
 from ..value_objects.reasoning_trace import ReasoningTrace
-from ...infrastructure.logging.reasoning_logger import get_reasoning_logger
 
 
 class MetricType(Enum):
     """Types of performance metrics."""
+
     ACCURACY = "accuracy"
     CALIBRATION = "calibration"
     BRIER_SCORE = "brier_score"
@@ -40,6 +41,7 @@ class MetricType(Enum):
 
 class AlertLevel(Enum):
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -49,6 +51,7 @@ class AlertLevel(Enum):
 @dataclass
 class PerformanceMetric:
     """Individual performance metric data point."""
+
     id: UUID
     metric_type: MetricType
     value: float
@@ -64,7 +67,7 @@ class PerformanceMetric:
         value: float,
         question_id: Optional[UUID] = None,
         agent_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> "PerformanceMetric":
         """Factory method to create a performance metric."""
         return cls(
@@ -74,13 +77,14 @@ class PerformanceMetric:
             timestamp=datetime.utcnow(),
             question_id=question_id,
             agent_id=agent_id,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
 
 @dataclass
 class TournamentAnalytics:
     """Tournament-specific analytics data."""
+
     tournament_id: Optional[int]
     current_ranking: Optional[int]
     total_participants: Optional[int]
@@ -102,13 +106,14 @@ class TournamentAnalytics:
             "questions_resolved": self.questions_resolved,
             "average_brier_score": self.average_brier_score,
             "calibration_score": self.calibration_score,
-            "opportunities_count": len(self.strategic_opportunities)
+            "opportunities_count": len(self.strategic_opportunities),
         }
 
 
 @dataclass
 class PerformanceAlert:
     """Performance monitoring alert."""
+
     id: UUID
     level: AlertLevel
     message: str
@@ -126,7 +131,7 @@ class PerformanceAlert:
         message: str,
         metric_type: MetricType,
         threshold_value: float,
-        actual_value: float
+        actual_value: float,
     ) -> "PerformanceAlert":
         """Factory method to create a performance alert."""
         return cls(
@@ -136,7 +141,7 @@ class PerformanceAlert:
             metric_type=metric_type,
             threshold_value=threshold_value,
             actual_value=actual_value,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
 
@@ -152,7 +157,7 @@ class PerformanceTrackingService:
         self,
         metrics_storage_path: Optional[Path] = None,
         enable_real_time_monitoring: bool = True,
-        alert_thresholds: Optional[Dict[MetricType, Dict[str, float]]] = None
+        alert_thresholds: Optional[Dict[MetricType, Dict[str, float]]] = None,
     ):
         """
         Initialize the performance tracking service.
@@ -175,7 +180,7 @@ class PerformanceTrackingService:
 
         # In-memory storage for real-time monitoring
         self.metrics_buffer: deque = deque(maxlen=10000)  # Keep last 10k metrics
-        self.alerts_buffer: deque = deque(maxlen=1000)    # Keep last 1k alerts
+        self.alerts_buffer: deque = deque(maxlen=1000)  # Keep last 1k alerts
         self.tournament_analytics: Dict[int, TournamentAnalytics] = {}
 
         # Real-time monitoring
@@ -184,47 +189,39 @@ class PerformanceTrackingService:
         self._monitoring_lock = threading.Lock()
 
         # Performance aggregations
-        self.agent_performance: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+        self.agent_performance: Dict[str, Dict[str, List[float]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
         self.question_performance: Dict[UUID, Dict[str, Any]] = {}
         self.tournament_performance: Dict[int, Dict[str, Any]] = defaultdict(dict)
 
-        self.logger.info(f"Performance tracking service initialized with storage at {self.metrics_storage_path}")
+        self.logger.info(
+            f"Performance tracking service initialized with storage at {self.metrics_storage_path}"
+        )
 
     def _get_default_alert_thresholds(self) -> Dict[MetricType, Dict[str, float]]:
         """Get default alert thresholds for different metrics."""
         return {
-            MetricType.BRIER_SCORE: {
-                "warning": 0.3,
-                "error": 0.4,
-                "critical": 0.5
-            },
-            MetricType.CALIBRATION: {
-                "warning": 0.1,
-                "error": 0.15,
-                "critical": 0.2
-            },
-            MetricType.CONFIDENCE: {
-                "warning": 0.4,
-                "error": 0.3,
-                "critical": 0.2
-            },
+            MetricType.BRIER_SCORE: {"warning": 0.3, "error": 0.4, "critical": 0.5},
+            MetricType.CALIBRATION: {"warning": 0.1, "error": 0.15, "critical": 0.2},
+            MetricType.CONFIDENCE: {"warning": 0.4, "error": 0.3, "critical": 0.2},
             MetricType.RESPONSE_TIME: {
                 "warning": 300.0,  # 5 minutes
-                "error": 600.0,    # 10 minutes
-                "critical": 1200.0  # 20 minutes
+                "error": 600.0,  # 10 minutes
+                "critical": 1200.0,  # 20 minutes
             },
             MetricType.TOURNAMENT_RANKING: {
-                "warning": 0.7,    # Below 70th percentile
-                "error": 0.5,      # Below 50th percentile
-                "critical": 0.3    # Below 30th percentile
-            }
+                "warning": 0.7,  # Below 70th percentile
+                "error": 0.5,  # Below 50th percentile
+                "critical": 0.3,  # Below 30th percentile
+            },
         }
 
     def track_forecast_performance(
         self,
         forecast: Forecast,
         processing_time: Optional[float] = None,
-        resource_usage: Optional[Dict[str, float]] = None
+        resource_usage: Optional[Dict[str, float]] = None,
     ) -> None:
         """
         Track comprehensive performance metrics for a forecast.
@@ -280,8 +277,8 @@ class PerformanceTrackingService:
             metadata={
                 "forecast_id": str(forecast.id),
                 "prediction_variance": forecast.calculate_prediction_variance(),
-                "consensus_strength": forecast.consensus_strength
-            }
+                "consensus_strength": forecast.consensus_strength,
+            },
         )
         self._store_metric(confidence_metric)
 
@@ -294,8 +291,8 @@ class PerformanceTrackingService:
             metadata={
                 "forecast_id": str(forecast.id),
                 "metric_subtype": "prediction_variance",
-                "ensemble_method": forecast.ensemble_method
-            }
+                "ensemble_method": forecast.ensemble_method,
+            },
         )
         self._store_metric(variance_metric)
 
@@ -307,8 +304,10 @@ class PerformanceTrackingService:
         if forecast.predictions:
             quality_scores = []
             for prediction in forecast.predictions:
-                if hasattr(prediction, 'calculate_prediction_quality_score'):
-                    quality_scores.append(prediction.calculate_prediction_quality_score())
+                if hasattr(prediction, "calculate_prediction_quality_score"):
+                    quality_scores.append(
+                        prediction.calculate_prediction_quality_score()
+                    )
                 else:
                     # Basic quality assessment
                     base_quality = 0.3
@@ -332,13 +331,21 @@ class PerformanceTrackingService:
             metadata={
                 "forecast_id": str(forecast.id),
                 "predictions_count": len(forecast.predictions),
-                "has_reasoning_traces": any(p.reasoning_trace for p in forecast.predictions),
-                "average_reasoning_length": statistics.mean([len(p.reasoning) for p in forecast.predictions]) if forecast.predictions else 0
-            }
+                "has_reasoning_traces": any(
+                    p.reasoning_trace for p in forecast.predictions
+                ),
+                "average_reasoning_length": (
+                    statistics.mean([len(p.reasoning) for p in forecast.predictions])
+                    if forecast.predictions
+                    else 0
+                ),
+            },
         )
         self._store_metric(quality_metric)
 
-    def _track_processing_time(self, forecast: Forecast, processing_time: float, timestamp: datetime) -> None:
+    def _track_processing_time(
+        self, forecast: Forecast, processing_time: float, timestamp: datetime
+    ) -> None:
         """Track processing time metrics."""
         time_metric = PerformanceMetric.create(
             MetricType.RESPONSE_TIME,
@@ -348,12 +355,14 @@ class PerformanceTrackingService:
             metadata={
                 "forecast_id": str(forecast.id),
                 "predictions_count": len(forecast.predictions),
-                "research_reports_count": len(forecast.research_reports)
-            }
+                "research_reports_count": len(forecast.research_reports),
+            },
         )
         self._store_metric(time_metric)
 
-    def _track_resource_usage(self, forecast: Forecast, resource_usage: Dict[str, float], timestamp: datetime) -> None:
+    def _track_resource_usage(
+        self, forecast: Forecast, resource_usage: Dict[str, float], timestamp: datetime
+    ) -> None:
         """Track resource usage metrics."""
         for resource_type, usage_value in resource_usage.items():
             resource_metric = PerformanceMetric.create(
@@ -363,12 +372,14 @@ class PerformanceTrackingService:
                 agent_id=forecast.ensemble_method,
                 metadata={
                     "forecast_id": str(forecast.id),
-                    "resource_type": resource_type
-                }
+                    "resource_type": resource_type,
+                },
             )
             self._store_metric(resource_metric)
 
-    def _track_tournament_metrics(self, forecast: Forecast, timestamp: datetime) -> None:
+    def _track_tournament_metrics(
+        self, forecast: Forecast, timestamp: datetime
+    ) -> None:
         """Track tournament-specific metrics."""
         if forecast.tournament_strategy:
             # Track competitive positioning
@@ -381,8 +392,12 @@ class PerformanceTrackingService:
                     metadata={
                         "forecast_id": str(forecast.id),
                         "tournament_strategy": forecast.tournament_strategy.strategy_name,
-                        "question_priority": forecast.question_priority.get_overall_priority_score() if forecast.question_priority else 0.5
-                    }
+                        "question_priority": (
+                            forecast.question_priority.get_overall_priority_score()
+                            if forecast.question_priority
+                            else 0.5
+                        ),
+                    },
                 )
                 self._store_metric(position_metric)
 
@@ -396,7 +411,7 @@ class PerformanceTrackingService:
                     "reasoning": prediction.reasoning,
                     "reasoning_steps": prediction.reasoning_steps,
                     "confidence_analysis": f"Confidence: {prediction.confidence.value}",
-                    "method": prediction.method.value
+                    "method": prediction.method.value,
                 }
 
                 # Add detailed reasoning trace if available
@@ -407,27 +422,27 @@ class PerformanceTrackingService:
                                 "type": step.step_type.value,
                                 "content": step.content,
                                 "confidence": step.confidence,
-                                "timestamp": step.timestamp.isoformat()
+                                "timestamp": step.timestamp.isoformat(),
                             }
                             for step in prediction.reasoning_trace.steps
                         ],
                         "final_conclusion": prediction.reasoning_trace.final_conclusion,
                         "overall_confidence": prediction.reasoning_trace.overall_confidence,
                         "bias_checks": prediction.reasoning_trace.bias_checks,
-                        "uncertainty_sources": prediction.reasoning_trace.uncertainty_sources
+                        "uncertainty_sources": prediction.reasoning_trace.uncertainty_sources,
                     }
 
                 prediction_result = {
                     "probability": prediction.result.binary_probability,
                     "confidence": prediction.get_confidence_score(),
-                    "method": prediction.method.value
+                    "method": prediction.method.value,
                 }
 
                 self.reasoning_logger.log_reasoning_trace(
                     question_id=forecast.question_id,
                     agent_name=prediction.created_by,
                     reasoning_data=reasoning_data,
-                    prediction_result=prediction_result
+                    prediction_result=prediction_result,
                 )
 
             # Log ensemble reasoning trace
@@ -442,23 +457,23 @@ class PerformanceTrackingService:
                         "agent": pred.created_by,
                         "prediction": pred.result.binary_probability,
                         "confidence": pred.get_confidence_score(),
-                        "method": pred.method.value
+                        "method": pred.method.value,
                     }
                     for pred in forecast.predictions
-                ]
+                ],
             }
 
             ensemble_result = {
                 "probability": forecast.prediction,
                 "confidence": forecast.confidence_score,
-                "method": "ensemble"
+                "method": "ensemble",
             }
 
             self.reasoning_logger.log_reasoning_trace(
                 question_id=forecast.question_id,
                 agent_name="ensemble",
                 reasoning_data=ensemble_reasoning_data,
-                prediction_result=ensemble_result
+                prediction_result=ensemble_result,
             )
 
         except Exception as e:
@@ -470,9 +485,13 @@ class PerformanceTrackingService:
             # Update agent performance
             for prediction in forecast.predictions:
                 agent_id = prediction.created_by
-                self.agent_performance[agent_id]["confidence"].append(prediction.get_confidence_score())
+                self.agent_performance[agent_id]["confidence"].append(
+                    prediction.get_confidence_score()
+                )
                 if prediction.result.binary_probability is not None:
-                    self.agent_performance[agent_id]["predictions"].append(prediction.result.binary_probability)
+                    self.agent_performance[agent_id]["predictions"].append(
+                        prediction.result.binary_probability
+                    )
 
             # Update question performance
             self.question_performance[forecast.question_id] = {
@@ -481,20 +500,23 @@ class PerformanceTrackingService:
                 "prediction_variance": forecast.calculate_prediction_variance(),
                 "consensus_strength": forecast.consensus_strength,
                 "predictions_count": len(forecast.predictions),
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow(),
             }
 
     def _check_performance_alerts(self, forecast: Forecast) -> None:
         """Check for performance alerts based on thresholds."""
         try:
             # Check confidence threshold
-            if forecast.confidence_score < self.alert_thresholds[MetricType.CONFIDENCE]["critical"]:
+            if (
+                forecast.confidence_score
+                < self.alert_thresholds[MetricType.CONFIDENCE]["critical"]
+            ):
                 alert = PerformanceAlert.create(
                     AlertLevel.CRITICAL,
                     f"Very low confidence score: {forecast.confidence_score:.3f}",
                     MetricType.CONFIDENCE,
                     self.alert_thresholds[MetricType.CONFIDENCE]["critical"],
-                    forecast.confidence_score
+                    forecast.confidence_score,
                 )
                 self._store_alert(alert)
 
@@ -506,7 +528,7 @@ class PerformanceTrackingService:
                     f"High ensemble disagreement (variance: {variance:.3f})",
                     MetricType.ACCURACY,
                     0.15,
-                    variance
+                    variance,
                 )
                 self._store_alert(alert)
 
@@ -531,7 +553,7 @@ class PerformanceTrackingService:
             AlertLevel.INFO: logging.INFO,
             AlertLevel.WARNING: logging.WARNING,
             AlertLevel.ERROR: logging.ERROR,
-            AlertLevel.CRITICAL: logging.CRITICAL
+            AlertLevel.CRITICAL: logging.CRITICAL,
         }[alert.level]
 
         self.logger.log(log_level, f"Performance Alert: {alert.message}")
@@ -560,7 +582,7 @@ class PerformanceTrackingService:
                 metric_data["timestamp"] = metric_data["timestamp"].isoformat()
                 metric_data["metric_type"] = metric_data["metric_type"].value
 
-            with open(filepath, 'w') as f:
+            with open(filepath, "w") as f:
                 json.dump(metrics_data, f, indent=2)
 
             self.logger.debug(f"Persisted {len(metrics_data)} metrics to {filepath}")
@@ -572,7 +594,7 @@ class PerformanceTrackingService:
         self,
         forecast: Forecast,
         actual_outcome: int,
-        resolution_timestamp: Optional[datetime] = None
+        resolution_timestamp: Optional[datetime] = None,
     ) -> Dict[str, float]:
         """
         Track performance metrics for a resolved prediction.
@@ -609,8 +631,10 @@ class PerformanceTrackingService:
             metrics = {
                 "brier_score": brier_score,
                 "log_score": log_score,
-                "accuracy": 1.0 if (prediction_prob > 0.5) == (actual_outcome == 1) else 0.0,
-                "calibration_bin": calibration_bin
+                "accuracy": (
+                    1.0 if (prediction_prob > 0.5) == (actual_outcome == 1) else 0.0
+                ),
+                "calibration_bin": calibration_bin,
             }
 
             # Store metrics
@@ -633,8 +657,8 @@ class PerformanceTrackingService:
                         "forecast_id": str(forecast.id),
                         "actual_outcome": actual_outcome,
                         "predicted_probability": prediction_prob,
-                        "resolution_timestamp": resolution_timestamp.isoformat()
-                    }
+                        "resolution_timestamp": resolution_timestamp.isoformat(),
+                    },
                 )
                 self._store_metric(metric)
 
@@ -642,7 +666,9 @@ class PerformanceTrackingService:
             if self.enable_real_time_monitoring:
                 self._check_resolved_prediction_alerts(metrics, forecast)
 
-            self.logger.info(f"Tracked resolved prediction for forecast {forecast.id}: Brier={brier_score:.3f}")
+            self.logger.info(
+                f"Tracked resolved prediction for forecast {forecast.id}: Brier={brier_score:.3f}"
+            )
 
             return metrics
 
@@ -650,7 +676,9 @@ class PerformanceTrackingService:
             self.logger.error(f"Error tracking resolved prediction: {e}")
             return {}
 
-    def _check_resolved_prediction_alerts(self, metrics: Dict[str, float], forecast: Forecast) -> None:
+    def _check_resolved_prediction_alerts(
+        self, metrics: Dict[str, float], forecast: Forecast
+    ) -> None:
         """Check for alerts based on resolved prediction performance."""
         brier_score = metrics.get("brier_score", 0.0)
 
@@ -662,7 +690,7 @@ class PerformanceTrackingService:
                 f"Very poor Brier score: {brier_score:.3f} for forecast {forecast.id}",
                 MetricType.BRIER_SCORE,
                 thresholds["critical"],
-                brier_score
+                brier_score,
             )
             self._store_alert(alert)
         elif brier_score >= thresholds["error"]:
@@ -671,7 +699,7 @@ class PerformanceTrackingService:
                 f"Poor Brier score: {brier_score:.3f} for forecast {forecast.id}",
                 MetricType.BRIER_SCORE,
                 thresholds["error"],
-                brier_score
+                brier_score,
             )
             self._store_alert(alert)
 
@@ -688,13 +716,15 @@ class PerformanceTrackingService:
 
                 # Recent metrics (last 24 hours)
                 recent_metrics = [
-                    metric for metric in self.metrics_buffer
+                    metric
+                    for metric in self.metrics_buffer
                     if (current_time - metric.timestamp).total_seconds() < 86400
                 ]
 
                 # Recent alerts (last 24 hours)
                 recent_alerts = [
-                    alert for alert in self.alerts_buffer
+                    alert
+                    for alert in self.alerts_buffer
                     if (current_time - alert.timestamp).total_seconds() < 86400
                 ]
 
@@ -704,8 +734,10 @@ class PerformanceTrackingService:
                     "recent_alerts": self._format_alerts_for_dashboard(recent_alerts),
                     "tournament_analytics": self._get_tournament_analytics_summary(),
                     "real_time_metrics": self._get_real_time_metrics(recent_metrics),
-                    "calibration_analysis": self._get_calibration_analysis(recent_metrics),
-                    "timestamp": current_time.isoformat()
+                    "calibration_analysis": self._get_calibration_analysis(
+                        recent_metrics
+                    ),
+                    "timestamp": current_time.isoformat(),
                 }
 
                 return dashboard_data
@@ -714,7 +746,9 @@ class PerformanceTrackingService:
             self.logger.error(f"Error generating dashboard data: {e}")
             return {"error": str(e), "timestamp": datetime.utcnow().isoformat()}
 
-    def _get_performance_summary(self, metrics: List[PerformanceMetric]) -> Dict[str, Any]:
+    def _get_performance_summary(
+        self, metrics: List[PerformanceMetric]
+    ) -> Dict[str, Any]:
         """Get overall performance summary."""
         if not metrics:
             return {"message": "No recent metrics available"}
@@ -733,7 +767,7 @@ class PerformanceTrackingService:
                     "median": statistics.median(values),
                     "min": min(values),
                     "max": max(values),
-                    "std": statistics.stdev(values) if len(values) > 1 else 0.0
+                    "std": statistics.stdev(values) if len(values) > 1 else 0.0,
                 }
 
         return summary
@@ -750,7 +784,11 @@ class PerformanceTrackingService:
                     agent_summary[agent_id][metric_name] = {
                         "count": len(values),
                         "mean": statistics.mean(values),
-                        "recent_trend": self._calculate_trend(values[-10:]) if len(values) >= 5 else "insufficient_data"
+                        "recent_trend": (
+                            self._calculate_trend(values[-10:])
+                            if len(values) >= 5
+                            else "insufficient_data"
+                        ),
                     }
 
         return agent_summary
@@ -780,7 +818,9 @@ class PerformanceTrackingService:
         else:
             return "stable"
 
-    def _format_alerts_for_dashboard(self, alerts: List[PerformanceAlert]) -> List[Dict[str, Any]]:
+    def _format_alerts_for_dashboard(
+        self, alerts: List[PerformanceAlert]
+    ) -> List[Dict[str, Any]]:
         """Format alerts for dashboard display."""
         return [
             {
@@ -789,7 +829,7 @@ class PerformanceTrackingService:
                 "message": alert.message,
                 "metric_type": alert.metric_type.value,
                 "timestamp": alert.timestamp.isoformat(),
-                "resolved": alert.resolved
+                "resolved": alert.resolved,
             }
             for alert in alerts[-20:]  # Last 20 alerts
         ]
@@ -805,13 +845,16 @@ class PerformanceTrackingService:
 
         return summary
 
-    def _get_real_time_metrics(self, recent_metrics: List[PerformanceMetric]) -> Dict[str, Any]:
+    def _get_real_time_metrics(
+        self, recent_metrics: List[PerformanceMetric]
+    ) -> Dict[str, Any]:
         """Get real-time metrics for monitoring."""
         current_time = datetime.utcnow()
 
         # Metrics from last hour
         last_hour_metrics = [
-            metric for metric in recent_metrics
+            metric
+            for metric in recent_metrics
             if (current_time - metric.timestamp).total_seconds() < 3600
         ]
 
@@ -820,33 +863,47 @@ class PerformanceTrackingService:
 
         # Calculate real-time indicators
         confidence_values = [
-            metric.value for metric in last_hour_metrics
+            metric.value
+            for metric in last_hour_metrics
             if metric.metric_type == MetricType.CONFIDENCE
         ]
 
         response_times = [
-            metric.value for metric in last_hour_metrics
+            metric.value
+            for metric in last_hour_metrics
             if metric.metric_type == MetricType.RESPONSE_TIME
         ]
 
         real_time_data = {
             "metrics_count_last_hour": len(last_hour_metrics),
-            "average_confidence": statistics.mean(confidence_values) if confidence_values else None,
-            "average_response_time": statistics.mean(response_times) if response_times else None,
-            "active_forecasts": len(set(metric.question_id for metric in last_hour_metrics if metric.question_id)),
-            "timestamp": current_time.isoformat()
+            "average_confidence": (
+                statistics.mean(confidence_values) if confidence_values else None
+            ),
+            "average_response_time": (
+                statistics.mean(response_times) if response_times else None
+            ),
+            "active_forecasts": len(
+                set(
+                    metric.question_id
+                    for metric in last_hour_metrics
+                    if metric.question_id
+                )
+            ),
+            "timestamp": current_time.isoformat(),
         }
 
         return real_time_data
 
-    def _get_calibration_analysis(self, metrics: List[PerformanceMetric]) -> Dict[str, Any]:
+    def _get_calibration_analysis(
+        self, metrics: List[PerformanceMetric]
+    ) -> Dict[str, Any]:
         """Get calibration analysis from recent metrics."""
         # This would be enhanced with actual calibration calculations
         # For now, return basic structure
         return {
             "message": "Calibration analysis requires resolved predictions",
             "bins": {},
-            "overall_calibration_error": None
+            "overall_calibration_error": None,
         }
 
     def update_tournament_analytics(
@@ -855,7 +912,7 @@ class PerformanceTrackingService:
         ranking: Optional[int] = None,
         total_participants: Optional[int] = None,
         brier_scores: Optional[List[float]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Update tournament-specific analytics.
@@ -878,27 +935,56 @@ class PerformanceTrackingService:
                     total_participants=total_participants,
                     questions_answered=kwargs.get("questions_answered", 0),
                     questions_resolved=kwargs.get("questions_resolved", 0),
-                    average_brier_score=statistics.mean(brier_scores) if brier_scores else None,
+                    average_brier_score=(
+                        statistics.mean(brier_scores) if brier_scores else None
+                    ),
                     calibration_score=kwargs.get("calibration_score"),
-                    competitive_position_percentile=ranking / total_participants if ranking and total_participants else None,
-                    market_inefficiencies_detected=kwargs.get("market_inefficiencies_detected", 0),
+                    competitive_position_percentile=(
+                        ranking / total_participants
+                        if ranking and total_participants
+                        else None
+                    ),
+                    market_inefficiencies_detected=kwargs.get(
+                        "market_inefficiencies_detected", 0
+                    ),
                     strategic_opportunities=kwargs.get("strategic_opportunities", []),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.utcnow(),
                 )
             else:
                 # Update existing analytics
                 analytics = TournamentAnalytics(
                     tournament_id=tournament_id,
                     current_ranking=ranking or current_analytics.current_ranking,
-                    total_participants=total_participants or current_analytics.total_participants,
-                    questions_answered=kwargs.get("questions_answered", current_analytics.questions_answered),
-                    questions_resolved=kwargs.get("questions_resolved", current_analytics.questions_resolved),
-                    average_brier_score=statistics.mean(brier_scores) if brier_scores else current_analytics.average_brier_score,
-                    calibration_score=kwargs.get("calibration_score", current_analytics.calibration_score),
-                    competitive_position_percentile=ranking / total_participants if ranking and total_participants else current_analytics.competitive_position_percentile,
-                    market_inefficiencies_detected=kwargs.get("market_inefficiencies_detected", current_analytics.market_inefficiencies_detected),
-                    strategic_opportunities=kwargs.get("strategic_opportunities", current_analytics.strategic_opportunities),
-                    timestamp=datetime.utcnow()
+                    total_participants=total_participants
+                    or current_analytics.total_participants,
+                    questions_answered=kwargs.get(
+                        "questions_answered", current_analytics.questions_answered
+                    ),
+                    questions_resolved=kwargs.get(
+                        "questions_resolved", current_analytics.questions_resolved
+                    ),
+                    average_brier_score=(
+                        statistics.mean(brier_scores)
+                        if brier_scores
+                        else current_analytics.average_brier_score
+                    ),
+                    calibration_score=kwargs.get(
+                        "calibration_score", current_analytics.calibration_score
+                    ),
+                    competitive_position_percentile=(
+                        ranking / total_participants
+                        if ranking and total_participants
+                        else current_analytics.competitive_position_percentile
+                    ),
+                    market_inefficiencies_detected=kwargs.get(
+                        "market_inefficiencies_detected",
+                        current_analytics.market_inefficiencies_detected,
+                    ),
+                    strategic_opportunities=kwargs.get(
+                        "strategic_opportunities",
+                        current_analytics.strategic_opportunities,
+                    ),
+                    timestamp=datetime.utcnow(),
                 )
 
             self.tournament_analytics[tournament_id] = analytics
@@ -912,12 +998,14 @@ class PerformanceTrackingService:
                     metadata={
                         "tournament_id": tournament_id,
                         "ranking": ranking,
-                        "total_participants": total_participants
-                    }
+                        "total_participants": total_participants,
+                    },
                 )
                 self._store_metric(ranking_metric)
 
-            self.logger.info(f"Updated tournament analytics for tournament {tournament_id}")
+            self.logger.info(
+                f"Updated tournament analytics for tournament {tournament_id}"
+            )
 
         except Exception as e:
             self.logger.error(f"Error updating tournament analytics: {e}")
@@ -927,7 +1015,7 @@ class PerformanceTrackingService:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         agent_id: Optional[str] = None,
-        tournament_id: Optional[int] = None
+        tournament_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Generate comprehensive performance report.
@@ -950,27 +1038,31 @@ class PerformanceTrackingService:
             # Filter metrics by date range
             with self._monitoring_lock:
                 filtered_metrics = [
-                    metric for metric in self.metrics_buffer
+                    metric
+                    for metric in self.metrics_buffer
                     if start_date <= metric.timestamp <= end_date
                 ]
 
                 if agent_id:
-                    filtered_metrics = [m for m in filtered_metrics if m.agent_id == agent_id]
+                    filtered_metrics = [
+                        m for m in filtered_metrics if m.agent_id == agent_id
+                    ]
 
             report = {
                 "report_period": {
                     "start_date": start_date.isoformat(),
                     "end_date": end_date.isoformat(),
-                    "duration_days": (end_date - start_date).days
+                    "duration_days": (end_date - start_date).days,
                 },
-                "filters": {
-                    "agent_id": agent_id,
-                    "tournament_id": tournament_id
-                },
+                "filters": {"agent_id": agent_id, "tournament_id": tournament_id},
                 "summary": self._get_performance_summary(filtered_metrics),
-                "detailed_analysis": self._get_detailed_performance_analysis(filtered_metrics),
-                "recommendations": self._generate_performance_recommendations(filtered_metrics),
-                "generated_at": datetime.utcnow().isoformat()
+                "detailed_analysis": self._get_detailed_performance_analysis(
+                    filtered_metrics
+                ),
+                "recommendations": self._generate_performance_recommendations(
+                    filtered_metrics
+                ),
+                "generated_at": datetime.utcnow().isoformat(),
             }
 
             return report
@@ -979,13 +1071,17 @@ class PerformanceTrackingService:
             self.logger.error(f"Error generating performance report: {e}")
             return {"error": str(e)}
 
-    def _get_detailed_performance_analysis(self, metrics: List[PerformanceMetric]) -> Dict[str, Any]:
+    def _get_detailed_performance_analysis(
+        self, metrics: List[PerformanceMetric]
+    ) -> Dict[str, Any]:
         """Get detailed performance analysis."""
         analysis = {
             "total_metrics": len(metrics),
-            "unique_questions": len(set(m.question_id for m in metrics if m.question_id)),
+            "unique_questions": len(
+                set(m.question_id for m in metrics if m.question_id)
+            ),
             "unique_agents": len(set(m.agent_id for m in metrics if m.agent_id)),
-            "metric_types_distribution": {}
+            "metric_types_distribution": {},
         }
 
         # Metric types distribution
@@ -997,33 +1093,47 @@ class PerformanceTrackingService:
 
         return analysis
 
-    def _generate_performance_recommendations(self, metrics: List[PerformanceMetric]) -> List[str]:
+    def _generate_performance_recommendations(
+        self, metrics: List[PerformanceMetric]
+    ) -> List[str]:
         """Generate performance improvement recommendations."""
         recommendations = []
 
         # Analyze confidence levels
-        confidence_metrics = [m for m in metrics if m.metric_type == MetricType.CONFIDENCE]
+        confidence_metrics = [
+            m for m in metrics if m.metric_type == MetricType.CONFIDENCE
+        ]
         if confidence_metrics:
             avg_confidence = statistics.mean([m.value for m in confidence_metrics])
             if avg_confidence < 0.5:
-                recommendations.append("Consider improving confidence calibration - average confidence is low")
+                recommendations.append(
+                    "Consider improving confidence calibration - average confidence is low"
+                )
 
         # Analyze response times
         time_metrics = [m for m in metrics if m.metric_type == MetricType.RESPONSE_TIME]
         if time_metrics:
             avg_time = statistics.mean([m.value for m in time_metrics])
             if avg_time > 300:  # 5 minutes
-                recommendations.append("Consider optimizing processing time - average response time is high")
+                recommendations.append(
+                    "Consider optimizing processing time - average response time is high"
+                )
 
         # Analyze reasoning quality
-        quality_metrics = [m for m in metrics if m.metric_type == MetricType.REASONING_QUALITY]
+        quality_metrics = [
+            m for m in metrics if m.metric_type == MetricType.REASONING_QUALITY
+        ]
         if quality_metrics:
             avg_quality = statistics.mean([m.value for m in quality_metrics])
             if avg_quality < 0.6:
-                recommendations.append("Consider enhancing reasoning documentation and quality")
+                recommendations.append(
+                    "Consider enhancing reasoning documentation and quality"
+                )
 
         if not recommendations:
-            recommendations.append("Performance metrics look good - continue current approach")
+            recommendations.append(
+                "Performance metrics look good - continue current approach"
+            )
 
         return recommendations
 
@@ -1045,7 +1155,7 @@ class PerformanceTrackingService:
                 original_metrics_count = len(self.metrics_buffer)
                 self.metrics_buffer = deque(
                     [m for m in self.metrics_buffer if m.timestamp > cutoff_date],
-                    maxlen=self.metrics_buffer.maxlen
+                    maxlen=self.metrics_buffer.maxlen,
                 )
                 metrics_removed = original_metrics_count - len(self.metrics_buffer)
 
@@ -1053,7 +1163,7 @@ class PerformanceTrackingService:
                 original_alerts_count = len(self.alerts_buffer)
                 self.alerts_buffer = deque(
                     [a for a in self.alerts_buffer if a.timestamp > cutoff_date],
-                    maxlen=self.alerts_buffer.maxlen
+                    maxlen=self.alerts_buffer.maxlen,
                 )
                 alerts_removed = original_alerts_count - len(self.alerts_buffer)
 
@@ -1063,8 +1173,8 @@ class PerformanceTrackingService:
                 try:
                     # Extract date from filename
                     filename = file_path.stem
-                    date_str = filename.split('_')[1] + '_' + filename.split('_')[2]
-                    file_date = datetime.strptime(date_str, '%Y%m%d_%H%M%S')
+                    date_str = filename.split("_")[1] + "_" + filename.split("_")[2]
+                    file_date = datetime.strptime(date_str, "%Y%m%d_%H%M%S")
 
                     if file_date < cutoff_date:
                         file_path.unlink()
@@ -1077,7 +1187,7 @@ class PerformanceTrackingService:
                 "metrics_removed": metrics_removed,
                 "alerts_removed": alerts_removed,
                 "files_removed": files_removed,
-                "cutoff_date": cutoff_date.isoformat()
+                "cutoff_date": cutoff_date.isoformat(),
             }
 
             self.logger.info(f"Cleaned up old performance data: {cleanup_stats}")

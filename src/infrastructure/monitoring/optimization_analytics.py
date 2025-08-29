@@ -3,17 +3,21 @@ Optimization analytics and strategic recommendations for tournament performance.
 Analyzes cost-effectiveness, performance correlations, and provides actionable insights.
 """
 
-import logging
 import json
+import logging
 import statistics
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass, asdict
-from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
-from .model_performance_tracker import ModelPerformanceTracker, model_performance_tracker
+from .model_performance_tracker import (
+    ModelPerformanceTracker,
+    model_performance_tracker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CostEffectivenessAnalysis:
     """Analysis of cost-effectiveness for model routing decisions."""
+
     overall_efficiency: float  # Questions per dollar
     tier_efficiency: Dict[str, float]  # Efficiency by model tier
     task_efficiency: Dict[str, float]  # Efficiency by task type
@@ -32,6 +37,7 @@ class CostEffectivenessAnalysis:
 @dataclass
 class PerformanceCorrelationAnalysis:
     """Analysis of correlations between cost and quality metrics."""
+
     cost_quality_correlation: float  # Correlation between cost and quality
     tier_quality_analysis: Dict[str, Dict[str, float]]  # Quality analysis by tier
     diminishing_returns_threshold: Optional[float]  # Cost point where returns diminish
@@ -42,6 +48,7 @@ class PerformanceCorrelationAnalysis:
 @dataclass
 class TournamentPhaseStrategy:
     """Strategic recommendations based on tournament phase."""
+
     phase: str  # "early", "middle", "late", "final"
     budget_allocation_strategy: Dict[str, float]  # Percentage allocation by tier
     routing_adjustments: List[str]
@@ -53,6 +60,7 @@ class TournamentPhaseStrategy:
 @dataclass
 class BudgetOptimizationSuggestion:
     """Budget allocation optimization suggestions."""
+
     current_allocation: Dict[str, float]  # Current spending by tier
     optimal_allocation: Dict[str, float]  # Recommended spending by tier
     potential_savings: float
@@ -76,7 +84,7 @@ class OptimizationAnalytics:
         # Tournament phase detection parameters
         self.early_phase_threshold = 0.25  # 0-25% budget used
         self.middle_phase_threshold = 0.60  # 25-60% budget used
-        self.late_phase_threshold = 0.85   # 60-85% budget used
+        self.late_phase_threshold = 0.85  # 60-85% budget used
         # final phase is 85-100%
 
     def analyze_cost_effectiveness(self, hours: int = 24) -> CostEffectivenessAnalysis:
@@ -90,29 +98,31 @@ class OptimizationAnalytics:
                 task_efficiency={},
                 mode_efficiency={},
                 optimal_routing_suggestions=[],
-                cost_savings_potential=0.0
+                cost_savings_potential=0.0,
             )
 
         # Overall efficiency (questions per dollar)
-        overall_efficiency = cost_breakdown.question_count / max(cost_breakdown.total_cost, 0.001)
+        overall_efficiency = cost_breakdown.question_count / max(
+            cost_breakdown.total_cost, 0.001
+        )
 
         # Efficiency by tier
         tier_efficiency = {}
         for tier, data in cost_breakdown.by_tier.items():
-            if data['cost'] > 0:
-                tier_efficiency[tier] = data['count'] / data['cost']
+            if data["cost"] > 0:
+                tier_efficiency[tier] = data["count"] / data["cost"]
 
         # Efficiency by task type
         task_efficiency = {}
         for task, data in cost_breakdown.by_task_type.items():
-            if data['cost'] > 0:
-                task_efficiency[task] = data['count'] / data['cost']
+            if data["cost"] > 0:
+                task_efficiency[task] = data["count"] / data["cost"]
 
         # Efficiency by operation mode
         mode_efficiency = {}
         for mode, data in cost_breakdown.by_operation_mode.items():
-            if data['cost'] > 0:
-                mode_efficiency[mode] = data['count'] / data['cost']
+            if data["cost"] > 0:
+                mode_efficiency[mode] = data["count"] / data["cost"]
 
         # Generate optimization suggestions
         optimal_routing_suggestions = self._generate_routing_optimization_suggestions(
@@ -130,18 +140,23 @@ class OptimizationAnalytics:
             task_efficiency=task_efficiency,
             mode_efficiency=mode_efficiency,
             optimal_routing_suggestions=optimal_routing_suggestions,
-            cost_savings_potential=cost_savings_potential
+            cost_savings_potential=cost_savings_potential,
         )
 
-    def analyze_performance_correlations(self, hours: int = 24) -> PerformanceCorrelationAnalysis:
+    def analyze_performance_correlations(
+        self, hours: int = 24
+    ) -> PerformanceCorrelationAnalysis:
         """Analyze correlations between cost and quality metrics."""
         # Get recent records with both cost and quality data
         cutoff_time = datetime.now() - timedelta(hours=hours)
         records = [
-            r for r in self.performance_tracker.selection_records
-            if (r.timestamp >= cutoff_time and
-                r.actual_cost is not None and
-                r.quality_score is not None)
+            r
+            for r in self.performance_tracker.selection_records
+            if (
+                r.timestamp >= cutoff_time
+                and r.actual_cost is not None
+                and r.quality_score is not None
+            )
         ]
 
         if len(records) < self.min_samples_for_analysis:
@@ -150,7 +165,7 @@ class OptimizationAnalytics:
                 tier_quality_analysis={},
                 diminishing_returns_threshold=None,
                 sweet_spot_recommendations=[],
-                quality_cost_tradeoffs={}
+                quality_cost_tradeoffs={},
             )
 
         # Calculate cost-quality correlation
@@ -162,7 +177,9 @@ class OptimizationAnalytics:
         tier_quality_analysis = self._analyze_tier_quality_relationships(records)
 
         # Find diminishing returns threshold
-        diminishing_returns_threshold = self._find_diminishing_returns_threshold(records)
+        diminishing_returns_threshold = self._find_diminishing_returns_threshold(
+            records
+        )
 
         # Generate sweet spot recommendations
         sweet_spot_recommendations = self._generate_sweet_spot_recommendations(
@@ -177,14 +194,14 @@ class OptimizationAnalytics:
             tier_quality_analysis=tier_quality_analysis,
             diminishing_returns_threshold=diminishing_returns_threshold,
             sweet_spot_recommendations=sweet_spot_recommendations,
-            quality_cost_tradeoffs=quality_cost_tradeoffs
+            quality_cost_tradeoffs=quality_cost_tradeoffs,
         )
 
     def generate_tournament_phase_strategy(
         self,
         budget_used_percentage: float,
         total_budget: float = 100.0,
-        questions_processed: int = 0
+        questions_processed: int = 0,
     ) -> TournamentPhaseStrategy:
         """Generate strategic recommendations based on tournament phase."""
         # Determine tournament phase
@@ -192,18 +209,24 @@ class OptimizationAnalytics:
 
         # Get phase-specific strategy
         if phase == "early":
-            return self._generate_early_phase_strategy(budget_used_percentage, total_budget)
+            return self._generate_early_phase_strategy(
+                budget_used_percentage, total_budget
+            )
         elif phase == "middle":
-            return self._generate_middle_phase_strategy(budget_used_percentage, total_budget)
+            return self._generate_middle_phase_strategy(
+                budget_used_percentage, total_budget
+            )
         elif phase == "late":
-            return self._generate_late_phase_strategy(budget_used_percentage, total_budget)
+            return self._generate_late_phase_strategy(
+                budget_used_percentage, total_budget
+            )
         else:  # final phase
-            return self._generate_final_phase_strategy(budget_used_percentage, total_budget)
+            return self._generate_final_phase_strategy(
+                budget_used_percentage, total_budget
+            )
 
     def generate_budget_optimization_suggestions(
-        self,
-        total_budget: float = 100.0,
-        hours: int = 24
+        self, total_budget: float = 100.0, hours: int = 24
     ) -> BudgetOptimizationSuggestion:
         """Generate budget allocation optimization suggestions."""
         cost_breakdown = self.performance_tracker.get_cost_breakdown(hours)
@@ -213,7 +236,9 @@ class OptimizationAnalytics:
         current_allocation = {}
         if cost_breakdown.total_cost > 0:
             for tier, data in cost_breakdown.by_tier.items():
-                current_allocation[tier] = (data['cost'] / cost_breakdown.total_cost) * 100
+                current_allocation[tier] = (
+                    data["cost"] / cost_breakdown.total_cost
+                ) * 100
 
         # Calculate optimal allocation based on efficiency
         optimal_allocation = self._calculate_optimal_allocation(
@@ -245,14 +270,14 @@ class OptimizationAnalytics:
             potential_savings=potential_savings,
             additional_questions_possible=additional_questions,
             implementation_steps=implementation_steps,
-            risk_assessment=risk_assessment
+            risk_assessment=risk_assessment,
         )
 
     def _generate_routing_optimization_suggestions(
         self,
         tier_efficiency: Dict[str, float],
         task_efficiency: Dict[str, float],
-        mode_efficiency: Dict[str, float]
+        mode_efficiency: Dict[str, float],
     ) -> List[str]:
         """Generate routing optimization suggestions."""
         suggestions = []
@@ -262,7 +287,9 @@ class OptimizationAnalytics:
             most_efficient_tier = max(tier_efficiency.items(), key=lambda x: x[1])
             least_efficient_tier = min(tier_efficiency.items(), key=lambda x: x[1])
 
-            efficiency_ratio = most_efficient_tier[1] / max(least_efficient_tier[1], 0.001)
+            efficiency_ratio = most_efficient_tier[1] / max(
+                least_efficient_tier[1], 0.001
+            )
 
             if efficiency_ratio > 2.0:  # Significant efficiency difference
                 suggestions.append(
@@ -273,7 +300,9 @@ class OptimizationAnalytics:
 
         # Task efficiency suggestions
         if task_efficiency:
-            sorted_tasks = sorted(task_efficiency.items(), key=lambda x: x[1], reverse=True)
+            sorted_tasks = sorted(
+                task_efficiency.items(), key=lambda x: x[1], reverse=True
+            )
             if len(sorted_tasks) >= 2:
                 best_task = sorted_tasks[0]
                 worst_task = sorted_tasks[-1]
@@ -298,7 +327,7 @@ class OptimizationAnalytics:
         self,
         cost_breakdown,
         tier_efficiency: Dict[str, float],
-        task_efficiency: Dict[str, float]
+        task_efficiency: Dict[str, float],
     ) -> float:
         """Calculate potential cost savings from optimization."""
         if not tier_efficiency or cost_breakdown.total_cost == 0:
@@ -332,11 +361,15 @@ class OptimizationAnalytics:
             sum_y2 = sum(yi * yi for yi in y)
 
             numerator = n * sum_xy - sum_x * sum_y
-            denominator = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+            denominator = (
+                (n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)
+            ) ** 0.5
 
             return numerator / denominator if denominator != 0 else 0.0
 
-    def _analyze_tier_quality_relationships(self, records) -> Dict[str, Dict[str, float]]:
+    def _analyze_tier_quality_relationships(
+        self, records
+    ) -> Dict[str, Dict[str, float]]:
         """Analyze quality relationships by tier."""
         tier_analysis = {}
 
@@ -353,11 +386,14 @@ class OptimizationAnalytics:
             qualities = [r.quality_score for r in tier_records]
 
             tier_analysis[tier] = {
-                'avg_cost': statistics.mean(costs),
-                'avg_quality': statistics.mean(qualities),
-                'cost_quality_correlation': self._calculate_correlation(costs, qualities),
-                'quality_per_dollar': statistics.mean(qualities) / max(statistics.mean(costs), 0.001),
-                'sample_count': len(tier_records)
+                "avg_cost": statistics.mean(costs),
+                "avg_quality": statistics.mean(qualities),
+                "cost_quality_correlation": self._calculate_correlation(
+                    costs, qualities
+                ),
+                "quality_per_dollar": statistics.mean(qualities)
+                / max(statistics.mean(costs), 0.001),
+                "sample_count": len(tier_records),
             }
 
         return tier_analysis
@@ -377,7 +413,7 @@ class OptimizationAnalytics:
         bucket_size = len(sorted_records) // 5  # 5 buckets
 
         for i in range(0, len(sorted_records), bucket_size):
-            bucket = sorted_records[i:i + bucket_size]
+            bucket = sorted_records[i : i + bucket_size]
             if len(bucket) >= 3:
                 avg_cost = statistics.mean([r.actual_cost for r in bucket])
                 avg_quality = statistics.mean([r.quality_score for r in bucket])
@@ -388,8 +424,8 @@ class OptimizationAnalytics:
         if len(cost_buckets) >= 3:
             improvements = []
             for i in range(1, len(cost_buckets)):
-                cost_increase = cost_buckets[i] - cost_buckets[i-1]
-                quality_increase = quality_buckets[i] - quality_buckets[i-1]
+                cost_increase = cost_buckets[i] - cost_buckets[i - 1]
+                quality_increase = quality_buckets[i] - quality_buckets[i - 1]
 
                 if cost_increase > 0:
                     improvement_rate = quality_increase / cost_increase
@@ -399,7 +435,7 @@ class OptimizationAnalytics:
             if len(improvements) >= 2:
                 for i in range(1, len(improvements)):
                     current_rate = improvements[i][1]
-                    previous_rate = improvements[i-1][1]
+                    previous_rate = improvements[i - 1][1]
 
                     if previous_rate > 0 and current_rate / previous_rate < 0.5:
                         return improvements[i][0]
@@ -410,7 +446,7 @@ class OptimizationAnalytics:
         self,
         records,
         tier_analysis: Dict[str, Dict[str, float]],
-        diminishing_returns_threshold: Optional[float]
+        diminishing_returns_threshold: Optional[float],
     ) -> List[str]:
         """Generate sweet spot recommendations."""
         recommendations = []
@@ -418,8 +454,7 @@ class OptimizationAnalytics:
         # Find best quality per dollar tier
         if tier_analysis:
             best_tier = max(
-                tier_analysis.items(),
-                key=lambda x: x[1]['quality_per_dollar']
+                tier_analysis.items(), key=lambda x: x[1]["quality_per_dollar"]
             )
 
             recommendations.append(
@@ -436,8 +471,10 @@ class OptimizationAnalytics:
         # Correlation-based recommendations
         if tier_analysis:
             high_correlation_tiers = [
-                tier for tier, data in tier_analysis.items()
-                if data['cost_quality_correlation'] > self.correlation_significance_threshold
+                tier
+                for tier, data in tier_analysis.items()
+                if data["cost_quality_correlation"]
+                > self.correlation_significance_threshold
             ]
 
             if high_correlation_tiers:
@@ -455,28 +492,34 @@ class OptimizationAnalytics:
         # Categorize by cost levels
         costs = [r.actual_cost for r in records]
         cost_percentiles = {
-            'low': np.percentile(costs, 33),
-            'medium': np.percentile(costs, 67),
-            'high': np.percentile(costs, 100)
+            "low": np.percentile(costs, 33),
+            "medium": np.percentile(costs, 67),
+            "high": np.percentile(costs, 100),
         }
 
         cost_categories = {
-            'low': [r for r in records if r.actual_cost <= cost_percentiles['low']],
-            'medium': [r for r in records if cost_percentiles['low'] < r.actual_cost <= cost_percentiles['medium']],
-            'high': [r for r in records if r.actual_cost > cost_percentiles['medium']]
+            "low": [r for r in records if r.actual_cost <= cost_percentiles["low"]],
+            "medium": [
+                r
+                for r in records
+                if cost_percentiles["low"] < r.actual_cost <= cost_percentiles["medium"]
+            ],
+            "high": [r for r in records if r.actual_cost > cost_percentiles["medium"]],
         }
 
         tradeoff_analysis = {}
         for category, category_records in cost_categories.items():
             if category_records:
-                avg_quality = statistics.mean([r.quality_score for r in category_records])
+                avg_quality = statistics.mean(
+                    [r.quality_score for r in category_records]
+                )
                 avg_cost = statistics.mean([r.actual_cost for r in category_records])
 
                 tradeoff_analysis[category] = {
-                    'avg_cost': avg_cost,
-                    'avg_quality': avg_quality,
-                    'sample_count': len(category_records),
-                    'quality_per_dollar': avg_quality / max(avg_cost, 0.001)
+                    "avg_cost": avg_cost,
+                    "avg_quality": avg_quality,
+                    "sample_count": len(category_records),
+                    "quality_per_dollar": avg_quality / max(avg_cost, 0.001),
                 }
 
         return tradeoff_analysis
@@ -492,86 +535,92 @@ class OptimizationAnalytics:
         else:
             return "final"
 
-    def _generate_early_phase_strategy(self, budget_used: float, total_budget: float) -> TournamentPhaseStrategy:
+    def _generate_early_phase_strategy(
+        self, budget_used: float, total_budget: float
+    ) -> TournamentPhaseStrategy:
         """Generate strategy for early tournament phase."""
         return TournamentPhaseStrategy(
             phase="early",
             budget_allocation_strategy={
                 "full": 40.0,  # Use premium models for quality establishment
                 "mini": 45.0,  # Balanced approach
-                "nano": 15.0   # Minimal usage
+                "nano": 15.0,  # Minimal usage
             },
             routing_adjustments=[
                 "Prioritize quality over cost in early phase",
                 "Use full tier for complex forecasting tasks",
-                "Establish baseline performance metrics"
+                "Establish baseline performance metrics",
             ],
             risk_tolerance="aggressive",
             priority_tasks=["forecast", "research"],
-            emergency_thresholds={"budget_utilization": 30.0}
+            emergency_thresholds={"budget_utilization": 30.0},
         )
 
-    def _generate_middle_phase_strategy(self, budget_used: float, total_budget: float) -> TournamentPhaseStrategy:
+    def _generate_middle_phase_strategy(
+        self, budget_used: float, total_budget: float
+    ) -> TournamentPhaseStrategy:
         """Generate strategy for middle tournament phase."""
         return TournamentPhaseStrategy(
             phase="middle",
             budget_allocation_strategy={
                 "full": 30.0,  # Reduce premium usage
                 "mini": 50.0,  # Increase balanced tier
-                "nano": 20.0   # Moderate usage
+                "nano": 20.0,  # Moderate usage
             },
             routing_adjustments=[
                 "Balance quality and cost efficiency",
                 "Optimize based on performance data",
-                "Increase mini tier usage for research"
+                "Increase mini tier usage for research",
             ],
             risk_tolerance="balanced",
             priority_tasks=["research", "forecast"],
-            emergency_thresholds={"budget_utilization": 65.0}
+            emergency_thresholds={"budget_utilization": 65.0},
         )
 
-    def _generate_late_phase_strategy(self, budget_used: float, total_budget: float) -> TournamentPhaseStrategy:
+    def _generate_late_phase_strategy(
+        self, budget_used: float, total_budget: float
+    ) -> TournamentPhaseStrategy:
         """Generate strategy for late tournament phase."""
         return TournamentPhaseStrategy(
             phase="late",
             budget_allocation_strategy={
                 "full": 20.0,  # Minimal premium usage
                 "mini": 50.0,  # Maintain balanced tier
-                "nano": 30.0   # Increase efficient tier
+                "nano": 30.0,  # Increase efficient tier
             },
             routing_adjustments=[
                 "Prioritize cost efficiency",
                 "Reserve full tier for critical forecasts only",
-                "Increase nano tier for validation tasks"
+                "Increase nano tier for validation tasks",
             ],
             risk_tolerance="conservative",
             priority_tasks=["forecast"],
-            emergency_thresholds={"budget_utilization": 80.0}
+            emergency_thresholds={"budget_utilization": 80.0},
         )
 
-    def _generate_final_phase_strategy(self, budget_used: float, total_budget: float) -> TournamentPhaseStrategy:
+    def _generate_final_phase_strategy(
+        self, budget_used: float, total_budget: float
+    ) -> TournamentPhaseStrategy:
         """Generate strategy for final tournament phase."""
         return TournamentPhaseStrategy(
             phase="final",
             budget_allocation_strategy={
                 "full": 10.0,  # Emergency use only
                 "mini": 30.0,  # Reduced usage
-                "nano": 60.0   # Maximum efficiency
+                "nano": 60.0,  # Maximum efficiency
             },
             routing_adjustments=[
                 "Maximum cost efficiency mode",
                 "Use free models when possible",
-                "Reserve budget for critical forecasts only"
+                "Reserve budget for critical forecasts only",
             ],
             risk_tolerance="conservative",
             priority_tasks=["forecast"],
-            emergency_thresholds={"budget_utilization": 95.0}
+            emergency_thresholds={"budget_utilization": 95.0},
         )
 
     def _calculate_optimal_allocation(
-        self,
-        tier_efficiency: Dict[str, float],
-        current_allocation: Dict[str, float]
+        self, tier_efficiency: Dict[str, float], current_allocation: Dict[str, float]
     ) -> Dict[str, float]:
         """Calculate optimal budget allocation based on efficiency."""
         if not tier_efficiency:
@@ -594,7 +643,9 @@ class OptimizationAnalytics:
         total_optimal = sum(optimal_allocation.values())
         if total_optimal > 0:
             for tier in optimal_allocation:
-                optimal_allocation[tier] = (optimal_allocation[tier] / total_optimal) * 100
+                optimal_allocation[tier] = (
+                    optimal_allocation[tier] / total_optimal
+                ) * 100
 
         return optimal_allocation
 
@@ -602,7 +653,7 @@ class OptimizationAnalytics:
         self,
         current_allocation: Dict[str, float],
         optimal_allocation: Dict[str, float],
-        total_cost: float
+        total_cost: float,
     ) -> float:
         """Calculate potential savings from optimization."""
         # This is a simplified calculation
@@ -614,16 +665,18 @@ class OptimizationAnalytics:
                 allocation_diff = optimal_allocation[tier] - current_allocation[tier]
                 # Assume higher efficiency tiers save money
                 if tier == "nano":
-                    savings_factor += allocation_diff * 0.02  # 2% savings per % shift to nano
+                    savings_factor += (
+                        allocation_diff * 0.02
+                    )  # 2% savings per % shift to nano
                 elif tier == "mini":
-                    savings_factor += allocation_diff * 0.01  # 1% savings per % shift to mini
+                    savings_factor += (
+                        allocation_diff * 0.01
+                    )  # 1% savings per % shift to mini
 
         return max(0, total_cost * (savings_factor / 100))
 
     def _calculate_additional_questions_possible(
-        self,
-        potential_savings: float,
-        avg_cost_per_question: float
+        self, potential_savings: float, avg_cost_per_question: float
     ) -> int:
         """Calculate additional questions possible with savings."""
         if avg_cost_per_question <= 0:
@@ -632,9 +685,7 @@ class OptimizationAnalytics:
         return int(potential_savings / avg_cost_per_question)
 
     def _generate_implementation_steps(
-        self,
-        current_allocation: Dict[str, float],
-        optimal_allocation: Dict[str, float]
+        self, current_allocation: Dict[str, float], optimal_allocation: Dict[str, float]
     ) -> List[str]:
         """Generate implementation steps for optimization."""
         steps = []
@@ -657,14 +708,14 @@ class OptimizationAnalytics:
         return steps
 
     def _assess_optimization_risk(
-        self,
-        current_allocation: Dict[str, float],
-        optimal_allocation: Dict[str, float]
+        self, current_allocation: Dict[str, float], optimal_allocation: Dict[str, float]
     ) -> str:
         """Assess risk of implementing optimization."""
         total_change = sum(
             abs(optimal_allocation.get(tier, 0) - current_allocation.get(tier, 0))
-            for tier in set(list(current_allocation.keys()) + list(optimal_allocation.keys()))
+            for tier in set(
+                list(current_allocation.keys()) + list(optimal_allocation.keys())
+            )
         )
 
         if total_change < 20:
@@ -681,7 +732,9 @@ class OptimizationAnalytics:
         budget_optimization = self.generate_budget_optimization_suggestions()
 
         logger.info("=== Optimization Analysis (24h) ===")
-        logger.info(f"Overall Efficiency: {cost_effectiveness.overall_efficiency:.1f} questions/$")
+        logger.info(
+            f"Overall Efficiency: {cost_effectiveness.overall_efficiency:.1f} questions/$"
+        )
 
         if cost_effectiveness.tier_efficiency:
             logger.info("--- Tier Efficiency ---")
@@ -689,18 +742,26 @@ class OptimizationAnalytics:
                 logger.info(f"{tier.upper()}: {efficiency:.1f} questions/$")
 
         logger.info("--- Performance Correlations ---")
-        logger.info(f"Cost-Quality Correlation: {performance_correlations.cost_quality_correlation:.3f}")
+        logger.info(
+            f"Cost-Quality Correlation: {performance_correlations.cost_quality_correlation:.3f}"
+        )
 
         if performance_correlations.diminishing_returns_threshold:
-            logger.info(f"Diminishing Returns Threshold: ${performance_correlations.diminishing_returns_threshold:.4f}")
+            logger.info(
+                f"Diminishing Returns Threshold: ${performance_correlations.diminishing_returns_threshold:.4f}"
+            )
 
         logger.info("--- Budget Optimization ---")
         logger.info(f"Potential Savings: ${budget_optimization.potential_savings:.4f}")
-        logger.info(f"Additional Questions Possible: {budget_optimization.additional_questions_possible}")
+        logger.info(
+            f"Additional Questions Possible: {budget_optimization.additional_questions_possible}"
+        )
 
         if cost_effectiveness.optimal_routing_suggestions:
             logger.info("--- Optimization Suggestions ---")
-            for i, suggestion in enumerate(cost_effectiveness.optimal_routing_suggestions, 1):
+            for i, suggestion in enumerate(
+                cost_effectiveness.optimal_routing_suggestions, 1
+            ):
                 logger.info(f"{i}. {suggestion}")
 
 

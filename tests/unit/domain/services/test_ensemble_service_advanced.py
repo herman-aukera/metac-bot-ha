@@ -3,15 +3,20 @@ Unit tests for advanced EnsembleService aggregation methods.
 Tests sophisticated aggregation methods and method selection.
 """
 
-import pytest
 import statistics
-from uuid import uuid4
 from datetime import datetime, timezone
+from uuid import uuid4
 
+import pytest
+
+from src.domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+)
 from src.domain.services.ensemble_service import EnsembleService
-from src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence
-from src.domain.value_objects.probability import Probability
 from src.domain.value_objects.confidence import ConfidenceLevel
+from src.domain.value_objects.probability import Probability
 
 
 class TestEnsembleServiceAdvanced:
@@ -32,7 +37,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="According to research shows that evidence suggests this outcome is likely because of multiple factors. Therefore, the probability is moderate.",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -41,11 +46,13 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Simple reasoning without much detail.",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
-        result = self.service.aggregate_predictions(predictions, method="meta_reasoning")
+        result = self.service.aggregate_predictions(
+            predictions, method="meta_reasoning"
+        )
 
         assert isinstance(result, Prediction)
         assert result.method == PredictionMethod.ENSEMBLE
@@ -62,7 +69,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.LOW,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Low confidence prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -71,11 +78,13 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.VERY_HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="High confidence prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
-        result = self.service.aggregate_predictions(predictions, method="bayesian_model_averaging")
+        result = self.service.aggregate_predictions(
+            predictions, method="bayesian_model_averaging"
+        )
 
         assert isinstance(result, Prediction)
         assert result.method == PredictionMethod.ENSEMBLE
@@ -93,7 +102,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="First prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -102,11 +111,13 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Second prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
-        result = self.service.aggregate_predictions(predictions, method="stacked_generalization")
+        result = self.service.aggregate_predictions(
+            predictions, method="stacked_generalization"
+        )
 
         assert isinstance(result, Prediction)
         assert result.method == PredictionMethod.ENSEMBLE
@@ -123,7 +134,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="First prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -132,11 +143,13 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Second prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
-        result = self.service.aggregate_predictions(predictions, method="dynamic_selection")
+        result = self.service.aggregate_predictions(
+            predictions, method="dynamic_selection"
+        )
 
         assert isinstance(result, Prediction)
         assert result.method == PredictionMethod.ENSEMBLE
@@ -153,7 +166,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Outlier prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -162,7 +175,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Normal prediction",
-                created_by="Agent2"
+                created_by="Agent2",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -171,7 +184,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.REACT,
                 reasoning="Normal prediction",
-                created_by="Agent3"
+                created_by="Agent3",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -180,11 +193,13 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.AUTO_COT,
                 reasoning="Outlier prediction",
-                created_by="Agent4"
-            )
+                created_by="Agent4",
+            ),
         ]
 
-        result = self.service.aggregate_predictions(predictions, method="outlier_robust_mean")
+        result = self.service.aggregate_predictions(
+            predictions, method="outlier_robust_mean"
+        )
 
         assert isinstance(result, Prediction)
         assert result.method == PredictionMethod.ENSEMBLE
@@ -202,7 +217,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Very certain prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -211,7 +226,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Uncertain prediction",
-                created_by="Agent2"
+                created_by="Agent2",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -220,11 +235,13 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.REACT,
                 reasoning="Moderately certain prediction",
-                created_by="Agent3"
-            )
+                created_by="Agent3",
+            ),
         ]
 
-        result = self.service.aggregate_predictions(predictions, method="entropy_weighted")
+        result = self.service.aggregate_predictions(
+            predictions, method="entropy_weighted"
+        )
 
         assert isinstance(result, Prediction)
         assert result.method == PredictionMethod.ENSEMBLE
@@ -241,7 +258,7 @@ class TestEnsembleServiceAdvanced:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="According to recent research shows that data indicates multiple studies found evidence suggests this outcome is likely. Therefore, because of these factors, however there might be uncertainty in the analysis.",
-            created_by="Agent1"
+            created_by="Agent1",
         )
 
         # Low quality reasoning
@@ -252,7 +269,7 @@ class TestEnsembleServiceAdvanced:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.TREE_OF_THOUGHT,
             reasoning="Yes.",
-            created_by="Agent2"
+            created_by="Agent2",
         )
 
         high_score = self.service._evaluate_reasoning_quality(high_quality_pred)
@@ -273,7 +290,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="First prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -282,8 +299,8 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Second prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         # Low agreement predictions
@@ -295,7 +312,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="First prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -304,8 +321,8 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Second prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         high_adjustment = self.service._calculate_consensus_adjustment(high_agreement)
@@ -325,14 +342,20 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Test prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             )
         ]
 
         # Test different selection strategies
-        method1 = self.service.select_optimal_aggregation_method(predictions, "best_recent")
-        method2 = self.service.select_optimal_aggregation_method(predictions, "adaptive_threshold")
-        method3 = self.service.select_optimal_aggregation_method(predictions, "diversity_based")
+        method1 = self.service.select_optimal_aggregation_method(
+            predictions, "best_recent"
+        )
+        method2 = self.service.select_optimal_aggregation_method(
+            predictions, "adaptive_threshold"
+        )
+        method3 = self.service.select_optimal_aggregation_method(
+            predictions, "diversity_based"
+        )
 
         assert method1 in self.service.aggregation_methods
         assert method2 in self.service.aggregation_methods
@@ -348,7 +371,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Test prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             )
         ]
 
@@ -374,7 +397,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Low prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -383,8 +406,8 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="High prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         method = self.service._select_adaptive_threshold_method(high_disagreement)
@@ -399,7 +422,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.VERY_HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="High confidence prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -408,8 +431,8 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.VERY_HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="High confidence prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         method = self.service._select_adaptive_threshold_method(high_confidence)
@@ -426,7 +449,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Similar prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -435,8 +458,8 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="Similar prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         method = self.service._select_diversity_based_method(low_diversity)
@@ -451,7 +474,7 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Low prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             ),
             Prediction.create_binary_prediction(
                 question_id=self.question_id,
@@ -460,8 +483,8 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.TREE_OF_THOUGHT,
                 reasoning="High prediction",
-                created_by="Agent2"
-            )
+                created_by="Agent2",
+            ),
         ]
 
         method = self.service._select_diversity_based_method(high_diversity)
@@ -502,7 +525,9 @@ class TestEnsembleServiceAdvanced:
 
         # Should keep only last 50
         assert len(self.service.method_performance_history[method_name]) == 50
-        assert self.service.method_performance_history[method_name][0] == 0.55  # First of last 50
+        assert (
+            self.service.method_performance_history[method_name][0] == 0.55
+        )  # First of last 50
 
     def test_get_method_performance_summary(self):
         """Test method performance summary generation."""
@@ -552,7 +577,7 @@ class TestEnsembleServiceAdvanced:
             "stacked_generalization",
             "dynamic_selection",
             "outlier_robust_mean",
-            "entropy_weighted"
+            "entropy_weighted",
         ]
 
         for method in new_methods:
@@ -568,12 +593,14 @@ class TestEnsembleServiceAdvanced:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Test prediction",
-                created_by="Agent1"
+                created_by="Agent1",
             )
         ]
 
         # Should fall back to best_recent
-        method = self.service.select_optimal_aggregation_method(predictions, "invalid_strategy")
+        method = self.service.select_optimal_aggregation_method(
+            predictions, "invalid_strategy"
+        )
         assert method in self.service.aggregation_methods
 
     def test_empty_predictions_handling_in_new_methods(self):
@@ -586,7 +613,7 @@ class TestEnsembleServiceAdvanced:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Test prediction",
-            created_by="Agent1"
+            created_by="Agent1",
         )
 
         # Manually set binary_probability to None to test edge case

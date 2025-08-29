@@ -2,16 +2,17 @@
 Budget-Aware Operation Manager with dynamic mode detection and switching.
 Implements comprehensive budget monitoring, operation mode transitions, and cost optimization strategies.
 """
-import logging
+
 import json
+import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from .budget_manager import budget_manager, BudgetStatus
-from .operation_modes import operation_mode_manager, OperationMode, ModeTransition
+from .budget_manager import BudgetStatus, budget_manager
+from .operation_modes import ModeTransition, OperationMode, operation_mode_manager
 from .tri_model_router import OpenRouterTriModelRouter
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class EmergencyProtocol(Enum):
     """Emergency protocol activation levels."""
+
     NONE = "none"
     BUDGET_WARNING = "budget_warning"
     BUDGET_CRITICAL = "budget_critical"
@@ -29,6 +31,7 @@ class EmergencyProtocol(Enum):
 @dataclass
 class BudgetThreshold:
     """Budget utilization threshold configuration."""
+
     name: str
     percentage: float
     operation_mode: OperationMode
@@ -40,6 +43,7 @@ class BudgetThreshold:
 @dataclass
 class OperationModeTransitionLog:
     """Detailed log entry for operation mode transitions."""
+
     timestamp: datetime
     from_mode: OperationMode
     to_mode: OperationMode
@@ -54,25 +58,26 @@ class OperationModeTransitionLog:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
-        data['from_mode'] = self.from_mode.value
-        data['to_mode'] = self.to_mode.value
-        data['emergency_protocol'] = self.emergency_protocol.value
+        data["timestamp"] = self.timestamp.isoformat()
+        data["from_mode"] = self.from_mode.value
+        data["to_mode"] = self.to_mode.value
+        data["emergency_protocol"] = self.emergency_protocol.value
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'OperationModeTransitionLog':
+    def from_dict(cls, data: Dict[str, Any]) -> "OperationModeTransitionLog":
         """Create from dictionary for JSON deserialization."""
-        data['timestamp'] = datetime.fromisoformat(data['timestamp'])
-        data['from_mode'] = OperationMode(data['from_mode'])
-        data['to_mode'] = OperationMode(data['to_mode'])
-        data['emergency_protocol'] = EmergencyProtocol(data['emergency_protocol'])
+        data["timestamp"] = datetime.fromisoformat(data["timestamp"])
+        data["from_mode"] = OperationMode(data["from_mode"])
+        data["to_mode"] = OperationMode(data["to_mode"])
+        data["emergency_protocol"] = EmergencyProtocol(data["emergency_protocol"])
         return cls(**data)
 
 
 @dataclass
 class CostOptimizationStrategy:
     """Cost optimization strategy for each operation mode."""
+
     mode: OperationMode
     model_selection_adjustments: Dict[str, str]
     task_prioritization_rules: List[str]
@@ -123,7 +128,7 @@ class BudgetAwareOperationManager:
             "emergency_activations": 0,
             "cost_savings_achieved": 0.0,
             "questions_processed_by_mode": {mode.value: 0 for mode in OperationMode},
-            "average_cost_by_mode": {mode.value: 0.0 for mode in OperationMode}
+            "average_cost_by_mode": {mode.value: 0.0 for mode in OperationMode},
         }
 
         # Load existing data
@@ -145,8 +150,8 @@ class BudgetAwareOperationManager:
                     "Use optimal model selection",
                     "Enable all features",
                     "Process all question priorities",
-                    "Full complexity analysis enabled"
-                ]
+                    "Full complexity analysis enabled",
+                ],
             ),
             BudgetThreshold(
                 name="conservative_threshold",
@@ -158,8 +163,8 @@ class BudgetAwareOperationManager:
                     "Switch to cost-efficient models",
                     "Skip low-priority questions",
                     "Reduce batch sizes",
-                    "Limit retries to 2 attempts"
-                ]
+                    "Limit retries to 2 attempts",
+                ],
             ),
             BudgetThreshold(
                 name="emergency_threshold",
@@ -172,12 +177,14 @@ class BudgetAwareOperationManager:
                     "Process critical questions only",
                     "Disable complexity analysis",
                     "Single retry attempt",
-                    "Minimal batch sizes"
-                ]
-            )
+                    "Minimal batch sizes",
+                ],
+            ),
         ]
 
-    def _setup_cost_optimization_strategies(self) -> Dict[OperationMode, CostOptimizationStrategy]:
+    def _setup_cost_optimization_strategies(
+        self,
+    ) -> Dict[OperationMode, CostOptimizationStrategy]:
         """Setup cost optimization strategies for each operation mode."""
         return {
             OperationMode.NORMAL: CostOptimizationStrategy(
@@ -185,77 +192,78 @@ class BudgetAwareOperationManager:
                 model_selection_adjustments={
                     "research": "openai/gpt-4o-mini",
                     "forecast": "openai/gpt-4o",
-                    "validation": "openai/gpt-4o-mini"
+                    "validation": "openai/gpt-4o-mini",
                 },
                 task_prioritization_rules=[
                     "Process all priorities",
                     "Optimize for quality",
-                    "Use complexity analysis"
+                    "Use complexity analysis",
                 ],
                 research_depth_limits={
                     "max_sources": 10,
                     "max_depth": 3,
-                    "max_iterations": 5
+                    "max_iterations": 5,
                 },
                 feature_degradation_config={
                     "complexity_analysis": True,
                     "multi_stage_validation": True,
-                    "detailed_logging": True
+                    "detailed_logging": True,
                 },
                 estimated_cost_reduction=0.0,
-                performance_impact_score=1.0
+                performance_impact_score=1.0,
             ),
             OperationMode.CONSERVATIVE: CostOptimizationStrategy(
                 mode=OperationMode.CONSERVATIVE,
                 model_selection_adjustments={
                     "research": "openai/gpt-4o-mini",
                     "forecast": "openai/gpt-4o-mini",
-                    "validation": "openai/gpt-4o-mini"
+                    "validation": "openai/gpt-4o-mini",
                 },
                 task_prioritization_rules=[
                     "Skip low priority questions",
                     "Prioritize high-value tasks",
-                    "Reduce research depth"
+                    "Reduce research depth",
                 ],
                 research_depth_limits={
                     "max_sources": 5,
                     "max_depth": 2,
-                    "max_iterations": 3
+                    "max_iterations": 3,
                 },
                 feature_degradation_config={
                     "complexity_analysis": True,
                     "multi_stage_validation": False,
-                    "detailed_logging": False
+                    "detailed_logging": False,
                 },
                 estimated_cost_reduction=0.4,
-                performance_impact_score=0.8
+                performance_impact_score=0.8,
             ),
             OperationMode.EMERGENCY: CostOptimizationStrategy(
                 mode=OperationMode.EMERGENCY,
                 model_selection_adjustments={
                     "research": "openai/gpt-4o-mini",
                     "forecast": "openai/gpt-4o-mini",
-                    "validation": "openai/gpt-4o-mini"
+                    "validation": "openai/gpt-4o-mini",
                 },
                 task_prioritization_rules=[
                     "Critical questions only",
                     "Minimal processing",
-                    "Emergency protocols active"
+                    "Emergency protocols active",
                 ],
                 research_depth_limits={
                     "max_sources": 2,
                     "max_depth": 1,
-                    "max_iterations": 1
+                    "max_iterations": 1,
                 },
                 feature_degradation_config={
                     "complexity_analysis": False,
                     "multi_stage_validation": False,
-                    "detailed_logging": False
+                    "detailed_logging": False,
                 },
                 estimated_cost_reduction=0.7,
-                performance_impact_score=0.5
-            )
+                performance_impact_score=0.5,
+            ),
         }
+
     def monitor_budget_utilization(self) -> Dict[str, Any]:
         """
         Monitor budget utilization and detect threshold crossings.
@@ -270,7 +278,9 @@ class BudgetAwareOperationManager:
         threshold_alerts = []
         crossed_threshold = None
 
-        for threshold in sorted(self.budget_thresholds, key=lambda x: x.percentage, reverse=True):
+        for threshold in sorted(
+            self.budget_thresholds, key=lambda x: x.percentage, reverse=True
+        ):
             if current_utilization >= threshold.percentage:
                 crossed_threshold = threshold
                 break
@@ -278,14 +288,16 @@ class BudgetAwareOperationManager:
         # Detect if we've crossed a new threshold
         current_mode = self.operation_mode_manager.get_current_mode()
         if crossed_threshold and crossed_threshold.operation_mode != current_mode:
-            threshold_alerts.append({
-                "threshold_name": crossed_threshold.name,
-                "percentage": crossed_threshold.percentage,
-                "current_utilization": current_utilization,
-                "recommended_mode": crossed_threshold.operation_mode.value,
-                "emergency_protocol": crossed_threshold.emergency_protocol.value,
-                "actions": crossed_threshold.actions
-            })
+            threshold_alerts.append(
+                {
+                    "threshold_name": crossed_threshold.name,
+                    "percentage": crossed_threshold.percentage,
+                    "current_utilization": current_utilization,
+                    "recommended_mode": crossed_threshold.operation_mode.value,
+                    "emergency_protocol": crossed_threshold.emergency_protocol.value,
+                    "actions": crossed_threshold.actions,
+                }
+            )
 
         return {
             "budget_status": budget_status,
@@ -293,10 +305,12 @@ class BudgetAwareOperationManager:
             "crossed_threshold": crossed_threshold.name if crossed_threshold else None,
             "threshold_alerts": threshold_alerts,
             "emergency_protocol": self.current_emergency_protocol.value,
-            "monitoring_timestamp": datetime.now().isoformat()
+            "monitoring_timestamp": datetime.now().isoformat(),
         }
 
-    def detect_and_switch_operation_mode(self) -> Tuple[bool, Optional[OperationModeTransitionLog]]:
+    def detect_and_switch_operation_mode(
+        self,
+    ) -> Tuple[bool, Optional[OperationModeTransitionLog]]:
         """
         Detect budget threshold crossings and automatically switch operation modes.
 
@@ -321,8 +335,12 @@ class BudgetAwareOperationManager:
         current_mode = self.operation_mode_manager.get_current_mode()
 
         # Calculate performance impact and cost savings
-        performance_impact = self._calculate_performance_impact(current_mode, target_mode)
-        cost_savings_estimate = self._estimate_cost_savings(current_mode, target_mode, budget_status)
+        performance_impact = self._calculate_performance_impact(
+            current_mode, target_mode
+        )
+        cost_savings_estimate = self._estimate_cost_savings(
+            current_mode, target_mode, budget_status
+        )
 
         # Create detailed transition log
         transition_log = OperationModeTransitionLog(
@@ -335,13 +353,12 @@ class BudgetAwareOperationManager:
             threshold_crossed=alert["threshold_name"],
             emergency_protocol=emergency_protocol,
             performance_impact=performance_impact,
-            cost_savings_estimate=cost_savings_estimate
+            cost_savings_estimate=cost_savings_estimate,
         )
 
         # Execute the transition
         self.operation_mode_manager.force_mode_transition(
-            target_mode,
-            f"Budget threshold: {alert['threshold_name']}"
+            target_mode, f"Budget threshold: {alert['threshold_name']}"
         )
 
         # Activate emergency protocol if needed
@@ -355,71 +372,96 @@ class BudgetAwareOperationManager:
         # Save transition data
         self._save_transition_data()
 
-        logger.warning(f"Operation mode switched: {current_mode.value} → {target_mode.value} "
-                      f"(Budget: {current_utilization:.1f}%, Reason: {transition_log.trigger_reason})")
+        logger.warning(
+            f"Operation mode switched: {current_mode.value} → {target_mode.value} "
+            f"(Budget: {current_utilization:.1f}%, Reason: {transition_log.trigger_reason})"
+        )
 
         return True, transition_log
-    def _calculate_performance_impact(self, from_mode: OperationMode, to_mode: OperationMode) -> Dict[str, Any]:
+
+    def _calculate_performance_impact(
+        self, from_mode: OperationMode, to_mode: OperationMode
+    ) -> Dict[str, Any]:
         """Calculate the performance impact of mode transition."""
         from_strategy = self.cost_optimization_strategies[from_mode]
         to_strategy = self.cost_optimization_strategies[to_mode]
 
         return {
-            "performance_score_change": to_strategy.performance_impact_score - from_strategy.performance_impact_score,
+            "performance_score_change": to_strategy.performance_impact_score
+            - from_strategy.performance_impact_score,
             "feature_changes": {
                 "complexity_analysis": {
-                    "from": from_strategy.feature_degradation_config["complexity_analysis"],
-                    "to": to_strategy.feature_degradation_config["complexity_analysis"]
+                    "from": from_strategy.feature_degradation_config[
+                        "complexity_analysis"
+                    ],
+                    "to": to_strategy.feature_degradation_config["complexity_analysis"],
                 },
                 "multi_stage_validation": {
-                    "from": from_strategy.feature_degradation_config["multi_stage_validation"],
-                    "to": to_strategy.feature_degradation_config["multi_stage_validation"]
+                    "from": from_strategy.feature_degradation_config[
+                        "multi_stage_validation"
+                    ],
+                    "to": to_strategy.feature_degradation_config[
+                        "multi_stage_validation"
+                    ],
                 },
                 "detailed_logging": {
-                    "from": from_strategy.feature_degradation_config["detailed_logging"],
-                    "to": to_strategy.feature_degradation_config["detailed_logging"]
-                }
+                    "from": from_strategy.feature_degradation_config[
+                        "detailed_logging"
+                    ],
+                    "to": to_strategy.feature_degradation_config["detailed_logging"],
+                },
             },
             "research_depth_changes": {
                 "max_sources": {
                     "from": from_strategy.research_depth_limits["max_sources"],
-                    "to": to_strategy.research_depth_limits["max_sources"]
+                    "to": to_strategy.research_depth_limits["max_sources"],
                 },
                 "max_depth": {
                     "from": from_strategy.research_depth_limits["max_depth"],
-                    "to": to_strategy.research_depth_limits["max_depth"]
-                }
+                    "to": to_strategy.research_depth_limits["max_depth"],
+                },
             },
             "model_changes": {
                 "research_model": {
                     "from": from_strategy.model_selection_adjustments["research"],
-                    "to": to_strategy.model_selection_adjustments["research"]
+                    "to": to_strategy.model_selection_adjustments["research"],
                 },
                 "forecast_model": {
                     "from": from_strategy.model_selection_adjustments["forecast"],
-                    "to": to_strategy.model_selection_adjustments["forecast"]
-                }
-            }
+                    "to": to_strategy.model_selection_adjustments["forecast"],
+                },
+            },
         }
 
-    def _estimate_cost_savings(self, from_mode: OperationMode, to_mode: OperationMode,
-                              budget_status: BudgetStatus) -> float:
+    def _estimate_cost_savings(
+        self,
+        from_mode: OperationMode,
+        to_mode: OperationMode,
+        budget_status: BudgetStatus,
+    ) -> float:
         """Estimate cost savings from mode transition."""
         from_strategy = self.cost_optimization_strategies[from_mode]
         to_strategy = self.cost_optimization_strategies[to_mode]
 
         # Calculate relative cost reduction
-        cost_reduction_factor = to_strategy.estimated_cost_reduction - from_strategy.estimated_cost_reduction
+        cost_reduction_factor = (
+            to_strategy.estimated_cost_reduction
+            - from_strategy.estimated_cost_reduction
+        )
 
         # Estimate savings based on remaining questions
-        estimated_savings = (budget_status.remaining * cost_reduction_factor *
-                           budget_status.estimated_questions_remaining /
-                           max(budget_status.questions_processed, 1))
+        estimated_savings = (
+            budget_status.remaining
+            * cost_reduction_factor
+            * budget_status.estimated_questions_remaining
+            / max(budget_status.questions_processed, 1)
+        )
 
         return max(0.0, estimated_savings)
 
-    def _activate_emergency_protocol(self, protocol: EmergencyProtocol,
-                                   transition_log: OperationModeTransitionLog):
+    def _activate_emergency_protocol(
+        self, protocol: EmergencyProtocol, transition_log: OperationModeTransitionLog
+    ):
         """Activate emergency protocol with appropriate actions."""
         self.current_emergency_protocol = protocol
         self.emergency_activation_time = datetime.now()
@@ -440,10 +482,12 @@ class BudgetAwareOperationManager:
             "Switch to conservative operation mode",
             "Reduce batch processing sizes",
             "Skip low-priority questions",
-            "Enable cost monitoring alerts"
+            "Enable cost monitoring alerts",
         ]
 
-        logger.warning("Budget warning protocol active - implementing cost conservation measures")
+        logger.warning(
+            "Budget warning protocol active - implementing cost conservation measures"
+        )
         for action in actions:
             logger.info(f"Emergency action: {action}")
 
@@ -454,10 +498,12 @@ class BudgetAwareOperationManager:
             "Process critical questions only",
             "Use cheapest models exclusively",
             "Disable non-essential features",
-            "Implement strict cost limits"
+            "Implement strict cost limits",
         ]
 
-        logger.critical("Budget critical protocol active - implementing emergency measures")
+        logger.critical(
+            "Budget critical protocol active - implementing emergency measures"
+        )
         for action in actions:
             logger.critical(f"Emergency action: {action}")
 
@@ -467,24 +513,32 @@ class BudgetAwareOperationManager:
             "Halt all non-critical processing",
             "Save current state",
             "Switch to minimal functionality mode",
-            "Alert system administrators"
+            "Alert system administrators",
         ]
 
-        logger.critical("System failure protocol active - implementing emergency shutdown")
+        logger.critical(
+            "System failure protocol active - implementing emergency shutdown"
+        )
         for action in actions:
             logger.critical(f"Emergency action: {action}")
-    def get_cost_optimization_strategy(self, mode: Optional[OperationMode] = None) -> CostOptimizationStrategy:
+
+    def get_cost_optimization_strategy(
+        self, mode: Optional[OperationMode] = None
+    ) -> CostOptimizationStrategy:
         """Get cost optimization strategy for specified or current mode."""
         target_mode = mode or self.operation_mode_manager.get_current_mode()
         return self.cost_optimization_strategies[target_mode]
 
-    def apply_model_selection_adjustments(self, task_type: str,
-                                        mode: Optional[OperationMode] = None) -> str:
+    def apply_model_selection_adjustments(
+        self, task_type: str, mode: Optional[OperationMode] = None
+    ) -> str:
         """Apply model selection adjustments based on operation mode."""
         strategy = self.get_cost_optimization_strategy(mode)
 
         # Get base model from strategy
-        base_model = strategy.model_selection_adjustments.get(task_type, "openai/gpt-4o-mini")
+        base_model = strategy.model_selection_adjustments.get(
+            task_type, "openai/gpt-4o-mini"
+        )
 
         # Apply additional optimizations based on current emergency protocol
         if self.current_emergency_protocol == EmergencyProtocol.BUDGET_CRITICAL:
@@ -493,8 +547,9 @@ class BudgetAwareOperationManager:
 
         return base_model
 
-    def should_skip_question(self, question_priority: str = "normal",
-                           question_complexity: str = "medium") -> Tuple[bool, str]:
+    def should_skip_question(
+        self, question_priority: str = "normal", question_complexity: str = "medium"
+    ) -> Tuple[bool, str]:
         """Determine if a question should be skipped based on current operation mode."""
         current_mode = self.operation_mode_manager.get_current_mode()
         strategy = self.get_cost_optimization_strategy(current_mode)
@@ -502,7 +557,10 @@ class BudgetAwareOperationManager:
         # Check emergency protocol first
         if self.current_emergency_protocol == EmergencyProtocol.BUDGET_CRITICAL:
             if question_priority.lower() not in ["critical", "high"]:
-                return True, f"Emergency protocol active: skipping {question_priority} priority question"
+                return (
+                    True,
+                    f"Emergency protocol active: skipping {question_priority} priority question",
+                )
 
         # Apply mode-specific rules
         if current_mode == OperationMode.EMERGENCY:
@@ -514,12 +572,16 @@ class BudgetAwareOperationManager:
 
         return False, "Question can be processed"
 
-    def get_research_depth_limits(self, mode: Optional[OperationMode] = None) -> Dict[str, int]:
+    def get_research_depth_limits(
+        self, mode: Optional[OperationMode] = None
+    ) -> Dict[str, int]:
         """Get research depth limits for specified or current mode."""
         strategy = self.get_cost_optimization_strategy(mode)
         return strategy.research_depth_limits.copy()
 
-    def get_graceful_degradation_config(self, mode: Optional[OperationMode] = None) -> Dict[str, Any]:
+    def get_graceful_degradation_config(
+        self, mode: Optional[OperationMode] = None
+    ) -> Dict[str, Any]:
         """Get graceful feature degradation configuration."""
         strategy = self.get_cost_optimization_strategy(mode)
 
@@ -527,11 +589,13 @@ class BudgetAwareOperationManager:
 
         # Apply emergency protocol overrides
         if self.current_emergency_protocol == EmergencyProtocol.BUDGET_CRITICAL:
-            config.update({
-                "complexity_analysis": False,
-                "multi_stage_validation": False,
-                "detailed_logging": False
-            })
+            config.update(
+                {
+                    "complexity_analysis": False,
+                    "multi_stage_validation": False,
+                    "detailed_logging": False,
+                }
+            )
 
         return config
 
@@ -543,15 +607,25 @@ class BudgetAwareOperationManager:
 
         logger.info("=== Budget-Aware Operation Manager Status ===")
         logger.info(f"Current Operation Mode: {current_mode.value.upper()}")
-        logger.info(f"Emergency Protocol: {self.current_emergency_protocol.value.upper()}")
+        logger.info(
+            f"Emergency Protocol: {self.current_emergency_protocol.value.upper()}"
+        )
         logger.info(f"Budget Utilization: {budget_status.utilization_percentage:.1f}%")
         logger.info(f"Remaining Budget: ${budget_status.remaining:.4f}")
 
         logger.info("=== Cost Optimization Strategy ===")
-        logger.info(f"Research Model: {strategy.model_selection_adjustments['research']}")
-        logger.info(f"Forecast Model: {strategy.model_selection_adjustments['forecast']}")
-        logger.info(f"Estimated Cost Reduction: {strategy.estimated_cost_reduction:.1%}")
-        logger.info(f"Performance Impact Score: {strategy.performance_impact_score:.2f}")
+        logger.info(
+            f"Research Model: {strategy.model_selection_adjustments['research']}"
+        )
+        logger.info(
+            f"Forecast Model: {strategy.model_selection_adjustments['forecast']}"
+        )
+        logger.info(
+            f"Estimated Cost Reduction: {strategy.estimated_cost_reduction:.1%}"
+        )
+        logger.info(
+            f"Performance Impact Score: {strategy.performance_impact_score:.2f}"
+        )
 
         logger.info("=== Research Depth Limits ===")
         for limit_type, value in strategy.research_depth_limits.items():
@@ -564,18 +638,25 @@ class BudgetAwareOperationManager:
 
         logger.info("=== Performance Metrics ===")
         logger.info(f"Mode Switches: {self.performance_metrics['mode_switches_count']}")
-        logger.info(f"Emergency Activations: {self.performance_metrics['emergency_activations']}")
-        logger.info(f"Cost Savings Achieved: ${self.performance_metrics['cost_savings_achieved']:.4f}")
+        logger.info(
+            f"Emergency Activations: {self.performance_metrics['emergency_activations']}"
+        )
+        logger.info(
+            f"Cost Savings Achieved: ${self.performance_metrics['cost_savings_achieved']:.4f}"
+        )
 
         # Log recent transitions
         if self.transition_history:
             recent_transitions = self.transition_history[-3:]
             logger.info("=== Recent Mode Transitions ===")
             for transition in recent_transitions:
-                logger.info(f"{transition.timestamp.strftime('%H:%M:%S')}: "
-                           f"{transition.from_mode.value} → {transition.to_mode.value} "
-                           f"(Budget: {transition.budget_utilization:.1f}%, "
-                           f"Savings: ${transition.cost_savings_estimate:.4f})")
+                logger.info(
+                    f"{transition.timestamp.strftime('%H:%M:%S')}: "
+                    f"{transition.from_mode.value} → {transition.to_mode.value} "
+                    f"(Budget: {transition.budget_utilization:.1f}%, "
+                    f"Savings: ${transition.cost_savings_estimate:.4f})"
+                )
+
     def _save_transition_data(self):
         """Save transition history and performance metrics to file."""
         try:
@@ -585,12 +666,13 @@ class BudgetAwareOperationManager:
                 "current_emergency_protocol": self.current_emergency_protocol.value,
                 "emergency_activation_time": (
                     self.emergency_activation_time.isoformat()
-                    if self.emergency_activation_time else None
+                    if self.emergency_activation_time
+                    else None
                 ),
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
 
-            with open(self.log_file, 'w') as f:
+            with open(self.log_file, "w") as f:
                 json.dump(data, f, indent=2)
 
         except Exception as e:
@@ -600,7 +682,7 @@ class BudgetAwareOperationManager:
         """Load existing transition history and performance metrics."""
         try:
             if self.log_file.exists():
-                with open(self.log_file, 'r') as f:
+                with open(self.log_file, "r") as f:
                     data = json.load(f)
 
                 # Load transition history
@@ -618,7 +700,9 @@ class BudgetAwareOperationManager:
 
                 activation_time = data.get("emergency_activation_time")
                 if activation_time:
-                    self.emergency_activation_time = datetime.fromisoformat(activation_time)
+                    self.emergency_activation_time = datetime.fromisoformat(
+                        activation_time
+                    )
 
                 logger.info(f"Loaded {len(self.transition_history)} transition records")
 
@@ -635,7 +719,9 @@ class BudgetAwareOperationManager:
         logger.info(f"Budget Utilization: {budget_status.utilization_percentage:.1f}%")
         logger.info(f"Emergency Protocol: {self.current_emergency_protocol.value}")
         logger.info(f"Loaded Transitions: {len(self.transition_history)}")
-        logger.info(f"Total Mode Switches: {self.performance_metrics['mode_switches_count']}")
+        logger.info(
+            f"Total Mode Switches: {self.performance_metrics['mode_switches_count']}"
+        )
 
     def get_transition_history(self) -> List[OperationModeTransitionLog]:
         """Get complete transition history."""
@@ -648,12 +734,16 @@ class BudgetAwareOperationManager:
     def reset_emergency_protocol(self):
         """Reset emergency protocol to normal state."""
         if self.current_emergency_protocol != EmergencyProtocol.NONE:
-            logger.info(f"Resetting emergency protocol from {self.current_emergency_protocol.value}")
+            logger.info(
+                f"Resetting emergency protocol from {self.current_emergency_protocol.value}"
+            )
             self.current_emergency_protocol = EmergencyProtocol.NONE
             self.emergency_activation_time = None
             self._save_transition_data()
 
-    def force_emergency_protocol(self, protocol: EmergencyProtocol, reason: str = "manual_override"):
+    def force_emergency_protocol(
+        self, protocol: EmergencyProtocol, reason: str = "manual_override"
+    ):
         """Force activation of emergency protocol."""
         transition_log = OperationModeTransitionLog(
             timestamp=datetime.now(),
@@ -665,16 +755,20 @@ class BudgetAwareOperationManager:
             threshold_crossed="manual_override",
             emergency_protocol=protocol,
             performance_impact={},
-            cost_savings_estimate=0.0
+            cost_savings_estimate=0.0,
         )
 
         self._activate_emergency_protocol(protocol, transition_log)
         self.transition_history.append(transition_log)
         self._save_transition_data()
 
-    def get_operation_mode_for_budget(self, budget_utilization_percentage: float) -> str:
+    def get_operation_mode_for_budget(
+        self, budget_utilization_percentage: float
+    ) -> str:
         """Get the expected operation mode for a given budget utilization percentage."""
-        for threshold in sorted(self.budget_thresholds, key=lambda x: x.percentage, reverse=True):
+        for threshold in sorted(
+            self.budget_thresholds, key=lambda x: x.percentage, reverse=True
+        ):
             if budget_utilization_percentage >= threshold.percentage:
                 return threshold.operation_mode.value
 

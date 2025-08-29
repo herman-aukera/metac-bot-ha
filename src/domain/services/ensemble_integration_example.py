@@ -5,16 +5,16 @@ This demonstrates how the enhanced DynamicWeightAdjuster can be used
 for real-time agent selection and automatic rebalancing.
 """
 
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
+
 import structlog
 
-from .dynamic_weight_adjuster import DynamicWeightAdjuster, EnsembleComposition
-from .ensemble_service import EnsembleService
 from ..entities.prediction import Prediction, PredictionMethod
 from ..entities.question import Question
-
+from .dynamic_weight_adjuster import DynamicWeightAdjuster, EnsembleComposition
+from .ensemble_service import EnsembleService
 
 logger = structlog.get_logger(__name__)
 
@@ -30,15 +30,15 @@ class EnhancedEnsembleManager:
         self.weight_adjuster = DynamicWeightAdjuster(
             lookback_window=30,
             min_predictions_for_weight=5,
-            performance_decay_factor=0.95
+            performance_decay_factor=0.95,
         )
         self.current_composition: Optional[EnsembleComposition] = None
         self.rebalancing_interval = timedelta(hours=6)  # Check every 6 hours
         self.last_rebalancing_check = datetime.now()
 
-    def record_prediction_outcome(self,
-                                prediction: Prediction,
-                                actual_outcome: bool) -> None:
+    def record_prediction_outcome(
+        self, prediction: Prediction, actual_outcome: bool
+    ) -> None:
         """
         Record the outcome of a prediction for performance tracking.
 
@@ -53,12 +53,12 @@ class EnhancedEnsembleManager:
             agent=prediction.created_by,
             predicted_prob=prediction.result.binary_probability,
             actual_outcome=actual_outcome,
-            question_id=str(prediction.question_id)
+            question_id=str(prediction.question_id),
         )
 
-    def get_optimal_ensemble_composition(self,
-                                       available_agents: List[str],
-                                       force_rebalancing: bool = False) -> EnsembleComposition:
+    def get_optimal_ensemble_composition(
+        self, available_agents: List[str], force_rebalancing: bool = False
+    ) -> EnsembleComposition:
         """
         Get optimal ensemble composition with automatic rebalancing.
 
@@ -73,9 +73,9 @@ class EnhancedEnsembleManager:
 
         # Check if rebalancing is needed
         should_check_rebalancing = (
-            force_rebalancing or
-            current_time - self.last_rebalancing_check >= self.rebalancing_interval or
-            self.current_composition is None
+            force_rebalancing
+            or current_time - self.last_rebalancing_check >= self.rebalancing_interval
+            or self.current_composition is None
         )
 
         if should_check_rebalancing:
@@ -95,24 +95,26 @@ class EnhancedEnsembleManager:
                     "Automatic rebalancing triggered",
                     previous_agents=current_agents,
                     new_agents=list(new_composition.agent_weights.keys()),
-                    reason="Performance-based rebalancing"
+                    reason="Performance-based rebalancing",
                 )
                 self.current_composition = new_composition
             elif self.current_composition is None:
                 # First time setup
-                self.current_composition = self.weight_adjuster.recommend_ensemble_composition(
-                    available_agents, target_size=min(5, len(available_agents))
+                self.current_composition = (
+                    self.weight_adjuster.recommend_ensemble_composition(
+                        available_agents, target_size=min(5, len(available_agents))
+                    )
                 )
                 logger.info(
                     "Initial ensemble composition created",
-                    agents=list(self.current_composition.agent_weights.keys())
+                    agents=list(self.current_composition.agent_weights.keys()),
                 )
 
         return self.current_composition
 
-    def make_ensemble_prediction(self,
-                               question: Question,
-                               agent_predictions: Dict[str, Prediction]) -> Prediction:
+    def make_ensemble_prediction(
+        self, question: Question, agent_predictions: Dict[str, Prediction]
+    ) -> Prediction:
         """
         Make an ensemble prediction using optimal agent composition.
 
@@ -142,9 +144,7 @@ class EnhancedEnsembleManager:
 
         # Create ensemble prediction using weighted average
         ensemble_prediction = self.ensemble_service.aggregate_predictions(
-            selected_predictions,
-            method="weighted_average",
-            weights=weights
+            selected_predictions, method="weighted_average", weights=weights
         )
 
         # Update metadata to reflect ensemble composition
@@ -152,11 +152,15 @@ class EnhancedEnsembleManager:
         ensemble_prediction.method = PredictionMethod.ENSEMBLE
 
         # Add composition info to reasoning
-        composition_info = f"\nEnsemble composition: {len(composition.agent_weights)} agents\n"
+        composition_info = (
+            f"\nEnsemble composition: {len(composition.agent_weights)} agents\n"
+        )
         for agent, weight in composition.agent_weights.items():
             composition_info += f"- {agent}: {weight:.3f}\n"
         composition_info += f"Diversity score: {composition.diversity_score:.3f}\n"
-        composition_info += f"Expected performance: {composition.expected_performance:.3f}"
+        composition_info += (
+            f"Expected performance: {composition.expected_performance:.3f}"
+        )
 
         ensemble_prediction.reasoning += composition_info
 
@@ -165,7 +169,7 @@ class EnhancedEnsembleManager:
             question_id=str(question.id),
             agents_used=list(composition.agent_weights.keys()),
             weights=composition.agent_weights,
-            predicted_probability=ensemble_prediction.result.binary_probability
+            predicted_probability=ensemble_prediction.result.binary_probability,
         )
 
         return ensemble_prediction
@@ -183,23 +187,39 @@ class EnhancedEnsembleManager:
         if self.current_composition:
             current_agents = list(self.current_composition.agent_weights.keys())
 
-        recommendations = self.weight_adjuster.get_rebalancing_recommendations(current_agents)
+        recommendations = self.weight_adjuster.get_rebalancing_recommendations(
+            current_agents
+        )
 
         dashboard = {
             "current_composition": {
                 "agents": current_agents,
-                "weights": self.current_composition.agent_weights if self.current_composition else {},
-                "diversity_score": self.current_composition.diversity_score if self.current_composition else 0.0,
-                "expected_performance": self.current_composition.expected_performance if self.current_composition else 0.0
+                "weights": (
+                    self.current_composition.agent_weights
+                    if self.current_composition
+                    else {}
+                ),
+                "diversity_score": (
+                    self.current_composition.diversity_score
+                    if self.current_composition
+                    else 0.0
+                ),
+                "expected_performance": (
+                    self.current_composition.expected_performance
+                    if self.current_composition
+                    else 0.0
+                ),
             },
             "performance_summary": summary,
             "rebalancing_recommendations": recommendations,
             "system_status": {
                 "last_rebalancing_check": self.last_rebalancing_check.isoformat(),
-                "next_rebalancing_check": (self.last_rebalancing_check + self.rebalancing_interval).isoformat(),
+                "next_rebalancing_check": (
+                    self.last_rebalancing_check + self.rebalancing_interval
+                ).isoformat(),
                 "total_agents_tracked": len(summary.get("agent_profiles", {})),
-                "total_predictions_recorded": summary.get("total_predictions", 0)
-            }
+                "total_predictions_recorded": summary.get("total_predictions", 0),
+            },
         }
 
         return dashboard
@@ -236,7 +256,9 @@ class EnhancedEnsembleManager:
         if not profile:
             return {"error": f"No performance data available for agent: {agent_name}"}
 
-        is_degrading, degradation_explanation = self.weight_adjuster.detect_performance_degradation(agent_name)
+        is_degrading, degradation_explanation = (
+            self.weight_adjuster.detect_performance_degradation(agent_name)
+        )
 
         report = {
             "agent_name": agent_name,
@@ -250,7 +272,7 @@ class EnhancedEnsembleManager:
                 "calibration_score": profile.calibration_score,
                 "confidence_correlation": profile.confidence_correlation,
                 "performance_trend": profile.performance_trend,
-                "consistency_score": profile.consistency_score
+                "consistency_score": profile.consistency_score,
             },
             "current_status": {
                 "current_weight": profile.current_weight,
@@ -258,21 +280,31 @@ class EnhancedEnsembleManager:
                 "is_degrading": is_degrading,
                 "degradation_explanation": degradation_explanation,
                 "specialization_areas": profile.specialization_areas,
-                "last_updated": profile.last_updated.isoformat()
+                "last_updated": profile.last_updated.isoformat(),
             },
             "recommendations": {
                 "should_include_in_ensemble": profile.recommended_weight > 0.1,
-                "priority_level": "high" if profile.recommended_weight > 0.5 else "medium" if profile.recommended_weight > 0.2 else "low",
-                "improvement_areas": []
-            }
+                "priority_level": (
+                    "high"
+                    if profile.recommended_weight > 0.5
+                    else "medium" if profile.recommended_weight > 0.2 else "low"
+                ),
+                "improvement_areas": [],
+            },
         }
 
         # Add improvement recommendations
         if profile.recent_brier_score > 0.25:
-            report["recommendations"]["improvement_areas"].append("Improve prediction accuracy")
+            report["recommendations"]["improvement_areas"].append(
+                "Improve prediction accuracy"
+            )
         if profile.consistency_score < 0.5:
-            report["recommendations"]["improvement_areas"].append("Improve prediction consistency")
+            report["recommendations"]["improvement_areas"].append(
+                "Improve prediction consistency"
+            )
         if profile.confidence_correlation < 0.1:
-            report["recommendations"]["improvement_areas"].append("Improve confidence calibration")
+            report["recommendations"]["improvement_areas"].append(
+                "Improve confidence calibration"
+            )
 
         return report

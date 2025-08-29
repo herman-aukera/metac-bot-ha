@@ -5,13 +5,13 @@ Provides easy-to-use functions for integrating error handling into the forecasti
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional, Tuple, Union
 from datetime import datetime
+from typing import Any, Dict, Optional, Tuple, Union
 
 from .comprehensive_error_recovery import (
     ComprehensiveErrorRecoveryManager,
     RecoveryConfiguration,
-    RecoveryResult
+    RecoveryResult,
 )
 from .error_classification import ErrorContext, ForecastingError
 
@@ -26,8 +26,12 @@ class ErrorHandler:
     the comprehensive error handling system into the forecasting pipeline.
     """
 
-    def __init__(self, tri_model_router=None, budget_manager=None,
-                 config: Optional[RecoveryConfiguration] = None):
+    def __init__(
+        self,
+        tri_model_router=None,
+        budget_manager=None,
+        config: Optional[RecoveryConfiguration] = None,
+    ):
         """
         Initialize error handler with recovery system.
 
@@ -43,11 +47,18 @@ class ErrorHandler:
 
         logger.info("Error handler initialized with comprehensive recovery system")
 
-    async def handle_error(self, error: Exception, task_type: str = "forecast",
-                          model_tier: str = "mini", operation_mode: str = "normal",
-                          budget_remaining: float = 50.0, attempt_number: int = 1,
-                          model_name: Optional[str] = None, provider: Optional[str] = None,
-                          original_prompt: Optional[str] = None) -> Tuple[bool, Dict[str, Any]]:
+    async def handle_error(
+        self,
+        error: Exception,
+        task_type: str = "forecast",
+        model_tier: str = "mini",
+        operation_mode: str = "normal",
+        budget_remaining: float = 50.0,
+        attempt_number: int = 1,
+        model_name: Optional[str] = None,
+        provider: Optional[str] = None,
+        original_prompt: Optional[str] = None,
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Handle an error with comprehensive recovery strategies.
 
@@ -83,7 +94,7 @@ class ErrorHandler:
             attempt_number=attempt_number,
             model_name=model_name,
             provider=provider,
-            original_prompt=original_prompt
+            original_prompt=original_prompt,
         )
 
         try:
@@ -98,18 +109,32 @@ class ErrorHandler:
                 "cost_impact": result.cost_impact,
                 "message": result.message,
                 "attempts_made": result.attempts_made,
-                "metadata": result.metadata
+                "metadata": result.metadata,
             }
 
             if result.fallback_result:
                 recovery_info["fallback_details"] = {
-                    "fallback_used": result.fallback_result.fallback_used.name if result.fallback_result.fallback_used else None,
-                    "fallback_tier": result.fallback_result.fallback_used.tier.value if result.fallback_result.fallback_used else None,
-                    "performance_level": result.fallback_result.fallback_used.performance_level.value if result.fallback_result.fallback_used else None
+                    "fallback_used": (
+                        result.fallback_result.fallback_used.name
+                        if result.fallback_result.fallback_used
+                        else None
+                    ),
+                    "fallback_tier": (
+                        result.fallback_result.fallback_used.tier.value
+                        if result.fallback_result.fallback_used
+                        else None
+                    ),
+                    "performance_level": (
+                        result.fallback_result.fallback_used.performance_level.value
+                        if result.fallback_result.fallback_used
+                        else None
+                    ),
                 }
 
-            logger.info(f"Error recovery {'successful' if result.success else 'failed'}: "
-                       f"{result.recovery_strategy.value} in {result.recovery_time:.2f}s")
+            logger.info(
+                f"Error recovery {'successful' if result.success else 'failed'}: "
+                f"{result.recovery_strategy.value} in {result.recovery_time:.2f}s"
+            )
 
             return result.success, recovery_info
 
@@ -123,11 +148,17 @@ class ErrorHandler:
                 "cost_impact": 0.0,
                 "message": f"Recovery failed: {recovery_error}",
                 "attempts_made": 0,
-                "metadata": {"recovery_error": str(recovery_error)}
+                "metadata": {"recovery_error": str(recovery_error)},
             }
 
-    async def handle_model_error(self, error: Exception, model_name: str, model_tier: str,
-                               budget_remaining: float = 50.0, attempt_number: int = 1) -> Tuple[bool, Dict[str, Any]]:
+    async def handle_model_error(
+        self,
+        error: Exception,
+        model_name: str,
+        model_tier: str,
+        budget_remaining: float = 50.0,
+        attempt_number: int = 1,
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Handle model-specific errors with optimized recovery.
 
@@ -149,11 +180,15 @@ class ErrorHandler:
             budget_remaining=budget_remaining,
             attempt_number=attempt_number,
             model_name=model_name,
-            provider="openrouter"
+            provider="openrouter",
         )
 
-    async def handle_budget_error(self, error: Exception, budget_remaining: float,
-                                operation_mode: str = "critical") -> Tuple[bool, Dict[str, Any]]:
+    async def handle_budget_error(
+        self,
+        error: Exception,
+        budget_remaining: float,
+        operation_mode: str = "critical",
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Handle budget-related errors with emergency protocols.
 
@@ -171,11 +206,16 @@ class ErrorHandler:
             model_tier="nano",  # Use cheapest tier for budget errors
             operation_mode=operation_mode,
             budget_remaining=budget_remaining,
-            attempt_number=1
+            attempt_number=1,
         )
 
-    async def handle_api_error(self, error: Exception, provider: str, status_code: Optional[int] = None,
-                             budget_remaining: float = 50.0) -> Tuple[bool, Dict[str, Any]]:
+    async def handle_api_error(
+        self,
+        error: Exception,
+        provider: str,
+        status_code: Optional[int] = None,
+        budget_remaining: float = 50.0,
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Handle API-related errors with provider fallbacks.
 
@@ -195,12 +235,16 @@ class ErrorHandler:
             operation_mode="normal",
             budget_remaining=budget_remaining,
             attempt_number=1,
-            provider=provider
+            provider=provider,
         )
 
-    async def handle_quality_error(self, error: Exception, original_prompt: str,
-                                 quality_issues: Optional[list] = None,
-                                 budget_remaining: float = 50.0) -> Tuple[bool, Dict[str, Any]]:
+    async def handle_quality_error(
+        self,
+        error: Exception,
+        original_prompt: str,
+        quality_issues: Optional[list] = None,
+        budget_remaining: float = 50.0,
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Handle quality validation errors with prompt revision.
 
@@ -220,7 +264,7 @@ class ErrorHandler:
             operation_mode="normal",
             budget_remaining=budget_remaining,
             attempt_number=1,
-            original_prompt=original_prompt
+            original_prompt=original_prompt,
         )
 
     def get_system_status(self) -> Dict[str, Any]:
@@ -262,7 +306,9 @@ class ErrorHandler:
         if not self._initialized:
             return False
 
-        return self.recovery_manager.fallback_orchestrator.emergency_manager.is_emergency_active()
+        return (
+            self.recovery_manager.fallback_orchestrator.emergency_manager.is_emergency_active()
+        )
 
     async def deactivate_emergency_mode(self) -> bool:
         """
@@ -274,7 +320,9 @@ class ErrorHandler:
         if not self._initialized:
             return False
 
-        return await self.recovery_manager.fallback_orchestrator.emergency_manager.deactivate_emergency_mode()
+        return (
+            await self.recovery_manager.fallback_orchestrator.emergency_manager.deactivate_emergency_mode()
+        )
 
     async def test_system(self) -> Dict[str, Any]:
         """
@@ -288,7 +336,9 @@ class ErrorHandler:
 
         return await self.recovery_manager.test_recovery_system()
 
-    def get_recovery_recommendations(self, error_type: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def get_recovery_recommendations(
+        self, error_type: str, context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Get recovery recommendations for a specific error type and context.
 
@@ -306,8 +356,8 @@ class ErrorHandler:
                 "considerations": [
                     "Check model availability",
                     "Consider tier downgrade",
-                    "Monitor performance impact"
-                ]
+                    "Monitor performance impact",
+                ],
             },
             "budget_error": {
                 "primary_strategy": "emergency_mode",
@@ -315,8 +365,8 @@ class ErrorHandler:
                 "considerations": [
                     "Activate free models only",
                     "Reduce functionality",
-                    "Monitor remaining budget"
-                ]
+                    "Monitor remaining budget",
+                ],
             },
             "api_error": {
                 "primary_strategy": "fallback_provider",
@@ -324,8 +374,8 @@ class ErrorHandler:
                 "considerations": [
                     "Check provider status",
                     "Use exponential backoff",
-                    "Consider alternative APIs"
-                ]
+                    "Consider alternative APIs",
+                ],
             },
             "quality_error": {
                 "primary_strategy": "prompt_revision",
@@ -333,22 +383,31 @@ class ErrorHandler:
                 "considerations": [
                     "Enhance quality directives",
                     "Add citation requirements",
-                    "Consider model upgrade"
-                ]
-            }
+                    "Consider model upgrade",
+                ],
+            },
         }
 
-        return recommendations.get(error_type, {
-            "primary_strategy": "retry",
-            "secondary_strategy": "fallback_model",
-            "considerations": ["Analyze error pattern", "Consider context", "Monitor recovery success"]
-        })
+        return recommendations.get(
+            error_type,
+            {
+                "primary_strategy": "retry",
+                "secondary_strategy": "fallback_model",
+                "considerations": [
+                    "Analyze error pattern",
+                    "Consider context",
+                    "Monitor recovery success",
+                ],
+            },
+        )
 
 
 # Convenience functions for common error handling scenarios
 
-async def handle_forecasting_error(error: Exception, tri_model_router=None, budget_manager=None,
-                                 **kwargs) -> Tuple[bool, Dict[str, Any]]:
+
+async def handle_forecasting_error(
+    error: Exception, tri_model_router=None, budget_manager=None, **kwargs
+) -> Tuple[bool, Dict[str, Any]]:
     """
     Convenience function to handle forecasting errors.
 
@@ -365,8 +424,12 @@ async def handle_forecasting_error(error: Exception, tri_model_router=None, budg
     return await handler.handle_error(error, **kwargs)
 
 
-async def handle_model_failure(model_name: str, error: Exception, tri_model_router=None,
-                             budget_remaining: float = 50.0) -> Tuple[bool, Dict[str, Any]]:
+async def handle_model_failure(
+    model_name: str,
+    error: Exception,
+    tri_model_router=None,
+    budget_remaining: float = 50.0,
+) -> Tuple[bool, Dict[str, Any]]:
     """
     Convenience function to handle model failures.
 
@@ -394,8 +457,9 @@ async def handle_model_failure(model_name: str, error: Exception, tri_model_rout
     return await handler.handle_model_error(error, model_name, tier, budget_remaining)
 
 
-async def handle_budget_exhaustion(budget_remaining: float, tri_model_router=None,
-                                 budget_manager=None) -> Tuple[bool, Dict[str, Any]]:
+async def handle_budget_exhaustion(
+    budget_remaining: float, tri_model_router=None, budget_manager=None
+) -> Tuple[bool, Dict[str, Any]]:
     """
     Convenience function to handle budget exhaustion.
 
@@ -410,14 +474,21 @@ async def handle_budget_exhaustion(budget_remaining: float, tri_model_router=Non
     handler = ErrorHandler(tri_model_router, budget_manager)
 
     from .error_classification import BudgetError
-    error = BudgetError(f"Budget critically low: {budget_remaining}%", budget_remaining, 0.0)
+
+    error = BudgetError(
+        f"Budget critically low: {budget_remaining}%", budget_remaining, 0.0
+    )
 
     return await handler.handle_budget_error(error, budget_remaining, "critical")
 
 
-def create_error_handler(tri_model_router=None, budget_manager=None,
-                        max_recovery_attempts: int = 3, max_recovery_time: float = 120.0,
-                        enable_emergency_mode: bool = True) -> ErrorHandler:
+def create_error_handler(
+    tri_model_router=None,
+    budget_manager=None,
+    max_recovery_attempts: int = 3,
+    max_recovery_time: float = 120.0,
+    enable_emergency_mode: bool = True,
+) -> ErrorHandler:
     """
     Factory function to create a configured error handler.
 
@@ -437,7 +508,7 @@ def create_error_handler(tri_model_router=None, budget_manager=None,
         enable_emergency_mode=enable_emergency_mode,
         enable_circuit_breakers=True,
         enable_quality_recovery=True,
-        budget_threshold_for_emergency=5.0
+        budget_threshold_for_emergency=5.0,
     )
 
     return ErrorHandler(tri_model_router, budget_manager, config)

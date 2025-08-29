@@ -1,19 +1,24 @@
 """
 Integration tests for configuration management and hot-reloading.
 """
-import pytest
+
 import asyncio
 import tempfile
-import yaml
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+import yaml
+
+from src.application.tournament_orchestrator import TournamentOrchestrator
 from src.infrastructure.config.config_manager import (
-    ConfigManager, ConfigChangeType, ConfigChangeEvent, create_config_manager
+    ConfigChangeEvent,
+    ConfigChangeType,
+    ConfigManager,
+    create_config_manager,
 )
 from src.infrastructure.config.settings import Settings
-from src.application.tournament_orchestrator import TournamentOrchestrator
 
 
 class TestConfigManagerIntegration:
@@ -31,20 +36,14 @@ class TestConfigManagerIntegration:
                     "provider": "openai",
                     "model": "gpt-4",
                     "temperature": 0.3,
-                    "api_key": "test-key"
+                    "api_key": "test-key",
                 },
-                "search": {
-                    "provider": "multi_source",
-                    "max_results": 10
-                },
-                "bot": {
-                    "name": "TestBot",
-                    "version": "1.0.0"
-                }
+                "search": {"provider": "multi_source", "max_results": 10},
+                "bot": {"name": "TestBot", "version": "1.0.0"},
             }
 
             config_file = config_dir / "config.yaml"
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 yaml.dump(config_data, f)
 
             yield config_dir, config_file
@@ -58,7 +57,7 @@ class TestConfigManagerIntegration:
             config_paths=[str(config_file)],
             watch_directories=[str(config_dir)],
             enable_hot_reload=True,
-            validation_enabled=True
+            validation_enabled=True,
         )
 
         await manager.initialize()
@@ -80,19 +79,16 @@ class TestConfigManagerIntegration:
         invalid_config = {
             "llm": {
                 "temperature": 5.0,  # Invalid: should be 0.0-2.0
-                "rate_limit_rpm": -1  # Invalid: should be positive
+                "rate_limit_rpm": -1,  # Invalid: should be positive
             },
-            "search": {
-                "max_results": 200  # Invalid: should be 1-100
-            }
+            "search": {"max_results": 200},  # Invalid: should be 1-100
         }
 
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(invalid_config, f)
 
         manager = create_config_manager(
-            config_paths=[str(config_file)],
-            validation_enabled=True
+            config_paths=[str(config_file)], validation_enabled=True
         )
 
         # Should still initialize but with validation errors
@@ -119,19 +115,13 @@ class TestConfigManagerIntegration:
                 "provider": "openai",
                 "model": "gpt-3.5-turbo",  # Changed
                 "temperature": 0.5,  # Changed
-                "api_key": "test-key"
+                "api_key": "test-key",
             },
-            "search": {
-                "provider": "multi_source",
-                "max_results": 15  # Changed
-            },
-            "bot": {
-                "name": "UpdatedTestBot",  # Changed
-                "version": "2.0.0"  # Changed
-            }
+            "search": {"provider": "multi_source", "max_results": 15},  # Changed
+            "bot": {"name": "UpdatedTestBot", "version": "2.0.0"},  # Changed  # Changed
         }
 
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(updated_config, f)
 
         # Wait for file system event to be processed
@@ -157,10 +147,10 @@ class TestConfigManagerIntegration:
         updated_config = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key"},
             "search": {"provider": "multi_source", "max_results": 20},
-            "bot": {"name": "ManualReloadBot", "version": "3.0.0"}
+            "bot": {"name": "ManualReloadBot", "version": "3.0.0"},
         }
 
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(updated_config, f)
 
         # Manually reload configuration
@@ -182,10 +172,10 @@ class TestConfigManagerIntegration:
             updated_config = {
                 "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key"},
                 "search": {"provider": "multi_source", "max_results": 10 + i},
-                "bot": {"name": f"TestBot{i}", "version": f"{i}.0.0"}
+                "bot": {"name": f"TestBot{i}", "version": f"{i}.0.0"},
             }
 
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 yaml.dump(updated_config, f)
 
             await asyncio.sleep(0.1)  # Small delay between changes
@@ -213,8 +203,7 @@ class TestConfigManagerIntegration:
             validation_results.append(result)
 
         manager = create_config_manager(
-            config_paths=[str(config_file)],
-            validation_enabled=True
+            config_paths=[str(config_file)], validation_enabled=True
         )
 
         manager.add_validation_listener(validation_listener)
@@ -222,10 +211,10 @@ class TestConfigManagerIntegration:
         # Create invalid configuration
         invalid_config = {
             "llm": {"temperature": 10.0},  # Invalid
-            "search": {"max_results": -5}  # Invalid
+            "search": {"max_results": -5},  # Invalid
         }
 
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(invalid_config, f)
 
         await manager.initialize()
@@ -242,23 +231,21 @@ class TestConfigManagerIntegration:
         config_dir, config_file = temp_config_dir
 
         manager = create_config_manager(
-            config_paths=[str(config_file)],
-            validation_enabled=True
+            config_paths=[str(config_file)], validation_enabled=True
         )
 
         # Add custom validation rule
         manager.add_validation_rule(
-            "bot.name",
-            lambda x: isinstance(x, str) and len(x) >= 5
+            "bot.name", lambda x: isinstance(x, str) and len(x) >= 5
         )
 
         # Create config that violates custom rule
         config_data = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key"},
-            "bot": {"name": "Bot", "version": "1.0.0"}  # Too short
+            "bot": {"name": "Bot", "version": "1.0.0"},  # Too short
         }
 
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
         await manager.initialize()
@@ -283,32 +270,24 @@ class TestOrchestratorConfigIntegration:
                     "provider": "openai",
                     "model": "gpt-4",
                     "temperature": 0.3,
-                    "api_key": "test-key"
+                    "api_key": "test-key",
                 },
-                "search": {
-                    "provider": "multi_source",
-                    "max_results": 10
-                },
+                "search": {"provider": "multi_source", "max_results": 10},
                 "metaculus": {
                     "base_url": "https://test.metaculus.com/api",
                     "tournament_id": 12345,
-                    "dry_run": True
+                    "dry_run": True,
                 },
                 "pipeline": {
                     "max_concurrent_questions": 2,
-                    "default_agent_names": ["ensemble"]
+                    "default_agent_names": ["ensemble"],
                 },
-                "bot": {
-                    "name": "TestBot",
-                    "version": "1.0.0"
-                },
-                "logging": {
-                    "level": "INFO"
-                }
+                "bot": {"name": "TestBot", "version": "1.0.0"},
+                "logging": {"level": "INFO"},
             }
 
             config_file = config_dir / "config.yaml"
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 yaml.dump(config_data, f)
 
             yield config_dir, config_file
@@ -321,12 +300,18 @@ class TestOrchestratorConfigIntegration:
         config_manager = create_config_manager(
             config_paths=[str(config_file)],
             watch_directories=[str(config_dir)],
-            enable_hot_reload=True
+            enable_hot_reload=True,
         )
 
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -353,16 +338,23 @@ class TestOrchestratorConfigIntegration:
                     "provider": "openai",
                     "model": "gpt-3.5-turbo",  # Changed
                     "temperature": 0.5,
-                    "api_key": "test-key"
+                    "api_key": "test-key",
                 },
                 "search": {"provider": "multi_source", "max_results": 10},
-                "metaculus": {"base_url": "https://test.metaculus.com/api", "tournament_id": 12345, "dry_run": True},
-                "pipeline": {"max_concurrent_questions": 2, "default_agent_names": ["ensemble"]},
+                "metaculus": {
+                    "base_url": "https://test.metaculus.com/api",
+                    "tournament_id": 12345,
+                    "dry_run": True,
+                },
+                "pipeline": {
+                    "max_concurrent_questions": 2,
+                    "default_agent_names": ["ensemble"],
+                },
                 "bot": {"name": "UpdatedBot", "version": "2.0.0"},  # Changed
-                "logging": {"level": "INFO"}
+                "logging": {"level": "INFO"},
             }
 
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 yaml.dump(updated_config, f)
 
             # Wait for hot-reload
@@ -381,9 +373,15 @@ class TestOrchestratorConfigIntegration:
         """Test orchestrator configuration status reporting."""
         config_dir, config_file = temp_config_setup
 
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
@@ -418,14 +416,22 @@ class TestOrchestratorConfigIntegration:
         """Test configuration error handling and recovery."""
         config_dir, config_file = temp_config_setup
 
-        with patch('src.infrastructure.external_apis.llm_client.LLMClient') as mock_llm, \
-             patch('src.infrastructure.external_apis.search_client.SearchClient') as mock_search, \
-             patch('src.infrastructure.external_apis.metaculus_client.MetaculusClient') as mock_metaculus:
+        with (
+            patch("src.infrastructure.external_apis.llm_client.LLMClient") as mock_llm,
+            patch(
+                "src.infrastructure.external_apis.search_client.SearchClient"
+            ) as mock_search,
+            patch(
+                "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
+            ) as mock_metaculus,
+        ):
 
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()
-            mock_llm.return_value.update_config = AsyncMock(side_effect=Exception("Update failed"))
+            mock_llm.return_value.update_config = AsyncMock(
+                side_effect=Exception("Update failed")
+            )
             mock_search.return_value.initialize = AsyncMock()
             mock_search.return_value.health_check = AsyncMock()
             mock_search.return_value.update_config = AsyncMock()
@@ -440,15 +446,27 @@ class TestOrchestratorConfigIntegration:
 
             # Create invalid configuration update
             updated_config = {
-                "llm": {"provider": "openai", "model": "gpt-4", "temperature": 0.3, "api_key": "test-key"},
+                "llm": {
+                    "provider": "openai",
+                    "model": "gpt-4",
+                    "temperature": 0.3,
+                    "api_key": "test-key",
+                },
                 "search": {"provider": "multi_source", "max_results": 10},
-                "metaculus": {"base_url": "https://test.metaculus.com/api", "tournament_id": 12345, "dry_run": True},
-                "pipeline": {"max_concurrent_questions": 2, "default_agent_names": ["ensemble"]},
+                "metaculus": {
+                    "base_url": "https://test.metaculus.com/api",
+                    "tournament_id": 12345,
+                    "dry_run": True,
+                },
+                "pipeline": {
+                    "max_concurrent_questions": 2,
+                    "default_agent_names": ["ensemble"],
+                },
                 "bot": {"name": "FailedUpdateBot", "version": "2.0.0"},
-                "logging": {"level": "INFO"}
+                "logging": {"level": "INFO"},
             }
 
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 yaml.dump(updated_config, f)
 
             # Wait for hot-reload attempt
@@ -469,17 +487,17 @@ async def test_config_integration_requirements_compliance():
         config_file = Path(temp_dir) / "config.yaml"
         config_data = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test"},
-            "bot": {"name": "TestBot", "version": "1.0.0"}
+            "bot": {"name": "TestBot", "version": "1.0.0"},
         }
 
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
         # Test hot-reloading capability
         config_manager = create_config_manager(
             config_paths=[str(config_file)],
             watch_directories=[str(Path(temp_dir))],
-            enable_hot_reload=True
+            enable_hot_reload=True,
         )
 
         await config_manager.initialize()
@@ -494,7 +512,7 @@ async def test_config_integration_requirements_compliance():
 
         # Update configuration
         config_data["bot"]["name"] = "UpdatedBot"
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
         await asyncio.sleep(0.5)  # Wait for file system event
@@ -508,14 +526,20 @@ async def test_config_integration_requirements_compliance():
 
     # Requirement 10.5: Comprehensive monitoring and backward compatibility
     # Test monitoring capabilities
-    config_manager = create_config_manager(enable_hot_reload=True, validation_enabled=True)
+    config_manager = create_config_manager(
+        enable_hot_reload=True, validation_enabled=True
+    )
     await config_manager.initialize()
 
     # Verify monitoring capabilities
     status = config_manager.get_status()
     required_status_fields = [
-        "initialized", "hot_reload_enabled", "validation_enabled",
-        "last_reload_time", "change_listeners", "config_history_count"
+        "initialized",
+        "hot_reload_enabled",
+        "validation_enabled",
+        "last_reload_time",
+        "change_listeners",
+        "config_history_count",
     ]
 
     for field in required_status_fields:

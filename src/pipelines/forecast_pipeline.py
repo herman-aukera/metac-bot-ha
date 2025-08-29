@@ -1,8 +1,11 @@
 """
 Pipeline to orchestrate the forecasting process.
 """
+
 import asyncio
+
 from ..agents.base_agent import BaseAgent
+
 
 class ForecastPipeline:
     def __init__(self, config):

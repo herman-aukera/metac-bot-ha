@@ -2,14 +2,16 @@
 Integration tests for the enhanced cost tracking system.
 Tests integration with existing forecasting components.
 """
-import pytest
+
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from src.infrastructure.config.token_tracker import TokenTracker
+import pytest
+
 from src.infrastructure.config.budget_manager import BudgetManager
 from src.infrastructure.config.cost_monitor import CostMonitor
+from src.infrastructure.config.token_tracker import TokenTracker
 
 
 class TestCostTrackingIntegration:
@@ -83,7 +85,7 @@ class TestCostTrackingIntegration:
             task_type="research",
             prompt=research_prompt,
             response=research_response,
-            success=True
+            success=True,
         )
 
         # Step 2: Forecasting phase
@@ -126,7 +128,7 @@ class TestCostTrackingIntegration:
             task_type="forecast",
             prompt=forecast_prompt,
             response=forecast_response,
-            success=True
+            success=True,
         )
 
         # Verify tracking results
@@ -141,7 +143,9 @@ class TestCostTrackingIntegration:
         assert self.budget_manager.questions_processed == 1  # Only forecast counts
 
         # Verify cost tracking consistency
-        total_token_cost = sum(r.estimated_cost for r in self.token_tracker.usage_records)
+        total_token_cost = sum(
+            r.estimated_cost for r in self.token_tracker.usage_records
+        )
         total_budget_cost = self.budget_manager.current_spend
         assert abs(total_token_cost - total_budget_cost) < 0.0001
 
@@ -178,7 +182,7 @@ class TestCostTrackingIntegration:
                 task_type=task_type,
                 prompt=prompt,
                 response=response,
-                success=True
+                success=True,
             )
 
         # Get optimization recommendations
@@ -205,7 +209,7 @@ class TestCostTrackingIntegration:
             task_type="forecast",
             prompt="Test prompt",
             response="",  # Empty response indicates failure
-            success=False
+            success=False,
         )
 
         assert failed_result["success"] is False
@@ -224,7 +228,7 @@ class TestCostTrackingIntegration:
             task_type="forecast",
             prompt="Recovery test prompt",
             response="Successful recovery response",
-            success=True
+            success=True,
         )
 
         assert success_result["success"] is True
@@ -234,8 +238,12 @@ class TestCostTrackingIntegration:
         """Test data persistence and loading across sessions."""
         # Add some data
         self.cost_monitor.track_api_call_with_monitoring(
-            "persist-test", "gpt-4o-mini", "research",
-            "Test prompt", "Test response", True
+            "persist-test",
+            "gpt-4o-mini",
+            "research",
+            "Test prompt",
+            "Test response",
+            True,
         )
 
         # Force save data
@@ -267,7 +275,7 @@ class TestCostTrackingIntegration:
             ("gpt-4o-mini", "research"),
             ("gpt-4o", "forecast"),
             ("claude-3-haiku", "research"),
-            ("claude-3-5-sonnet", "forecast")
+            ("claude-3-5-sonnet", "forecast"),
         ]
 
         costs = {}
@@ -279,7 +287,7 @@ class TestCostTrackingIntegration:
                 task_type=task_type,
                 prompt=prompt,
                 response=response,
-                success=True
+                success=True,
             )
 
             costs[model] = result["estimated_cost"]
@@ -306,7 +314,7 @@ class TestCostTrackingIntegration:
         for file_path in [
             self.token_tracker.data_file,
             self.budget_manager.data_file,
-            self.cost_monitor.alerts_file
+            self.cost_monitor.alerts_file,
         ]:
             if file_path.exists():
                 file_path.unlink()

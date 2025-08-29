@@ -4,10 +4,11 @@ This module implements logic to determine optimal research depth based on
 question complexity, budget constraints, and quality validation.
 """
 
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 from ..domain.entities.question import Question
-from ..domain.entities.research_report import ResearchReport, ResearchSource
+from ..domain.entities.research_report import ResearchSource
 
 
 class QuestionComplexityAnalyzer:
@@ -42,16 +43,13 @@ class QuestionComplexityAnalyzer:
         complexity_factors["length_complexity"] = length_score
         total_score += length_score
         # 2. Question type complexity
-        type_complexity = {
-            "BINARY": 1,
-            "MULTIPLE_CHOICE": 2,
-            "NUMERIC": 3,
-            "DATE": 2
-        }
+        type_complexity = {"BINARY": 1, "MULTIPLE_CHOICE": 2, "NUMERIC": 3, "DATE": 2}
         type_score = type_complexity.get(question.question_type.value, 1)
 
         # Multiple choice with many options is more complex
-        if question.question_type.value == "MULTIPLE_CHOICE" and hasattr(question, 'choices'):
+        if question.question_type.value == "MULTIPLE_CHOICE" and hasattr(
+            question, "choices"
+        ):
             if len(question.choices or []) > 5:
                 type_score += 1
 
@@ -60,9 +58,16 @@ class QuestionComplexityAnalyzer:
 
         # 3. Domain/category complexity
         technical_domains = {
-            "science": 2, "technology": 2, "medicine": 3, "economics": 2,
-            "politics": 2, "finance": 2, "climate": 3, "ai": 2,
-            "geopolitics": 3, "regulation": 2
+            "science": 2,
+            "technology": 2,
+            "medicine": 3,
+            "economics": 2,
+            "politics": 2,
+            "finance": 2,
+            "climate": 3,
+            "ai": 2,
+            "geopolitics": 3,
+            "regulation": 2,
         }
 
         domain_score = 0
@@ -89,13 +94,21 @@ class QuestionComplexityAnalyzer:
         total_score += time_score
         # 5. Interdependency complexity (keywords that suggest complex interactions)
         interdependency_keywords = [
-            "depends on", "conditional", "if and only if", "multiple factors",
-            "interaction", "cascade", "systemic", "network effect", "feedback"
+            "depends on",
+            "conditional",
+            "if and only if",
+            "multiple factors",
+            "interaction",
+            "cascade",
+            "systemic",
+            "network effect",
+            "feedback",
         ]
 
         question_text = (question.title + " " + (question.description or "")).lower()
-        interdependency_score = sum(1 for keyword in interdependency_keywords
-                                  if keyword in question_text)
+        interdependency_score = sum(
+            1 for keyword in interdependency_keywords if keyword in question_text
+        )
         interdependency_score = min(interdependency_score, 3)  # Cap at 3
 
         complexity_factors["interdependency_complexity"] = interdependency_score
@@ -115,11 +128,15 @@ class QuestionComplexityAnalyzer:
             "total_complexity_score": total_score,
             "complexity_factors": complexity_factors,
             "recommended_research_depth": research_depth,
-            "research_priority_areas": QuestionComplexityAnalyzer._identify_priority_areas(question, complexity_factors)
+            "research_priority_areas": QuestionComplexityAnalyzer._identify_priority_areas(
+                question, complexity_factors
+            ),
         }
 
     @staticmethod
-    def _identify_priority_areas(question: Question, complexity_factors: Dict[str, int]) -> List[str]:
+    def _identify_priority_areas(
+        question: Question, complexity_factors: Dict[str, int]
+    ) -> List[str]:
         """Identify priority research areas based on complexity factors."""
         priority_areas = []
 
@@ -147,6 +164,7 @@ class QuestionComplexityAnalyzer:
 
         return priority_areas
 
+
 class AdaptiveResearchManager:
     """
     Manages adaptive research depth based on question complexity and budget constraints.
@@ -163,33 +181,34 @@ class AdaptiveResearchManager:
                 "news_window_hours": 24,
                 "research_areas": 2,
                 "token_budget": 800,
-                "estimated_cost": 0.05
+                "estimated_cost": 0.05,
             },
             "standard": {
                 "max_sources": 5,
                 "news_window_hours": 48,
                 "research_areas": 3,
                 "token_budget": 1500,
-                "estimated_cost": 0.12
+                "estimated_cost": 0.12,
             },
             "deep": {
                 "max_sources": 8,
                 "news_window_hours": 72,
                 "research_areas": 4,
                 "token_budget": 2500,
-                "estimated_cost": 0.25
+                "estimated_cost": 0.25,
             },
             "comprehensive": {
                 "max_sources": 12,
                 "news_window_hours": 96,
                 "research_areas": 5,
                 "token_budget": 4000,
-                "estimated_cost": 0.45
-            }
+                "estimated_cost": 0.45,
+            },
         }
 
-    def determine_research_strategy(self, question: Question,
-                                  budget_remaining: Optional[float] = None) -> Dict[str, Any]:
+    def determine_research_strategy(
+        self, question: Question, budget_remaining: Optional[float] = None
+    ) -> Dict[str, Any]:
         """
         Determine optimal research strategy based on complexity and budget.
 
@@ -201,7 +220,9 @@ class AdaptiveResearchManager:
             Dictionary with research strategy and configuration
         """
         # Analyze question complexity
-        complexity_analysis = self.complexity_analyzer.analyze_research_complexity(question)
+        complexity_analysis = self.complexity_analyzer.analyze_research_complexity(
+            question
+        )
         recommended_depth = complexity_analysis["recommended_research_depth"]
 
         # Apply budget constraints if enabled
@@ -222,10 +243,13 @@ class AdaptiveResearchManager:
             "research_depth": recommended_depth,
             "complexity_analysis": complexity_analysis,
             "research_config": config,
-            "budget_adjusted": budget_remaining is not None and
-                             recommended_depth != complexity_analysis["recommended_research_depth"]
+            "budget_adjusted": budget_remaining is not None
+            and recommended_depth != complexity_analysis["recommended_research_depth"],
         }
-    def _apply_budget_constraints(self, recommended_depth: str, budget_remaining: float) -> str:
+
+    def _apply_budget_constraints(
+        self, recommended_depth: str, budget_remaining: float
+    ) -> str:
         """Apply budget constraints to research depth selection."""
         depth_hierarchy = ["shallow", "standard", "deep", "comprehensive"]
         current_index = depth_hierarchy.index(recommended_depth)
@@ -243,8 +267,9 @@ class AdaptiveResearchManager:
 
         return recommended_depth
 
-    def validate_research_quality(self, research_sources: List[ResearchSource],
-                                research_config: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_research_quality(
+        self, research_sources: List[ResearchSource], research_config: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Validate research quality and detect gaps.
 
@@ -257,10 +282,17 @@ class AdaptiveResearchManager:
         """
         quality_metrics = {
             "source_count": len(research_sources),
-            "avg_credibility": sum(s.credibility_score for s in research_sources) / len(research_sources) if research_sources else 0,
+            "avg_credibility": (
+                sum(s.credibility_score for s in research_sources)
+                / len(research_sources)
+                if research_sources
+                else 0
+            ),
             "recency_score": self._calculate_recency_score(research_sources),
             "diversity_score": self._calculate_diversity_score(research_sources),
-            "coverage_score": self._calculate_coverage_score(research_sources, research_config)
+            "coverage_score": self._calculate_coverage_score(
+                research_sources, research_config
+            ),
         }
 
         # Detect gaps
@@ -279,15 +311,22 @@ class AdaptiveResearchManager:
         # Overall quality assessment
         overall_score = sum(quality_metrics.values()) / len(quality_metrics)
 
-        quality_level = "high" if overall_score >= 0.8 else "medium" if overall_score >= 0.6 else "low"
+        quality_level = (
+            "high"
+            if overall_score >= 0.8
+            else "medium" if overall_score >= 0.6 else "low"
+        )
 
         return {
             "quality_metrics": quality_metrics,
             "overall_quality": quality_level,
             "overall_score": overall_score,
             "identified_gaps": gaps,
-            "recommendations": self._generate_quality_recommendations(gaps, research_config)
+            "recommendations": self._generate_quality_recommendations(
+                gaps, research_config
+            ),
         }
+
     def _calculate_recency_score(self, sources: List[ResearchSource]) -> float:
         """Calculate recency score based on source publication dates."""
         if not sources:
@@ -329,9 +368,10 @@ class AdaptiveResearchManager:
             if source.url:
                 try:
                     from urllib.parse import urlparse
+
                     domain = urlparse(source.url).netloc.lower()
                     domains.add(domain)
-                except:
+                except Exception:
                     pass
 
         # Diversity is higher with more unique domains
@@ -349,66 +389,115 @@ class AdaptiveResearchManager:
         for source in sources:
             if source.url:
                 url_lower = source.url.lower()
-                if any(news in url_lower for news in ['news', 'reuters', 'bloomberg', 'cnn', 'bbc']):
-                    source_types.add('news')
-                elif any(academic in url_lower for academic in ['arxiv', 'scholar', 'edu', 'research']):
-                    source_types.add('academic')
-                elif any(official in url_lower for official in ['gov', 'org', 'official']):
-                    source_types.add('official')
+                if any(
+                    news in url_lower
+                    for news in ["news", "reuters", "bloomberg", "cnn", "bbc"]
+                ):
+                    source_types.add("news")
+                elif any(
+                    academic in url_lower
+                    for academic in ["arxiv", "scholar", "edu", "research"]
+                ):
+                    source_types.add("academic")
+                elif any(
+                    official in url_lower for official in ["gov", "org", "official"]
+                ):
+                    source_types.add("official")
                 else:
-                    source_types.add('other')
+                    source_types.add("other")
 
         type_diversity = len(source_types) / 4  # 4 possible types
 
         return (diversity_ratio + type_diversity) / 2
-    def _calculate_coverage_score(self, sources: List[ResearchSource],
-                                research_config: Dict[str, Any]) -> float:
+
+    def _calculate_coverage_score(
+        self, sources: List[ResearchSource], research_config: Dict[str, Any]
+    ) -> float:
         """Calculate how well sources cover priority research areas."""
         priority_areas = research_config.get("priority_research_areas", [])
         if not priority_areas:
             return 1.0  # No specific areas to cover
 
         coverage_map = {
-            "recent_developments_48h": ["news", "recent", "latest", "breaking", "update"],
-            "expert_opinions": ["expert", "analyst", "professor", "researcher", "opinion"],
-            "factor_interactions": ["factor", "cause", "effect", "interaction", "relationship"],
+            "recent_developments_48h": [
+                "news",
+                "recent",
+                "latest",
+                "breaking",
+                "update",
+            ],
+            "expert_opinions": [
+                "expert",
+                "analyst",
+                "professor",
+                "researcher",
+                "opinion",
+            ],
+            "factor_interactions": [
+                "factor",
+                "cause",
+                "effect",
+                "interaction",
+                "relationship",
+            ],
             "trend_analysis": ["trend", "pattern", "growth", "decline", "trajectory"],
-            "historical_precedents": ["history", "historical", "past", "precedent", "similar"]
+            "historical_precedents": [
+                "history",
+                "historical",
+                "past",
+                "precedent",
+                "similar",
+            ],
         }
 
         covered_areas = set()
         for source in sources:
             source_text = (source.title + " " + source.summary).lower()
             for area, keywords in coverage_map.items():
-                if area in priority_areas and any(keyword in source_text for keyword in keywords):
+                if area in priority_areas and any(
+                    keyword in source_text for keyword in keywords
+                ):
                     covered_areas.add(area)
 
         return len(covered_areas) / len(priority_areas) if priority_areas else 1.0
 
-    def _generate_quality_recommendations(self, gaps: List[str],
-                                        research_config: Dict[str, Any]) -> List[str]:
+    def _generate_quality_recommendations(
+        self, gaps: List[str], research_config: Dict[str, Any]
+    ) -> List[str]:
         """Generate recommendations to address research quality gaps."""
         recommendations = []
 
         if "insufficient_sources" in gaps:
-            recommendations.append(f"Gather additional sources (target: {research_config['max_sources']})")
+            recommendations.append(
+                f"Gather additional sources (target: {research_config['max_sources']})"
+            )
 
         if "low_credibility_sources" in gaps:
-            recommendations.append("Prioritize high-credibility sources (academic, official, established news)")
+            recommendations.append(
+                "Prioritize high-credibility sources (academic, official, established news)"
+            )
 
         if "outdated_information" in gaps:
-            recommendations.append(f"Focus on recent sources within {research_config['news_window_hours']}h window")
+            recommendations.append(
+                f"Focus on recent sources within {research_config['news_window_hours']}h window"
+            )
 
         if "limited_perspective_diversity" in gaps:
-            recommendations.append("Seek sources from different domains and perspectives")
+            recommendations.append(
+                "Seek sources from different domains and perspectives"
+            )
 
         if "incomplete_area_coverage" in gaps:
             priority_areas = research_config.get("priority_research_areas", [])
-            recommendations.append(f"Ensure coverage of priority areas: {', '.join(priority_areas)}")
+            recommendations.append(
+                f"Ensure coverage of priority areas: {', '.join(priority_areas)}"
+            )
 
         return recommendations
 
-    def should_use_asknews_48h(self, question: Question, research_config: Dict[str, Any]) -> bool:
+    def should_use_asknews_48h(
+        self, question: Question, research_config: Dict[str, Any]
+    ) -> bool:
         """
         Determine if AskNews 48-hour window should be used for this question.
 
@@ -430,7 +519,14 @@ class AdaptiveResearchManager:
                 return True
 
         # Use for questions with recent development keywords
-        recent_keywords = ["recent", "latest", "current", "today", "this week", "breaking"]
+        recent_keywords = [
+            "recent",
+            "latest",
+            "current",
+            "today",
+            "this week",
+            "breaking",
+        ]
         question_text = (question.title + " " + (question.description or "")).lower()
 
         if any(keyword in question_text for keyword in recent_keywords):

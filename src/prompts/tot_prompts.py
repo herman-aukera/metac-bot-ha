@@ -2,8 +2,11 @@
 Tree-of-Thought prompts for structured multi-step reasoning.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from jinja2 import Template
+
+from ..domain.entities.question import Question
 
 TOT_SYSTEM_PROMPT = """You are an expert forecaster using Tree-of-Thought reasoning to make predictions about future events. Your approach involves:
 
@@ -95,20 +98,22 @@ How do these research findings impact or modify your reasoning path? Consider:
 Provide an updated reasoning path that incorporates these findings.
 """
 
+
 class TreeOfThoughtPrompts:
     """
     Prompt templates for Tree of Thought reasoning.
-    
+
     These prompts guide the model through structured exploration of multiple
     reasoning paths, evaluation of each path, and synthesis of insights.
     """
-    
+
     def __init__(self):
         self.system_prompt = TOT_SYSTEM_PROMPT
-        
+
         self.thought_generation_template = Template(TOT_THOUGHT_GENERATION)
-        
-        self.path_evaluation_template = Template("""
+
+        self.path_evaluation_template = Template(
+            """
 Question: {{ question_title }}
 
 Current reasoning paths explored:
@@ -118,7 +123,7 @@ Path {{ i + 1 }}: {{ path }}
 
 Evaluate each path on:
 1. Logical coherence (1-10)
-2. Evidence strength (1-10) 
+2. Evidence strength (1-10)
 3. Novelty of insights (1-10)
 4. Likelihood to lead to accurate prediction (1-10)
 
@@ -133,9 +138,11 @@ Provide evaluation in JSON format:
     ],
     "recommended_paths": [path_ids to expand further]
 }
-        """)
-        
-        self.path_expansion_template = Template("""
+        """
+        )
+
+        self.path_expansion_template = Template(
+            """
 Question: {{ question_title }}
 Description: {{ question_description }}
 
@@ -157,9 +164,11 @@ Provide expanded reasoning in JSON format:
     "confidence_factors": ["factor1", "factor2"],
     "uncertainty_factors": ["uncertainty1", "uncertainty2"]
 }
-        """)
-        
-        self.synthesis_template = Template("""
+        """
+        )
+
+        self.synthesis_template = Template(
+            """
 Question: {{ question_title }}
 Type: {{ question_type }}
 
@@ -196,9 +205,12 @@ Format response as JSON:
     "key_factors": ["factor1", "factor2", "factor3"],
     "main_uncertainties": ["uncertainty1", "uncertainty2"]
 }
-        """)
-    
-    def generate_initial_thoughts(self, question: "Question", context: str, num_paths: int = 3) -> str:
+        """
+        )
+
+    def generate_initial_thoughts(
+        self, question: "Question", context: str, num_paths: int = 3
+    ) -> str:
         """Generate initial reasoning paths."""
         return self.thought_generation_template.render(
             question_title=question.title,
@@ -206,34 +218,37 @@ Format response as JSON:
             question_type=question.question_type.value,
             resolution_criteria=question.resolution_criteria,
             context=context,
-            num_paths=num_paths
+            num_paths=num_paths,
         )
-    
+
     def evaluate_paths(self, question_title: str, paths: List[str]) -> str:
         """Evaluate reasoning paths."""
         return self.path_evaluation_template.render(
-            question_title=question_title,
-            paths=paths
+            question_title=question_title, paths=paths
         )
-    
+
     def expand_path(self, question: "Question", current_path: str, context: str) -> str:
         """Expand a specific reasoning path."""
         return self.path_expansion_template.render(
             question_title=question.title,
             question_description=question.description,
             current_path=current_path,
-            context=context
+            context=context,
         )
-    
-    def synthesize_paths(self, question: "Question", all_paths: List[Dict[str, Any]], 
-                        research_summary: str) -> str:
+
+    def synthesize_paths(
+        self,
+        question: "Question",
+        all_paths: List[Dict[str, Any]],
+        research_summary: str,
+    ) -> str:
         """Synthesize all reasoning paths into final prediction."""
         return self.synthesis_template.render(
             question_title=question.title,
             question_type=question.question_type.value,
             all_paths=all_paths,
             research_summary=research_summary,
-            choices=getattr(question, 'choices', []),
-            min_value=getattr(question, 'min_value', None),
-            max_value=getattr(question, 'max_value', None)
+            choices=getattr(question, "choices", []),
+            min_value=getattr(question, "min_value", None),
+            max_value=getattr(question, "max_value", None),
         )

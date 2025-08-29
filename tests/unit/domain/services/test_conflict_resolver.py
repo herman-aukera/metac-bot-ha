@@ -1,26 +1,27 @@
 """Tests for ConflictResolver."""
 
-import pytest
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from src.domain.services.conflict_resolver import (
-    ConflictResolver,
-    EvidenceConflict,
-    ConflictType,
-    ResolutionStrategy,
-    UncertaintyLevel,
-    SynthesizedConclusion,
-    KnowledgeGap,
-    CredibilityWeightedStrategy,
-    ConsensusBasedStrategy,
-    EvidenceTriangulationStrategy
-)
+import pytest
+
+from src.domain.entities.question import Question, QuestionType
 from src.domain.services.authoritative_source_manager import (
     AuthoritativeSource,
-    SourceType
+    SourceType,
 )
-from src.domain.entities.question import Question, QuestionType
+from src.domain.services.conflict_resolver import (
+    ConflictResolver,
+    ConflictType,
+    ConsensusBasedStrategy,
+    CredibilityWeightedStrategy,
+    EvidenceConflict,
+    EvidenceTriangulationStrategy,
+    KnowledgeGap,
+    ResolutionStrategy,
+    SynthesizedConclusion,
+    UncertaintyLevel,
+)
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def sample_question():
         question_type=QuestionType.BINARY,
         url="https://metaculus.com/questions/12345",
         close_time=datetime.utcnow() + timedelta(days=365),
-        categories=["Technology", "AI"]
+        categories=["Technology", "AI"],
     )
 
 
@@ -57,7 +58,7 @@ def conflicting_sources():
             publish_date=datetime.utcnow() - timedelta(days=30),
             methodology_score=0.8,
             data_quality_score=0.7,
-            reproducibility_score=0.6
+            reproducibility_score=0.6,
         ),
         AuthoritativeSource(
             url="https://example.com/negative",
@@ -69,7 +70,7 @@ def conflicting_sources():
             publish_date=datetime.utcnow() - timedelta(days=60),
             methodology_score=0.6,
             data_quality_score=0.8,
-            reproducibility_score=0.5
+            reproducibility_score=0.5,
         ),
         AuthoritativeSource(
             url="https://example.com/neutral",
@@ -81,8 +82,8 @@ def conflicting_sources():
             publish_date=datetime.utcnow() - timedelta(days=15),
             methodology_score=0.9,
             data_quality_score=0.9,
-            reproducibility_score=0.8
-        )
+            reproducibility_score=0.8,
+        ),
     ]
 
 
@@ -96,7 +97,7 @@ def sample_conflict():
             summary="Positive conclusion",
             source_type=SourceType.ACADEMIC_PAPER,
             credibility_score=0.8,
-            credibility_factors={}
+            credibility_factors={},
         ),
         AuthoritativeSource(
             url="https://example.com/source2",
@@ -104,8 +105,8 @@ def sample_conflict():
             summary="Negative conclusion",
             source_type=SourceType.EXPERT_OPINION,
             credibility_score=0.7,
-            credibility_factors={}
-        )
+            credibility_factors={},
+        ),
     ]
 
     return EvidenceConflict(
@@ -114,7 +115,7 @@ def sample_conflict():
         sources=sources,
         conflicting_claims=["Positive outcome", "Negative outcome"],
         severity=0.8,
-        description="Test conflict"
+        description="Test conflict",
     )
 
 
@@ -128,15 +129,25 @@ class TestConflictResolver:
         assert conflict_resolver.conflict_detection_thresholds is not None
 
         # Check that required strategies are available
-        assert ResolutionStrategy.CREDIBILITY_WEIGHTED in conflict_resolver.resolution_strategies
-        assert ResolutionStrategy.CONSENSUS_BASED in conflict_resolver.resolution_strategies
-        assert ResolutionStrategy.EVIDENCE_TRIANGULATION in conflict_resolver.resolution_strategies
+        assert (
+            ResolutionStrategy.CREDIBILITY_WEIGHTED
+            in conflict_resolver.resolution_strategies
+        )
+        assert (
+            ResolutionStrategy.CONSENSUS_BASED
+            in conflict_resolver.resolution_strategies
+        )
+        assert (
+            ResolutionStrategy.EVIDENCE_TRIANGULATION
+            in conflict_resolver.resolution_strategies
+        )
 
-    def test_detect_conflicts(self, conflict_resolver, conflicting_sources, sample_question):
+    def test_detect_conflicts(
+        self, conflict_resolver, conflicting_sources, sample_question
+    ):
         """Test conflict detection between sources."""
         conflicts = conflict_resolver.detect_conflicts(
-            sources=conflicting_sources,
-            question_context=sample_question
+            sources=conflicting_sources, question_context=sample_question
         )
 
         assert isinstance(conflicts, list)
@@ -162,9 +173,13 @@ class TestConflictResolver:
             assert conflict.conflict_type == ConflictType.DIRECT_CONTRADICTION
             assert len(conflict.sources) >= 2
 
-    def test_detect_methodological_conflicts(self, conflict_resolver, conflicting_sources):
+    def test_detect_methodological_conflicts(
+        self, conflict_resolver, conflicting_sources
+    ):
         """Test detection of methodological conflicts."""
-        conflicts = conflict_resolver._detect_methodological_conflicts(conflicting_sources)
+        conflicts = conflict_resolver._detect_methodological_conflicts(
+            conflicting_sources
+        )
 
         assert isinstance(conflicts, list)
 
@@ -182,7 +197,7 @@ class TestConflictResolver:
             source_type=SourceType.ACADEMIC_PAPER,
             credibility_score=0.7,
             credibility_factors={},
-            publish_date=datetime.utcnow() - timedelta(days=800)
+            publish_date=datetime.utcnow() - timedelta(days=800),
         )
 
         new_source = AuthoritativeSource(
@@ -192,10 +207,12 @@ class TestConflictResolver:
             source_type=SourceType.ACADEMIC_PAPER,
             credibility_score=0.8,
             credibility_factors={},
-            publish_date=datetime.utcnow() - timedelta(days=30)
+            publish_date=datetime.utcnow() - timedelta(days=30),
         )
 
-        conflicts = conflict_resolver._detect_temporal_conflicts([old_source, new_source])
+        conflicts = conflict_resolver._detect_temporal_conflicts(
+            [old_source, new_source]
+        )
 
         assert isinstance(conflicts, list)
 
@@ -213,7 +230,7 @@ class TestConflictResolver:
             summary="Conclusion from high credibility source",
             source_type=SourceType.PEER_REVIEWED,
             credibility_score=0.9,
-            credibility_factors={}
+            credibility_factors={},
         )
 
         low_cred_source = AuthoritativeSource(
@@ -222,10 +239,12 @@ class TestConflictResolver:
             summary="Conclusion from low credibility source",
             source_type=SourceType.NEWS_ANALYSIS,
             credibility_score=0.3,
-            credibility_factors={}
+            credibility_factors={},
         )
 
-        conflicts = conflict_resolver._detect_credibility_conflicts([high_cred_source, low_cred_source])
+        conflicts = conflict_resolver._detect_credibility_conflicts(
+            [high_cred_source, low_cred_source]
+        )
 
         assert isinstance(conflicts, list)
 
@@ -241,14 +260,17 @@ class TestConflictResolver:
 
         resolved_conflicts = conflict_resolver.resolve_conflicts(
             conflicts=conflicts,
-            resolution_strategy=ResolutionStrategy.CREDIBILITY_WEIGHTED
+            resolution_strategy=ResolutionStrategy.CREDIBILITY_WEIGHTED,
         )
 
         assert isinstance(resolved_conflicts, list)
         assert len(resolved_conflicts) == 1
 
         resolved_conflict = resolved_conflicts[0]
-        assert resolved_conflict.resolution_strategy == ResolutionStrategy.CREDIBILITY_WEIGHTED
+        assert (
+            resolved_conflict.resolution_strategy
+            == ResolutionStrategy.CREDIBILITY_WEIGHTED
+        )
         assert resolved_conflict.resolution_confidence > 0.0
         assert "Resolution:" in resolved_conflict.description
 
@@ -256,15 +278,29 @@ class TestConflictResolver:
         """Test automatic resolution strategy selection."""
         # Test different conflict types get different strategies
         test_cases = [
-            (ConflictType.DIRECT_CONTRADICTION, ResolutionStrategy.CREDIBILITY_WEIGHTED),
-            (ConflictType.METHODOLOGICAL_DIFFERENCE, ResolutionStrategy.EVIDENCE_TRIANGULATION),
-            (ConflictType.TEMPORAL_INCONSISTENCY, ResolutionStrategy.RECENCY_PRIORITIZED),
-            (ConflictType.DATA_QUALITY_DISPARITY, ResolutionStrategy.CREDIBILITY_WEIGHTED)
+            (
+                ConflictType.DIRECT_CONTRADICTION,
+                ResolutionStrategy.CREDIBILITY_WEIGHTED,
+            ),
+            (
+                ConflictType.METHODOLOGICAL_DIFFERENCE,
+                ResolutionStrategy.EVIDENCE_TRIANGULATION,
+            ),
+            (
+                ConflictType.TEMPORAL_INCONSISTENCY,
+                ResolutionStrategy.RECENCY_PRIORITIZED,
+            ),
+            (
+                ConflictType.DATA_QUALITY_DISPARITY,
+                ResolutionStrategy.CREDIBILITY_WEIGHTED,
+            ),
         ]
 
         for conflict_type, expected_strategy in test_cases:
             sample_conflict.conflict_type = conflict_type
-            selected_strategy = conflict_resolver._select_resolution_strategy(sample_conflict)
+            selected_strategy = conflict_resolver._select_resolution_strategy(
+                sample_conflict
+            )
 
             # Note: RECENCY_PRIORITIZED is not implemented yet, so it falls back to CONSENSUS_BASED
             if expected_strategy == ResolutionStrategy.RECENCY_PRIORITIZED:
@@ -272,17 +308,21 @@ class TestConflictResolver:
             else:
                 assert selected_strategy == expected_strategy
 
-    def test_synthesize_conclusion(self, conflict_resolver, conflicting_sources, sample_question):
+    def test_synthesize_conclusion(
+        self, conflict_resolver, conflicting_sources, sample_question
+    ):
         """Test conclusion synthesis."""
         # First detect and resolve conflicts
-        conflicts = conflict_resolver.detect_conflicts(conflicting_sources, sample_question)
+        conflicts = conflict_resolver.detect_conflicts(
+            conflicting_sources, sample_question
+        )
         resolved_conflicts = conflict_resolver.resolve_conflicts(conflicts)
 
         # Then synthesize conclusion
         synthesis = conflict_resolver.synthesize_conclusion(
             sources=conflicting_sources,
             resolved_conflicts=resolved_conflicts,
-            question_context=sample_question
+            question_context=sample_question,
         )
 
         assert isinstance(synthesis, SynthesizedConclusion)
@@ -302,7 +342,7 @@ class TestConflictResolver:
             (0.9, 0, 5, UncertaintyLevel.LOW),
             (0.7, 1, 5, UncertaintyLevel.MODERATE),
             (0.5, 2, 5, UncertaintyLevel.HIGH),
-            (0.3, 3, 5, UncertaintyLevel.VERY_HIGH)
+            (0.3, 3, 5, UncertaintyLevel.VERY_HIGH),
         ]
 
         for confidence, conflict_count, source_count, expected_level in test_cases:
@@ -316,7 +356,9 @@ class TestConflictResolver:
         # Create some conflicts
         conflicts = conflict_resolver.detect_conflicts(conflicting_sources)
 
-        gaps = conflict_resolver._identify_knowledge_gaps(conflicting_sources, conflicts)
+        gaps = conflict_resolver._identify_knowledge_gaps(
+            conflicting_sources, conflicts
+        )
 
         assert isinstance(gaps, list)
 
@@ -329,7 +371,9 @@ class TestConflictResolver:
             assert isinstance(gap.potential_sources, list)
             assert isinstance(gap.research_suggestions, list)
 
-    def test_generate_conclusion_text(self, conflict_resolver, conflicting_sources, sample_question):
+    def test_generate_conclusion_text(
+        self, conflict_resolver, conflicting_sources, sample_question
+    ):
         """Test conclusion text generation."""
         conflicts = conflict_resolver.detect_conflicts(conflicting_sources)
 
@@ -337,28 +381,34 @@ class TestConflictResolver:
             sources=conflicting_sources,
             resolved_conflicts=conflicts,
             confidence=0.7,
-            question_context=sample_question
+            question_context=sample_question,
         )
 
         assert isinstance(conclusion_text, str)
         assert len(conclusion_text) > 0
         assert "evidence" in conclusion_text.lower()
 
-    def test_get_conflict_resolution_report(self, conflict_resolver, conflicting_sources, sample_question):
+    def test_get_conflict_resolution_report(
+        self, conflict_resolver, conflicting_sources, sample_question
+    ):
         """Test conflict resolution report generation."""
         # Detect and resolve conflicts
-        conflicts = conflict_resolver.detect_conflicts(conflicting_sources, sample_question)
+        conflicts = conflict_resolver.detect_conflicts(
+            conflicting_sources, sample_question
+        )
         resolved_conflicts = conflict_resolver.resolve_conflicts(conflicts)
 
         # Synthesize conclusion
         synthesis = conflict_resolver.synthesize_conclusion(
             sources=conflicting_sources,
             resolved_conflicts=resolved_conflicts,
-            question_context=sample_question
+            question_context=sample_question,
         )
 
         # Generate report
-        report = conflict_resolver.get_conflict_resolution_report(resolved_conflicts, synthesis)
+        report = conflict_resolver.get_conflict_resolution_report(
+            resolved_conflicts, synthesis
+        )
 
         assert isinstance(report, dict)
         assert "summary" in report
@@ -379,11 +429,12 @@ class TestConflictResolver:
         conflicts = conflict_resolver.detect_conflicts(conflicting_sources)
         resolved_conflicts = conflict_resolver.resolve_conflicts(conflicts)
         synthesis = conflict_resolver.synthesize_conclusion(
-            sources=conflicting_sources,
-            resolved_conflicts=resolved_conflicts
+            sources=conflicting_sources, resolved_conflicts=resolved_conflicts
         )
 
-        recommendations = conflict_resolver._generate_recommendations(conflicts, synthesis)
+        recommendations = conflict_resolver._generate_recommendations(
+            conflicts, synthesis
+        )
 
         assert isinstance(recommendations, list)
 
@@ -400,8 +451,7 @@ class TestResolutionStrategies:
         strategy = CredibilityWeightedStrategy()
 
         conclusion, confidence, uncertainty_factors = strategy.resolve_conflict(
-            sample_conflict,
-            {"strategy": ResolutionStrategy.CREDIBILITY_WEIGHTED}
+            sample_conflict, {"strategy": ResolutionStrategy.CREDIBILITY_WEIGHTED}
         )
 
         assert isinstance(conclusion, str)
@@ -415,8 +465,7 @@ class TestResolutionStrategies:
         strategy = ConsensusBasedStrategy()
 
         conclusion, confidence, uncertainty_factors = strategy.resolve_conflict(
-            sample_conflict,
-            {"strategy": ResolutionStrategy.CONSENSUS_BASED}
+            sample_conflict, {"strategy": ResolutionStrategy.CONSENSUS_BASED}
         )
 
         assert isinstance(conclusion, str)
@@ -430,8 +479,7 @@ class TestResolutionStrategies:
         strategy = EvidenceTriangulationStrategy()
 
         conclusion, confidence, uncertainty_factors = strategy.resolve_conflict(
-            sample_conflict,
-            {"strategy": ResolutionStrategy.EVIDENCE_TRIANGULATION}
+            sample_conflict, {"strategy": ResolutionStrategy.EVIDENCE_TRIANGULATION}
         )
 
         assert isinstance(conclusion, str)
@@ -453,7 +501,7 @@ class TestEvidenceConflict:
                 summary="Summary 1",
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.8,
-                credibility_factors={}
+                credibility_factors={},
             )
         ]
 
@@ -463,7 +511,7 @@ class TestEvidenceConflict:
             sources=sources,
             conflicting_claims=["Claim 1"],
             severity=0.7,
-            description="Test conflict"
+            description="Test conflict",
         )
 
         assert conflict.conflict_id == "test_id"
@@ -480,7 +528,7 @@ class TestEvidenceConflict:
                 summary="Summary 1",
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.8,
-                credibility_factors={}
+                credibility_factors={},
             )
         ]
 
@@ -489,7 +537,7 @@ class TestEvidenceConflict:
             conflict_type=ConflictType.DIRECT_CONTRADICTION,
             sources=sources,
             conflicting_claims=["Claim 1"],
-            severity=0.7
+            severity=0.7,
         )
 
         assert conflict.conflict_id.startswith("conflict_")
@@ -508,7 +556,7 @@ class TestSynthesizedConclusion:
                 summary="Summary 1",
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.8,
-                credibility_factors={}
+                credibility_factors={},
             )
         ]
 
@@ -522,7 +570,7 @@ class TestSynthesizedConclusion:
             evidence_weight_distribution={"source1": 1.0},
             uncertainty_factors=["Factor 1"],
             knowledge_gaps=["Gap 1"],
-            synthesis_methodology="Test methodology"
+            synthesis_methodology="Test methodology",
         )
 
         assert conclusion.conclusion_text == "Test conclusion"
@@ -544,7 +592,7 @@ class TestKnowledgeGap:
             severity=0.7,
             potential_sources=["Source 1", "Source 2"],
             research_suggestions=["Suggestion 1"],
-            impact_on_conclusion=0.6
+            impact_on_conclusion=0.6,
         )
 
         assert gap.gap_id == "test_gap"

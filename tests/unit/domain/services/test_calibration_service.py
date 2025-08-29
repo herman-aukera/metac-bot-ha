@@ -1,22 +1,23 @@
 """Tests for CalibrationTracker service."""
 
-import pytest
 from datetime import datetime, timedelta
-from uuid import uuid4
 from unittest.mock import Mock
+from uuid import uuid4
 
-from src.domain.services.calibration_service import (
-    CalibrationTracker,
-    CalibrationMetrics,
-    CalibrationBin,
-    CalibrationDriftAlert,
-    CalibrationDriftSeverity
-)
+import pytest
+
 from src.domain.entities.prediction import (
     Prediction,
-    PredictionResult,
     PredictionConfidence,
-    PredictionMethod
+    PredictionMethod,
+    PredictionResult,
+)
+from src.domain.services.calibration_service import (
+    CalibrationBin,
+    CalibrationDriftAlert,
+    CalibrationDriftSeverity,
+    CalibrationMetrics,
+    CalibrationTracker,
 )
 
 
@@ -43,7 +44,7 @@ class TestCalibrationBin:
         bin.add_prediction(0.62, 1)  # Correct prediction
 
         assert bin.count == 3
-        assert bin.observed_frequency == 2/3  # 2 out of 3 correct
+        assert bin.observed_frequency == 2 / 3  # 2 out of 3 correct
         assert abs(bin.average_predicted_probability - 0.65) < 0.01
 
 
@@ -65,7 +66,7 @@ class TestCalibrationMetrics:
             measurement_timestamp=datetime.utcnow(),
             time_window_days=30,
             drift_severity=CalibrationDriftSeverity.MILD,
-            drift_score=0.06
+            drift_score=0.06,
         )
 
         assert metrics.brier_score == 0.15
@@ -89,7 +90,7 @@ class TestCalibrationMetrics:
             measurement_timestamp=datetime.utcnow(),
             time_window_days=30,
             drift_severity=CalibrationDriftSeverity.MILD,
-            drift_score=0.06
+            drift_score=0.06,
         )
 
         summary = metrics.get_calibration_summary()
@@ -113,7 +114,7 @@ class TestCalibrationDriftAlert:
             recommended_actions=["Recalibrate models", "Review thresholds"],
             current_calibration_error=0.15,
             baseline_calibration_error=0.08,
-            error_increase=0.07
+            error_increase=0.07,
         )
 
         assert alert.severity == CalibrationDriftSeverity.MODERATE
@@ -131,7 +132,7 @@ class TestCalibrationDriftAlert:
             recommended_actions=["Immediate recalibration"],
             current_calibration_error=0.20,
             baseline_calibration_error=0.05,
-            error_increase=0.15
+            error_increase=0.15,
         )
 
         summary = alert.get_alert_summary()
@@ -164,7 +165,7 @@ class TestCalibrationTracker:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning=f"Prediction {i}",
-                created_by="test_agent"
+                created_by="test_agent",
             )
             predictions.append(prediction)
 
@@ -207,7 +208,7 @@ class TestCalibrationTracker:
                 confidence=PredictionConfidence.LOW,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Low confidence",
-                created_by="test_agent"
+                created_by="test_agent",
             )
             predictions.append(pred)
             outcomes.append(0)  # All fail
@@ -224,7 +225,7 @@ class TestCalibrationTracker:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="High confidence",
-                created_by="test_agent"
+                created_by="test_agent",
             )
             predictions.append(pred)
             outcomes.append(1)  # Most succeed
@@ -252,7 +253,7 @@ class TestCalibrationTracker:
                 confidence=PredictionConfidence.VERY_HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Very confident",
-                created_by="test_agent"
+                created_by="test_agent",
             )
             predictions.append(pred)
             outcomes.append(0)  # But all fail
@@ -275,7 +276,9 @@ class TestCalibrationTracker:
         with pytest.raises(ValueError, match="same length"):
             tracker.calculate_calibration_metrics(predictions, outcomes)
 
-    def test_detect_calibration_drift_no_baseline(self, tracker, sample_predictions, sample_outcomes):
+    def test_detect_calibration_drift_no_baseline(
+        self, tracker, sample_predictions, sample_outcomes
+    ):
         """Test drift detection with no baseline."""
         alert = tracker.detect_calibration_drift(sample_predictions, sample_outcomes)
 
@@ -296,7 +299,7 @@ class TestCalibrationTracker:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Baseline",
-                created_by="test_agent"
+                created_by="test_agent",
             )
             baseline_predictions.append(pred)
             baseline_outcomes.append(i % 2)  # 50% success rate
@@ -316,7 +319,7 @@ class TestCalibrationTracker:
                 confidence=PredictionConfidence.VERY_HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Overconfident",
-                created_by="test_agent"
+                created_by="test_agent",
             )
             drifted_predictions.append(pred)
             drifted_outcomes.append(i % 2)  # Still 50% success rate
@@ -329,7 +332,9 @@ class TestCalibrationTracker:
         assert alert.drift_score > 0.0
         assert len(alert.recommended_actions) > 0
 
-    def test_apply_calibration_correction(self, tracker, sample_predictions, sample_outcomes):
+    def test_apply_calibration_correction(
+        self, tracker, sample_predictions, sample_outcomes
+    ):
         """Test applying calibration correction to predictions."""
         # Establish calibration baseline
         tracker.calculate_calibration_metrics(sample_predictions, sample_outcomes)
@@ -342,7 +347,7 @@ class TestCalibrationTracker:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Original prediction",
-            created_by="test_agent"
+            created_by="test_agent",
         )
 
         corrected = tracker.apply_calibration_correction(prediction)
@@ -363,7 +368,7 @@ class TestCalibrationTracker:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Numeric prediction",
-            created_by="test_agent"
+            created_by="test_agent",
         )
 
         corrected = tracker.apply_calibration_correction(prediction)
@@ -378,7 +383,9 @@ class TestCalibrationTracker:
         assert "error" in report
         assert "No calibration data available" in report["error"]
 
-    def test_get_calibration_report_with_data(self, tracker, sample_predictions, sample_outcomes):
+    def test_get_calibration_report_with_data(
+        self, tracker, sample_predictions, sample_outcomes
+    ):
         """Test calibration report generation with data."""
         # Generate some calibration data
         tracker.calculate_calibration_metrics(sample_predictions, sample_outcomes)
@@ -403,7 +410,9 @@ class TestCalibrationTracker:
 
     def test_update_calibration_thresholds(self, tracker):
         """Test updating calibration thresholds based on performance."""
-        original_mild_threshold = tracker.drift_thresholds[CalibrationDriftSeverity.MILD]
+        original_mild_threshold = tracker.drift_thresholds[
+            CalibrationDriftSeverity.MILD
+        ]
 
         # High accuracy should make thresholds more sensitive
         performance_data = {"accuracy": 0.85}
@@ -515,9 +524,13 @@ class TestCalibrationTracker:
         # Test different drift scores
         assert tracker._classify_drift_severity(0.01) == CalibrationDriftSeverity.NONE
         assert tracker._classify_drift_severity(0.06) == CalibrationDriftSeverity.MILD
-        assert tracker._classify_drift_severity(0.12) == CalibrationDriftSeverity.MODERATE
+        assert (
+            tracker._classify_drift_severity(0.12) == CalibrationDriftSeverity.MODERATE
+        )
         assert tracker._classify_drift_severity(0.18) == CalibrationDriftSeverity.SEVERE
-        assert tracker._classify_drift_severity(0.30) == CalibrationDriftSeverity.CRITICAL
+        assert (
+            tracker._classify_drift_severity(0.30) == CalibrationDriftSeverity.CRITICAL
+        )
 
     def test_drift_recommendations_generation(self, tracker):
         """Test drift recommendation generation."""
@@ -537,7 +550,9 @@ class TestCalibrationTracker:
         assert len(recommendations) > 0
         assert any("recalibration" in rec.lower() for rec in recommendations)
 
-    def test_calibration_correction_factor(self, tracker, sample_predictions, sample_outcomes):
+    def test_calibration_correction_factor(
+        self, tracker, sample_predictions, sample_outcomes
+    ):
         """Test calibration correction factor calculation."""
         # Establish calibration data
         tracker.calculate_calibration_metrics(sample_predictions, sample_outcomes)
@@ -598,7 +613,7 @@ class TestCalibrationTracker:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.CHAIN_OF_THOUGHT,
                 reasoning="Category A prediction",
-                created_by="test_agent"
+                created_by="test_agent",
             )
             predictions.append(pred)
             outcomes.append(1)
@@ -627,7 +642,7 @@ class TestCalibrationTracker:
                     confidence=PredictionConfidence.MEDIUM,
                     method=PredictionMethod.CHAIN_OF_THOUGHT,
                     reasoning=f"{category} prediction",
-                    created_by="test_agent"
+                    created_by="test_agent",
                 )
                 predictions.append(pred)
                 outcomes.append(i % 2)

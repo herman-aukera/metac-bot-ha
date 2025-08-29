@@ -1,23 +1,24 @@
 """Tests for UncertaintyQuantifier service."""
 
-import pytest
 from datetime import datetime
-from uuid import uuid4
 from unittest.mock import Mock
+from uuid import uuid4
 
-from src.domain.services.uncertainty_quantifier import (
-    UncertaintyQuantifier,
-    UncertaintyAssessment,
-    UncertaintySource,
-    ConfidenceThresholds
-)
+import pytest
+
+from src.domain.entities.forecast import Forecast
 from src.domain.entities.prediction import (
     Prediction,
-    PredictionResult,
     PredictionConfidence,
-    PredictionMethod
+    PredictionMethod,
+    PredictionResult,
 )
-from src.domain.entities.forecast import Forecast
+from src.domain.services.uncertainty_quantifier import (
+    ConfidenceThresholds,
+    UncertaintyAssessment,
+    UncertaintyQuantifier,
+    UncertaintySource,
+)
 from src.domain.value_objects.reasoning_trace import ReasoningTrace
 
 
@@ -41,7 +42,7 @@ class TestConfidenceThresholds:
             research_trigger=0.5,
             minimum_submission=0.6,
             high_confidence=0.8,
-            very_high_confidence=0.9
+            very_high_confidence=0.9,
         )
 
         # Should not raise exception
@@ -51,7 +52,7 @@ class TestConfidenceThresholds:
         """Test threshold validation with invalid order."""
         thresholds = ConfidenceThresholds(
             abstention_threshold=0.7,  # Higher than minimum_submission
-            minimum_submission=0.6
+            minimum_submission=0.6,
         )
 
         with pytest.raises(ValueError, match="ascending order"):
@@ -66,7 +67,7 @@ class TestUncertaintyAssessment:
         uncertainty_sources = {
             UncertaintySource.EPISTEMIC: 0.3,
             UncertaintySource.DATA: 0.4,
-            UncertaintySource.MODEL: 0.2
+            UncertaintySource.MODEL: 0.2,
         }
 
         assessment = UncertaintyAssessment(
@@ -76,7 +77,7 @@ class TestUncertaintyAssessment:
             confidence_level=0.6,
             calibration_score=0.7,
             uncertainty_decomposition={"epistemic": 0.3, "data": 0.4},
-            assessment_timestamp=datetime.utcnow()
+            assessment_timestamp=datetime.utcnow(),
         )
 
         assert assessment.total_uncertainty == 0.5
@@ -87,7 +88,7 @@ class TestUncertaintyAssessment:
         """Test uncertainty summary generation."""
         uncertainty_sources = {
             UncertaintySource.DATA: 0.6,  # Dominant source
-            UncertaintySource.MODEL: 0.3
+            UncertaintySource.MODEL: 0.3,
         }
 
         assessment = UncertaintyAssessment(
@@ -97,7 +98,7 @@ class TestUncertaintyAssessment:
             confidence_level=0.6,
             calibration_score=0.7,
             uncertainty_decomposition={},
-            assessment_timestamp=datetime.utcnow()
+            assessment_timestamp=datetime.utcnow(),
         )
 
         summary = assessment.get_uncertainty_summary()
@@ -126,7 +127,7 @@ class TestUncertaintyQuantifier:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Test reasoning",
-            created_by="test_agent"
+            created_by="test_agent",
         )
 
     @pytest.fixture
@@ -143,7 +144,7 @@ class TestUncertaintyQuantifier:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.ENSEMBLE,
                 reasoning=f"Agent {i} reasoning",
-                created_by=f"agent_{i}"
+                created_by=f"agent_{i}",
             )
             predictions.append(prediction)
 
@@ -164,8 +165,7 @@ class TestUncertaintyQuantifier:
     ):
         """Test uncertainty assessment with ensemble predictions."""
         assessment = quantifier.assess_prediction_uncertainty(
-            sample_prediction,
-            ensemble_predictions=ensemble_predictions
+            sample_prediction, ensemble_predictions=ensemble_predictions
         )
 
         # Should have expert uncertainty from ensemble disagreement
@@ -178,18 +178,18 @@ class TestUncertaintyQuantifier:
         """Test uncertainty assessment with research quality score."""
         # High quality research should reduce data uncertainty
         assessment_high_quality = quantifier.assess_prediction_uncertainty(
-            sample_prediction,
-            research_quality_score=0.9
+            sample_prediction, research_quality_score=0.9
         )
 
         # Low quality research should increase data uncertainty
         assessment_low_quality = quantifier.assess_prediction_uncertainty(
-            sample_prediction,
-            research_quality_score=0.2
+            sample_prediction, research_quality_score=0.2
         )
 
-        assert (assessment_low_quality.uncertainty_sources[UncertaintySource.DATA] >
-                assessment_high_quality.uncertainty_sources[UncertaintySource.DATA])
+        assert (
+            assessment_low_quality.uncertainty_sources[UncertaintySource.DATA]
+            > assessment_high_quality.uncertainty_sources[UncertaintySource.DATA]
+        )
 
     def test_validate_confidence_level(self, quantifier, sample_prediction):
         """Test confidence level validation."""
@@ -210,8 +210,7 @@ class TestUncertaintyQuantifier:
         """Test research trigger logic."""
         # Create assessment with high data uncertainty
         assessment = quantifier.assess_prediction_uncertainty(
-            sample_prediction,
-            research_quality_score=0.2  # Low quality
+            sample_prediction, research_quality_score=0.2  # Low quality
         )
 
         research_decision = quantifier.should_trigger_additional_research(assessment)
@@ -235,7 +234,7 @@ class TestUncertaintyQuantifier:
             confidence=PredictionConfidence.VERY_LOW,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Very uncertain",
-            created_by="test_agent"
+            created_by="test_agent",
         )
 
         assessment = quantifier.assess_prediction_uncertainty(low_confidence_prediction)
@@ -249,7 +248,9 @@ class TestUncertaintyQuantifier:
         # Should likely abstain due to very low confidence
         assert isinstance(abstention_decision["should_abstain"], bool)
 
-    def test_should_abstain_with_tournament_context(self, quantifier, sample_prediction):
+    def test_should_abstain_with_tournament_context(
+        self, quantifier, sample_prediction
+    ):
         """Test abstention with tournament context."""
         assessment = quantifier.assess_prediction_uncertainty(sample_prediction)
 
@@ -261,7 +262,10 @@ class TestUncertaintyQuantifier:
         )
 
         assert abstention_decision["tournament_penalty"] == 0.3
-        assert abstention_decision["abstention_threshold"] > quantifier.confidence_thresholds.abstention_threshold
+        assert (
+            abstention_decision["abstention_threshold"]
+            > quantifier.confidence_thresholds.abstention_threshold
+        )
 
     def test_update_confidence_thresholds(self, quantifier):
         """Test confidence threshold updates based on performance."""
@@ -315,7 +319,7 @@ class TestUncertaintyQuantifier:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.TREE_OF_THOUGHT,
             reasoning="Systematic analysis",
-            created_by="tot_agent"
+            created_by="tot_agent",
         )
 
         react_prediction = Prediction.create_binary_prediction(
@@ -325,7 +329,7 @@ class TestUncertaintyQuantifier:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.REACT,
             reasoning="Dynamic reasoning",
-            created_by="react_agent"
+            created_by="react_agent",
         )
 
         tot_uncertainty = quantifier._calculate_model_uncertainty(tot_prediction)
@@ -344,7 +348,7 @@ class TestUncertaintyQuantifier:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.ENSEMBLE,
                 reasoning="Test",
-                created_by="agent"
+                created_by="agent",
             )
             for prob in [0.2, 0.8, 0.9]  # High variance
         ]
@@ -358,7 +362,7 @@ class TestUncertaintyQuantifier:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.ENSEMBLE,
                 reasoning="Test",
-                created_by="agent"
+                created_by="agent",
             )
             for prob in [0.68, 0.70, 0.72]  # Low variance
         ]
@@ -399,7 +403,7 @@ class TestUncertaintyQuantifier:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.ENSEMBLE,
             reasoning="Ensemble prediction",
-            created_by="ensemble"
+            created_by="ensemble",
         )
         forecast.predictions = [forecast.final_prediction]
 
@@ -452,13 +456,19 @@ class TestUncertaintyQuantifier:
             ensemble_predictions, assessments
         )
 
-        for threshold_name in ["minimum_submission", "high_confidence", "very_high_confidence"]:
+        for threshold_name in [
+            "minimum_submission",
+            "high_confidence",
+            "very_high_confidence",
+        ]:
             assert threshold_name in threshold_analysis
             assert "threshold" in threshold_analysis[threshold_name]
             assert "predictions_above" in threshold_analysis[threshold_name]
             assert "percentage_above" in threshold_analysis[threshold_name]
 
-    def test_confidence_recommendations_generation(self, quantifier, ensemble_predictions):
+    def test_confidence_recommendations_generation(
+        self, quantifier, ensemble_predictions
+    ):
         """Test confidence recommendation generation."""
         assessments = []
         for prediction in ensemble_predictions:
@@ -480,7 +490,7 @@ class TestUncertaintyQuantifier:
             high_confidence=0.85,
             very_high_confidence=0.95,
             abstention_threshold=0.3,
-            research_trigger=0.6
+            research_trigger=0.6,
         )
 
         quantifier = UncertaintyQuantifier(custom_thresholds)
@@ -498,7 +508,7 @@ class TestUncertaintyQuantifier:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Detailed reasoning",
-            created_by="test_agent"
+            created_by="test_agent",
         )
 
         # Mock reasoning trace with high quality
@@ -514,12 +524,18 @@ class TestUncertaintyQuantifier:
             confidence=PredictionConfidence.HIGH,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Basic reasoning",
-            created_by="test_agent"
+            created_by="test_agent",
         )
 
-        assessment_with_trace = quantifier.assess_prediction_uncertainty(prediction_with_trace)
-        assessment_without_trace = quantifier.assess_prediction_uncertainty(prediction_without_trace)
+        assessment_with_trace = quantifier.assess_prediction_uncertainty(
+            prediction_with_trace
+        )
+        assessment_without_trace = quantifier.assess_prediction_uncertainty(
+            prediction_without_trace
+        )
 
         # Prediction with high-quality reasoning trace should have lower epistemic uncertainty
-        assert (assessment_with_trace.uncertainty_sources[UncertaintySource.EPISTEMIC] <
-                assessment_without_trace.uncertainty_sources[UncertaintySource.EPISTEMIC])
+        assert (
+            assessment_with_trace.uncertainty_sources[UncertaintySource.EPISTEMIC]
+            < assessment_without_trace.uncertainty_sources[UncertaintySource.EPISTEMIC]
+        )

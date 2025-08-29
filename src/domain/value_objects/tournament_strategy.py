@@ -3,12 +3,13 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 
 class QuestionCategory(Enum):
     """Categories of forecasting questions for specialized strategies."""
+
     TECHNOLOGY = "technology"
     ECONOMICS = "economics"
     POLITICS = "politics"
@@ -25,6 +26,7 @@ class QuestionCategory(Enum):
 
 class TournamentPhase(Enum):
     """Phases of tournament for strategy adaptation."""
+
     EARLY = "early"
     MIDDLE = "middle"
     LATE = "late"
@@ -33,6 +35,7 @@ class TournamentPhase(Enum):
 
 class RiskProfile(Enum):
     """Risk profiles for tournament strategy."""
+
     CONSERVATIVE = "conservative"
     MODERATE = "moderate"
     AGGRESSIVE = "aggressive"
@@ -42,6 +45,7 @@ class RiskProfile(Enum):
 @dataclass(frozen=True)
 class QuestionPriority:
     """Priority assessment for tournament questions."""
+
     question_id: UUID
     category: QuestionCategory
     confidence_level: float
@@ -57,7 +61,7 @@ class QuestionPriority:
             ("scoring_potential", self.scoring_potential),
             ("resource_allocation", self.resource_allocation),
             ("deadline_urgency", self.deadline_urgency),
-            ("competitive_advantage", self.competitive_advantage)
+            ("competitive_advantage", self.competitive_advantage),
         ]:
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{field_name} must be between 0 and 1, got {value}")
@@ -71,7 +75,7 @@ class QuestionPriority:
         scoring_potential: float,
         resource_allocation: float = 0.5,
         deadline_urgency: float = 0.5,
-        competitive_advantage: float = 0.5
+        competitive_advantage: float = 0.5,
     ) -> "QuestionPriority":
         """Factory method to create question priority."""
         return cls(
@@ -81,7 +85,7 @@ class QuestionPriority:
             scoring_potential=scoring_potential,
             resource_allocation=resource_allocation,
             deadline_urgency=deadline_urgency,
-            competitive_advantage=competitive_advantage
+            competitive_advantage=competitive_advantage,
         )
 
     def get_overall_priority_score(self) -> float:
@@ -91,21 +95,22 @@ class QuestionPriority:
             "confidence_level": 0.25,
             "competitive_advantage": 0.2,
             "deadline_urgency": 0.15,
-            "resource_allocation": 0.1
+            "resource_allocation": 0.1,
         }
 
         return (
-            self.scoring_potential * weights["scoring_potential"] +
-            self.confidence_level * weights["confidence_level"] +
-            self.competitive_advantage * weights["competitive_advantage"] +
-            self.deadline_urgency * weights["deadline_urgency"] +
-            self.resource_allocation * weights["resource_allocation"]
+            self.scoring_potential * weights["scoring_potential"]
+            + self.confidence_level * weights["confidence_level"]
+            + self.competitive_advantage * weights["competitive_advantage"]
+            + self.deadline_urgency * weights["deadline_urgency"]
+            + self.resource_allocation * weights["resource_allocation"]
         )
 
 
 @dataclass(frozen=True)
 class TournamentStrategy:
     """Tournament-specific strategy configuration."""
+
     id: UUID
     tournament_id: str
     phase: TournamentPhase
@@ -122,7 +127,7 @@ class TournamentStrategy:
         cls,
         tournament_id: str,
         phase: TournamentPhase = TournamentPhase.EARLY,
-        risk_profile: RiskProfile = RiskProfile.MODERATE
+        risk_profile: RiskProfile = RiskProfile.MODERATE,
     ) -> "TournamentStrategy":
         """Create default tournament strategy."""
         return cls(
@@ -137,30 +142,28 @@ class TournamentStrategy:
                 QuestionCategory.SCIENCE: 0.8,
                 QuestionCategory.HEALTH: 0.7,
                 QuestionCategory.CLIMATE: 0.6,
-                QuestionCategory.OTHER: 0.5
+                QuestionCategory.OTHER: 0.5,
             },
             resource_allocation_weights={
                 "research_depth": 0.4,
                 "ensemble_diversity": 0.3,
                 "validation_rigor": 0.2,
-                "speed_optimization": 0.1
+                "speed_optimization": 0.1,
             },
             confidence_thresholds={
                 "minimum_submission": 0.6,
                 "high_confidence": 0.8,
                 "abstention": 0.4,
-                "additional_research": 0.5
+                "additional_research": 0.5,
             },
             submission_timing_strategy="optimal_window",
             competitive_positioning="balanced",
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
     @classmethod
     def create_aggressive(
-        cls,
-        tournament_id: str,
-        phase: TournamentPhase = TournamentPhase.LATE
+        cls, tournament_id: str, phase: TournamentPhase = TournamentPhase.LATE
     ) -> "TournamentStrategy":
         """Create aggressive tournament strategy for late-phase competition."""
         return cls(
@@ -175,30 +178,28 @@ class TournamentStrategy:
                 QuestionCategory.SCIENCE: 0.9,
                 QuestionCategory.HEALTH: 0.8,
                 QuestionCategory.CLIMATE: 0.7,
-                QuestionCategory.OTHER: 0.6
+                QuestionCategory.OTHER: 0.6,
             },
             resource_allocation_weights={
                 "research_depth": 0.5,
                 "ensemble_diversity": 0.3,
                 "validation_rigor": 0.1,
-                "speed_optimization": 0.1
+                "speed_optimization": 0.1,
             },
             confidence_thresholds={
                 "minimum_submission": 0.5,
                 "high_confidence": 0.75,
                 "abstention": 0.3,
-                "additional_research": 0.4
+                "additional_research": 0.4,
             },
             submission_timing_strategy="early_advantage",
             competitive_positioning="aggressive",
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
     @classmethod
     def create_conservative(
-        cls,
-        tournament_id: str,
-        phase: TournamentPhase = TournamentPhase.EARLY
+        cls, tournament_id: str, phase: TournamentPhase = TournamentPhase.EARLY
     ) -> "TournamentStrategy":
         """Create conservative tournament strategy for risk management."""
         return cls(
@@ -213,23 +214,23 @@ class TournamentStrategy:
                 QuestionCategory.SCIENCE: 0.8,
                 QuestionCategory.HEALTH: 0.7,
                 QuestionCategory.CLIMATE: 0.6,
-                QuestionCategory.OTHER: 0.4
+                QuestionCategory.OTHER: 0.4,
             },
             resource_allocation_weights={
                 "research_depth": 0.3,
                 "ensemble_diversity": 0.2,
                 "validation_rigor": 0.4,
-                "speed_optimization": 0.1
+                "speed_optimization": 0.1,
             },
             confidence_thresholds={
                 "minimum_submission": 0.7,
                 "high_confidence": 0.85,
                 "abstention": 0.5,
-                "additional_research": 0.6
+                "additional_research": 0.6,
             },
             submission_timing_strategy="late_validation",
             competitive_positioning="conservative",
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
     def get_category_confidence_threshold(self, category: QuestionCategory) -> float:
@@ -242,10 +243,7 @@ class TournamentStrategy:
         return max(0.1, min(0.9, base_threshold - adjustment))
 
     def should_prioritize_question(
-        self,
-        category: QuestionCategory,
-        confidence: float,
-        scoring_potential: float
+        self, category: QuestionCategory, confidence: float, scoring_potential: float
     ) -> bool:
         """Determine if a question should be prioritized based on strategy."""
         category_threshold = self.get_category_confidence_threshold(category)
@@ -265,6 +263,7 @@ class TournamentStrategy:
 @dataclass(frozen=True)
 class CompetitiveIntelligence:
     """Intelligence about tournament competition and market dynamics."""
+
     tournament_id: str
     current_standings: Dict[str, float]
     market_inefficiencies: List[str]
@@ -283,7 +282,7 @@ class CompetitiveIntelligence:
             competitor_patterns={},
             scoring_trends={},
             question_difficulty_distribution={},
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
     def get_competitive_advantage_score(self, category: QuestionCategory) -> float:
@@ -295,6 +294,8 @@ class CompetitiveIntelligence:
         base_advantage = difficulty * 0.5
 
         # Add market inefficiency bonus
-        inefficiency_bonus = 0.1 if str(category.value) in self.market_inefficiencies else 0.0
+        inefficiency_bonus = (
+            0.1 if str(category.value) in self.market_inefficiencies else 0.0
+        )
 
         return min(1.0, base_advantage + inefficiency_bonus)

@@ -1,14 +1,16 @@
 """
 Integration tests for cost-aware model selection and budget management.
 """
-import pytest
+
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.infrastructure.config.budget_manager import BudgetManager
-from src.infrastructure.config.token_tracker import TokenTracker
 from src.infrastructure.config.cost_monitor import CostMonitor
+from src.infrastructure.config.token_tracker import TokenTracker
 
 
 class TestCostAwareModelSelection:
@@ -20,7 +22,9 @@ class TestCostAwareModelSelection:
         self.temp_dir = tempfile.mkdtemp()
 
         # Create test instances with temporary data files
-        self.budget_manager = BudgetManager(budget_limit=20.0)  # Small budget for testing
+        self.budget_manager = BudgetManager(
+            budget_limit=20.0
+        )  # Small budget for testing
         self.budget_manager.data_file = Path(self.temp_dir) / "test_budget.json"
 
         self.token_tracker = TokenTracker()
@@ -50,11 +54,14 @@ class TestCostAwareModelSelection:
         # Both should have similar token counts for same text
         token_diff = abs(result_4o["total_tokens"] - result_mini["total_tokens"])
         assert token_diff < 50  # Allow some variation in tokenization
+
     def test_budget_threshold_model_switching(self):
         """Test automatic model switching based on budget thresholds."""
         # Simulate high budget usage with expensive model
         long_prompt = "This is a very long prompt that will consume many tokens " * 50
-        long_response = "This is a very long response that will consume many tokens " * 50
+        long_response = (
+            "This is a very long response that will consume many tokens " * 50
+        )
 
         # Use expensive model until budget threshold
         for i in range(5):
@@ -69,7 +76,12 @@ class TestCostAwareModelSelection:
         # Simulate switching to cheaper model
         for i in range(5):
             self.cost_monitor.track_api_call_with_monitoring(
-                f"cheap-{i}", "gpt-4o-mini", "forecast", long_prompt, long_response, True
+                f"cheap-{i}",
+                "gpt-4o-mini",
+                "forecast",
+                long_prompt,
+                long_response,
+                True,
             )
 
         # Verify cost savings with cheaper model
@@ -103,7 +115,12 @@ class TestCostAwareModelSelection:
 
         for i in range(8):  # Push budget utilization higher
             self.cost_monitor.track_api_call_with_monitoring(
-                f"expensive-{i}", "gpt-4o", "forecast", expensive_prompt, expensive_response, True
+                f"expensive-{i}",
+                "gpt-4o",
+                "forecast",
+                expensive_prompt,
+                expensive_response,
+                True,
             )
 
         final_status = self.cost_monitor.get_comprehensive_status()
@@ -115,7 +132,11 @@ class TestCostAwareModelSelection:
 
         # Should recommend cheaper models or reduced usage
         rec_text = " ".join(recommendations).lower()
-        assert any(keyword in rec_text for keyword in ["gpt-4o-mini", "reduce", "optimize", "budget"])
+        assert any(
+            keyword in rec_text
+            for keyword in ["gpt-4o-mini", "reduce", "optimize", "budget"]
+        )
+
     def test_tournament_duration_budget_simulation(self):
         """Test budget simulation for tournament duration."""
         # Simulate a tournament with mixed task types
@@ -134,15 +155,23 @@ class TestCostAwareModelSelection:
                 # Mix of research and forecast tasks
                 if q % 3 == 0:  # Every 3rd question gets research
                     result = self.cost_monitor.track_api_call_with_monitoring(
-                        f"{question_id}-research", "gpt-4o-mini", "research",
-                        "Research prompt for context", "Research findings", True
+                        f"{question_id}-research",
+                        "gpt-4o-mini",
+                        "research",
+                        "Research prompt for context",
+                        "Research findings",
+                        True,
                     )
                     day_cost += result["estimated_cost"]
 
                 # Forecast task
                 result = self.cost_monitor.track_api_call_with_monitoring(
-                    f"{question_id}-forecast", "gpt-4o", "forecast",
-                    "Forecast prompt with analysis", "Detailed forecast with reasoning", True
+                    f"{question_id}-forecast",
+                    "gpt-4o",
+                    "forecast",
+                    "Forecast prompt with analysis",
+                    "Detailed forecast with reasoning",
+                    True,
                 )
                 day_cost += result["estimated_cost"]
 
@@ -161,11 +190,17 @@ class TestCostAwareModelSelection:
         assert "forecast" in task_breakdown
         # All questions get forecasts, plus some research calls
         # Note: total_calls includes both research and forecast calls
-        expected_research_calls = total_questions // 3  # Every 3rd question gets research
+        expected_research_calls = (
+            total_questions // 3
+        )  # Every 3rd question gets research
         expected_forecast_calls = total_questions  # All questions get forecasts
 
-        assert task_breakdown["forecast"]["calls"] >= total_questions  # All questions get forecasts
-        assert task_breakdown["research"]["calls"] >= expected_research_calls  # Every 3rd gets research
+        assert (
+            task_breakdown["forecast"]["calls"] >= total_questions
+        )  # All questions get forecasts
+        assert (
+            task_breakdown["research"]["calls"] >= expected_research_calls
+        )  # Every 3rd gets research
 
         # Budget should be tracked accurately
         assert final_status["budget"]["spent"] > 0
@@ -184,7 +219,7 @@ class TestCostAwareModelSelection:
         for file_path in [
             self.budget_manager.data_file,
             self.token_tracker.data_file,
-            self.cost_monitor.alerts_file
+            self.cost_monitor.alerts_file,
         ]:
             if file_path.exists():
                 file_path.unlink()

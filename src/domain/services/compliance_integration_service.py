@@ -1,12 +1,15 @@
 """Integration service for tournament compliance monitoring."""
 
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from ..entities.prediction import Prediction
 from ..entities.forecast import Forecast
-from .tournament_rule_compliance_monitor import TournamentRuleComplianceMonitor, ComplianceReport
+from ..entities.prediction import Prediction
+from .tournament_rule_compliance_monitor import (
+    ComplianceReport,
+    TournamentRuleComplianceMonitor,
+)
 
 
 class ComplianceIntegrationService:
@@ -21,14 +24,18 @@ class ComplianceIntegrationService:
         self.block_non_compliant_submissions = True
         self.auto_remediate_violations = True
 
-    def validate_and_enhance_prediction(self, prediction: Prediction) -> tuple[Prediction, ComplianceReport]:
+    def validate_and_enhance_prediction(
+        self, prediction: Prediction
+    ) -> tuple[Prediction, ComplianceReport]:
         """Validate prediction compliance and enhance with automation markers."""
 
         # Add automation markers to ensure compliance
         enhanced_prediction = self._add_automation_markers(prediction)
 
         # Validate compliance
-        compliance_report = self.compliance_monitor.validate_prediction_compliance(enhanced_prediction)
+        compliance_report = self.compliance_monitor.validate_prediction_compliance(
+            enhanced_prediction
+        )
 
         # Log the validation
         self.compliance_monitor.log_automated_decision(
@@ -37,8 +44,8 @@ class ComplianceIntegrationService:
             metadata={
                 "prediction_id": str(prediction.id),
                 "compliance_score": compliance_report.compliance_score,
-                "is_compliant": compliance_report.is_compliant
-            }
+                "is_compliant": compliance_report.is_compliant,
+            },
         )
 
         # Handle non-compliance
@@ -48,17 +55,21 @@ class ComplianceIntegrationService:
                     enhanced_prediction, compliance_report
                 )
                 # Re-validate after remediation
-                final_report = self.compliance_monitor.validate_prediction_compliance(remediated_prediction)
+                final_report = self.compliance_monitor.validate_prediction_compliance(
+                    remediated_prediction
+                )
                 return remediated_prediction, final_report
             else:
                 self.logger.error(
                     f"Non-compliant prediction blocked: {compliance_report.violations}",
-                    extra={"compliance_violation": True}
+                    extra={"compliance_violation": True},
                 )
 
         return enhanced_prediction, compliance_report
 
-    def validate_and_enhance_forecast(self, forecast: Forecast) -> tuple[Forecast, ComplianceReport]:
+    def validate_and_enhance_forecast(
+        self, forecast: Forecast
+    ) -> tuple[Forecast, ComplianceReport]:
         """Validate forecast compliance and enhance with automation markers."""
 
         # Enhance all predictions in the forecast
@@ -75,15 +86,21 @@ class ComplianceIntegrationService:
             research_reports=forecast.research_reports,
             created_at=forecast.created_at,
             updated_at=datetime.utcnow(),
-            ensemble_method=self._ensure_automated_ensemble_method(forecast.ensemble_method),
+            ensemble_method=self._ensure_automated_ensemble_method(
+                forecast.ensemble_method
+            ),
             weight_distribution=forecast.weight_distribution,
-            reasoning_summary=self._sanitize_reasoning_for_compliance(forecast.reasoning_summary),
+            reasoning_summary=self._sanitize_reasoning_for_compliance(
+                forecast.reasoning_summary
+            ),
             tournament_strategy=forecast.tournament_strategy,
-            reasoning_traces=forecast.reasoning_traces
+            reasoning_traces=forecast.reasoning_traces,
         )
 
         # Validate enhanced forecast
-        compliance_report = self.compliance_monitor.validate_forecast_compliance(enhanced_forecast)
+        compliance_report = self.compliance_monitor.validate_forecast_compliance(
+            enhanced_forecast
+        )
 
         # Log forecast validation
         self.compliance_monitor.log_automated_decision(
@@ -93,8 +110,8 @@ class ComplianceIntegrationService:
                 "forecast_id": str(forecast.id),
                 "predictions_count": len(enhanced_predictions),
                 "compliance_score": compliance_report.compliance_score,
-                "is_compliant": compliance_report.is_compliant
-            }
+                "is_compliant": compliance_report.is_compliant,
+            },
         )
 
         return enhanced_forecast, compliance_report
@@ -103,7 +120,9 @@ class ComplianceIntegrationService:
         """Add automation markers to prediction for compliance."""
 
         # Ensure method metadata has automation markers
-        updated_metadata = prediction.method_metadata.copy() if prediction.method_metadata else {}
+        updated_metadata = (
+            prediction.method_metadata.copy() if prediction.method_metadata else {}
+        )
 
         # Add automation markers
         automation_markers = updated_metadata.get("automation_markers", [])
@@ -111,7 +130,11 @@ class ComplianceIntegrationService:
             automation_markers = []
 
         # Add required markers
-        required_markers = ["automated_prediction", "ai_generated", "no_human_intervention"]
+        required_markers = [
+            "automated_prediction",
+            "ai_generated",
+            "no_human_intervention",
+        ]
         for marker in required_markers:
             if marker not in automation_markers:
                 automation_markers.append(marker)
@@ -132,20 +155,29 @@ class ComplianceIntegrationService:
             reasoning_steps=prediction.reasoning_steps,
             created_at=prediction.created_at,
             created_by=prediction.created_by,
-            method_metadata=updated_metadata
+            method_metadata=updated_metadata,
         )
 
         # Copy other attributes
-        for attr in ['lower_bound', 'upper_bound', 'confidence_interval',
-                     'internal_consistency_score', 'evidence_strength',
-                     'reasoning_trace', 'bias_checks_performed',
-                     'uncertainty_quantification', 'calibration_data']:
+        for attr in [
+            "lower_bound",
+            "upper_bound",
+            "confidence_interval",
+            "internal_consistency_score",
+            "evidence_strength",
+            "reasoning_trace",
+            "bias_checks_performed",
+            "uncertainty_quantification",
+            "calibration_data",
+        ]:
             if hasattr(prediction, attr):
                 setattr(enhanced, attr, getattr(prediction, attr))
 
         return enhanced
 
-    def _remediate_prediction_violations(self, prediction: Prediction, compliance_report: ComplianceReport) -> Prediction:
+    def _remediate_prediction_violations(
+        self, prediction: Prediction, compliance_report: ComplianceReport
+    ) -> Prediction:
         """Remediate compliance violations in a prediction."""
 
         remediated = prediction
@@ -153,7 +185,9 @@ class ComplianceIntegrationService:
         for violation in compliance_report.violations:
             if violation.violation_type.value == "human_intervention":
                 # Remove human intervention indicators
-                remediated = self._remove_human_intervention_indicators(remediated, violation)
+                remediated = self._remove_human_intervention_indicators(
+                    remediated, violation
+                )
 
             elif violation.violation_type.value == "non_automated_decision":
                 # Add missing automation markers
@@ -170,17 +204,23 @@ class ComplianceIntegrationService:
             metadata={
                 "prediction_id": str(prediction.id),
                 "violations_remediated": len(compliance_report.violations),
-                "violation_types": [v.violation_type.value for v in compliance_report.violations]
-            }
+                "violation_types": [
+                    v.violation_type.value for v in compliance_report.violations
+                ],
+            },
         )
 
         return remediated
 
-    def _remove_human_intervention_indicators(self, prediction: Prediction, violation) -> Prediction:
+    def _remove_human_intervention_indicators(
+        self, prediction: Prediction, violation
+    ) -> Prediction:
         """Remove human intervention indicators from prediction."""
 
         # Clean reasoning text
-        cleaned_reasoning = self._sanitize_reasoning_for_compliance(prediction.reasoning)
+        cleaned_reasoning = self._sanitize_reasoning_for_compliance(
+            prediction.reasoning
+        )
 
         # Clean reasoning steps
         cleaned_steps = []
@@ -188,11 +228,16 @@ class ComplianceIntegrationService:
             cleaned_step = self._sanitize_reasoning_for_compliance(step)
             if cleaned_step and cleaned_step != step:
                 cleaned_steps.append(cleaned_step)
-            elif not any(phrase in step.lower() for phrase in ["manual", "human", "i think", "i believe"]):
+            elif not any(
+                phrase in step.lower()
+                for phrase in ["manual", "human", "i think", "i believe"]
+            ):
                 cleaned_steps.append(step)
 
         # Update method metadata
-        updated_metadata = prediction.method_metadata.copy() if prediction.method_metadata else {}
+        updated_metadata = (
+            prediction.method_metadata.copy() if prediction.method_metadata else {}
+        )
         updated_metadata.pop("human_reviewed", None)
         updated_metadata.pop("manual_override", None)
         updated_metadata["human_intervention_removed"] = True
@@ -209,13 +254,15 @@ class ComplianceIntegrationService:
             reasoning_steps=cleaned_steps,
             created_at=prediction.created_at,
             created_by="ai_forecasting_system",  # Ensure automated creator
-            method_metadata=updated_metadata
+            method_metadata=updated_metadata,
         )
 
     def _remove_manual_override_flags(self, prediction: Prediction) -> Prediction:
         """Remove manual override flags from prediction metadata."""
 
-        updated_metadata = prediction.method_metadata.copy() if prediction.method_metadata else {}
+        updated_metadata = (
+            prediction.method_metadata.copy() if prediction.method_metadata else {}
+        )
 
         # Remove manual override indicators
         flags_to_remove = ["manual_override", "human_reviewed", "manual_adjustment"]
@@ -237,7 +284,7 @@ class ComplianceIntegrationService:
             reasoning_steps=prediction.reasoning_steps,
             created_at=prediction.created_at,
             created_by=prediction.created_by,
-            method_metadata=updated_metadata
+            method_metadata=updated_metadata,
         )
 
     def _sanitize_reasoning_for_compliance(self, reasoning: Optional[str]) -> str:
@@ -254,7 +301,7 @@ class ComplianceIntegrationService:
             "personally": "analytically",
             "manually adjusted": "algorithmically adjusted",
             "human review": "automated validation",
-            "expert judgment": "analytical assessment"
+            "expert judgment": "analytical assessment",
         }
 
         sanitized = reasoning.lower()
@@ -262,10 +309,10 @@ class ComplianceIntegrationService:
             sanitized = sanitized.replace(phrase, replacement)
 
         # Capitalize first letter of sentences
-        sentences = sanitized.split('. ')
+        sentences = sanitized.split(". ")
         capitalized_sentences = [s.capitalize() if s else s for s in sentences]
 
-        return '. '.join(capitalized_sentences)
+        return ". ".join(capitalized_sentences)
 
     def _ensure_automated_ensemble_method(self, ensemble_method: Optional[str]) -> str:
         """Ensure ensemble method indicates automation."""

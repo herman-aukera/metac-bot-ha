@@ -3,18 +3,19 @@ Tests for Multi-Stage Validation Pipeline Implementation.
 Tests task 4 requirements with all three stages integrated.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.domain.services.multi_stage_validation_pipeline import (
-    MultiStageValidationPipeline,
-    MultiStageResult
-)
-from src.domain.services.multi_stage_research_pipeline import ResearchStageResult
-from src.domain.services.validation_stage_service import ValidationResult
+import pytest
+
 from src.domain.services.forecasting_stage_service import ForecastResult
+from src.domain.services.multi_stage_research_pipeline import ResearchStageResult
+from src.domain.services.multi_stage_validation_pipeline import (
+    MultiStageResult,
+    MultiStageValidationPipeline,
+)
+from src.domain.services.validation_stage_service import ValidationResult
 
 
 class TestMultiStageValidationPipeline:
@@ -26,16 +27,18 @@ class TestMultiStageValidationPipeline:
         router = Mock()
 
         # Mock models
-        router.models = {
-            "nano": AsyncMock(),
-            "mini": AsyncMock(),
-            "full": AsyncMock()
-        }
+        router.models = {"nano": AsyncMock(), "mini": AsyncMock(), "full": AsyncMock()}
 
         # Mock model responses
-        router.models["nano"].invoke = AsyncMock(return_value="Validation passed. Quality score: 8/10")
-        router.models["mini"].invoke = AsyncMock(return_value="Research synthesis with [Source: Test, 2024]")
-        router.models["full"].invoke = AsyncMock(return_value="Probability: 65%. Confidence: Medium. Base rate considered.")
+        router.models["nano"].invoke = AsyncMock(
+            return_value="Validation passed. Quality score: 8/10"
+        )
+        router.models["mini"].invoke = AsyncMock(
+            return_value="Research synthesis with [Source: Test, 2024]"
+        )
+        router.models["full"].invoke = AsyncMock(
+            return_value="Probability: 65%. Confidence: Medium. Base rate considered."
+        )
 
         return router
 
@@ -43,7 +46,9 @@ class TestMultiStageValidationPipeline:
     def mock_tournament_asknews(self):
         """Mock tournament AskNews client."""
         client = Mock()
-        client.get_news_research = AsyncMock(return_value="Recent news about the topic with citations.")
+        client.get_news_research = AsyncMock(
+            return_value="Recent news about the topic with citations."
+        )
         return client
 
     @pytest.fixture
@@ -51,7 +56,7 @@ class TestMultiStageValidationPipeline:
         """Create pipeline instance for testing."""
         return MultiStageValidationPipeline(
             tri_model_router=mock_tri_model_router,
-            tournament_asknews=mock_tournament_asknews
+            tournament_asknews=mock_tournament_asknews,
         )
 
     @pytest.mark.asyncio
@@ -62,7 +67,7 @@ class TestMultiStageValidationPipeline:
         question_type = "binary"
         context = {
             "background_info": "AI development context",
-            "resolution_criteria": "AGI definition criteria"
+            "resolution_criteria": "AGI definition criteria",
         }
 
         result = await pipeline.process_question(question, question_type, context)
@@ -92,7 +97,7 @@ class TestMultiStageValidationPipeline:
         question_type = "multiple_choice"
         context = {
             "options": ["AI", "Quantum Computing", "Biotechnology", "Renewable Energy"],
-            "background_info": "Technology impact assessment"
+            "background_info": "Technology impact assessment",
         }
 
         result = await pipeline.process_question(question, question_type, context)
@@ -115,7 +120,7 @@ class TestMultiStageValidationPipeline:
         context = {
             "unit_of_measure": "degrees Celsius",
             "lower_bound": 0.5,
-            "upper_bound": 3.0
+            "upper_bound": 3.0,
         }
 
         result = await pipeline.process_question(question, question_type, context)
@@ -134,7 +139,7 @@ class TestMultiStageValidationPipeline:
                 "success": False,
                 "error": "Research failed",
                 "final_research": "",
-                "total_cost": 0.0
+                "total_cost": 0.0,
             }
         )
 
@@ -163,7 +168,7 @@ class TestMultiStageValidationPipeline:
                 recommendations=["Fix validation issues"],
                 confidence_level="low",
                 execution_time=1.0,
-                cost_estimate=0.001
+                cost_estimate=0.001,
             )
         )
 
@@ -195,7 +200,7 @@ class TestMultiStageValidationPipeline:
                 reasoning="Forecasting failed",
                 execution_time=1.0,
                 cost_estimate=0.01,
-                model_used="none"
+                model_used="none",
             )
         )
 
@@ -224,9 +229,9 @@ class TestMultiStageValidationPipeline:
 
         # Cost should be sum of all stages
         expected_cost = (
-            result.research_result.cost_estimate +
-            result.validation_result.cost_estimate +
-            result.forecast_result.cost_estimate
+            result.research_result.cost_estimate
+            + result.validation_result.cost_estimate
+            + result.forecast_result.cost_estimate
         )
 
         assert abs(result.total_cost - expected_cost) < 0.001
@@ -378,7 +383,9 @@ class TestMultiStageValidationPipeline:
 
         # Execution time should be reasonable
         actual_time = (end_time - start_time).total_seconds()
-        assert abs(result.total_execution_time - actual_time) < 1.0  # Within 1 second tolerance
+        assert (
+            abs(result.total_execution_time - actual_time) < 1.0
+        )  # Within 1 second tolerance
 
     @pytest.mark.asyncio
     async def test_pipeline_with_different_contexts(self, pipeline):
@@ -387,25 +394,23 @@ class TestMultiStageValidationPipeline:
         contexts = [
             # Binary with minimal context
             {"question_type": "binary", "context": {}},
-
             # Multiple choice with options
             {
                 "question_type": "multiple_choice",
                 "context": {
                     "options": ["Option A", "Option B", "Option C"],
-                    "background_info": "Test background"
-                }
+                    "background_info": "Test background",
+                },
             },
-
             # Numeric with bounds
             {
                 "question_type": "numeric",
                 "context": {
                     "unit_of_measure": "units",
                     "lower_bound": 0,
-                    "upper_bound": 100
-                }
-            }
+                    "upper_bound": 100,
+                },
+            },
         ]
 
         for test_case in contexts:

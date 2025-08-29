@@ -1,15 +1,17 @@
 """
 Tests for CostMonitor integration with TokenTracker and BudgetManager.
 """
-import pytest
+
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from src.infrastructure.config.cost_monitor import CostMonitor, CostAlert
-from src.infrastructure.config.token_tracker import TokenTracker
+import pytest
+
 from src.infrastructure.config.budget_manager import BudgetManager
+from src.infrastructure.config.cost_monitor import CostAlert, CostMonitor
+from src.infrastructure.config.token_tracker import TokenTracker
 
 
 class TestCostMonitor:
@@ -24,7 +26,9 @@ class TestCostMonitor:
         self.token_tracker = TokenTracker()
         self.token_tracker.data_file = Path(self.temp_dir) / "test_tokens.json"
 
-        self.budget_manager = BudgetManager(budget_limit=10.0)  # Small budget for testing
+        self.budget_manager = BudgetManager(
+            budget_limit=10.0
+        )  # Small budget for testing
         self.budget_manager.data_file = Path(self.temp_dir) / "test_budget.json"
 
         self.cost_monitor = CostMonitor(self.token_tracker, self.budget_manager)
@@ -41,7 +45,7 @@ class TestCostMonitor:
             task_type="forecast",
             prompt=prompt,
             response=response,
-            success=True
+            success=True,
         )
 
         # Verify result structure
@@ -69,7 +73,12 @@ class TestCostMonitor:
             "q1", "gpt-4o", "forecast", "Short prompt", "Short response", True
         )
         self.cost_monitor.track_api_call_with_monitoring(
-            "q2", "gpt-4o-mini", "forecast", "Medium prompt for forecasting", "Detailed forecast response", True
+            "q2",
+            "gpt-4o-mini",
+            "forecast",
+            "Medium prompt for forecasting",
+            "Detailed forecast response",
+            True,
         )
 
         status = self.cost_monitor.get_comprehensive_status()
@@ -104,12 +113,18 @@ class TestCostMonitor:
 
         for i in range(10):  # More calls to ensure we hit budget thresholds
             self.cost_monitor.track_api_call_with_monitoring(
-                f"expensive-q{i}", "gpt-4o", "forecast",
-                long_prompt, long_response, True
+                f"expensive-q{i}",
+                "gpt-4o",
+                "forecast",
+                long_prompt,
+                long_response,
+                True,
             )
 
         # Check if alerts were generated
-        budget_alerts = [a for a in self.cost_monitor.alerts if a.alert_type == "budget_threshold"]
+        budget_alerts = [
+            a for a in self.cost_monitor.alerts if a.alert_type == "budget_threshold"
+        ]
 
         # With a $10 budget and expensive GPT-4o calls, we should trigger at least one threshold
         if len(budget_alerts) == 0:
@@ -136,18 +151,28 @@ class TestCostMonitor:
         # Add normal cost calls
         for i in range(10):
             self.cost_monitor.track_api_call_with_monitoring(
-                f"normal-q{i}", "gpt-4o-mini", "research",
-                "Normal prompt", "Normal response", True
+                f"normal-q{i}",
+                "gpt-4o-mini",
+                "research",
+                "Normal prompt",
+                "Normal response",
+                True,
             )
 
         # Add a high-cost call (spike)
         self.cost_monitor.track_api_call_with_monitoring(
-            "spike-q", "gpt-4o", "forecast",
-            "Extremely long prompt " * 200, "Extremely long response " * 200, True
+            "spike-q",
+            "gpt-4o",
+            "forecast",
+            "Extremely long prompt " * 200,
+            "Extremely long response " * 200,
+            True,
         )
 
         # Check for cost spike alerts
-        spike_alerts = [a for a in self.cost_monitor.alerts if a.alert_type == "cost_spike"]
+        spike_alerts = [
+            a for a in self.cost_monitor.alerts if a.alert_type == "cost_spike"
+        ]
 
         # Note: May not trigger if the spike isn't large enough relative to average
         # This tests the detection mechanism exists
@@ -164,8 +189,12 @@ class TestCostMonitor:
 
         for i in range(8):  # More calls to push budget utilization higher
             self.cost_monitor.track_api_call_with_monitoring(
-                f"expensive-q{i}", "gpt-4o", "forecast",
-                long_prompt, long_response, True
+                f"expensive-q{i}",
+                "gpt-4o",
+                "forecast",
+                long_prompt,
+                long_response,
+                True,
             )
 
         recommendations = self.cost_monitor.get_optimization_recommendations()
@@ -183,7 +212,10 @@ class TestCostMonitor:
         else:
             # Check for expected recommendation types
             rec_text = " ".join(recommendations).lower()
-            assert any(keyword in rec_text for keyword in ["gpt-4o-mini", "budget", "cost", "optimize"])
+            assert any(
+                keyword in rec_text
+                for keyword in ["gpt-4o-mini", "budget", "cost", "optimize"]
+            )
 
     def test_alert_persistence(self):
         """Test alert saving and loading."""
@@ -195,7 +227,7 @@ class TestCostMonitor:
             message="Test alert message",
             current_value=0.8,
             threshold_value=0.75,
-            recommendation="Test recommendation"
+            recommendation="Test recommendation",
         )
 
         self.cost_monitor.alerts.append(alert)
@@ -225,7 +257,7 @@ class TestCostMonitor:
             message="Old alert",
             current_value=0.5,
             threshold_value=0.5,
-            recommendation="Old recommendation"
+            recommendation="Old recommendation",
         )
 
         # Add recent alert
@@ -236,7 +268,7 @@ class TestCostMonitor:
             message="Recent alert",
             current_value=0.8,
             threshold_value=0.75,
-            recommendation="Recent recommendation"
+            recommendation="Recent recommendation",
         )
 
         self.cost_monitor.alerts.extend([old_alert, recent_alert])
@@ -253,7 +285,7 @@ class TestCostMonitor:
         )
 
         # Test comprehensive logging
-        with patch('src.infrastructure.config.cost_monitor.logger') as mock_logger:
+        with patch("src.infrastructure.config.cost_monitor.logger") as mock_logger:
             self.cost_monitor.log_comprehensive_status()
             assert mock_logger.info.called
 
@@ -265,7 +297,7 @@ class TestCostMonitor:
             task_type="forecast",
             prompt="Test prompt",
             response="",  # Empty response indicates failure
-            success=False
+            success=False,
         )
 
         # Verify failed call is tracked but doesn't affect budget totals incorrectly
@@ -295,7 +327,7 @@ class TestCostMonitor:
         for file_path in [
             self.token_tracker.data_file,
             self.budget_manager.data_file,
-            self.cost_monitor.alerts_file
+            self.cost_monitor.alerts_file,
         ]:
             if file_path.exists():
                 file_path.unlink()

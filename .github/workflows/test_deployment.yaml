@@ -74,7 +74,7 @@ jobs:
           config = TournamentConfig()
           print('✅ Tournament configuration loaded successfully')
           print(f'Tournament ID: {config.tournament_id}')
-          print(f'Tournament mode: {config.tournament_mode}')
+          print(f'Tournament mode: {config.is_tournament_mode()}')
           "
         env:
           APP_ENV: test

@@ -1,11 +1,11 @@
 """Tournament-specific question filtering and prioritization service."""
 
-from typing import List, Dict, Any, Tuple
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Tuple
 
-from ..entities.question import Question
 from ...infrastructure.config.tournament_config import get_tournament_config
+from ..entities.question import Question
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +19,7 @@ class TournamentQuestionFilter:
         self.logger = logging.getLogger(__name__)
 
     def filter_and_prioritize_questions(
-        self,
-        questions: List[Question],
-        max_questions: int = None
+        self, questions: List[Question], max_questions: int = None
     ) -> List[Tuple[Question, float]]:
         """
         Filter and prioritize questions for tournament forecasting.
@@ -114,12 +112,16 @@ class TournamentQuestionFilter:
     def _score_by_question_type(self, question: Question) -> float:
         """Score question based on type (binary, numeric, multiple choice)."""
         type_scores = {
-            "binary": 0.25,      # Highest priority - easier to forecast accurately
-            "numeric": 0.20,     # Medium priority - good for calibration
-            "multiple_choice": 0.15  # Lower priority - more complex
+            "binary": 0.25,  # Highest priority - easier to forecast accurately
+            "numeric": 0.20,  # Medium priority - good for calibration
+            "multiple_choice": 0.15,  # Lower priority - more complex
         }
 
-        question_type = question.question_type.value.lower() if question.question_type else "unknown"
+        question_type = (
+            question.question_type.value.lower()
+            if question.question_type
+            else "unknown"
+        )
         return type_scores.get(question_type, 0.1)
 
     def _score_by_timing(self, question: Question) -> float:
@@ -184,8 +186,14 @@ class TournamentQuestionFilter:
         # Analyze title for complexity indicators
         title_lower = (question.title or "").lower()
         complexity_indicators = [
-            "conditional", "if and only if", "multiple", "complex",
-            "various", "several", "numerous", "detailed"
+            "conditional",
+            "if and only if",
+            "multiple",
+            "complex",
+            "various",
+            "several",
+            "numerous",
+            "detailed",
         ]
 
         for indicator in complexity_indicators:
@@ -210,7 +218,7 @@ class TournamentQuestionFilter:
             "tournament_mode": self.config.is_tournament_mode(),
             "filtering_enabled": self.config.should_filter_questions(),
             "min_confidence_threshold": self.config.min_confidence_threshold,
-            "max_concurrent_questions": self.config.max_concurrent_questions
+            "max_concurrent_questions": self.config.max_concurrent_questions,
         }
 
         if self.config.should_filter_questions():
@@ -224,11 +232,17 @@ class TournamentQuestionFilter:
                     scores.append(0.0)
 
             if scores:
-                stats.update({
-                    "avg_priority_score": sum(scores) / len(scores),
-                    "max_priority_score": max(scores),
-                    "min_priority_score": min(scores),
-                    "questions_above_threshold": sum(1 for s in scores if s >= self.config.min_confidence_threshold)
-                })
+                stats.update(
+                    {
+                        "avg_priority_score": sum(scores) / len(scores),
+                        "max_priority_score": max(scores),
+                        "min_priority_score": min(scores),
+                        "questions_above_threshold": sum(
+                            1
+                            for s in scores
+                            if s >= self.config.min_confidence_threshold
+                        ),
+                    }
+                )
 
         return stats

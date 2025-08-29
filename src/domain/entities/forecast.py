@@ -3,13 +3,22 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from .prediction import Prediction, PredictionResult, PredictionConfidence, PredictionMethod
-from .research_report import ResearchReport
-from ..value_objects.tournament_strategy import TournamentStrategy, QuestionPriority, CompetitiveIntelligence
 from ..value_objects.reasoning_trace import ReasoningTrace
+from ..value_objects.tournament_strategy import (
+    CompetitiveIntelligence,
+    QuestionPriority,
+    TournamentStrategy,
+)
+from .prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+    PredictionResult,
+)
+from .research_report import ResearchReport
 
 if TYPE_CHECKING:
     from src.domain.value_objects.probability import Probability
@@ -17,6 +26,7 @@ if TYPE_CHECKING:
 
 class ForecastStatus(Enum):
     """Status of a forecast."""
+
     DRAFT = "draft"
     SUBMITTED = "submitted"
     RESOLVED = "resolved"
@@ -31,6 +41,7 @@ class Forecast:
     Aggregates multiple predictions and research reports to form
     the final forecast that will be submitted to Metaculus.
     """
+
     id: UUID
     question_id: UUID
     research_reports: List[ResearchReport]
@@ -76,14 +87,18 @@ class Forecast:
         research_reports: List[ResearchReport],
         predictions: List[Prediction],
         final_prediction: Prediction,
-        **kwargs
+        **kwargs,
     ) -> "Forecast":
         """Factory method to create a new forecast."""
         now = datetime.utcnow()
 
         # Calculate confidence score from predictions
         confidence_scores = [p.get_confidence_score() for p in predictions]
-        avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.5
+        avg_confidence = (
+            sum(confidence_scores) / len(confidence_scores)
+            if confidence_scores
+            else 0.5
+        )
 
         return cls(
             id=uuid4(),
@@ -112,7 +127,7 @@ class Forecast:
         final_probability: "Probability",
         aggregation_method: str = "single",
         metadata: Optional[Dict[str, Any]] = None,
-        **kwargs
+        **kwargs,
     ) -> "Forecast":
         """Factory method to create a forecast compatible with pipeline interface."""
         from src.domain.value_objects.probability import Probability
@@ -121,14 +136,20 @@ class Forecast:
 
         # Create a final prediction from the probability
         # We need a dummy research_report_id for now - this should come from the pipeline
-        dummy_research_report_id = uuid4()  # TODO: Get actual research report ID from pipeline
+        dummy_research_report_id = (
+            uuid4()
+        )  # TODO: Get actual research report ID from pipeline
 
         # Convert final_probability to PredictionResult
         if isinstance(final_probability, (int, float)):
-            prediction_result = PredictionResult(binary_probability=float(final_probability))
-        elif hasattr(final_probability, 'value'):
+            prediction_result = PredictionResult(
+                binary_probability=float(final_probability)
+            )
+        elif hasattr(final_probability, "value"):
             # It's a Probability object with .value attribute
-            prediction_result = PredictionResult(binary_probability=float(final_probability.value))
+            prediction_result = PredictionResult(
+                binary_probability=float(final_probability.value)
+            )
         else:
             # Assume it's already a PredictionResult or similar
             prediction_result = final_probability
@@ -143,7 +164,9 @@ class Forecast:
             reasoning="Aggregated prediction from pipeline",
             reasoning_steps=["Pipeline aggregation of multiple agent predictions"],
             created_at=now,
-            created_by=metadata.get("agent_used", "pipeline") if metadata else "pipeline"
+            created_by=(
+                metadata.get("agent_used", "pipeline") if metadata else "pipeline"
+            ),
         )
 
         # Calculate confidence score from predictions
@@ -161,7 +184,9 @@ class Forecast:
             final_prediction=final_prediction,
             status=ForecastStatus.DRAFT,
             confidence_score=avg_confidence,
-            reasoning_summary=kwargs.get("reasoning_summary", f"Forecast using {aggregation_method} aggregation"),
+            reasoning_summary=kwargs.get(
+                "reasoning_summary", f"Forecast using {aggregation_method} aggregation"
+            ),
             submission_timestamp=None,
             created_at=now,
             updated_at=now,
@@ -191,13 +216,16 @@ class Forecast:
 
         # For binary predictions
         binary_probs = [
-            p.result.binary_probability for p in self.predictions
+            p.result.binary_probability
+            for p in self.predictions
             if p.result.binary_probability is not None
         ]
 
         if binary_probs:
             mean_prob = sum(binary_probs) / len(binary_probs)
-            variance = sum((p - mean_prob) ** 2 for p in binary_probs) / len(binary_probs)
+            variance = sum((p - mean_prob) ** 2 for p in binary_probs) / len(
+                binary_probs
+            )
             return variance
 
         return 0.0
@@ -213,7 +241,11 @@ class Forecast:
         }
 
         # Add prediction values by type
-        binary_probs = [p.result.binary_probability for p in self.predictions if p.result.binary_probability is not None]
+        binary_probs = [
+            p.result.binary_probability
+            for p in self.predictions
+            if p.result.binary_probability is not None
+        ]
         if binary_probs:
             summary["binary_predictions"] = {
                 "values": binary_probs,
@@ -228,22 +260,25 @@ class Forecast:
     @property
     def prediction(self) -> float:
         """Get the final prediction probability for backward compatibility."""
-        if self.final_prediction and self.final_prediction.result.binary_probability is not None:
+        if (
+            self.final_prediction
+            and self.final_prediction.result.binary_probability is not None
+        ):
             return self.final_prediction.result.binary_probability
         return 0.5  # Default fallback
 
     @property
     def confidence(self) -> float:
         """Get the confidence score for backward compatibility."""
-        if hasattr(self.final_prediction, 'confidence'):
+        if hasattr(self.final_prediction, "confidence"):
             # Convert confidence enum to numeric value
-            if hasattr(self.final_prediction.confidence, 'value'):
+            if hasattr(self.final_prediction.confidence, "value"):
                 confidence_map = {
-                    'very_low': 0.2,
-                    'low': 0.4,
-                    'medium': 0.6,
-                    'high': 0.75,
-                    'very_high': 0.95
+                    "very_low": 0.2,
+                    "low": 0.4,
+                    "medium": 0.6,
+                    "high": 0.75,
+                    "very_high": 0.95,
                 }
                 return confidence_map.get(self.final_prediction.confidence.value, 0.6)
         return self.confidence_score
@@ -251,7 +286,7 @@ class Forecast:
     @property
     def method(self) -> str:
         """Get the prediction method for backward compatibility."""
-        if self.final_prediction and hasattr(self.final_prediction, 'method'):
+        if self.final_prediction and hasattr(self.final_prediction, "method"):
             return self.final_prediction.method.value
         return "unknown"
 
@@ -260,7 +295,9 @@ class Forecast:
         self.tournament_strategy = strategy
         self.updated_at = datetime.utcnow()
 
-    def add_competitive_intelligence(self, intelligence: CompetitiveIntelligence) -> None:
+    def add_competitive_intelligence(
+        self, intelligence: CompetitiveIntelligence
+    ) -> None:
         """Add competitive intelligence data."""
         self.competitive_intelligence = intelligence
         self.updated_at = datetime.utcnow()
@@ -311,7 +348,7 @@ class Forecast:
             "research_quality": self._calculate_research_quality_risk(),
             "time_pressure": self._calculate_time_pressure_risk(),
             "confidence_calibration": self._calculate_calibration_risk(),
-            "ensemble_disagreement": self._calculate_ensemble_disagreement_risk()
+            "ensemble_disagreement": self._calculate_ensemble_disagreement_risk(),
         }
 
         # Overall risk score (higher is riskier)
@@ -326,8 +363,11 @@ class Forecast:
             return 0.8  # High risk with no research
 
         avg_quality = sum(
-            0.8 if report.quality.value == "high" else
-            0.5 if report.quality.value == "medium" else 0.2
+            (
+                0.8
+                if report.quality.value == "high"
+                else 0.5 if report.quality.value == "medium" else 0.2
+            )
             for report in self.research_reports
         ) / len(self.research_reports)
 
@@ -366,16 +406,23 @@ class Forecast:
         else:
             return 0.3  # Low risk with good agreement
 
-    def should_submit_prediction(self, strategy: Optional[TournamentStrategy] = None) -> bool:
+    def should_submit_prediction(
+        self, strategy: Optional[TournamentStrategy] = None
+    ) -> bool:
         """Determine if prediction should be submitted based on strategy and risk."""
         current_strategy = strategy or self.tournament_strategy
 
         if not current_strategy:
             # Default conservative approach
-            return self.confidence_score > 0.6 and self.calculate_prediction_variance() < 0.1
+            return (
+                self.confidence_score > 0.6
+                and self.calculate_prediction_variance() < 0.1
+            )
 
         # Check confidence threshold
-        min_confidence = current_strategy.confidence_thresholds.get("minimum_submission", 0.6)
+        min_confidence = current_strategy.confidence_thresholds.get(
+            "minimum_submission", 0.6
+        )
         if self.confidence_score < min_confidence:
             return False
 
@@ -388,13 +435,18 @@ class Forecast:
 
         return True
 
-    def optimize_submission_timing(self, tournament_context: Dict[str, Any]) -> Dict[str, Any]:
+    def optimize_submission_timing(
+        self, tournament_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Optimize submission timing based on tournament strategy."""
         current_time = datetime.utcnow()
         deadline = tournament_context.get("deadline")
 
         if not deadline:
-            return {"recommended_action": "submit_now", "reason": "No deadline information"}
+            return {
+                "recommended_action": "submit_now",
+                "reason": "No deadline information",
+            }
 
         hours_to_deadline = (deadline - current_time).total_seconds() / 3600
 
@@ -406,23 +458,44 @@ class Forecast:
 
         if timing_strategy == "early_advantage":
             if hours_to_deadline > 24:
-                return {"recommended_action": "submit_now", "reason": "Early submission for competitive advantage"}
+                return {
+                    "recommended_action": "submit_now",
+                    "reason": "Early submission for competitive advantage",
+                }
             else:
-                return {"recommended_action": "submit_now", "reason": "Close to deadline"}
+                return {
+                    "recommended_action": "submit_now",
+                    "reason": "Close to deadline",
+                }
 
         elif timing_strategy == "late_validation":
             if hours_to_deadline > 12:
-                return {"recommended_action": "wait", "reason": "Allow time for additional validation"}
+                return {
+                    "recommended_action": "wait",
+                    "reason": "Allow time for additional validation",
+                }
             else:
-                return {"recommended_action": "submit_now", "reason": "Approaching deadline"}
+                return {
+                    "recommended_action": "submit_now",
+                    "reason": "Approaching deadline",
+                }
 
         elif timing_strategy == "optimal_window":
             if hours_to_deadline > 48:
-                return {"recommended_action": "wait", "reason": "Too early, wait for optimal window"}
+                return {
+                    "recommended_action": "wait",
+                    "reason": "Too early, wait for optimal window",
+                }
             elif hours_to_deadline > 6:
-                return {"recommended_action": "submit_now", "reason": "In optimal submission window"}
+                return {
+                    "recommended_action": "submit_now",
+                    "reason": "In optimal submission window",
+                }
             else:
-                return {"recommended_action": "submit_now", "reason": "Deadline approaching"}
+                return {
+                    "recommended_action": "submit_now",
+                    "reason": "Deadline approaching",
+                }
 
         return {"recommended_action": "submit_now", "reason": "Default action"}
 
@@ -434,11 +507,17 @@ class Forecast:
             "consensus_strength": self.consensus_strength,
             "research_quality_score": self._get_research_quality_score(),
             "reasoning_quality_score": self._get_reasoning_quality_score(),
-            "risk_score": self.risk_assessment.get("overall_risk", 0.5) if self.risk_assessment else 0.5
+            "risk_score": (
+                self.risk_assessment.get("overall_risk", 0.5)
+                if self.risk_assessment
+                else 0.5
+            ),
         }
 
         if self.question_priority:
-            metrics["priority_score"] = self.question_priority.get_overall_priority_score()
+            metrics["priority_score"] = (
+                self.question_priority.get_overall_priority_score()
+            )
             metrics["scoring_potential"] = self.question_priority.scoring_potential
 
         return metrics
@@ -466,12 +545,13 @@ class Forecast:
 
         quality_scores = []
         for prediction in self.predictions:
-            if hasattr(prediction, 'calculate_prediction_quality_score'):
+            if hasattr(prediction, "calculate_prediction_quality_score"):
                 quality_scores.append(prediction.calculate_prediction_quality_score())
             else:
                 quality_scores.append(0.5)  # Default score
 
         return sum(quality_scores) / len(quality_scores)
+
 
 def calculate_brier_score(forecast: float, outcome: int) -> float:
     """
@@ -494,5 +574,6 @@ def calculate_brier_score(forecast: float, outcome: int) -> float:
         raise ValueError("Outcome must be 0 or 1")
 
     return (forecast - outcome) ** 2
+
 
 # TODO: Consider extending to multiclass Brier score or other scoring rules like Log Score.

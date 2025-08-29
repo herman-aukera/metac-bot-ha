@@ -2,17 +2,18 @@
 Comprehensive monitoring and performance tracking system.
 Integrates budget monitoring, performance tracking, and alerting.
 """
+
+import json
 import logging
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
 from pathlib import Path
-import json
+from typing import Any, Dict, List, Optional
 
-from .budget_dashboard import budget_dashboard, BudgetDashboard
-from .performance_tracker import performance_tracker, PerformanceTracker
 from ..config.cost_monitor import cost_monitor
+from .budget_dashboard import BudgetDashboard, budget_dashboard
+from .performance_tracker import PerformanceTracker, performance_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,9 @@ class ComprehensiveMonitor:
         self._running = True
 
         # Start monitoring threads
-        self._monitor_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
+        self._monitor_thread = threading.Thread(
+            target=self._monitoring_loop, daemon=True
+        )
         self._alert_thread = threading.Thread(target=self._alert_loop, daemon=True)
 
         self._monitor_thread.start()
@@ -69,10 +72,17 @@ class ComprehensiveMonitor:
 
         logger.info("Comprehensive monitoring system stopped")
 
-    def track_question_processing(self, question_id: str, model: str, task_type: str,
-                                 prompt: str, response: str, success: bool = True,
-                                 forecast_value: Optional[float] = None,
-                                 confidence: Optional[float] = None) -> Dict[str, Any]:
+    def track_question_processing(
+        self,
+        question_id: str,
+        model: str,
+        task_type: str,
+        prompt: str,
+        response: str,
+        success: bool = True,
+        forecast_value: Optional[float] = None,
+        confidence: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """Comprehensive tracking for question processing."""
         tracking_results = {}
 
@@ -83,14 +93,18 @@ class ComprehensiveMonitor:
         tracking_results["budget"] = budget_result
 
         # Track forecast performance if this is a forecast
-        if task_type == "forecast" and forecast_value is not None and confidence is not None:
+        if (
+            task_type == "forecast"
+            and forecast_value is not None
+            and confidence is not None
+        ):
             forecast_record = self.performance_tracker.record_forecast(
                 question_id, forecast_value, confidence
             )
             tracking_results["forecast"] = {
                 "recorded": True,
                 "forecast_value": forecast_value,
-                "confidence": confidence
+                "confidence": confidence,
             }
 
         # Track API performance
@@ -100,9 +114,12 @@ class ComprehensiveMonitor:
         tracking_results["api"] = api_record
 
         return tracking_results
+
     def update_forecast_outcome(self, question_id: str, actual_outcome: float) -> bool:
         """Update forecast with actual outcome."""
-        return self.performance_tracker.update_forecast_outcome(question_id, actual_outcome)
+        return self.performance_tracker.update_forecast_outcome(
+            question_id, actual_outcome
+        )
 
     def get_comprehensive_dashboard(self) -> Dict[str, Any]:
         """Get comprehensive dashboard data."""
@@ -119,27 +136,32 @@ class ComprehensiveMonitor:
                 "budget_utilization": budget_status["budget"]["utilization_percent"],
                 "budget_status": budget_status["budget"]["status_level"],
                 "questions_processed": budget_status["budget"]["questions_processed"],
-                "estimated_remaining": budget_status["budget"]["estimated_questions_remaining"],
+                "estimated_remaining": budget_status["budget"][
+                    "estimated_questions_remaining"
+                ],
                 "overall_brier_score": performance_metrics.overall_brier_score,
                 "api_success_rate": api_metrics["success_rate"],
-                "active_alerts": len(budget_status["alerts"]) + len(performance_alerts)
+                "active_alerts": len(budget_status["alerts"]) + len(performance_alerts),
             },
             "budget": budget_status,
             "performance": {
                 "metrics": performance_metrics.to_dict(),
                 "api_performance": api_metrics,
-                "alerts": performance_alerts
+                "alerts": performance_alerts,
             },
             "recommendations": self._get_comprehensive_recommendations(
                 budget_status, performance_metrics, api_metrics
-            )
+            ),
         }
 
         return dashboard
 
-    def _get_comprehensive_recommendations(self, budget_status: Dict[str, Any],
-                                         performance_metrics: Any,
-                                         api_metrics: Dict[str, Any]) -> List[str]:
+    def _get_comprehensive_recommendations(
+        self,
+        budget_status: Dict[str, Any],
+        performance_metrics: Any,
+        api_metrics: Dict[str, Any],
+    ) -> List[str]:
         """Get comprehensive optimization recommendations."""
         recommendations = []
 
@@ -149,20 +171,30 @@ class ComprehensiveMonitor:
 
         # Performance recommendations
         if performance_metrics.overall_brier_score > 0.3:
-            recommendations.append("HIGH: Brier score is elevated - review forecasting methodology")
+            recommendations.append(
+                "HIGH: Brier score is elevated - review forecasting methodology"
+            )
 
         if performance_metrics.calibration_error > 0.15:
-            recommendations.append("MEDIUM: Calibration error is high - adjust confidence estimation")
+            recommendations.append(
+                "MEDIUM: Calibration error is high - adjust confidence estimation"
+            )
 
         if performance_metrics.performance_trend == "declining":
-            recommendations.append("WARNING: Performance trend is declining - investigate recent changes")
+            recommendations.append(
+                "WARNING: Performance trend is declining - investigate recent changes"
+            )
 
         # API recommendations
         if api_metrics["success_rate"] < 0.9:
-            recommendations.append("CRITICAL: API success rate is low - check API connectivity")
+            recommendations.append(
+                "CRITICAL: API success rate is low - check API connectivity"
+            )
 
         if api_metrics["fallback_rate"] > 0.2:
-            recommendations.append("MEDIUM: High fallback usage - primary APIs may be unreliable")
+            recommendations.append(
+                "MEDIUM: High fallback usage - primary APIs may be unreliable"
+            )
 
         return recommendations
 
@@ -182,15 +214,20 @@ class ComprehensiveMonitor:
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
                 time.sleep(60)  # Wait longer on error
+
     def _alert_loop(self):
         """Alert checking loop."""
         while self._running:
             try:
                 # Check for performance degradation
-                performance_alerts = self.performance_tracker.detect_performance_degradation()
+                performance_alerts = (
+                    self.performance_tracker.detect_performance_degradation()
+                )
 
                 for alert in performance_alerts:
-                    logger.warning(f"PERFORMANCE ALERT [{alert['severity'].upper()}]: {alert['message']}")
+                    logger.warning(
+                        f"PERFORMANCE ALERT [{alert['severity'].upper()}]: {alert['message']}"
+                    )
 
                 time.sleep(self.alert_check_interval)
 
@@ -201,7 +238,7 @@ class ComprehensiveMonitor:
     def _save_dashboard_data(self, dashboard_data: Dict[str, Any]):
         """Save dashboard data to file."""
         try:
-            with open(self.dashboard_file, 'w') as f:
+            with open(self.dashboard_file, "w") as f:
                 json.dump(dashboard_data, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save dashboard data: {e}")
@@ -212,13 +249,19 @@ class ComprehensiveMonitor:
         summary = dashboard["summary"]
 
         logger.info("=== Monitoring Status ===")
-        logger.info(f"Budget: {summary['budget_utilization']:.1f}% used ({summary['budget_status']})")
-        logger.info(f"Questions: {summary['questions_processed']} processed, "
-                   f"~{summary['estimated_remaining']} remaining")
-        logger.info(f"Performance: Brier={summary['overall_brier_score']:.4f}, "
-                   f"API Success={summary['api_success_rate']:.1%}")
+        logger.info(
+            f"Budget: {summary['budget_utilization']:.1f}% used ({summary['budget_status']})"
+        )
+        logger.info(
+            f"Questions: {summary['questions_processed']} processed, "
+            f"~{summary['estimated_remaining']} remaining"
+        )
+        logger.info(
+            f"Performance: Brier={summary['overall_brier_score']:.4f}, "
+            f"API Success={summary['api_success_rate']:.1%}"
+        )
 
-        if summary['active_alerts'] > 0:
+        if summary["active_alerts"] > 0:
             logger.warning(f"Active Alerts: {summary['active_alerts']}")
 
     def get_health_check(self) -> Dict[str, Any]:
@@ -255,7 +298,7 @@ class ComprehensiveMonitor:
             "timestamp": datetime.now().isoformat(),
             "issues": issues,
             "summary": summary,
-            "monitoring_active": self._running
+            "monitoring_active": self._running,
         }
 
     def export_monitoring_data(self, days: int = 7) -> Dict[str, Any]:
@@ -263,13 +306,15 @@ class ComprehensiveMonitor:
         cutoff_date = datetime.now() - timedelta(days=days)
 
         # Get performance data
-        performance_metrics = self.performance_tracker.get_performance_metrics(days=days)
+        performance_metrics = self.performance_tracker.get_performance_metrics(
+            days=days
+        )
 
         # Get budget data
         budget_status = self.budget_dashboard.get_real_time_status()
 
         # Get recent alerts
-        recent_alerts = self.budget_dashboard._get_recent_alerts(hours=days*24)
+        recent_alerts = self.budget_dashboard._get_recent_alerts(hours=days * 24)
 
         return {
             "export_timestamp": datetime.now().isoformat(),
@@ -280,9 +325,11 @@ class ComprehensiveMonitor:
             "summary": {
                 "total_questions": budget_status["budget"]["questions_processed"],
                 "total_cost": budget_status["budget"]["spent"],
-                "avg_cost_per_question": budget_status["budget"]["avg_cost_per_question"],
-                "performance_trend": performance_metrics.performance_trend
-            }
+                "avg_cost_per_question": budget_status["budget"][
+                    "avg_cost_per_question"
+                ],
+                "performance_trend": performance_metrics.performance_trend,
+            },
         }
 
 

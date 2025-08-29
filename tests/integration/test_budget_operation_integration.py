@@ -3,10 +3,11 @@ Integration tests for budget-aware operation mode switching and cost optimizatio
 Tests real-world scenarios of budget management during tournament operation.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestBudgetOperationIntegration:
@@ -58,7 +59,7 @@ class TestBudgetOperationIntegration:
             "total_spent": current_spent,
             "budget_utilization": current_spent / total_budget,
             "mode_transitions": mode_transitions,
-            "final_mode": current_mode
+            "final_mode": current_mode,
         }
 
     def _determine_operation_mode(self, utilization: float) -> str:
@@ -75,14 +76,16 @@ class TestBudgetOperationIntegration:
     def _calculate_question_cost(self, mode: str, question_num: int) -> float:
         """Calculate question cost based on operation mode."""
         base_costs = {
-            "normal": 1.50,      # GPT-5 for complex analysis
-            "conservative": 0.60, # GPT-5-mini preferred
-            "emergency": 0.15,    # GPT-5-nano + free models
-            "critical": 0.0       # Free models only
+            "normal": 1.50,  # GPT-5 for complex analysis
+            "conservative": 0.60,  # GPT-5-mini preferred
+            "emergency": 0.15,  # GPT-5-nano + free models
+            "critical": 0.0,  # Free models only
         }
 
         # Add complexity variation (some questions are more complex)
-        complexity_multiplier = 1.2 if question_num % 7 == 0 else 1.0  # Every 7th question is complex
+        complexity_multiplier = (
+            1.2 if question_num % 7 == 0 else 1.0
+        )  # Every 7th question is complex
 
         return base_costs.get(mode, 0.0) * complexity_multiplier
 
@@ -91,9 +94,7 @@ class TestBudgetOperationIntegration:
         """Test cost optimization effectiveness across different scenarios."""
         # Test normal budget scenario
         normal_scenario = await self._test_cost_optimization_scenario(
-            budget=100.0,
-            questions=75,
-            complexity_distribution="normal"
+            budget=100.0, questions=75, complexity_distribution="normal"
         )
 
         assert normal_scenario["cost_per_question"] < 1.5
@@ -101,15 +102,17 @@ class TestBudgetOperationIntegration:
 
         # Test tight budget scenario
         tight_scenario = await self._test_cost_optimization_scenario(
-            budget=50.0,
-            questions=75,
-            complexity_distribution="normal"
+            budget=50.0, questions=75, complexity_distribution="normal"
         )
 
         assert tight_scenario["cost_per_question"] < 0.7
-        assert tight_scenario["questions_completed"] >= 70  # Should complete most questions
+        assert (
+            tight_scenario["questions_completed"] >= 70
+        )  # Should complete most questions
 
-    async def _test_cost_optimization_scenario(self, budget: float, questions: int, complexity_distribution: str) -> dict:
+    async def _test_cost_optimization_scenario(
+        self, budget: float, questions: int, complexity_distribution: str
+    ) -> dict:
         """Test cost optimization in specific scenario."""
         total_cost = 0.0
         questions_completed = 0
@@ -135,10 +138,16 @@ class TestBudgetOperationIntegration:
                 questions_completed += 1
 
         return {
-            "cost_per_question": total_cost / questions_completed if questions_completed > 0 else 0,
-            "quality_maintained": sum(quality_scores) / len(quality_scores) / 10.0 if quality_scores else 0,
+            "cost_per_question": (
+                total_cost / questions_completed if questions_completed > 0 else 0
+            ),
+            "quality_maintained": (
+                sum(quality_scores) / len(quality_scores) / 10.0
+                if quality_scores
+                else 0
+            ),
             "questions_completed": questions_completed,
-            "budget_efficiency": questions_completed / budget
+            "budget_efficiency": questions_completed / budget,
         }
 
     def _calculate_cost_and_quality(self, mode: str, is_complex: bool) -> tuple:
@@ -147,7 +156,7 @@ class TestBudgetOperationIntegration:
             "normal": {"cost": 1.20, "quality": 8.5},
             "conservative": {"cost": 0.70, "quality": 8.0},
             "emergency": {"cost": 0.12, "quality": 7.2},
-            "critical": {"cost": 0.0, "quality": 6.5}
+            "critical": {"cost": 0.0, "quality": 6.5},
         }
 
         config = mode_configs.get(mode, mode_configs["normal"])
@@ -168,18 +177,25 @@ class TestBudgetOperationIntegration:
             historical_costs=historical_costs,
             remaining_questions=65,
             current_budget_used=35.0,
-            total_budget=100.0
+            total_budget=100.0,
         )
 
         assert projection["projected_total_cost"] > 35.0
         assert projection["budget_sufficient"] in [True, False]
         assert len(projection["recommendations"]) >= 0
 
-    def _project_tournament_budget(self, historical_costs: list, remaining_questions: int,
-                                 current_budget_used: float, total_budget: float) -> dict:
+    def _project_tournament_budget(
+        self,
+        historical_costs: list,
+        remaining_questions: int,
+        current_budget_used: float,
+        total_budget: float,
+    ) -> dict:
         """Project tournament budget requirements."""
         # Calculate average cost per question
-        avg_cost = sum(historical_costs) / len(historical_costs) if historical_costs else 1.0
+        avg_cost = (
+            sum(historical_costs) / len(historical_costs) if historical_costs else 1.0
+        )
 
         # Project remaining cost
         projected_remaining_cost = avg_cost * remaining_questions
@@ -192,7 +208,9 @@ class TestBudgetOperationIntegration:
         recommendations = []
         if not budget_sufficient:
             overage = projected_total_cost - total_budget
-            recommendations.append(f"Reduce average cost by ${overage/remaining_questions:.2f} per question")
+            recommendations.append(
+                f"Reduce average cost by ${overage/remaining_questions:.2f} per question"
+            )
             recommendations.append("Switch to conservative mode earlier")
             recommendations.append("Increase use of free models")
 
@@ -200,7 +218,9 @@ class TestBudgetOperationIntegration:
             "projected_total_cost": projected_total_cost,
             "budget_sufficient": budget_sufficient,
             "recommendations": recommendations,
-            "safety_margin": total_budget - projected_total_cost if budget_sufficient else 0
+            "safety_margin": (
+                total_budget - projected_total_cost if budget_sufficient else 0
+            ),
         }
 
 
@@ -230,7 +250,7 @@ class TestModelFailoverIntegration:
             "failed_models": failed_models,
             "successful_model": successful_model,
             "fallback_depth": len(failed_models),
-            "final_model": successful_model
+            "final_model": successful_model,
         }
 
     @pytest.mark.asyncio
@@ -251,7 +271,7 @@ class TestModelFailoverIntegration:
             "fallback_provider": "metaculus_proxy",
             "fallback_provider_used": True,
             "task_completed": True,
-            "performance_impact": "minimal"
+            "performance_impact": "minimal",
         }
 
 
@@ -262,43 +282,54 @@ class TestPerformanceOptimizationIntegration:
         """Test response time optimization across different models."""
         # Test model selection for time-sensitive tasks
         time_sensitive_selection = self._optimize_for_response_time(
-            deadline_minutes=5,
-            complexity_score=0.7
+            deadline_minutes=5, complexity_score=0.7
         )
 
         assert "nano" in time_sensitive_selection["selected_model"]
         assert time_sensitive_selection["expected_response_time"] < 30  # seconds
 
-    def _optimize_for_response_time(self, deadline_minutes: int, complexity_score: float) -> dict:
+    def _optimize_for_response_time(
+        self, deadline_minutes: int, complexity_score: float
+    ) -> dict:
         """Optimize model selection for response time."""
         # Model response time estimates (seconds)
         model_times = {
             "gpt-5": 45,
             "gpt-5-mini": 25,
             "gpt-5-nano": 15,
-            "gpt-oss-20b:free": 35
+            "gpt-oss-20b:free": 35,
         }
 
         # Select fastest model that can handle the complexity
         if deadline_minutes <= 5:  # Time sensitive - prefer nano
-            return {"selected_model": "gpt-5-nano", "expected_response_time": model_times["gpt-5-nano"]}
+            return {
+                "selected_model": "gpt-5-nano",
+                "expected_response_time": model_times["gpt-5-nano"],
+            }
         elif complexity_score > 0.8 and deadline_minutes > 10:
-            return {"selected_model": "gpt-5", "expected_response_time": model_times["gpt-5"]}
+            return {
+                "selected_model": "gpt-5",
+                "expected_response_time": model_times["gpt-5"],
+            }
         else:
-            return {"selected_model": "gpt-5-mini", "expected_response_time": model_times["gpt-5-mini"]}
+            return {
+                "selected_model": "gpt-5-mini",
+                "expected_response_time": model_times["gpt-5-mini"],
+            }
 
     def test_throughput_optimization(self):
         """Test throughput optimization for high-volume scenarios."""
         # Test batch processing optimization
         batch_optimization = self._optimize_batch_processing(
-            questions_count=50,
-            time_limit_hours=2
+            questions_count=50, time_limit_hours=2
         )
 
         assert batch_optimization["questions_per_hour"] >= 20
         assert batch_optimization["parallel_processing"] is True
 
-    def _optimize_batch_processing(self, questions_count: int, time_limit_hours: int) -> dict:
+    def _optimize_batch_processing(
+        self, questions_count: int, time_limit_hours: int
+    ) -> dict:
         """Optimize batch processing configuration."""
         # Calculate required throughput
         required_throughput = questions_count / time_limit_hours
@@ -316,7 +347,7 @@ class TestPerformanceOptimizationIntegration:
             "questions_per_hour": questions_per_hour,
             "parallel_processing": parallel_processing,
             "batch_size": 5 if parallel_processing else 1,
-            "estimated_completion_time": questions_count / questions_per_hour
+            "estimated_completion_time": questions_count / questions_per_hour,
         }
 
 

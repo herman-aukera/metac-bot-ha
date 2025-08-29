@@ -1,22 +1,28 @@
 """Tests for PatternDetector service."""
 
-import pytest
 from datetime import datetime, timedelta
-from uuid import uuid4
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
+import pytest
+
+from src.domain.entities.forecast import Forecast, ForecastStatus
+from src.domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+    PredictionResult,
+)
+from src.domain.entities.question import Question, QuestionStatus, QuestionType
+from src.domain.entities.research_report import ResearchQuality, ResearchReport
 from src.domain.services.pattern_detector import (
+    AdaptationRecommendation,
+    AdaptationStrategy,
+    CompetitiveIntelligence,
+    DetectedPattern,
     PatternDetector,
     PatternType,
-    AdaptationStrategy,
-    DetectedPattern,
-    AdaptationRecommendation,
-    CompetitiveIntelligence
 )
-from src.domain.entities.forecast import Forecast, ForecastStatus
-from src.domain.entities.prediction import Prediction, PredictionMethod, PredictionConfidence, PredictionResult
-from src.domain.entities.question import Question, QuestionType, QuestionStatus
-from src.domain.entities.research_report import ResearchReport, ResearchQuality
 
 
 class TestPatternDetector:
@@ -31,13 +37,21 @@ class TestPatternDetector:
     def sample_questions(self):
         """Create sample questions for testing."""
         questions = []
-        question_types = [QuestionType.BINARY, QuestionType.NUMERIC, QuestionType.MULTIPLE_CHOICE]
+        question_types = [
+            QuestionType.BINARY,
+            QuestionType.NUMERIC,
+            QuestionType.MULTIPLE_CHOICE,
+        ]
 
         for i, qtype in enumerate(question_types * 3):  # 9 questions total
             # Set type-specific fields
             min_value = 0.0 if qtype == QuestionType.NUMERIC else None
             max_value = 100.0 if qtype == QuestionType.NUMERIC else None
-            choices = ["Option A", "Option B", "Option C"] if qtype == QuestionType.MULTIPLE_CHOICE else None
+            choices = (
+                ["Option A", "Option B", "Option C"]
+                if qtype == QuestionType.MULTIPLE_CHOICE
+                else None
+            )
 
             question = Question(
                 id=uuid4(),
@@ -47,16 +61,16 @@ class TestPatternDetector:
                 question_type=qtype,
                 status=QuestionStatus.OPEN,
                 url=f"https://test.com/question/{i+1}",
-                close_time=datetime.utcnow() + timedelta(days=30+i),
-                resolve_time=datetime.utcnow() + timedelta(days=60+i),
+                close_time=datetime.utcnow() + timedelta(days=30 + i),
+                resolve_time=datetime.utcnow() + timedelta(days=60 + i),
                 categories=["test_category"],
                 metadata={},
-                created_at=datetime.utcnow() - timedelta(days=30-i),
+                created_at=datetime.utcnow() - timedelta(days=30 - i),
                 updated_at=datetime.utcnow(),
                 resolution_criteria="Test criteria",
                 min_value=min_value,
                 max_value=max_value,
-                choices=choices
+                choices=choices,
             )
             questions.append(question)
 
@@ -90,7 +104,11 @@ class TestPatternDetector:
             prob += time_factor * 0.1
 
             # Create prediction with method pattern
-            methods = [PredictionMethod.CHAIN_OF_THOUGHT, PredictionMethod.TREE_OF_THOUGHT, PredictionMethod.REACT]
+            methods = [
+                PredictionMethod.CHAIN_OF_THOUGHT,
+                PredictionMethod.TREE_OF_THOUGHT,
+                PredictionMethod.REACT,
+            ]
             method = methods[i % 3]
 
             prediction = Prediction.create_binary_prediction(
@@ -100,18 +118,18 @@ class TestPatternDetector:
                 confidence=conf,
                 method=method,
                 reasoning=f"Test reasoning for question {i+1}",
-                created_by=agent
+                created_by=agent,
             )
 
             forecast = Forecast.create_new(
                 question_id=question.id,
                 research_reports=[],
                 predictions=[prediction],
-                final_prediction=prediction
+                final_prediction=prediction,
             )
 
             # Set creation time for temporal patterns
-            forecast.created_at = datetime.utcnow() - timedelta(days=30-i*2)
+            forecast.created_at = datetime.utcnow() - timedelta(days=30 - i * 2)
             forecast.status = ForecastStatus.RESOLVED
 
             forecasts.append(forecast)
@@ -133,7 +151,7 @@ class TestPatternDetector:
                 truth = forecast.prediction < 0.4  # Most should be incorrect
             else:
                 # Average accuracy for others
-                truth = (i % 2 == 0)  # 50% accuracy
+                truth = i % 2 == 0  # 50% accuracy
 
             ground_truth.append(truth)
 
@@ -146,20 +164,23 @@ class TestPatternDetector:
             "tournament_id": "test_tournament_2024",
             "deadlines": {
                 "submission": datetime.utcnow() + timedelta(days=7),
-                "resolution": datetime.utcnow() + timedelta(days=30)
+                "resolution": datetime.utcnow() + timedelta(days=30),
             },
-            "competitor_data": {
-                "total_participants": 100,
-                "our_ranking": 15
-            }
+            "competitor_data": {"total_participants": 100, "our_ranking": 15},
         }
 
-    def test_detect_patterns_basic(self, detector, sample_forecasts_with_patterns, sample_questions, sample_ground_truth_with_patterns):
+    def test_detect_patterns_basic(
+        self,
+        detector,
+        sample_forecasts_with_patterns,
+        sample_questions,
+        sample_ground_truth_with_patterns,
+    ):
         """Test basic pattern detection functionality."""
         results = detector.detect_patterns(
             sample_forecasts_with_patterns,
             sample_questions,
-            sample_ground_truth_with_patterns
+            sample_ground_truth_with_patterns,
         )
 
         assert "analysis_timestamp" in results
@@ -172,13 +193,19 @@ class TestPatternDetector:
         assert isinstance(results["detected_patterns"], list)
         assert isinstance(results["adaptation_recommendations"], list)
 
-    def test_detect_question_type_patterns(self, detector, sample_forecasts_with_patterns, sample_questions, sample_ground_truth_with_patterns):
+    def test_detect_question_type_patterns(
+        self,
+        detector,
+        sample_forecasts_with_patterns,
+        sample_questions,
+        sample_ground_truth_with_patterns,
+    ):
         """Test question type pattern detection."""
         patterns = detector._detect_question_type_patterns(
             sample_forecasts_with_patterns,
             sample_questions,
             sample_ground_truth_with_patterns,
-            None
+            None,
         )
 
         assert isinstance(patterns, list)
@@ -194,44 +221,69 @@ class TestPatternDetector:
             assert "question_type" in pattern.context
             assert "performance_difference" in pattern.context
 
-    def test_detect_temporal_patterns(self, detector, sample_forecasts_with_patterns, sample_questions, sample_ground_truth_with_patterns):
+    def test_detect_temporal_patterns(
+        self,
+        detector,
+        sample_forecasts_with_patterns,
+        sample_questions,
+        sample_ground_truth_with_patterns,
+    ):
         """Test temporal pattern detection."""
         patterns = detector._detect_temporal_patterns(
             sample_forecasts_with_patterns,
             sample_questions,
             sample_ground_truth_with_patterns,
-            None
+            None,
         )
 
         # Should detect temporal improvement pattern
         if patterns:  # May not always detect depending on data
             temporal_pattern = patterns[0]
             assert temporal_pattern.pattern_type == PatternType.TEMPORAL_PERFORMANCE
-            assert temporal_pattern.trend_direction in ["improving", "declining", "stable"]
+            assert temporal_pattern.trend_direction in [
+                "improving",
+                "declining",
+                "stable",
+            ]
             assert "correlation" in temporal_pattern.context
 
-    def test_detect_calibration_patterns(self, detector, sample_forecasts_with_patterns, sample_questions, sample_ground_truth_with_patterns):
+    def test_detect_calibration_patterns(
+        self,
+        detector,
+        sample_forecasts_with_patterns,
+        sample_questions,
+        sample_ground_truth_with_patterns,
+    ):
         """Test calibration pattern detection."""
         patterns = detector._detect_calibration_patterns(
             sample_forecasts_with_patterns,
             sample_questions,
             sample_ground_truth_with_patterns,
-            None
+            None,
         )
 
         for pattern in patterns:
             assert pattern.pattern_type == PatternType.CONFIDENCE_CALIBRATION
             assert "confidence_level" in pattern.context
             assert "miscalibration_type" in pattern.context
-            assert pattern.context["miscalibration_type"] in ["overconfident", "underconfident"]
+            assert pattern.context["miscalibration_type"] in [
+                "overconfident",
+                "underconfident",
+            ]
 
-    def test_detect_method_patterns(self, detector, sample_forecasts_with_patterns, sample_questions, sample_ground_truth_with_patterns):
+    def test_detect_method_patterns(
+        self,
+        detector,
+        sample_forecasts_with_patterns,
+        sample_questions,
+        sample_ground_truth_with_patterns,
+    ):
         """Test method effectiveness pattern detection."""
         patterns = detector._detect_method_patterns(
             sample_forecasts_with_patterns,
             sample_questions,
             sample_ground_truth_with_patterns,
-            None
+            None,
         )
 
         if patterns:  # May not always detect significant differences
@@ -256,14 +308,14 @@ class TestPatternDetector:
                 confidence=PredictionConfidence.HIGH,
                 method=PredictionMethod.ENSEMBLE,
                 reasoning="Ensemble reasoning",
-                created_by="ensemble_agent"
+                created_by="ensemble_agent",
             )
 
             forecast = Forecast.create_new(
                 question_id=sample_questions[i].id,
                 research_reports=[],
                 predictions=[prediction],
-                final_prediction=prediction
+                final_prediction=prediction,
             )
             forecast.method = "ensemble"  # Set method for pattern detection
             forecasts.append(forecast)
@@ -278,25 +330,24 @@ class TestPatternDetector:
                     confidence=PredictionConfidence.MEDIUM,
                     method=PredictionMethod.CHAIN_OF_THOUGHT,
                     reasoning="Individual reasoning",
-                    created_by="individual_agent"
+                    created_by="individual_agent",
                 )
 
                 forecast = Forecast.create_new(
                     question_id=sample_questions[i].id,
                     research_reports=[],
                     predictions=[prediction],
-                    final_prediction=prediction
+                    final_prediction=prediction,
                 )
                 forecast.method = "individual"  # Set method for pattern detection
                 forecasts.append(forecast)
 
-        ground_truth = [True] * 5 + [False] * 5  # Ensemble correct, individual incorrect
+        ground_truth = [True] * 5 + [
+            False
+        ] * 5  # Ensemble correct, individual incorrect
 
         patterns = detector._detect_ensemble_patterns(
-            forecasts,
-            sample_questions,
-            ground_truth,
-            None
+            forecasts, sample_questions, ground_truth, None
         )
 
         if patterns:
@@ -315,16 +366,13 @@ class TestPatternDetector:
                 confidence=0.8,
                 strength=0.2,
                 frequency=0.3,
-                context={
-                    "question_type": "binary",
-                    "performance_difference": 0.2
-                },
+                context={"question_type": "binary", "performance_difference": 0.2},
                 affected_questions=[uuid4()],
                 affected_agents=["test_agent"],
                 first_observed=datetime.utcnow() - timedelta(days=10),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
+                statistical_significance=0.01,
             ),
             DetectedPattern(
                 pattern_type=PatternType.CONFIDENCE_CALIBRATION,
@@ -336,18 +384,20 @@ class TestPatternDetector:
                 context={
                     "confidence_level": "high",
                     "miscalibration_type": "overconfident",
-                    "calibration_error": 0.25
+                    "calibration_error": 0.25,
                 },
                 affected_questions=[uuid4()],
                 affected_agents=["test_agent"],
                 first_observed=datetime.utcnow() - timedelta(days=5),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
-            )
+                statistical_significance=0.01,
+            ),
         ]
 
-        recommendations = detector._generate_adaptation_recommendations(test_patterns, None)
+        recommendations = detector._generate_adaptation_recommendations(
+            test_patterns, None
+        )
 
         assert isinstance(recommendations, list)
         assert len(recommendations) > 0
@@ -371,14 +421,14 @@ class TestPatternDetector:
             frequency=0.3,
             context={
                 "question_type": "binary",
-                "performance_difference": 0.15  # Strong positive difference
+                "performance_difference": 0.15,  # Strong positive difference
             },
             affected_questions=[uuid4()],
             affected_agents=["test_agent"],
             first_observed=datetime.utcnow() - timedelta(days=10),
             last_observed=datetime.utcnow(),
             trend_direction="stable",
-            statistical_significance=0.01
+            statistical_significance=0.01,
         )
 
         rec = detector._recommend_question_type_adaptation(strong_pattern)
@@ -397,14 +447,14 @@ class TestPatternDetector:
             frequency=0.3,
             context={
                 "question_type": "numeric",
-                "performance_difference": -0.15  # Strong negative difference
+                "performance_difference": -0.15,  # Strong negative difference
             },
             affected_questions=[uuid4()],
             affected_agents=["test_agent"],
             first_observed=datetime.utcnow() - timedelta(days=10),
             last_observed=datetime.utcnow(),
             trend_direction="stable",
-            statistical_significance=0.01
+            statistical_significance=0.01,
         )
 
         rec = detector._recommend_question_type_adaptation(weak_pattern)
@@ -426,14 +476,14 @@ class TestPatternDetector:
             context={
                 "confidence_level": "high",
                 "miscalibration_type": "overconfident",
-                "calibration_error": 0.2
+                "calibration_error": 0.2,
             },
             affected_questions=[uuid4()],
             affected_agents=["test_agent"],
             first_observed=datetime.utcnow() - timedelta(days=5),
             last_observed=datetime.utcnow(),
             trend_direction="stable",
-            statistical_significance=0.01
+            statistical_significance=0.01,
         )
 
         rec = detector._recommend_calibration_adaptation(overconfident_pattern)
@@ -453,14 +503,14 @@ class TestPatternDetector:
             context={
                 "confidence_level": "low",
                 "miscalibration_type": "underconfident",
-                "calibration_error": 0.15
+                "calibration_error": 0.15,
             },
             affected_questions=[uuid4()],
             affected_agents=["test_agent"],
             first_observed=datetime.utcnow() - timedelta(days=5),
             last_observed=datetime.utcnow(),
             trend_direction="stable",
-            statistical_significance=0.01
+            statistical_significance=0.01,
         )
 
         rec = detector._recommend_calibration_adaptation(underconfident_pattern)
@@ -481,14 +531,14 @@ class TestPatternDetector:
             context={
                 "best_method": "ensemble",
                 "worst_method": "chain_of_thought",
-                "performance_gap": 0.25
+                "performance_gap": 0.25,
             },
             affected_questions=[uuid4()],
             affected_agents=["test_agent"],
             first_observed=datetime.utcnow() - timedelta(days=10),
             last_observed=datetime.utcnow(),
             trend_direction="stable",
-            statistical_significance=0.01
+            statistical_significance=0.01,
         )
 
         rec = detector._recommend_method_adaptation(method_pattern)
@@ -498,7 +548,13 @@ class TestPatternDetector:
         assert "ensemble" in str(rec.specific_actions)
         assert "chain_of_thought" in str(rec.specific_actions)
 
-    def test_generate_competitive_intelligence(self, detector, sample_forecasts_with_patterns, sample_questions, tournament_context):
+    def test_generate_competitive_intelligence(
+        self,
+        detector,
+        sample_forecasts_with_patterns,
+        sample_questions,
+        tournament_context,
+    ):
         """Test competitive intelligence generation."""
         # Create some patterns first
         patterns = [
@@ -509,16 +565,13 @@ class TestPatternDetector:
                 confidence=0.8,
                 strength=0.2,
                 frequency=0.3,
-                context={
-                    "question_type": "binary",
-                    "performance_difference": 0.15
-                },
+                context={"question_type": "binary", "performance_difference": 0.15},
                 affected_questions=[uuid4()],
                 affected_agents=["test_agent"],
                 first_observed=datetime.utcnow() - timedelta(days=10),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
+                statistical_significance=0.01,
             )
         ]
 
@@ -526,7 +579,7 @@ class TestPatternDetector:
             patterns,
             sample_forecasts_with_patterns,
             sample_questions,
-            tournament_context
+            tournament_context,
         )
 
         assert intelligence is not None
@@ -552,7 +605,7 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=10),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
+                statistical_significance=0.01,
             ),
             DetectedPattern(
                 pattern_type=PatternType.QUESTION_TYPE_PERFORMANCE,
@@ -567,7 +620,7 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=5),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
+                statistical_significance=0.01,
             ),
             DetectedPattern(
                 pattern_type=PatternType.CONFIDENCE_CALIBRATION,
@@ -582,8 +635,8 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=3),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
-            )
+                statistical_significance=0.01,
+            ),
         ]
 
         meta_patterns = detector._detect_meta_patterns(patterns)
@@ -591,11 +644,15 @@ class TestPatternDetector:
         assert isinstance(meta_patterns, list)
 
         # Should detect pattern frequency meta-pattern
-        frequency_patterns = [mp for mp in meta_patterns if mp["type"] == "pattern_frequency"]
+        frequency_patterns = [
+            mp for mp in meta_patterns if mp["type"] == "pattern_frequency"
+        ]
         assert len(frequency_patterns) > 0
 
         # Should detect high impact patterns meta-pattern
-        high_impact_patterns = [mp for mp in meta_patterns if mp["type"] == "high_impact_patterns"]
+        high_impact_patterns = [
+            mp for mp in meta_patterns if mp["type"] == "high_impact_patterns"
+        ]
         assert len(high_impact_patterns) > 0
 
     def test_generate_strategy_evolution_suggestions(self, detector):
@@ -614,7 +671,7 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=10),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
+                statistical_significance=0.01,
             ),
             DetectedPattern(
                 pattern_type=PatternType.METHOD_EFFECTIVENESS,
@@ -629,7 +686,7 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=5),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
+                statistical_significance=0.01,
             ),
             DetectedPattern(
                 pattern_type=PatternType.CONFIDENCE_CALIBRATION,
@@ -644,8 +701,8 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=3),
                 last_observed=datetime.utcnow(),
                 trend_direction="stable",
-                statistical_significance=0.01
-            )
+                statistical_significance=0.01,
+            ),
         ]
 
         suggestions = detector._generate_strategy_evolution_suggestions(patterns)
@@ -665,12 +722,12 @@ class TestPatternDetector:
         assert "message" in results
         assert "No forecasts provided" in results["message"]
 
-    def test_no_ground_truth_handling(self, detector, sample_forecasts_with_patterns, sample_questions):
+    def test_no_ground_truth_handling(
+        self, detector, sample_forecasts_with_patterns, sample_questions
+    ):
         """Test handling when no ground truth is provided."""
         results = detector.detect_patterns(
-            sample_forecasts_with_patterns,
-            sample_questions,
-            None  # No ground truth
+            sample_forecasts_with_patterns, sample_questions, None  # No ground truth
         )
 
         # Should still work but with limited pattern detection
@@ -689,14 +746,14 @@ class TestPatternDetector:
                 confidence=PredictionConfidence.MEDIUM,
                 method=PredictionMethod.ENSEMBLE,
                 reasoning="Test reasoning",
-                created_by="test_agent"
+                created_by="test_agent",
             )
 
             forecast = Forecast.create_new(
                 question_id=sample_questions[i].id,
                 research_reports=[],
                 predictions=[prediction],
-                final_prediction=prediction
+                final_prediction=prediction,
             )
             forecasts.append(forecast)
 
@@ -725,7 +782,7 @@ class TestPatternDetector:
             last_observed=datetime.utcnow(),
             trend_direction="improving",
             statistical_significance=0.01,
-            examples=[{"example": "data"}]
+            examples=[{"example": "data"}],
         )
 
         serialized = detector._serialize_pattern(pattern)
@@ -749,7 +806,7 @@ class TestPatternDetector:
             affected_contexts=["context1"],
             specific_actions=["action1", "action2"],
             success_metrics=["metric1"],
-            timeline="short_term"
+            timeline="short_term",
         )
 
         serialized_rec = detector._serialize_recommendation(recommendation)
@@ -771,7 +828,7 @@ class TestPatternDetector:
             meta_game_insights=["insight1"],
             strategic_recommendations=["rec1"],
             timestamp=datetime.utcnow(),
-            confidence=0.7
+            confidence=0.7,
         )
 
         serialized_intel = detector._serialize_competitive_intelligence(intelligence)
@@ -797,7 +854,7 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=5),
                 last_observed=datetime.utcnow() - timedelta(days=1),
                 trend_direction="stable",
-                statistical_significance=0.01
+                statistical_significance=0.01,
             ),
             DetectedPattern(
                 pattern_type=PatternType.CONFIDENCE_CALIBRATION,
@@ -812,8 +869,8 @@ class TestPatternDetector:
                 first_observed=datetime.utcnow() - timedelta(days=50),
                 last_observed=datetime.utcnow() - timedelta(days=40),
                 trend_direction="stable",
-                statistical_significance=0.05
-            )
+                statistical_significance=0.05,
+            ),
         ]
 
         detector.detected_patterns.extend(test_patterns)
@@ -842,7 +899,7 @@ class TestPatternDetector:
                 affected_contexts=["context1"],
                 specific_actions=["action1"],
                 success_metrics=["metric1"],
-                timeline="immediate"
+                timeline="immediate",
             ),
             AdaptationRecommendation(
                 strategy_type=AdaptationStrategy.MODIFY_RESEARCH_DEPTH,
@@ -856,8 +913,8 @@ class TestPatternDetector:
                 affected_contexts=["context2"],
                 specific_actions=["action2"],
                 success_metrics=["metric2"],
-                timeline="long_term"
-            )
+                timeline="long_term",
+            ),
         ]
 
         detector.adaptation_recommendations.extend(test_recommendations)
@@ -873,9 +930,16 @@ class TestPatternDetector:
     def test_pattern_type_enumeration(self):
         """Test pattern type enumeration completeness."""
         expected_types = [
-            "QUESTION_TYPE_PERFORMANCE", "TEMPORAL_PERFORMANCE", "CONFIDENCE_CALIBRATION",
-            "METHOD_EFFECTIVENESS", "TOURNAMENT_DYNAMICS", "COMPETITIVE_POSITIONING",
-            "MARKET_INEFFICIENCY", "SEASONAL_TRENDS", "COMPLEXITY_CORRELATION", "ENSEMBLE_SYNERGY"
+            "QUESTION_TYPE_PERFORMANCE",
+            "TEMPORAL_PERFORMANCE",
+            "CONFIDENCE_CALIBRATION",
+            "METHOD_EFFECTIVENESS",
+            "TOURNAMENT_DYNAMICS",
+            "COMPETITIVE_POSITIONING",
+            "MARKET_INEFFICIENCY",
+            "SEASONAL_TRENDS",
+            "COMPLEXITY_CORRELATION",
+            "ENSEMBLE_SYNERGY",
         ]
 
         for expected_type in expected_types:
@@ -884,28 +948,48 @@ class TestPatternDetector:
     def test_adaptation_strategy_enumeration(self):
         """Test adaptation strategy enumeration completeness."""
         expected_strategies = [
-            "INCREASE_CONFIDENCE", "DECREASE_CONFIDENCE", "CHANGE_METHOD_PREFERENCE",
-            "ADJUST_ENSEMBLE_WEIGHTS", "MODIFY_RESEARCH_DEPTH", "ALTER_SUBMISSION_TIMING",
-            "FOCUS_QUESTION_TYPES", "EXPLOIT_MARKET_GAP", "INCREASE_CONSERVATISM", "INCREASE_AGGRESSIVENESS"
+            "INCREASE_CONFIDENCE",
+            "DECREASE_CONFIDENCE",
+            "CHANGE_METHOD_PREFERENCE",
+            "ADJUST_ENSEMBLE_WEIGHTS",
+            "MODIFY_RESEARCH_DEPTH",
+            "ALTER_SUBMISSION_TIMING",
+            "FOCUS_QUESTION_TYPES",
+            "EXPLOIT_MARKET_GAP",
+            "INCREASE_CONSERVATISM",
+            "INCREASE_AGGRESSIVENESS",
         ]
 
         for expected_strategy in expected_strategies:
             assert hasattr(AdaptationStrategy, expected_strategy)
 
-    def test_comprehensive_pattern_detection_workflow(self, detector, sample_forecasts_with_patterns, sample_questions, sample_ground_truth_with_patterns, tournament_context):
+    def test_comprehensive_pattern_detection_workflow(
+        self,
+        detector,
+        sample_forecasts_with_patterns,
+        sample_questions,
+        sample_ground_truth_with_patterns,
+        tournament_context,
+    ):
         """Test the complete pattern detection workflow."""
         results = detector.detect_patterns(
             sample_forecasts_with_patterns,
             sample_questions,
             sample_ground_truth_with_patterns,
-            tournament_context
+            tournament_context,
         )
 
         # Verify all expected sections are present
         expected_sections = [
-            "analysis_timestamp", "total_patterns_detected", "significant_patterns",
-            "patterns_by_type", "detected_patterns", "adaptation_recommendations",
-            "competitive_intelligence", "meta_patterns", "strategy_evolution_suggestions"
+            "analysis_timestamp",
+            "total_patterns_detected",
+            "significant_patterns",
+            "patterns_by_type",
+            "detected_patterns",
+            "adaptation_recommendations",
+            "competitive_intelligence",
+            "meta_patterns",
+            "strategy_evolution_suggestions",
         ]
 
         for section in expected_sections:

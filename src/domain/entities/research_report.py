@@ -3,12 +3,13 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 
 class ResearchQuality(Enum):
     """Quality levels for research reports."""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -17,6 +18,7 @@ class ResearchQuality(Enum):
 @dataclass
 class ResearchSource:
     """A source used in research."""
+
     url: str
     title: str
     summary: str
@@ -29,10 +31,11 @@ class ResearchSource:
 class ResearchReport:
     """
     Domain entity representing a research report for a question.
-    
+
     Contains all the research findings, sources, and analysis
     that will be used to make a forecast.
     """
+
     id: UUID
     question_id: UUID
     title: str
@@ -46,13 +49,13 @@ class ResearchReport:
     research_methodology: str
     created_at: datetime
     created_by: str  # Agent or researcher identifier
-    
+
     # Reasoning traces for transparency
     reasoning_steps: List[str]
     evidence_for: List[str]
     evidence_against: List[str]
     uncertainties: List[str]
-    
+
     @classmethod
     def create_new(
         cls,
@@ -62,7 +65,7 @@ class ResearchReport:
         detailed_analysis: str,
         sources: List[ResearchSource],
         created_by: str,
-        **kwargs
+        **kwargs,
     ) -> "ResearchReport":
         """Factory method to create a new research report."""
         return cls(
@@ -84,21 +87,24 @@ class ResearchReport:
             evidence_against=kwargs.get("evidence_against", []),
             uncertainties=kwargs.get("uncertainties", []),
         )
-    
+
     def add_source(self, source: ResearchSource) -> None:
         """Add a new source to the research report."""
         self.sources.append(source)
-    
+
     def calculate_overall_credibility(self) -> float:
         """Calculate the overall credibility score from all sources."""
         if not self.sources:
             return 0.0
-        return sum(source.credibility_score for source in self.sources) / len(self.sources)
-    
+        return sum(source.credibility_score for source in self.sources) / len(
+            self.sources
+        )
+
     def get_recent_sources(self, days: int = 30) -> List[ResearchSource]:
         """Get sources published within the last N days."""
         cutoff_date = datetime.utcnow() - datetime.timedelta(days=days)
         return [
-            source for source in self.sources
+            source
+            for source in self.sources
             if source.publish_date and source.publish_date > cutoff_date
         ]

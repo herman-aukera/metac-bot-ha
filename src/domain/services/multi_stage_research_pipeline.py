@@ -5,9 +5,9 @@ Implements task 4.1 requirements with cost-optimized research strategy.
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ResearchStageResult:
     """Result from a research stage."""
+
     content: str
     sources_used: List[str]
     model_used: str
@@ -29,6 +30,7 @@ class ResearchStageResult:
 @dataclass
 class ResearchQualityMetrics:
     """Quality metrics for research validation."""
+
     citation_count: int
     source_credibility_score: float
     recency_score: float
@@ -66,10 +68,12 @@ class MultiStageResearchPipeline:
             "asknews_research",
             "synthesis_analysis",
             "quality_validation",
-            "gap_detection"
+            "gap_detection",
         ]
 
-    async def execute_research_pipeline(self, question: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def execute_research_pipeline(
+        self, question: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """
         Execute the complete multi-stage research pipeline.
 
@@ -83,7 +87,9 @@ class MultiStageResearchPipeline:
         context = context or {}
         pipeline_start = datetime.now()
 
-        self.logger.info(f"Starting multi-stage research pipeline for: {question[:100]}...")
+        self.logger.info(
+            f"Starting multi-stage research pipeline for: {question[:100]}..."
+        )
 
         results = {
             "question": question,
@@ -92,12 +98,14 @@ class MultiStageResearchPipeline:
             "final_research": "",
             "quality_metrics": None,
             "total_cost": 0.0,
-            "success": False
+            "success": False,
         }
 
         try:
             # Stage 1: AskNews Research (prioritized)
-            asknews_result = await self._execute_asknews_research_stage(question, context)
+            asknews_result = await self._execute_asknews_research_stage(
+                question, context
+            )
             results["stages"]["asknews_research"] = asknews_result
             results["total_cost"] += asknews_result.cost_estimate
 
@@ -124,11 +132,15 @@ class MultiStageResearchPipeline:
 
             # Compile final research
             results["final_research"] = synthesis_result.content
-            results["quality_metrics"] = self._calculate_quality_metrics(results["stages"])
+            results["quality_metrics"] = self._calculate_quality_metrics(
+                results["stages"]
+            )
             results["success"] = True
 
             execution_time = (datetime.now() - pipeline_start).total_seconds()
-            self.logger.info(f"Research pipeline completed in {execution_time:.2f}s, cost: ${results['total_cost']:.4f}")
+            self.logger.info(
+                f"Research pipeline completed in {execution_time:.2f}s, cost: ${results['total_cost']:.4f}"
+            )
 
         except Exception as e:
             self.logger.error(f"Research pipeline failed: {e}")
@@ -136,7 +148,10 @@ class MultiStageResearchPipeline:
             results["success"] = False
 
         return results
-    async def _execute_asknews_research_stage(self, question: str, context: Dict[str, Any]) -> ResearchStageResult:
+
+    async def _execute_asknews_research_stage(
+        self, question: str, context: Dict[str, Any]
+    ) -> ResearchStageResult:
         """
         Execute AskNews research stage with 48-hour focus.
         Prioritizes AskNews API (free via METACULUSQ4) with fallbacks.
@@ -147,7 +162,9 @@ class MultiStageResearchPipeline:
             # Try tournament AskNews client first (prioritized)
             if self.tournament_asknews:
                 try:
-                    research_content = await self.tournament_asknews.get_news_research(question)
+                    research_content = await self.tournament_asknews.get_news_research(
+                        question
+                    )
 
                     if research_content and len(research_content.strip()) > 0:
                         execution_time = (datetime.now() - stage_start).total_seconds()
@@ -160,14 +177,16 @@ class MultiStageResearchPipeline:
                             quality_score=0.8,  # High quality for AskNews
                             stage_name="asknews_research",
                             execution_time=execution_time,
-                            success=True
+                            success=True,
                         )
 
                 except Exception as e:
                     self.logger.warning(f"Tournament AskNews failed: {e}")
 
             # Fallback to free models when AskNews quota is tight
-            return await self._execute_free_model_research_fallback(question, context, stage_start)
+            return await self._execute_free_model_research_fallback(
+                question, context, stage_start
+            )
 
         except Exception as e:
             execution_time = (datetime.now() - stage_start).total_seconds()
@@ -182,9 +201,12 @@ class MultiStageResearchPipeline:
                 stage_name="asknews_research",
                 execution_time=execution_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
-    async def _execute_free_model_research_fallback(self, question: str, context: Dict[str, Any], stage_start: datetime) -> ResearchStageResult:
+
+    async def _execute_free_model_research_fallback(
+        self, question: str, context: Dict[str, Any], stage_start: datetime
+    ) -> ResearchStageResult:
         """
         Execute research using free models as fallback when AskNews quota is tight.
         Uses gpt-oss-20b:free and kimi-k2:free as specified in requirements.
@@ -216,7 +238,7 @@ Keep response focused and factual.
                 model = self.tri_model_router._create_openrouter_model(
                     model_name,
                     self.tri_model_router.model_configs["mini"],
-                    "emergency"  # Use emergency mode for free models
+                    "emergency",  # Use emergency mode for free models
                 )
 
                 if model:
@@ -233,7 +255,7 @@ Keep response focused and factual.
                             quality_score=0.5,  # Lower quality than AskNews
                             stage_name="asknews_research",
                             execution_time=execution_time,
-                            success=True
+                            success=True,
                         )
 
             except Exception as e:
@@ -251,9 +273,12 @@ Keep response focused and factual.
             stage_name="asknews_research",
             execution_time=execution_time,
             success=False,
-            error_message="All research sources failed"
+            error_message="All research sources failed",
         )
-    async def _execute_synthesis_stage(self, question: str, research_content: str, context: Dict[str, Any]) -> ResearchStageResult:
+
+    async def _execute_synthesis_stage(
+        self, question: str, research_content: str, context: Dict[str, Any]
+    ) -> ResearchStageResult:
         """
         Execute synthesis stage using GPT-5-mini with mandatory citations.
         Implements structured output formatting as per requirements.
@@ -274,8 +299,7 @@ Keep response focused and factual.
 
             # Create synthesis prompt with mandatory citations
             synthesis_prompt = anti_slop_prompts.get_research_prompt(
-                question_text=question,
-                model_tier="mini"
+                question_text=question, model_tier="mini"
             )
 
             # Add research content and specific synthesis instructions
@@ -325,7 +349,7 @@ Keep response focused and factual.
                 quality_score=0.8,  # High quality for GPT-5-mini synthesis
                 stage_name="synthesis_analysis",
                 execution_time=execution_time,
-                success=True
+                success=True,
             )
 
         except Exception as e:
@@ -341,9 +365,12 @@ Keep response focused and factual.
                 stage_name="synthesis_analysis",
                 execution_time=execution_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
-    async def _execute_quality_validation_stage(self, content: str, context: Dict[str, Any]) -> ResearchStageResult:
+
+    async def _execute_quality_validation_stage(
+        self, content: str, context: Dict[str, Any]
+    ) -> ResearchStageResult:
         """
         Execute enhanced quality validation stage using ValidationStageService with GPT-5-nano.
         Implements task 4.2 requirements with comprehensive quality assurance.
@@ -358,13 +385,13 @@ Keep response focused and factual.
 
             # Execute comprehensive validation
             validation_result = await validation_service.validate_content(
-                content=content,
-                task_type="research_synthesis",
-                context=context
+                content=content, task_type="research_synthesis", context=context
             )
 
             # Generate quality report
-            quality_report = await validation_service.generate_quality_report(validation_result, content)
+            quality_report = await validation_service.generate_quality_report(
+                validation_result, content
+            )
 
             execution_time = (datetime.now() - stage_start).total_seconds()
 
@@ -376,7 +403,7 @@ Keep response focused and factual.
                 quality_score=validation_result.quality_score,
                 stage_name="quality_validation",
                 execution_time=execution_time,
-                success=validation_result.is_valid
+                success=validation_result.is_valid,
             )
 
         except Exception as e:
@@ -392,9 +419,12 @@ Keep response focused and factual.
                 stage_name="quality_validation",
                 execution_time=execution_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
-    async def _execute_gap_detection_stage(self, question: str, content: str, context: Dict[str, Any]) -> ResearchStageResult:
+
+    async def _execute_gap_detection_stage(
+        self, question: str, content: str, context: Dict[str, Any]
+    ) -> ResearchStageResult:
         """
         Execute gap detection stage to identify research gaps and limitations.
         Creates research quality validation and gap detection as per requirements.
@@ -461,7 +491,7 @@ Keep response concise and focused on actionable gaps.
                 quality_score=0.7,
                 stage_name="gap_detection",
                 execution_time=execution_time,
-                success=True
+                success=True,
             )
 
         except Exception as e:
@@ -477,15 +507,24 @@ Keep response concise and focused on actionable gaps.
                 stage_name="gap_detection",
                 execution_time=execution_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
-    def _calculate_quality_metrics(self, stages: Dict[str, ResearchStageResult]) -> ResearchQualityMetrics:
+
+    def _calculate_quality_metrics(
+        self, stages: Dict[str, ResearchStageResult]
+    ) -> ResearchQualityMetrics:
         """Calculate comprehensive quality metrics from all stages."""
 
         # Extract content for analysis
-        synthesis_content = stages.get("synthesis_analysis", ResearchStageResult("", [], "", 0, 0, "", 0, False)).content
-        validation_content = stages.get("quality_validation", ResearchStageResult("", [], "", 0, 0, "", 0, False)).content
-        gap_content = stages.get("gap_detection", ResearchStageResult("", [], "", 0, 0, "", 0, False)).content
+        synthesis_content = stages.get(
+            "synthesis_analysis", ResearchStageResult("", [], "", 0, 0, "", 0, False)
+        ).content
+        validation_content = stages.get(
+            "quality_validation", ResearchStageResult("", [], "", 0, 0, "", 0, False)
+        ).content
+        gap_content = stages.get(
+            "gap_detection", ResearchStageResult("", [], "", 0, 0, "", 0, False)
+        ).content
 
         # Calculate citation count
         citation_count = synthesis_content.count("[Source:") if synthesis_content else 0
@@ -493,11 +532,23 @@ Keep response concise and focused on actionable gaps.
         # Calculate source credibility score (based on successful stages)
         successful_stages = sum(1 for stage in stages.values() if stage.success)
         total_stages = len(stages)
-        source_credibility_score = successful_stages / total_stages if total_stages > 0 else 0.0
+        source_credibility_score = (
+            successful_stages / total_stages if total_stages > 0 else 0.0
+        )
 
         # Calculate recency score (based on 48-hour focus)
-        recency_indicators = ["recent", "today", "yesterday", "48 hour", "latest", "current"]
-        recency_mentions = sum(synthesis_content.lower().count(indicator) for indicator in recency_indicators)
+        recency_indicators = [
+            "recent",
+            "today",
+            "yesterday",
+            "48 hour",
+            "latest",
+            "current",
+        ]
+        recency_mentions = sum(
+            synthesis_content.lower().count(indicator)
+            for indicator in recency_indicators
+        )
         recency_score = min(1.0, recency_mentions / 3.0)  # Normalize to 0-1
 
         # Calculate coverage completeness (based on validation results)
@@ -505,22 +556,31 @@ Keep response concise and focused on actionable gaps.
 
         # Calculate factual accuracy score (based on validation and gap detection)
         accuracy_indicators = ["consistent", "accurate", "verified", "confirmed"]
-        accuracy_mentions = sum(validation_content.lower().count(indicator) for indicator in accuracy_indicators)
+        accuracy_mentions = sum(
+            validation_content.lower().count(indicator)
+            for indicator in accuracy_indicators
+        )
         factual_accuracy_score = min(1.0, accuracy_mentions / 2.0)
 
         # Extract gaps from gap detection
         gaps_identified = []
         if gap_content and "Critical Gaps Identified:" in gap_content:
-            gap_section = gap_content.split("Critical Gaps Identified:")[1].split("### Recommendations:")[0]
-            gaps_identified = [line.strip("• ").strip() for line in gap_section.split("\n") if line.strip().startswith("•")]
+            gap_section = gap_content.split("Critical Gaps Identified:")[1].split(
+                "### Recommendations:"
+            )[0]
+            gaps_identified = [
+                line.strip("• ").strip()
+                for line in gap_section.split("\n")
+                if line.strip().startswith("•")
+            ]
 
         # Calculate overall quality score
         overall_quality = (
-            (citation_count > 0) * 0.2 +  # Citations present
-            source_credibility_score * 0.2 +  # Source reliability
-            recency_score * 0.2 +  # Recency focus
-            coverage_score * 0.2 +  # Coverage completeness
-            factual_accuracy_score * 0.2  # Factual accuracy
+            (citation_count > 0) * 0.2  # Citations present
+            + source_credibility_score * 0.2  # Source reliability
+            + recency_score * 0.2  # Recency focus
+            + coverage_score * 0.2  # Coverage completeness
+            + factual_accuracy_score * 0.2  # Factual accuracy
         )
 
         return ResearchQualityMetrics(
@@ -530,7 +590,7 @@ Keep response concise and focused on actionable gaps.
             coverage_completeness=coverage_score,
             factual_accuracy_score=factual_accuracy_score,
             overall_quality=overall_quality,
-            gaps_identified=gaps_identified
+            gaps_identified=gaps_identified,
         )
 
     def get_pipeline_status(self) -> Dict[str, Any]:
@@ -542,5 +602,8 @@ Keep response concise and focused on actionable gaps.
             "quality_threshold": self.quality_threshold,
             "asknews_available": bool(self.tournament_asknews),
             "tri_model_router_available": bool(self.tri_model_router),
-            "free_models_configured": ["openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free"]
+            "free_models_configured": [
+                "openai/gpt-oss-20b:free",
+                "moonshotai/kimi-k2:free",
+            ],
         }

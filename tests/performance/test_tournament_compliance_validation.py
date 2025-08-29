@@ -3,11 +3,12 @@ Performance tests for tournament compliance validation and enhanced system verif
 Tests tournament rule compliance, automation requirements, and system performance under tournament conditions.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestTournamentComplianceValidation:
@@ -30,7 +31,7 @@ class TestTournamentComplianceValidation:
             "ai_forecasting_system",
             "automated_reasoning",
             "systematic_analysis",
-            "algorithmic_prediction"
+            "algorithmic_prediction",
         ]
 
         return {
@@ -38,7 +39,7 @@ class TestTournamentComplianceValidation:
             "human_intervention_detected": False,
             "manual_overrides": 0,
             "automation_markers": automation_markers,
-            "compliance_score": 10.0
+            "compliance_score": 10.0,
         }
 
     def test_transparency_requirement_compliance(self):
@@ -67,8 +68,10 @@ class TestTournamentComplianceValidation:
         # Check transparency elements
         reasoning_documented = len(sample_reasoning) > 100
         methodology_explained = "methodology" in sample_reasoning.lower()
-        source_attribution = any(source in sample_reasoning.lower()
-                               for source in ["federal reserve", "brookings", "bloomberg"])
+        source_attribution = any(
+            source in sample_reasoning.lower()
+            for source in ["federal reserve", "brookings", "bloomberg"]
+        )
 
         transparency_score = 8.5  # Based on comprehensive documentation
 
@@ -77,7 +80,7 @@ class TestTournamentComplianceValidation:
             "methodology_explained": methodology_explained,
             "source_attribution": source_attribution,
             "transparency_score": transparency_score,
-            "sample_reasoning": sample_reasoning
+            "sample_reasoning": sample_reasoning,
         }
 
     def test_performance_requirement_compliance(self):
@@ -106,7 +109,7 @@ class TestTournamentComplianceValidation:
             "response_time_acceptable": avg_response_time <= 60,
             "reliability_score": reliability_score,
             "avg_accuracy": avg_accuracy,
-            "avg_response_time": avg_response_time
+            "avg_response_time": avg_response_time,
         }
 
     def test_budget_compliance_validation(self):
@@ -132,7 +135,7 @@ class TestTournamentComplianceValidation:
             "cost_tracking_accurate": True,
             "emergency_protocols_functional": True,
             "remaining_budget": total_budget - current_spent,
-            "projected_final_utilization": 0.95
+            "projected_final_utilization": 0.95,
         }
 
 
@@ -167,7 +170,9 @@ class TestEnhancedSystemPerformance:
             except Exception:
                 errors += 1
 
-        avg_processing_time = sum(processing_times) / len(processing_times) if processing_times else 0
+        avg_processing_time = (
+            sum(processing_times) / len(processing_times) if processing_times else 0
+        )
         error_rate = errors / total_questions
         system_stability = 1.0 - error_rate
 
@@ -176,7 +181,7 @@ class TestEnhancedSystemPerformance:
             "avg_processing_time": avg_processing_time,
             "error_rate": error_rate,
             "system_stability": system_stability,
-            "processing_times": processing_times
+            "processing_times": processing_times,
         }
 
     async def _simulate_question_processing(self, question_index: int) -> float:
@@ -221,7 +226,7 @@ class TestEnhancedSystemPerformance:
             "cpu_utilization": cpu_utilization,
             "memory_leaks_detected": memory_leaks_detected,
             "resource_cleanup_effective": resource_cleanup_effective,
-            "efficiency_score": 0.85
+            "efficiency_score": 0.85,
         }
 
     def test_concurrent_processing_capability(self):
@@ -248,7 +253,7 @@ class TestEnhancedSystemPerformance:
             "concurrent_throughput": concurrent_throughput,
             "throughput_improvement": throughput_improvement,
             "race_conditions_detected": False,
-            "data_consistency_maintained": True
+            "data_consistency_maintained": True,
         }
 
 
@@ -273,41 +278,45 @@ class TestQualityAssuranceValidation:
                 "has_citations": True,
                 "acknowledges_uncertainty": True,
                 "shows_reasoning": True,
-                "hallucination_detected": False
+                "hallucination_detected": False,
             },
             {
                 "has_citations": True,
                 "acknowledges_uncertainty": True,
                 "shows_reasoning": True,
-                "hallucination_detected": False
+                "hallucination_detected": False,
             },
             {
                 "has_citations": True,
                 "acknowledges_uncertainty": True,
                 "shows_reasoning": True,
-                "hallucination_detected": False
-            }
+                "hallucination_detected": False,
+            },
         ]
 
         # Calculate metrics
-        hallucination_rate = sum(1 for output in sample_outputs
-                               if output["hallucination_detected"]) / len(sample_outputs)
+        hallucination_rate = sum(
+            1 for output in sample_outputs if output["hallucination_detected"]
+        ) / len(sample_outputs)
 
-        evidence_traceability_score = sum(8.5 if output["has_citations"] else 6.0
-                                        for output in sample_outputs) / len(sample_outputs)
+        evidence_traceability_score = sum(
+            8.5 if output["has_citations"] else 6.0 for output in sample_outputs
+        ) / len(sample_outputs)
 
-        reasoning_quality_score = sum(8.0 if output["shows_reasoning"] else 5.0
-                                    for output in sample_outputs) / len(sample_outputs)
+        reasoning_quality_score = sum(
+            8.0 if output["shows_reasoning"] else 5.0 for output in sample_outputs
+        ) / len(sample_outputs)
 
-        uncertainty_acknowledgment_rate = sum(1 for output in sample_outputs
-                                            if output["acknowledges_uncertainty"]) / len(sample_outputs)
+        uncertainty_acknowledgment_rate = sum(
+            1 for output in sample_outputs if output["acknowledges_uncertainty"]
+        ) / len(sample_outputs)
 
         return {
             "hallucination_rate": hallucination_rate,
             "evidence_traceability_score": evidence_traceability_score,
             "reasoning_quality_score": reasoning_quality_score,
             "uncertainty_acknowledgment_rate": uncertainty_acknowledgment_rate,
-            "sample_outputs": sample_outputs
+            "sample_outputs": sample_outputs,
         }
 
     def test_multi_stage_validation_effectiveness(self):
@@ -315,7 +324,9 @@ class TestQualityAssuranceValidation:
         # Test validation pipeline performance
         validation_results = self._test_validation_pipeline()
 
-        assert validation_results["research_quality_improvement"] >= 0.15  # 15% improvement
+        assert (
+            validation_results["research_quality_improvement"] >= 0.15
+        )  # 15% improvement
         assert validation_results["validation_accuracy"] >= 0.85
         assert validation_results["forecast_quality_score"] >= 8.0
         assert validation_results["pipeline_efficiency"] >= 0.8
@@ -325,7 +336,9 @@ class TestQualityAssuranceValidation:
         # Simulate validation pipeline metrics
         baseline_quality = 7.2
         post_validation_quality = 8.3
-        quality_improvement = (post_validation_quality - baseline_quality) / baseline_quality
+        quality_improvement = (
+            post_validation_quality - baseline_quality
+        ) / baseline_quality
 
         validation_accuracy = 0.87  # Accuracy of validation stage
         forecast_quality_score = 8.1  # Final forecast quality
@@ -337,7 +350,7 @@ class TestQualityAssuranceValidation:
             "research_quality_improvement": quality_improvement,
             "validation_accuracy": validation_accuracy,
             "forecast_quality_score": forecast_quality_score,
-            "pipeline_efficiency": pipeline_efficiency
+            "pipeline_efficiency": pipeline_efficiency,
         }
 
     def test_error_recovery_effectiveness(self):
@@ -354,21 +367,44 @@ class TestQualityAssuranceValidation:
         """Test error recovery and fallback effectiveness."""
         # Simulate error recovery scenarios
         error_scenarios = [
-            {"type": "api_failure", "recovered": True, "quality_retained": 0.8, "recovery_time": 15},
-            {"type": "model_unavailable", "recovered": True, "quality_retained": 0.75, "recovery_time": 10},
-            {"type": "budget_exhausted", "recovered": True, "quality_retained": 0.65, "recovery_time": 5},
-            {"type": "timeout", "recovered": True, "quality_retained": 0.7, "recovery_time": 20}
+            {
+                "type": "api_failure",
+                "recovered": True,
+                "quality_retained": 0.8,
+                "recovery_time": 15,
+            },
+            {
+                "type": "model_unavailable",
+                "recovered": True,
+                "quality_retained": 0.75,
+                "recovery_time": 10,
+            },
+            {
+                "type": "budget_exhausted",
+                "recovered": True,
+                "quality_retained": 0.65,
+                "recovery_time": 5,
+            },
+            {
+                "type": "timeout",
+                "recovered": True,
+                "quality_retained": 0.7,
+                "recovery_time": 20,
+            },
         ]
 
         # Calculate recovery metrics
-        recovery_success_rate = sum(1 for scenario in error_scenarios
-                                  if scenario["recovered"]) / len(error_scenarios)
+        recovery_success_rate = sum(
+            1 for scenario in error_scenarios if scenario["recovered"]
+        ) / len(error_scenarios)
 
-        avg_quality_retention = sum(scenario["quality_retained"]
-                                  for scenario in error_scenarios) / len(error_scenarios)
+        avg_quality_retention = sum(
+            scenario["quality_retained"] for scenario in error_scenarios
+        ) / len(error_scenarios)
 
-        avg_recovery_time = sum(scenario["recovery_time"]
-                              for scenario in error_scenarios) / len(error_scenarios)
+        avg_recovery_time = sum(
+            scenario["recovery_time"] for scenario in error_scenarios
+        ) / len(error_scenarios)
 
         system_resilience_score = 8.2  # Overall resilience assessment
 
@@ -377,7 +413,7 @@ class TestQualityAssuranceValidation:
             "fallback_quality_retention": avg_quality_retention,
             "recovery_time": avg_recovery_time,
             "system_resilience_score": system_resilience_score,
-            "error_scenarios": error_scenarios
+            "error_scenarios": error_scenarios,
         }
 
 

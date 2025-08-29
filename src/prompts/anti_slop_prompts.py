@@ -3,10 +3,11 @@ Anti-Slop Prompt Engineering System for GPT-5 Tri-Model Router.
 Implements tier-specific prompt optimizations with advanced quality guards.
 """
 
-from typing import List, Optional, Dict, Any
 import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class AntiSlopPrompts:
     """
@@ -63,6 +64,7 @@ class AntiSlopPrompts:
 • Consider alternative explanations and edge cases
 • Maintain helpful, human tone while being precise and honest
 """
+
     def _get_tier_optimizations(self) -> Dict[str, str]:
         """Tier-specific optimizations for each GPT-5 model."""
         return {
@@ -92,7 +94,7 @@ class AntiSlopPrompts:
 • Apply sophisticated reasoning patterns
 • Integrate complex information with nuanced interpretation
 • Apply meta-cognitive reasoning about reasoning quality
-"""
+""",
         }
 
     def get_research_prompt(self, question_text: str, model_tier: str = "mini") -> str:
@@ -135,9 +137,16 @@ Provide a comprehensive research summary with:
 Format: Use bullet points for clarity, cite all sources, acknowledge limitations.
 """
         return prompt.strip()
-    def get_binary_forecast_prompt(self, question_text: str, background_info: str,
-                                  resolution_criteria: str, fine_print: str,
-                                  research: str, model_tier: str = "full") -> str:
+
+    def get_binary_forecast_prompt(
+        self,
+        question_text: str,
+        background_info: str,
+        resolution_criteria: str,
+        fine_print: str,
+        research: str,
+        model_tier: str = "full",
+    ) -> str:
         """Generate binary forecasting prompt with advanced calibration techniques."""
         task_directives = """
 ## BINARY FORECASTING WITH CALIBRATION:
@@ -198,9 +207,17 @@ Format: Use bullet points for clarity, cite all sources, acknowledge limitations
 End with: "Probability: XX% (Confidence: Low/Medium/High)"
 """
         return prompt.strip()
-    def get_multiple_choice_prompt(self, question_text: str, options: List[str],
-                                  background_info: str, resolution_criteria: str,
-                                  fine_print: str, research: str, model_tier: str = "full") -> str:
+
+    def get_multiple_choice_prompt(
+        self,
+        question_text: str,
+        options: List[str],
+        background_info: str,
+        resolution_criteria: str,
+        fine_print: str,
+        research: str,
+        model_tier: str = "full",
+    ) -> str:
         """Generate multiple choice prompt with probability distribution guidance."""
         task_directives = """
 ## MULTIPLE CHOICE PROBABILITY DISTRIBUTION:
@@ -262,12 +279,19 @@ End with probabilities in format:
 (Probabilities must sum to 100%)
 """
         return prompt.strip()
-    def get_numeric_forecast_prompt(self, question_text: str, background_info: str,
-                                   resolution_criteria: str, fine_print: str,
-                                   research: str, unit_of_measure: Optional[str] = None,
-                                   lower_bound: Optional[float] = None,
-                                   upper_bound: Optional[float] = None,
-                                   model_tier: str = "full") -> str:
+
+    def get_numeric_forecast_prompt(
+        self,
+        question_text: str,
+        background_info: str,
+        resolution_criteria: str,
+        fine_print: str,
+        research: str,
+        unit_of_measure: Optional[str] = None,
+        lower_bound: Optional[float] = None,
+        upper_bound: Optional[float] = None,
+        model_tier: str = "full",
+    ) -> str:
         """Generate numeric forecasting prompt with advanced uncertainty quantification."""
         task_directives = """
 ## NUMERIC FORECASTING WITH UNCERTAINTY QUANTIFICATION:
@@ -350,8 +374,9 @@ Confidence Level: Low/Medium/High
 """
         return prompt.strip()
 
-
-    def get_validation_prompt(self, content: str, task_type: str, model_tier: str = "nano") -> str:
+    def get_validation_prompt(
+        self, content: str, task_type: str, model_tier: str = "nano"
+    ) -> str:
         """Generate validation prompt optimized for fast quality assurance."""
         task_directives = """
 ## VALIDATION TASK DIRECTIVES:
@@ -484,8 +509,9 @@ Focus verification on task-specific quality criteria.
 """
         return meta_prompt.strip()
 
-    def adapt_prompt_for_model_capabilities(self, base_prompt: str, model_tier: str,
-                                          model_name: str) -> str:
+    def adapt_prompt_for_model_capabilities(
+        self, base_prompt: str, model_tier: str, model_name: str
+    ) -> str:
         """Dynamically adapt prompts based on specific OpenRouter model capabilities."""
 
         # Model-specific adaptations based on known capabilities
@@ -509,7 +535,11 @@ Focus verification on task-specific quality criteria.
 • Emphasize source integration and citation
 • Apply moderate complexity reasoning patterns
 """
-        elif "gpt-5" in model_name.lower() and "mini" not in model_name.lower() and "nano" not in model_name.lower():
+        elif (
+            "gpt-5" in model_name.lower()
+            and "mini" not in model_name.lower()
+            and "nano" not in model_name.lower()
+        ):
             # GPT-5 Full optimizations
             adaptations = """
 ## GPT-5-FULL SPECIFIC OPTIMIZATIONS:
@@ -544,8 +574,7 @@ Focus verification on task-specific quality criteria.
         base_directives_clean = self.base_directives.strip()
         if base_directives_clean in base_prompt:
             adapted_prompt = base_prompt.replace(
-                base_directives_clean,
-                f"{base_directives_clean}\n{adaptations}"
+                base_directives_clean, f"{base_directives_clean}\n{adaptations}"
             )
         else:
             # Fallback: just prepend adaptations
@@ -553,15 +582,15 @@ Focus verification on task-specific quality criteria.
 
         return adapted_prompt
 
-    def get_enhanced_prompt_with_model_adaptation(self, prompt_type: str, model_tier: str,
-                                                 model_name: str, **kwargs) -> str:
+    def get_enhanced_prompt_with_model_adaptation(
+        self, prompt_type: str, model_tier: str, model_name: str, **kwargs
+    ) -> str:
         """Get enhanced prompt with model-specific adaptations."""
 
         # Get base prompt based on type
         if prompt_type == "research":
             base_prompt = self.get_research_prompt(
-                question_text=kwargs.get("question_text", ""),
-                model_tier=model_tier
+                question_text=kwargs.get("question_text", ""), model_tier=model_tier
             )
         elif prompt_type == "binary_forecast":
             base_prompt = self.get_binary_forecast_prompt(
@@ -570,7 +599,7 @@ Focus verification on task-specific quality criteria.
                 resolution_criteria=kwargs.get("resolution_criteria", ""),
                 fine_print=kwargs.get("fine_print", ""),
                 research=kwargs.get("research", ""),
-                model_tier=model_tier
+                model_tier=model_tier,
             )
         elif prompt_type == "multiple_choice":
             base_prompt = self.get_multiple_choice_prompt(
@@ -580,7 +609,7 @@ Focus verification on task-specific quality criteria.
                 resolution_criteria=kwargs.get("resolution_criteria", ""),
                 fine_print=kwargs.get("fine_print", ""),
                 research=kwargs.get("research", ""),
-                model_tier=model_tier
+                model_tier=model_tier,
             )
         elif prompt_type == "numeric_forecast":
             base_prompt = self.get_numeric_forecast_prompt(
@@ -592,19 +621,21 @@ Focus verification on task-specific quality criteria.
                 unit_of_measure=kwargs.get("unit_of_measure"),
                 lower_bound=kwargs.get("lower_bound"),
                 upper_bound=kwargs.get("upper_bound"),
-                model_tier=model_tier
+                model_tier=model_tier,
             )
         elif prompt_type == "validation":
             base_prompt = self.get_validation_prompt(
                 content=kwargs.get("content", ""),
                 task_type=kwargs.get("task_type", ""),
-                model_tier=model_tier
+                model_tier=model_tier,
             )
         else:
             raise ValueError(f"Unknown prompt type: {prompt_type}")
 
         # Apply model-specific adaptations
-        return self.adapt_prompt_for_model_capabilities(base_prompt, model_tier, model_name)
+        return self.adapt_prompt_for_model_capabilities(
+            base_prompt, model_tier, model_name
+        )
 
 
 # Global instance

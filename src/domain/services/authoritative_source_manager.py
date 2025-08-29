@@ -7,25 +7,27 @@ Provides real-time integration with academic databases, expert networks, and
 specialized knowledge repositories.
 """
 
-from typing import List, Dict, Any, Optional, Set, Tuple, Union
+import asyncio
+import json
+import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import structlog
-import re
-import asyncio
-import json
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
-from abc import ABC, abstractmethod
 
-from ..entities.research_report import ResearchSource
+import structlog
+
 from ..entities.question import Question
+from ..entities.research_report import ResearchSource
 
 logger = structlog.get_logger(__name__)
 
 
 class SourceType(Enum):
     """Types of authoritative sources."""
+
     ACADEMIC_PAPER = "academic_paper"
     EXPERT_OPINION = "expert_opinion"
     GOVERNMENT_DATA = "government_data"
@@ -38,6 +40,7 @@ class SourceType(Enum):
 
 class CredibilityFactor(Enum):
     """Factors that influence source credibility."""
+
     DOMAIN_AUTHORITY = "domain_authority"
     PUBLICATION_VENUE = "publication_venue"
     AUTHOR_EXPERTISE = "author_expertise"
@@ -53,6 +56,7 @@ class CredibilityFactor(Enum):
 
 class KnowledgeBase(Enum):
     """Specialized knowledge bases for domain-specific research."""
+
     ARXIV = "arxiv"
     PUBMED = "pubmed"
     SEMANTIC_SCHOLAR = "semantic_scholar"
@@ -68,6 +72,7 @@ class KnowledgeBase(Enum):
 
 class ExpertiseArea(Enum):
     """Areas of expertise for expert opinion validation."""
+
     ARTIFICIAL_INTELLIGENCE = "artificial_intelligence"
     ECONOMICS = "economics"
     CLIMATE_SCIENCE = "climate_science"
@@ -85,6 +90,7 @@ class ExpertiseArea(Enum):
 @dataclass
 class ExpertProfile:
     """Profile of an expert for opinion validation."""
+
     name: str
     institution: str
     expertise_areas: List[ExpertiseArea]
@@ -98,6 +104,7 @@ class ExpertProfile:
 @dataclass
 class KnowledgeBaseQuery:
     """Query configuration for knowledge base searches."""
+
     query_text: str
     knowledge_bases: List[KnowledgeBase]
     date_range: Optional[Tuple[datetime, datetime]] = None
@@ -111,6 +118,7 @@ class KnowledgeBaseQuery:
 @dataclass
 class AuthoritativeSource:
     """Enhanced research source with authoritative metadata."""
+
     url: str
     title: str
     summary: str
@@ -149,7 +157,7 @@ class AuthoritativeSource:
             summary=self.summary,
             credibility_score=self.credibility_score,
             publish_date=self.publish_date,
-            source_type=self.source_type.value
+            source_type=self.source_type.value,
         )
 
     def get_enhanced_metadata(self) -> Dict[str, Any]:
@@ -159,34 +167,51 @@ class AuthoritativeSource:
                 "title": self.title,
                 "authors": self.authors,
                 "institution": self.institution,
-                "publish_date": self.publish_date.isoformat() if self.publish_date else None,
-                "url": self.url
+                "publish_date": (
+                    self.publish_date.isoformat() if self.publish_date else None
+                ),
+                "url": self.url,
             },
             "credibility": {
                 "overall_score": self.credibility_score,
-                "factors": {factor.value: score for factor, score in self.credibility_factors.items()},
+                "factors": {
+                    factor.value: score
+                    for factor, score in self.credibility_factors.items()
+                },
                 "methodology_score": self.methodology_score,
                 "data_quality_score": self.data_quality_score,
                 "reproducibility_score": self.reproducibility_score,
-                "expert_consensus_score": self.expert_consensus_score
+                "expert_consensus_score": self.expert_consensus_score,
             },
             "academic_metrics": {
                 "citation_count": self.citation_count,
                 "impact_factor": self.impact_factor,
                 "download_count": self.download_count,
-                "doi": self.doi
+                "doi": self.doi,
             },
             "source_details": {
                 "source_type": self.source_type.value,
-                "knowledge_base": self.knowledge_base.value if self.knowledge_base else None,
+                "knowledge_base": (
+                    self.knowledge_base.value if self.knowledge_base else None
+                ),
                 "peer_review_status": self.peer_review_status,
-                "journal_venue": self.journal_or_venue
+                "journal_venue": self.journal_or_venue,
             },
             "expert_info": {
-                "expert_name": self.expert_profile.name if self.expert_profile else None,
-                "expertise_areas": [area.value for area in self.expert_profile.expertise_areas] if self.expert_profile else [],
-                "reputation_score": self.expert_profile.reputation_score if self.expert_profile else None
-            }
+                "expert_name": (
+                    self.expert_profile.name if self.expert_profile else None
+                ),
+                "expertise_areas": (
+                    [area.value for area in self.expert_profile.expertise_areas]
+                    if self.expert_profile
+                    else []
+                ),
+                "reputation_score": (
+                    self.expert_profile.reputation_score
+                    if self.expert_profile
+                    else None
+                ),
+            },
         }
 
 
@@ -204,7 +229,9 @@ class KnowledgeBaseInterface(ABC):
         pass
 
     @abstractmethod
-    async def validate_source(self, source: AuthoritativeSource) -> Tuple[bool, List[str]]:
+    async def validate_source(
+        self, source: AuthoritativeSource
+    ) -> Tuple[bool, List[str]]:
         """Validate a source from this knowledge base."""
         pass
 
@@ -218,7 +245,7 @@ class ArxivKnowledgeBase(KnowledgeBaseInterface):
             ExpertiseArea.ARTIFICIAL_INTELLIGENCE,
             ExpertiseArea.MATHEMATICS,
             ExpertiseArea.PHYSICS,
-            ExpertiseArea.TECHNOLOGY
+            ExpertiseArea.TECHNOLOGY,
         ]
 
     async def search(self, query: KnowledgeBaseQuery) -> List[AuthoritativeSource]:
@@ -236,12 +263,12 @@ class ArxivKnowledgeBase(KnowledgeBaseInterface):
                 source_type=SourceType.PREPRINT,
                 credibility_score=0.0,
                 credibility_factors={},
-                publish_date=datetime.utcnow() - timedelta(days=10 + i*5),
+                publish_date=datetime.utcnow() - timedelta(days=10 + i * 5),
                 authors=[f"Researcher {i+1}", f"Co-Author {i+1}"],
                 knowledge_base=KnowledgeBase.ARXIV,
                 peer_review_status="preprint",
                 abstract=f"Abstract for paper {i+1} on {query.query_text}",
-                keywords=["AI", "machine learning", "research"]
+                keywords=["AI", "machine learning", "research"],
             )
             sources.append(source)
 
@@ -250,7 +277,9 @@ class ArxivKnowledgeBase(KnowledgeBaseInterface):
     def get_supported_expertise_areas(self) -> List[ExpertiseArea]:
         return self.supported_areas
 
-    async def validate_source(self, source: AuthoritativeSource) -> Tuple[bool, List[str]]:
+    async def validate_source(
+        self, source: AuthoritativeSource
+    ) -> Tuple[bool, List[str]]:
         """Validate ArXiv source."""
         issues = []
 
@@ -271,7 +300,7 @@ class PubMedKnowledgeBase(KnowledgeBaseInterface):
         self.supported_areas = [
             ExpertiseArea.HEALTHCARE,
             ExpertiseArea.BIOLOGY,
-            ExpertiseArea.CLIMATE_SCIENCE
+            ExpertiseArea.CLIMATE_SCIENCE,
         ]
 
     async def search(self, query: KnowledgeBaseQuery) -> List[AuthoritativeSource]:
@@ -287,14 +316,14 @@ class PubMedKnowledgeBase(KnowledgeBaseInterface):
                 source_type=SourceType.PEER_REVIEWED,
                 credibility_score=0.0,
                 credibility_factors={},
-                publish_date=datetime.utcnow() - timedelta(days=60 + i*15),
+                publish_date=datetime.utcnow() - timedelta(days=60 + i * 15),
                 authors=[f"Dr. Medical {i+1}", f"Prof. Health {i+1}"],
                 institution="Medical University",
                 journal_or_venue="New England Journal of Medicine",
                 knowledge_base=KnowledgeBase.PUBMED,
                 peer_review_status="peer_reviewed",
                 doi=f"10.1056/NEJMoa{2024000 + i}",
-                citation_count=120 + i*30
+                citation_count=120 + i * 30,
             )
             sources.append(source)
 
@@ -303,7 +332,9 @@ class PubMedKnowledgeBase(KnowledgeBaseInterface):
     def get_supported_expertise_areas(self) -> List[ExpertiseArea]:
         return self.supported_areas
 
-    async def validate_source(self, source: AuthoritativeSource) -> Tuple[bool, List[str]]:
+    async def validate_source(
+        self, source: AuthoritativeSource
+    ) -> Tuple[bool, List[str]]:
         """Validate PubMed source."""
         issues = []
 
@@ -329,10 +360,13 @@ class ExpertNetworkKnowledgeBase(KnowledgeBaseInterface):
             "ai_expert_1": ExpertProfile(
                 name="Dr. AI Expert",
                 institution="Stanford AI Lab",
-                expertise_areas=[ExpertiseArea.ARTIFICIAL_INTELLIGENCE, ExpertiseArea.TECHNOLOGY],
+                expertise_areas=[
+                    ExpertiseArea.ARTIFICIAL_INTELLIGENCE,
+                    ExpertiseArea.TECHNOLOGY,
+                ],
                 h_index=45,
                 years_experience=15,
-                reputation_score=0.9
+                reputation_score=0.9,
             ),
             "econ_expert_1": ExpertProfile(
                 name="Prof. Economics",
@@ -340,8 +374,8 @@ class ExpertNetworkKnowledgeBase(KnowledgeBaseInterface):
                 expertise_areas=[ExpertiseArea.ECONOMICS, ExpertiseArea.FINANCE],
                 h_index=60,
                 years_experience=20,
-                reputation_score=0.95
-            )
+                reputation_score=0.95,
+            ),
         }
 
     async def search(self, query: KnowledgeBaseQuery) -> List[AuthoritativeSource]:
@@ -350,11 +384,12 @@ class ExpertNetworkKnowledgeBase(KnowledgeBaseInterface):
 
         # Find relevant experts based on expertise areas
         relevant_experts = [
-            expert for expert in self.expert_database.values()
+            expert
+            for expert in self.expert_database.values()
             if any(area in expert.expertise_areas for area in query.expertise_areas)
         ]
 
-        for i, expert in enumerate(relevant_experts[:query.max_results]):
+        for i, expert in enumerate(relevant_experts[: query.max_results]):
             source = AuthoritativeSource(
                 url=f"https://expert-network.com/opinion/{expert.name.replace(' ', '-').lower()}-{i+1}",
                 title=f"Expert Opinion: {query.query_text}",
@@ -362,11 +397,11 @@ class ExpertNetworkKnowledgeBase(KnowledgeBaseInterface):
                 source_type=SourceType.EXPERT_OPINION,
                 credibility_score=0.0,
                 credibility_factors={},
-                publish_date=datetime.utcnow() - timedelta(days=5 + i*2),
+                publish_date=datetime.utcnow() - timedelta(days=5 + i * 2),
                 authors=[expert.name],
                 institution=expert.institution,
                 knowledge_base=KnowledgeBase.EXPERT_NETWORKS,
-                expert_profile=expert
+                expert_profile=expert,
             )
             sources.append(source)
 
@@ -375,7 +410,9 @@ class ExpertNetworkKnowledgeBase(KnowledgeBaseInterface):
     def get_supported_expertise_areas(self) -> List[ExpertiseArea]:
         return self.supported_areas
 
-    async def validate_source(self, source: AuthoritativeSource) -> Tuple[bool, List[str]]:
+    async def validate_source(
+        self, source: AuthoritativeSource
+    ) -> Tuple[bool, List[str]]:
         """Validate expert opinion source."""
         issues = []
 
@@ -408,7 +445,7 @@ class AuthoritativeSourceManager:
         self.knowledge_bases = {
             KnowledgeBase.ARXIV: ArxivKnowledgeBase(),
             KnowledgeBase.PUBMED: PubMedKnowledgeBase(),
-            KnowledgeBase.EXPERT_NETWORKS: ExpertNetworkKnowledgeBase()
+            KnowledgeBase.EXPERT_NETWORKS: ExpertNetworkKnowledgeBase(),
         }
 
         # Enhanced credibility weights for different source types
@@ -432,7 +469,6 @@ class AuthoritativeSourceManager:
             "nejm.org": 0.95,
             "bmj.com": 0.90,
             "thelancet.com": 0.95,
-
             # Government and International Organizations
             "census.gov": 0.95,
             "bls.gov": 0.95,
@@ -446,7 +482,6 @@ class AuthoritativeSourceManager:
             "who.int": 0.95,
             "un.org": 0.85,
             "europa.eu": 0.85,
-
             # Think Tanks and Research Institutions
             "brookings.edu": 0.85,
             "rand.org": 0.85,
@@ -455,7 +490,6 @@ class AuthoritativeSourceManager:
             "gallup.com": 0.80,
             "mckinsey.com": 0.75,
             "bcg.com": 0.75,
-
             # Financial and Economic
             "federalreserve.gov": 0.95,
             "bis.org": 0.90,
@@ -464,14 +498,12 @@ class AuthoritativeSourceManager:
             "ft.com": 0.80,
             "wsj.com": 0.80,
             "economist.com": 0.85,
-
             # Technology and Innovation
             "ieee.org": 0.90,
             "acm.org": 0.85,
             "mit.edu": 0.90,
             "stanford.edu": 0.90,
             "harvard.edu": 0.90,
-
             # News and Analysis (High Quality)
             "bbc.com": 0.75,
             "nytimes.com": 0.75,
@@ -515,7 +547,6 @@ class AuthoritativeSourceManager:
             "yale": 0.85,
             "columbia": 0.85,
             "chicago": 0.85,
-
             # Research Institutions
             "national institutes of health": 0.95,
             "centers for disease control": 0.95,
@@ -524,7 +555,6 @@ class AuthoritativeSourceManager:
             "rand corporation": 0.85,
             "council on foreign relations": 0.80,
             "pew research center": 0.85,
-
             # International Organizations
             "world bank": 0.90,
             "international monetary fund": 0.90,
@@ -539,26 +569,28 @@ class AuthoritativeSourceManager:
             "academic_experts": {
                 "description": "Academic researchers and professors",
                 "credibility_base": 0.80,
-                "verification_required": True
+                "verification_required": True,
             },
             "industry_experts": {
                 "description": "Industry professionals and analysts",
                 "credibility_base": 0.70,
-                "verification_required": True
+                "verification_required": True,
             },
             "government_officials": {
                 "description": "Government officials and policy makers",
                 "credibility_base": 0.75,
-                "verification_required": True
+                "verification_required": True,
             },
             "think_tank_researchers": {
                 "description": "Think tank researchers and analysts",
                 "credibility_base": 0.75,
-                "verification_required": True
-            }
+                "verification_required": True,
+            },
         }
 
-    def _initialize_credibility_weights(self) -> Dict[SourceType, Dict[CredibilityFactor, float]]:
+    def _initialize_credibility_weights(
+        self,
+    ) -> Dict[SourceType, Dict[CredibilityFactor, float]]:
         """Initialize credibility factor weights for different source types."""
         return {
             SourceType.ACADEMIC_PAPER: {
@@ -569,7 +601,7 @@ class AuthoritativeSourceManager:
                 CredibilityFactor.PEER_REVIEW_STATUS: 0.15,
                 CredibilityFactor.CITATION_COUNT: 0.10,
                 CredibilityFactor.RECENCY: 0.05,
-                CredibilityFactor.METHODOLOGY_QUALITY: 0.05
+                CredibilityFactor.METHODOLOGY_QUALITY: 0.05,
             },
             SourceType.EXPERT_OPINION: {
                 CredibilityFactor.EXPERT_CONSENSUS: 0.25,
@@ -578,7 +610,7 @@ class AuthoritativeSourceManager:
                 CredibilityFactor.DOMAIN_AUTHORITY: 0.15,
                 CredibilityFactor.RECENCY: 0.10,
                 CredibilityFactor.METHODOLOGY_QUALITY: 0.10,
-                CredibilityFactor.PEER_REVIEW_STATUS: 0.05
+                CredibilityFactor.PEER_REVIEW_STATUS: 0.05,
             },
             SourceType.GOVERNMENT_DATA: {
                 CredibilityFactor.DOMAIN_AUTHORITY: 0.25,
@@ -586,7 +618,7 @@ class AuthoritativeSourceManager:
                 CredibilityFactor.DATA_QUALITY: 0.20,
                 CredibilityFactor.RECENCY: 0.15,
                 CredibilityFactor.METHODOLOGY_QUALITY: 0.15,
-                CredibilityFactor.REPRODUCIBILITY: 0.05
+                CredibilityFactor.REPRODUCIBILITY: 0.05,
             },
             SourceType.PEER_REVIEWED: {
                 CredibilityFactor.PEER_REVIEW_STATUS: 0.20,
@@ -596,8 +628,8 @@ class AuthoritativeSourceManager:
                 CredibilityFactor.METHODOLOGY_QUALITY: 0.10,
                 CredibilityFactor.DOMAIN_AUTHORITY: 0.10,
                 CredibilityFactor.RECENCY: 0.05,
-                CredibilityFactor.REPRODUCIBILITY: 0.05
-            }
+                CredibilityFactor.REPRODUCIBILITY: 0.05,
+            },
         }
 
     async def find_authoritative_sources_enhanced(
@@ -606,7 +638,7 @@ class AuthoritativeSourceManager:
         query_config: Optional[KnowledgeBaseQuery] = None,
         source_types: Optional[List[SourceType]] = None,
         max_sources: int = 20,
-        min_credibility: float = 0.6
+        min_credibility: float = 0.6,
     ) -> List[AuthoritativeSource]:
         """
         Enhanced source finding with knowledge base integration.
@@ -625,7 +657,7 @@ class AuthoritativeSourceManager:
             "Finding enhanced authoritative sources",
             question_id=str(question.id),
             max_sources=max_sources,
-            min_credibility=min_credibility
+            min_credibility=min_credibility,
         )
 
         # Create default query config if not provided
@@ -634,7 +666,7 @@ class AuthoritativeSourceManager:
                 query_text=question.title,
                 knowledge_bases=list(self.knowledge_bases.keys()),
                 max_results=max_sources,
-                min_credibility=min_credibility
+                min_credibility=min_credibility,
             )
 
         all_sources = []
@@ -654,13 +686,15 @@ class AuthoritativeSourceManager:
                 logger.warning(
                     "Knowledge base search failed",
                     kb_type=list(query_config.knowledge_bases)[i],
-                    error=str(result)
+                    error=str(result),
                 )
                 continue
 
             # Calculate credibility scores for sources
             for source in result:
-                source.credibility_score = self.calculate_enhanced_credibility_score(source)
+                source.credibility_score = self.calculate_enhanced_credibility_score(
+                    source
+                )
 
             all_sources.extend(result)
 
@@ -681,7 +715,7 @@ class AuthoritativeSourceManager:
             "Found enhanced authoritative sources",
             total_found=len(all_sources),
             after_filtering=len(filtered_sources),
-            returned=len(result)
+            returned=len(result),
         )
 
         return result
@@ -691,7 +725,7 @@ class AuthoritativeSourceManager:
         question: Question,
         source_types: Optional[List[SourceType]] = None,
         max_sources: int = 20,
-        min_credibility: float = 0.6
+        min_credibility: float = 0.6,
     ) -> List[AuthoritativeSource]:
         """
         Find authoritative sources for a given question.
@@ -710,7 +744,7 @@ class AuthoritativeSourceManager:
             question_id=str(question.id),
             source_types=source_types,
             max_sources=max_sources,
-            min_credibility=min_credibility
+            min_credibility=min_credibility,
         )
 
         if source_types is None:
@@ -727,7 +761,8 @@ class AuthoritativeSourceManager:
 
         # Filter by credibility threshold
         filtered_sources = [
-            source for source in all_sources
+            source
+            for source in all_sources
             if source.credibility_score >= min_credibility
         ]
 
@@ -741,16 +776,13 @@ class AuthoritativeSourceManager:
             "Found authoritative sources",
             total_found=len(all_sources),
             after_filtering=len(filtered_sources),
-            returned=len(result)
+            returned=len(result),
         )
 
         return result
 
     async def _search_by_source_type(
-        self,
-        question: Question,
-        source_type: SourceType,
-        max_sources: int
+        self, question: Question, source_type: SourceType, max_sources: int
     ) -> List[AuthoritativeSource]:
         """Search for sources of a specific type."""
 
@@ -767,14 +799,14 @@ class AuthoritativeSourceManager:
         elif source_type == SourceType.EXPERT_OPINION:
             mock_sources = await self._search_expert_opinions(question, max_sources)
         elif source_type == SourceType.INSTITUTIONAL_REPORT:
-            mock_sources = await self._search_institutional_reports(question, max_sources)
+            mock_sources = await self._search_institutional_reports(
+                question, max_sources
+            )
 
         return mock_sources
 
     async def _search_academic_papers(
-        self,
-        question: Question,
-        max_sources: int
+        self, question: Question, max_sources: int
     ) -> List[AuthoritativeSource]:
         """Search for academic papers related to the question."""
 
@@ -790,11 +822,11 @@ class AuthoritativeSourceManager:
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.0,  # Will be calculated
                 credibility_factors={},
-                publish_date=datetime.utcnow() - timedelta(days=30 + i*10),
+                publish_date=datetime.utcnow() - timedelta(days=30 + i * 10),
                 authors=[f"Dr. Researcher {i+1}", f"Prof. Expert {i+1}"],
                 institution="Research University",
                 journal_or_venue="Nature Communications",
-                citation_count=50 + i*20
+                citation_count=50 + i * 20,
             )
 
             # Calculate credibility score
@@ -804,9 +836,7 @@ class AuthoritativeSourceManager:
         return sources
 
     async def _search_government_data(
-        self,
-        question: Question,
-        max_sources: int
+        self, question: Question, max_sources: int
     ) -> List[AuthoritativeSource]:
         """Search for government data sources."""
 
@@ -821,8 +851,8 @@ class AuthoritativeSourceManager:
                 source_type=SourceType.GOVERNMENT_DATA,
                 credibility_score=0.0,
                 credibility_factors={},
-                publish_date=datetime.utcnow() - timedelta(days=60 + i*15),
-                institution="U.S. Census Bureau"
+                publish_date=datetime.utcnow() - timedelta(days=60 + i * 15),
+                institution="U.S. Census Bureau",
             )
 
             source.credibility_score = self.calculate_credibility_score(source)
@@ -831,9 +861,7 @@ class AuthoritativeSourceManager:
         return sources
 
     async def _search_expert_opinions(
-        self,
-        question: Question,
-        max_sources: int
+        self, question: Question, max_sources: int
     ) -> List[AuthoritativeSource]:
         """Search for expert opinions and analysis."""
 
@@ -848,9 +876,9 @@ class AuthoritativeSourceManager:
                 source_type=SourceType.EXPERT_OPINION,
                 credibility_score=0.0,
                 credibility_factors={},
-                publish_date=datetime.utcnow() - timedelta(days=20 + i*5),
+                publish_date=datetime.utcnow() - timedelta(days=20 + i * 5),
                 authors=[f"Expert Analyst {i+1}"],
-                institution="Brookings Institution"
+                institution="Brookings Institution",
             )
 
             source.credibility_score = self.calculate_credibility_score(source)
@@ -859,9 +887,7 @@ class AuthoritativeSourceManager:
         return sources
 
     async def _search_institutional_reports(
-        self,
-        question: Question,
-        max_sources: int
+        self, question: Question, max_sources: int
     ) -> List[AuthoritativeSource]:
         """Search for institutional reports and studies."""
 
@@ -876,9 +902,9 @@ class AuthoritativeSourceManager:
                 source_type=SourceType.INSTITUTIONAL_REPORT,
                 credibility_score=0.0,
                 credibility_factors={},
-                publish_date=datetime.utcnow() - timedelta(days=45 + i*10),
+                publish_date=datetime.utcnow() - timedelta(days=45 + i * 10),
                 authors=[f"Research Team {i+1}"],
-                institution="RAND Corporation"
+                institution="RAND Corporation",
             )
 
             source.credibility_score = self.calculate_credibility_score(source)
@@ -957,12 +983,11 @@ class AuthoritativeSourceManager:
             CredibilityFactor.PEER_REVIEW_STATUS: 0.15,
             CredibilityFactor.CITATION_COUNT: 0.10,
             CredibilityFactor.RECENCY: 0.10,
-            CredibilityFactor.METHODOLOGY_QUALITY: 0.05
+            CredibilityFactor.METHODOLOGY_QUALITY: 0.05,
         }
 
         weighted_score = sum(
-            factors[factor] * weight
-            for factor, weight in weights.items()
+            factors[factor] * weight for factor, weight in weights.items()
         )
 
         final_score = min(1.0, max(0.0, weighted_score))
@@ -972,7 +997,9 @@ class AuthoritativeSourceManager:
 
         return final_score
 
-    def calculate_enhanced_credibility_score(self, source: AuthoritativeSource) -> float:
+    def calculate_enhanced_credibility_score(
+        self, source: AuthoritativeSource
+    ) -> float:
         """
         Calculate enhanced credibility score using source-type-specific weights.
 
@@ -1027,24 +1054,31 @@ class AuthoritativeSourceManager:
         factors[CredibilityFactor.METHODOLOGY_QUALITY] = methodology_score
 
         # Enhanced factors
-        factors[CredibilityFactor.EXPERT_CONSENSUS] = self._assess_expert_consensus(source)
+        factors[CredibilityFactor.EXPERT_CONSENSUS] = self._assess_expert_consensus(
+            source
+        )
         factors[CredibilityFactor.DATA_QUALITY] = self._assess_data_quality(source)
-        factors[CredibilityFactor.REPRODUCIBILITY] = self._assess_reproducibility(source)
+        factors[CredibilityFactor.REPRODUCIBILITY] = self._assess_reproducibility(
+            source
+        )
 
         # Store factors in source
         source.credibility_factors = factors
 
         # Use source-type-specific weights
-        weights = self.credibility_weights.get(source.source_type, {
-            CredibilityFactor.DOMAIN_AUTHORITY: 0.20,
-            CredibilityFactor.PUBLICATION_VENUE: 0.15,
-            CredibilityFactor.INSTITUTIONAL_AFFILIATION: 0.15,
-            CredibilityFactor.AUTHOR_EXPERTISE: 0.10,
-            CredibilityFactor.PEER_REVIEW_STATUS: 0.15,
-            CredibilityFactor.CITATION_COUNT: 0.10,
-            CredibilityFactor.RECENCY: 0.10,
-            CredibilityFactor.METHODOLOGY_QUALITY: 0.05
-        })
+        weights = self.credibility_weights.get(
+            source.source_type,
+            {
+                CredibilityFactor.DOMAIN_AUTHORITY: 0.20,
+                CredibilityFactor.PUBLICATION_VENUE: 0.15,
+                CredibilityFactor.INSTITUTIONAL_AFFILIATION: 0.15,
+                CredibilityFactor.AUTHOR_EXPERTISE: 0.10,
+                CredibilityFactor.PEER_REVIEW_STATUS: 0.15,
+                CredibilityFactor.CITATION_COUNT: 0.10,
+                CredibilityFactor.RECENCY: 0.10,
+                CredibilityFactor.METHODOLOGY_QUALITY: 0.05,
+            },
+        )
 
         # Calculate weighted score
         weighted_score = 0.0
@@ -1067,8 +1101,12 @@ class AuthoritativeSourceManager:
         source.credibility_score = final_score
         source.methodology_score = methodology_score
         source.data_quality_score = factors.get(CredibilityFactor.DATA_QUALITY, 0.5)
-        source.reproducibility_score = factors.get(CredibilityFactor.REPRODUCIBILITY, 0.5)
-        source.expert_consensus_score = factors.get(CredibilityFactor.EXPERT_CONSENSUS, 0.5)
+        source.reproducibility_score = factors.get(
+            CredibilityFactor.REPRODUCIBILITY, 0.5
+        )
+        source.expert_consensus_score = factors.get(
+            CredibilityFactor.EXPERT_CONSENSUS, 0.5
+        )
 
         return final_score
 
@@ -1095,7 +1133,9 @@ class AuthoritativeSourceManager:
         # Fallback to basic assessment
         return 0.6 if source.authors else 0.4
 
-    def _assess_enhanced_methodology_quality(self, source: AuthoritativeSource) -> float:
+    def _assess_enhanced_methodology_quality(
+        self, source: AuthoritativeSource
+    ) -> float:
         """Enhanced methodology quality assessment."""
         base_score = self._assess_methodology_quality(source)
 
@@ -1117,7 +1157,10 @@ class AuthoritativeSourceManager:
             if source.expert_profile:
                 return source.expert_profile.reputation_score
             return 0.7
-        elif source.source_type in [SourceType.PEER_REVIEWED, SourceType.ACADEMIC_PAPER]:
+        elif source.source_type in [
+            SourceType.PEER_REVIEWED,
+            SourceType.ACADEMIC_PAPER,
+        ]:
             # Use citation count as proxy for expert consensus
             if source.citation_count:
                 if source.citation_count >= 100:
@@ -1136,7 +1179,10 @@ class AuthoritativeSourceManager:
         """Assess data quality of the source."""
         if source.source_type == SourceType.GOVERNMENT_DATA:
             return 0.9  # Government data typically high quality
-        elif source.source_type in [SourceType.PEER_REVIEWED, SourceType.ACADEMIC_PAPER]:
+        elif source.source_type in [
+            SourceType.PEER_REVIEWED,
+            SourceType.ACADEMIC_PAPER,
+        ]:
             # Assess based on methodology and peer review
             base_score = 0.7
             if source.peer_review_status == "peer_reviewed":
@@ -1171,9 +1217,7 @@ class AuthoritativeSourceManager:
             return 0.5
 
     async def search_specialized_knowledge_bases(
-        self,
-        query: KnowledgeBaseQuery,
-        expertise_areas: List[ExpertiseArea]
+        self, query: KnowledgeBaseQuery, expertise_areas: List[ExpertiseArea]
     ) -> List[AuthoritativeSource]:
         """
         Search specialized knowledge bases for domain-specific information.
@@ -1189,7 +1233,7 @@ class AuthoritativeSourceManager:
             "Searching specialized knowledge bases",
             query_text=query.query_text,
             knowledge_bases=[kb.value for kb in query.knowledge_bases],
-            expertise_areas=[area.value for area in expertise_areas]
+            expertise_areas=[area.value for area in expertise_areas],
         )
 
         # Update query with expertise areas
@@ -1217,13 +1261,16 @@ class AuthoritativeSourceManager:
 
                 # Calculate enhanced credibility scores
                 for source in result:
-                    source.credibility_score = self.calculate_enhanced_credibility_score(source)
+                    source.credibility_score = (
+                        self.calculate_enhanced_credibility_score(source)
+                    )
 
                 all_sources.extend(result)
 
         # Filter and sort by credibility
         filtered_sources = [
-            source for source in all_sources
+            source
+            for source in all_sources
             if source.credibility_score >= query.min_credibility
         ]
 
@@ -1232,21 +1279,37 @@ class AuthoritativeSourceManager:
         logger.info(
             "Specialized knowledge base search completed",
             total_sources=len(all_sources),
-            filtered_sources=len(filtered_sources)
+            filtered_sources=len(filtered_sources),
         )
 
-        return filtered_sources[:query.max_results]
+        return filtered_sources[: query.max_results]
 
-    def _get_relevant_knowledge_bases(self, expertise_areas: List[ExpertiseArea]) -> List[KnowledgeBase]:
+    def _get_relevant_knowledge_bases(
+        self, expertise_areas: List[ExpertiseArea]
+    ) -> List[KnowledgeBase]:
         """Get relevant knowledge bases for given expertise areas."""
         relevant_kbs = set()
 
         for area in expertise_areas:
-            if area in [ExpertiseArea.ARTIFICIAL_INTELLIGENCE, ExpertiseArea.TECHNOLOGY, ExpertiseArea.MATHEMATICS]:
-                relevant_kbs.update([KnowledgeBase.ARXIV, KnowledgeBase.IEEE_XPLORE, KnowledgeBase.ACM_DIGITAL_LIBRARY])
+            if area in [
+                ExpertiseArea.ARTIFICIAL_INTELLIGENCE,
+                ExpertiseArea.TECHNOLOGY,
+                ExpertiseArea.MATHEMATICS,
+            ]:
+                relevant_kbs.update(
+                    [
+                        KnowledgeBase.ARXIV,
+                        KnowledgeBase.IEEE_XPLORE,
+                        KnowledgeBase.ACM_DIGITAL_LIBRARY,
+                    ]
+                )
             elif area in [ExpertiseArea.HEALTHCARE, ExpertiseArea.BIOLOGY]:
                 relevant_kbs.add(KnowledgeBase.PUBMED)
-            elif area in [ExpertiseArea.ECONOMICS, ExpertiseArea.FINANCE, ExpertiseArea.SOCIAL_SCIENCE]:
+            elif area in [
+                ExpertiseArea.ECONOMICS,
+                ExpertiseArea.FINANCE,
+                ExpertiseArea.SOCIAL_SCIENCE,
+            ]:
                 relevant_kbs.update([KnowledgeBase.SSRN, KnowledgeBase.JSTOR])
             elif area == ExpertiseArea.POLICY:
                 relevant_kbs.add(KnowledgeBase.GOVERNMENT_DATABASES)
@@ -1257,8 +1320,7 @@ class AuthoritativeSourceManager:
         return list(relevant_kbs)
 
     async def validate_source_authenticity_enhanced(
-        self,
-        source: AuthoritativeSource
+        self, source: AuthoritativeSource
     ) -> Tuple[bool, List[str], Dict[str, Any]]:
         """
         Enhanced source authenticity validation with detailed analysis.
@@ -1283,16 +1345,18 @@ class AuthoritativeSourceManager:
             issues.extend(kb_issues)
             validation_details["knowledge_base_validation"] = {
                 "valid": is_kb_valid,
-                "issues": kb_issues
+                "issues": kb_issues,
             }
 
         # Expert profile validation
         if source.expert_profile:
-            expert_valid, expert_issues = self._validate_expert_profile(source.expert_profile)
+            expert_valid, expert_issues = self._validate_expert_profile(
+                source.expert_profile
+            )
             issues.extend(expert_issues)
             validation_details["expert_validation"] = {
                 "valid": expert_valid,
-                "issues": expert_issues
+                "issues": expert_issues,
             }
 
         # Metadata consistency validation
@@ -1300,7 +1364,7 @@ class AuthoritativeSourceManager:
         issues.extend(metadata_issues)
         validation_details["metadata_validation"] = {
             "valid": metadata_valid,
-            "issues": metadata_issues
+            "issues": metadata_issues,
         }
 
         # Overall validation
@@ -1312,12 +1376,14 @@ class AuthoritativeSourceManager:
             "Enhanced source validation completed",
             source_url=source.url,
             is_valid=is_valid,
-            issue_count=len(issues)
+            issue_count=len(issues),
         )
 
         return is_valid, issues, validation_details
 
-    def _validate_expert_profile(self, expert_profile: ExpertProfile) -> Tuple[bool, List[str]]:
+    def _validate_expert_profile(
+        self, expert_profile: ExpertProfile
+    ) -> Tuple[bool, List[str]]:
         """Validate expert profile data."""
         issues = []
 
@@ -1330,17 +1396,22 @@ class AuthoritativeSourceManager:
         if not expert_profile.expertise_areas:
             issues.append("Expert profile missing expertise areas")
 
-        if expert_profile.reputation_score < 0.0 or expert_profile.reputation_score > 1.0:
+        if (
+            expert_profile.reputation_score < 0.0
+            or expert_profile.reputation_score > 1.0
+        ):
             issues.append("Expert reputation score out of valid range")
 
         return len(issues) == 0, issues
 
-    def _validate_metadata_consistency(self, source: AuthoritativeSource) -> Tuple[bool, List[str]]:
+    def _validate_metadata_consistency(
+        self, source: AuthoritativeSource
+    ) -> Tuple[bool, List[str]]:
         """Validate metadata consistency."""
         issues = []
 
         # Check DOI format if present
-        if source.doi and not re.match(r'^10\.\d+/.+', source.doi):
+        if source.doi and not re.match(r"^10\.\d+/.+", source.doi):
             issues.append("Invalid DOI format")
 
         # Check citation count consistency
@@ -1363,7 +1434,7 @@ class AuthoritativeSourceManager:
             parsed = urlparse(url)
             domain = parsed.netloc.lower()
             # Remove www. prefix
-            if domain.startswith('www.'):
+            if domain.startswith("www."):
                 domain = domain[4:]
             return domain
         except Exception:
@@ -1382,7 +1453,10 @@ class AuthoritativeSourceManager:
             return 0.6
         elif source.source_type == SourceType.PREPRINT:
             return 0.4
-        elif source.source_type in [SourceType.GOVERNMENT_DATA, SourceType.INSTITUTIONAL_REPORT]:
+        elif source.source_type in [
+            SourceType.GOVERNMENT_DATA,
+            SourceType.INSTITUTIONAL_REPORT,
+        ]:
             return 0.7
         else:
             return 0.5
@@ -1429,14 +1503,16 @@ class AuthoritativeSourceManager:
         # This would be more sophisticated in a real implementation
         if source.source_type in [SourceType.ACADEMIC_PAPER, SourceType.PEER_REVIEWED]:
             return 0.8
-        elif source.source_type in [SourceType.GOVERNMENT_DATA, SourceType.INSTITUTIONAL_REPORT]:
+        elif source.source_type in [
+            SourceType.GOVERNMENT_DATA,
+            SourceType.INSTITUTIONAL_REPORT,
+        ]:
             return 0.7
         else:
             return 0.6
 
     def get_source_credibility_breakdown(
-        self,
-        source: AuthoritativeSource
+        self, source: AuthoritativeSource
     ) -> Dict[str, Any]:
         """
         Get detailed breakdown of credibility factors for a source.
@@ -1458,13 +1534,14 @@ class AuthoritativeSourceManager:
             "institution": source.institution,
             "journal_venue": source.journal_or_venue,
             "citation_count": source.citation_count,
-            "publish_date": source.publish_date.isoformat() if source.publish_date else None,
-            "authors": source.authors
+            "publish_date": (
+                source.publish_date.isoformat() if source.publish_date else None
+            ),
+            "authors": source.authors,
         }
 
     def validate_source_authenticity(
-        self,
-        source: AuthoritativeSource
+        self, source: AuthoritativeSource
     ) -> Tuple[bool, List[str]]:
         """
         Validate the authenticity of a source.
@@ -1515,8 +1592,13 @@ class AuthoritativeSourceManager:
         """Check for suspicious patterns in source content."""
         # Check for overly promotional language
         suspicious_words = [
-            "guaranteed", "miracle", "secret", "exclusive",
-            "breakthrough", "revolutionary", "amazing"
+            "guaranteed",
+            "miracle",
+            "secret",
+            "exclusive",
+            "breakthrough",
+            "revolutionary",
+            "amazing",
         ]
 
         text_to_check = (source.title + " " + source.summary).lower()
@@ -1528,7 +1610,7 @@ class AuthoritativeSourceManager:
         return {
             "example-fake-news.com",
             "conspiracy-theories.net",
-            "unreliable-source.org"
+            "unreliable-source.org",
         }
 
     def get_supported_source_types(self) -> List[SourceType]:
@@ -1545,8 +1627,10 @@ class AuthoritativeSourceManager:
 
         for kb_type, kb_instance in self.knowledge_bases.items():
             capabilities[kb_type] = {
-                "supported_expertise_areas": [area.value for area in kb_instance.get_supported_expertise_areas()],
-                "description": self._get_knowledge_base_description(kb_type)
+                "supported_expertise_areas": [
+                    area.value for area in kb_instance.get_supported_expertise_areas()
+                ],
+                "description": self._get_knowledge_base_description(kb_type),
             }
 
         return capabilities
@@ -1560,14 +1644,12 @@ class AuthoritativeSourceManager:
             KnowledgeBase.SEMANTIC_SCHOLAR: "AI-powered academic search engine",
             KnowledgeBase.GOOGLE_SCHOLAR: "Comprehensive academic search across disciplines",
             KnowledgeBase.GOVERNMENT_DATABASES: "Official government data and policy documents",
-            KnowledgeBase.THINK_TANK_REPOSITORIES: "Research and analysis from policy think tanks"
+            KnowledgeBase.THINK_TANK_REPOSITORIES: "Research and analysis from policy think tanks",
         }
         return descriptions.get(kb_type, "Specialized knowledge repository")
 
     async def get_expert_recommendations(
-        self,
-        expertise_areas: List[ExpertiseArea],
-        min_reputation: float = 0.7
+        self, expertise_areas: List[ExpertiseArea], min_reputation: float = 0.7
     ) -> List[ExpertProfile]:
         """
         Get expert recommendations for given expertise areas.
@@ -1589,7 +1671,7 @@ class AuthoritativeSourceManager:
             query_text="expert recommendations",
             knowledge_bases=[KnowledgeBase.EXPERT_NETWORKS],
             expertise_areas=expertise_areas,
-            max_results=10
+            max_results=10,
         )
 
         sources = await expert_kb.search(query)
@@ -1597,13 +1679,17 @@ class AuthoritativeSourceManager:
         # Extract expert profiles
         experts = []
         for source in sources:
-            if (source.expert_profile and
-                source.expert_profile.reputation_score >= min_reputation):
+            if (
+                source.expert_profile
+                and source.expert_profile.reputation_score >= min_reputation
+            ):
                 experts.append(source.expert_profile)
 
         return experts
 
-    def get_source_quality_metrics(self, source: AuthoritativeSource) -> Dict[str, float]:
+    def get_source_quality_metrics(
+        self, source: AuthoritativeSource
+    ) -> Dict[str, float]:
         """
         Get comprehensive quality metrics for a source.
 
@@ -1619,7 +1705,11 @@ class AuthoritativeSourceManager:
             "data_quality": source.data_quality_score,
             "reproducibility": source.reproducibility_score,
             "expert_consensus": source.expert_consensus_score,
-            "domain_authority": source.credibility_factors.get(CredibilityFactor.DOMAIN_AUTHORITY, 0.0),
-            "peer_review_status": source.credibility_factors.get(CredibilityFactor.PEER_REVIEW_STATUS, 0.0),
-            "recency": source.credibility_factors.get(CredibilityFactor.RECENCY, 0.0)
+            "domain_authority": source.credibility_factors.get(
+                CredibilityFactor.DOMAIN_AUTHORITY, 0.0
+            ),
+            "peer_review_status": source.credibility_factors.get(
+                CredibilityFactor.PEER_REVIEW_STATUS, 0.0
+            ),
+            "recency": source.credibility_factors.get(CredibilityFactor.RECENCY, 0.0),
         }

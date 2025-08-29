@@ -1,21 +1,23 @@
 """
 Tests for TournamentMetaculusClient.
 """
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
-from datetime import datetime, timezone, timedelta
-from typing import List
 
-from src.infrastructure.external_apis.tournament_metaculus_client import (
-    TournamentMetaculusClient,
-    TournamentContext,
-    QuestionDeadlineInfo,
-    QuestionCategory,
-    TournamentPriority
-)
+from datetime import datetime, timedelta, timezone
+from typing import List
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from src.domain.entities.question import Question, QuestionType
 from src.domain.value_objects.time_range import TimeRange
 from src.infrastructure.config.settings import Settings
+from src.infrastructure.external_apis.tournament_metaculus_client import (
+    QuestionCategory,
+    QuestionDeadlineInfo,
+    TournamentContext,
+    TournamentMetaculusClient,
+    TournamentPriority,
+)
 
 
 @pytest.fixture
@@ -51,8 +53,8 @@ def sample_question():
             "metaculus_id": 12345,
             "category": "Technology",
             "prediction_count": 150,
-            "community_prediction": 0.35
-        }
+            "community_prediction": 0.35,
+        },
     )
 
 
@@ -79,7 +81,7 @@ class TestTournamentMetaculusClient:
             title="Will Biden win the 2024 election?",
             description="This question is about the presidential election.",
             question_type=QuestionType.BINARY,
-            close_time=datetime.now(timezone.utc) + timedelta(days=30)
+            close_time=datetime.now(timezone.utc) + timedelta(days=30),
         )
         category = tournament_client._categorize_question(politics_question)
         assert category.category_name == "Politics"
@@ -90,7 +92,7 @@ class TestTournamentMetaculusClient:
             description="A question about local business hours and operations.",
             question_type=QuestionType.BINARY,
             close_time=datetime.now(timezone.utc) + timedelta(days=1),
-            metadata={}  # No category metadata
+            metadata={},  # No category metadata
         )
         category = tournament_client._categorize_question(unknown_question)
         assert category.category_name == "Other"
@@ -110,7 +112,7 @@ class TestTournamentMetaculusClient:
             description="This question closes soon.",
             question_type=QuestionType.BINARY,
             close_time=datetime.now(timezone.utc) + timedelta(hours=3),
-            created_at=datetime.now(timezone.utc) - timedelta(days=1)
+            created_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
 
         urgent_deadline = tournament_client._calculate_deadline_info(urgent_question)
@@ -125,7 +127,11 @@ class TestTournamentMetaculusClient:
 
         # Normal question
         priority = tournament_client._calculate_question_priority(sample_question)
-        assert priority in [TournamentPriority.HIGH, TournamentPriority.MEDIUM, TournamentPriority.LOW]
+        assert priority in [
+            TournamentPriority.HIGH,
+            TournamentPriority.MEDIUM,
+            TournamentPriority.LOW,
+        ]
 
         # Critical question (closing very soon)
         critical_question = Question.create(
@@ -133,26 +139,32 @@ class TestTournamentMetaculusClient:
             description="This question closes in 2 hours.",
             question_type=QuestionType.BINARY,
             close_time=datetime.now(timezone.utc) + timedelta(hours=2),
-            created_at=datetime.now(timezone.utc) - timedelta(days=1)
+            created_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
 
         # Need to calculate deadline info first
         tournament_client._calculate_deadline_info(critical_question)
-        tournament_client.deadline_tracker[critical_question.id] = tournament_client._calculate_deadline_info(critical_question)
+        tournament_client.deadline_tracker[critical_question.id] = (
+            tournament_client._calculate_deadline_info(critical_question)
+        )
 
-        critical_priority = tournament_client._calculate_question_priority(critical_question)
+        critical_priority = tournament_client._calculate_question_priority(
+            critical_question
+        )
         assert critical_priority == TournamentPriority.CRITICAL
 
     @pytest.mark.asyncio
     async def test_fetch_tournament_questions(self, tournament_client, sample_question):
         """Test fetching tournament questions with filtering."""
-        with patch.object(tournament_client, 'fetch_questions', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(
+            tournament_client, "fetch_questions", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.return_value = [sample_question]
 
             questions = await tournament_client.fetch_tournament_questions(
                 tournament_id="test_tournament",
                 priority_filter=TournamentPriority.HIGH,
-                limit=50
+                limit=50,
             )
 
             mock_fetch.assert_called_once()
@@ -176,15 +188,24 @@ class TestTournamentMetaculusClient:
             "scoring_method": "brier",
             "participant_count": 500,
             "user_ranking": 42,
-            "question_count": 100
+            "question_count": 100,
         }
 
-        with patch.object(tournament_client, '_fetch_tournament_data', new_callable=AsyncMock) as mock_fetch_tournament:
-            with patch.object(tournament_client, 'fetch_user_predictions', new_callable=AsyncMock) as mock_fetch_predictions:
+        with patch.object(
+            tournament_client, "_fetch_tournament_data", new_callable=AsyncMock
+        ) as mock_fetch_tournament:
+            with patch.object(
+                tournament_client, "fetch_user_predictions", new_callable=AsyncMock
+            ) as mock_fetch_predictions:
                 mock_fetch_tournament.return_value = mock_tournament_data
-                mock_fetch_predictions.return_value = [{"id": 1}, {"id": 2}]  # 2 predictions
+                mock_fetch_predictions.return_value = [
+                    {"id": 1},
+                    {"id": 2},
+                ]  # 2 predictions
 
-                context = await tournament_client.get_tournament_context("test_tournament")
+                context = await tournament_client.get_tournament_context(
+                    "test_tournament"
+                )
 
                 assert context is not None
                 assert context.tournament_id == "test_tournament"
@@ -195,13 +216,17 @@ class TestTournamentMetaculusClient:
                 assert context.completion_rate == 0.02  # 2/100
 
     @pytest.mark.asyncio
-    async def test_submission_timing_optimization(self, tournament_client, sample_question):
+    async def test_submission_timing_optimization(
+        self, tournament_client, sample_question
+    ):
         """Test submission timing optimization."""
         # Add question to deadline tracker
         deadline_info = tournament_client._calculate_deadline_info(sample_question)
         tournament_client.deadline_tracker[sample_question.id] = deadline_info
 
-        timing_recommendations = await tournament_client.optimize_submission_timing([sample_question.id])
+        timing_recommendations = await tournament_client.optimize_submission_timing(
+            [sample_question.id]
+        )
 
         assert sample_question.id in timing_recommendations
         recommendation = timing_recommendations[sample_question.id]
@@ -210,10 +235,17 @@ class TestTournamentMetaculusClient:
         assert "strategy" in recommendation
         assert "reason" in recommendation
         assert "urgency_score" in recommendation
-        assert recommendation["strategy"] in ["immediate", "urgent", "optimal_window", "wait_for_window"]
+        assert recommendation["strategy"] in [
+            "immediate",
+            "urgent",
+            "optimal_window",
+            "wait_for_window",
+        ]
 
     @pytest.mark.asyncio
-    async def test_competitive_landscape_analysis(self, tournament_client, sample_question):
+    async def test_competitive_landscape_analysis(
+        self, tournament_client, sample_question
+    ):
         """Test competitive landscape analysis."""
         mock_context = TournamentContext(
             tournament_id="test_tournament",
@@ -224,15 +256,21 @@ class TestTournamentMetaculusClient:
             participant_count=500,
             current_ranking=42,
             total_questions=100,
-            answered_questions=25
+            answered_questions=25,
         )
 
-        with patch.object(tournament_client, 'get_tournament_context', new_callable=AsyncMock) as mock_context_fetch:
-            with patch.object(tournament_client, 'fetch_tournament_questions', new_callable=AsyncMock) as mock_questions_fetch:
+        with patch.object(
+            tournament_client, "get_tournament_context", new_callable=AsyncMock
+        ) as mock_context_fetch:
+            with patch.object(
+                tournament_client, "fetch_tournament_questions", new_callable=AsyncMock
+            ) as mock_questions_fetch:
                 mock_context_fetch.return_value = mock_context
                 mock_questions_fetch.return_value = [sample_question]
 
-                analysis = await tournament_client.analyze_competitive_landscape("test_tournament")
+                analysis = await tournament_client.analyze_competitive_landscape(
+                    "test_tournament"
+                )
 
                 assert "tournament_context" in analysis
                 assert "question_analysis" in analysis
@@ -254,7 +292,7 @@ class TestTournamentMetaculusClient:
             participant_count=100,
             current_ranking=50,
             total_questions=100,
-            answered_questions=20  # 20% completion
+            answered_questions=20,  # 20% completion
         )
 
         questions = [Mock() for _ in range(10)]
@@ -265,12 +303,16 @@ class TestTournamentMetaculusClient:
         )
 
         # Should recommend increasing completion rate
-        completion_rec = next((r for r in recommendations if r["type"] == "completion_rate"), None)
+        completion_rec = next(
+            (r for r in recommendations if r["type"] == "completion_rate"), None
+        )
         assert completion_rec is not None
         assert completion_rec["priority"] == "high"
 
         # Should recommend category specialization
-        category_rec = next((r for r in recommendations if r["type"] == "category_focus"), None)
+        category_rec = next(
+            (r for r in recommendations if r["type"] == "category_focus"), None
+        )
         assert category_rec is not None
         assert category_rec["category"] == "technology"
 
@@ -280,18 +322,24 @@ class TestTournamentMetaculusClient:
         extreme_questions = [
             Mock(id="1", metadata={"community_prediction": 0.05}),  # Very low
             Mock(id="2", metadata={"community_prediction": 0.95}),  # Very high
-            Mock(id="3", metadata={"community_prediction": 0.5}),   # Normal
-            Mock(id="4", metadata={"prediction_count": 5})          # Low participation
+            Mock(id="3", metadata={"community_prediction": 0.5}),  # Normal
+            Mock(id="4", metadata={"prediction_count": 5}),  # Low participation
         ]
 
-        inefficiencies = tournament_client._identify_market_inefficiencies(extreme_questions)
+        inefficiencies = tournament_client._identify_market_inefficiencies(
+            extreme_questions
+        )
 
         # Should identify extreme consensus opportunities
-        extreme_inefficiencies = [i for i in inefficiencies if i.get("type") == "extreme_consensus"]
+        extreme_inefficiencies = [
+            i for i in inefficiencies if i.get("type") == "extreme_consensus"
+        ]
         assert len(extreme_inefficiencies) == 2
 
         # Should identify low participation opportunity
-        low_participation = next((i for i in inefficiencies if i.get("type") == "low_participation"), None)
+        low_participation = next(
+            (i for i in inefficiencies if i.get("type") == "low_participation"), None
+        )
         assert low_participation is not None
         assert low_participation["opportunity"] == "early_mover_advantage"
 
@@ -307,7 +355,7 @@ class TestTournamentMetaculusClient:
                 resolve_time=None,
                 time_until_close=timedelta(hours=3),
                 urgency_score=1.0,
-                submission_window=TimeRange(start=now, end=now + timedelta(hours=3))
+                submission_window=TimeRange(start=now, end=now + timedelta(hours=3)),
             ),
             "urgent": QuestionDeadlineInfo(
                 question_id="urgent",
@@ -315,7 +363,7 @@ class TestTournamentMetaculusClient:
                 resolve_time=None,
                 time_until_close=timedelta(hours=12),
                 urgency_score=0.8,
-                submission_window=TimeRange(start=now, end=now + timedelta(hours=12))
+                submission_window=TimeRange(start=now, end=now + timedelta(hours=12)),
             ),
             "soon": QuestionDeadlineInfo(
                 question_id="soon",
@@ -323,8 +371,8 @@ class TestTournamentMetaculusClient:
                 resolve_time=None,
                 time_until_close=timedelta(hours=48),
                 urgency_score=0.6,
-                submission_window=TimeRange(start=now, end=now + timedelta(hours=48))
-            )
+                submission_window=TimeRange(start=now, end=now + timedelta(hours=48)),
+            ),
         }
 
         summary = tournament_client.get_deadline_summary()
@@ -353,7 +401,7 @@ class TestTournamentContext:
             participant_count=100,
             current_ranking=50,
             total_questions=100,
-            answered_questions=25
+            answered_questions=25,
         )
 
         assert context.completion_rate == 0.25
@@ -375,7 +423,7 @@ class TestTournamentContext:
             participant_count=100,
             current_ranking=50,
             total_questions=100,
-            answered_questions=25
+            answered_questions=25,
         )
 
         time_remaining = context.time_remaining
@@ -401,7 +449,7 @@ class TestQuestionDeadlineInfo:
             resolve_time=None,
             time_until_close=timedelta(hours=3),
             urgency_score=1.0,
-            submission_window=TimeRange(start=now, end=now + timedelta(hours=3))
+            submission_window=TimeRange(start=now, end=now + timedelta(hours=3)),
         )
 
         assert critical_info.is_critical
@@ -414,7 +462,7 @@ class TestQuestionDeadlineInfo:
             resolve_time=None,
             time_until_close=timedelta(hours=12),
             urgency_score=0.8,
-            submission_window=TimeRange(start=now, end=now + timedelta(hours=12))
+            submission_window=TimeRange(start=now, end=now + timedelta(hours=12)),
         )
 
         assert not urgent_info.is_critical
@@ -427,7 +475,7 @@ class TestQuestionDeadlineInfo:
             resolve_time=None,
             time_until_close=timedelta(hours=48),
             urgency_score=0.4,
-            submission_window=TimeRange(start=now, end=now + timedelta(hours=48))
+            submission_window=TimeRange(start=now, end=now + timedelta(hours=48)),
         )
 
         assert not normal_info.is_critical

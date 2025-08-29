@@ -1,14 +1,13 @@
 """Tournament-optimized AskNews client with quota management and monitoring."""
 
-import os
+import asyncio
 import logging
-from typing import Optional, Dict, Any, List
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-import asyncio
+from typing import Any, Dict, List, Optional
 
 from ..config.tournament_config import get_tournament_config
-
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AskNewsUsageStats:
     """Track AskNews API usage statistics."""
+
     total_requests: int = 0
     successful_requests: int = 0
     failed_requests: int = 0
@@ -26,7 +26,9 @@ class AskNewsUsageStats:
     daily_request_count: int = 0
     last_reset_date: Optional[str] = None
 
-    def add_request(self, success: bool, used_fallback: bool = False, quota_exhausted: bool = False):
+    def add_request(
+        self, success: bool, used_fallback: bool = False, quota_exhausted: bool = False
+    ):
         """Add a request to the statistics."""
         now = datetime.now(timezone.utc)
         today = now.strftime("%Y-%m-%d")
@@ -42,7 +44,9 @@ class AskNewsUsageStats:
 
         if success:
             self.successful_requests += 1
-            self.estimated_quota_used += 1  # Rough estimate: 1 quota per successful request
+            self.estimated_quota_used += (
+                1  # Rough estimate: 1 quota per successful request
+            )
         else:
             self.failed_requests += 1
 
@@ -95,14 +99,12 @@ class TournamentAskNewsClient:
         # Quota management
         self.quota_limit = self.config.asknews_quota_limit
         self.quota_exhausted = False
-        self.daily_limit = int(os.getenv("ASKNEWS_DAILY_LIMIT", "500"))  # Conservative daily limit
+        self.daily_limit = int(
+            os.getenv("ASKNEWS_DAILY_LIMIT", "500")
+        )  # Conservative daily limit
 
         # Fallback providers
-        self.fallback_providers = [
-            "perplexity",
-            "exa",
-            "duckduckgo"
-        ]
+        self.fallback_providers = ["perplexity", "exa", "duckduckgo"]
 
         # Initialize AskNews client if credentials are available
         self.asknews_available = bool(self.client_id and self.client_secret)
@@ -110,13 +112,16 @@ class TournamentAskNewsClient:
             try:
                 # Import AskNews here to avoid dependency issues if not installed
                 from forecasting_tools import AskNewsSearcher
+
                 self.asknews_searcher = AskNewsSearcher()
                 self.logger.info("AskNews client initialized successfully")
             except ImportError as e:
                 self.logger.warning(f"AskNews SDK not available: {e}")
                 self.asknews_available = False
         else:
-            self.logger.warning("AskNews credentials not found, will use fallback providers")
+            self.logger.warning(
+                "AskNews credentials not found, will use fallback providers"
+            )
 
     async def get_news_research(self, question: str, max_retries: int = 2) -> str:
         """
@@ -136,19 +141,29 @@ class TournamentAskNewsClient:
                     research = await self._call_asknews(question)
                     if research and len(research.strip()) > 0:
                         self.usage_stats.add_request(success=True)
-                        self.logger.info(f"AskNews research successful (attempt {attempt + 1})")
+                        self.logger.info(
+                            f"AskNews research successful (attempt {attempt + 1})"
+                        )
                         return research
                     else:
-                        self.logger.warning(f"AskNews returned empty result (attempt {attempt + 1})")
+                        self.logger.warning(
+                            f"AskNews returned empty result (attempt {attempt + 1})"
+                        )
 
                 except Exception as e:
-                    self.logger.warning(f"AskNews request failed (attempt {attempt + 1}): {e}")
+                    self.logger.warning(
+                        f"AskNews request failed (attempt {attempt + 1}): {e}"
+                    )
 
                     # Check if it's a quota exhaustion error
                     if "quota" in str(e).lower() or "limit" in str(e).lower():
-                        self.usage_stats.add_request(success=False, quota_exhausted=True)
+                        self.usage_stats.add_request(
+                            success=False, quota_exhausted=True
+                        )
                         self.quota_exhausted = True
-                        self.logger.error("AskNews quota exhausted, switching to fallback providers")
+                        self.logger.error(
+                            "AskNews quota exhausted, switching to fallback providers"
+                        )
                         break
                     else:
                         self.usage_stats.add_request(success=False)
@@ -180,8 +195,10 @@ class TournamentAskNewsClient:
             return False
 
         # Check if failure rate is too high
-        if (self.usage_stats.total_requests > 10 and
-            self.usage_stats.get_success_rate() < 70):
+        if (
+            self.usage_stats.total_requests > 10
+            and self.usage_stats.get_success_rate() < 70
+        ):
             self.logger.warning("AskNews success rate too low, temporarily disabling")
             return False
 
@@ -197,7 +214,9 @@ class TournamentAskNewsClient:
             research = await self.asknews_searcher.get_formatted_news_async(question)
 
             # Log successful usage
-            self.logger.info(f"AskNews research completed for question: {question[:100]}...")
+            self.logger.info(
+                f"AskNews research completed for question: {question[:100]}..."
+            )
 
             return research or ""
 
@@ -244,7 +263,9 @@ class TournamentAskNewsClient:
         self.logger.error("All search providers failed")
         return ""
 
-    async def _call_perplexity(self, question: str, use_open_router: bool = False) -> str:
+    async def _call_perplexity(
+        self, question: str, use_open_router: bool = False
+    ) -> str:
         """Call Perplexity API for research."""
         try:
             from forecasting_tools import GeneralLlm, clean_indents
@@ -280,7 +301,7 @@ class TournamentAskNewsClient:
     async def _call_exa(self, question: str) -> str:
         """Call Exa API for research."""
         try:
-            from forecasting_tools import SmartSearcher, GeneralLlm
+            from forecasting_tools import GeneralLlm, SmartSearcher
 
             # This would need a proper LLM client - simplified for now
             searcher = SmartSearcher(
@@ -317,12 +338,18 @@ class TournamentAskNewsClient:
             "fallback_rate": self.usage_stats.get_fallback_rate(),
             "estimated_quota_used": self.usage_stats.estimated_quota_used,
             "quota_limit": self.quota_limit,
-            "quota_usage_percentage": self.usage_stats.get_quota_usage_percentage(self.quota_limit),
+            "quota_usage_percentage": self.usage_stats.get_quota_usage_percentage(
+                self.quota_limit
+            ),
             "daily_request_count": self.usage_stats.daily_request_count,
             "daily_limit": self.daily_limit,
             "quota_exhausted": self.quota_exhausted,
             "asknews_available": self.asknews_available,
-            "last_request_time": self.usage_stats.last_request_time.isoformat() if self.usage_stats.last_request_time else None
+            "last_request_time": (
+                self.usage_stats.last_request_time.isoformat()
+                if self.usage_stats.last_request_time
+                else None
+            ),
         }
 
     def reset_quota_status(self):
@@ -355,5 +382,5 @@ class TournamentAskNewsClient:
             "perplexity": bool(os.getenv("PERPLEXITY_API_KEY")),
             "exa": bool(os.getenv("EXA_API_KEY")),
             "openrouter": bool(os.getenv("OPENROUTER_API_KEY")),
-            "duckduckgo": True  # Always available
+            "duckduckgo": True,  # Always available
         }

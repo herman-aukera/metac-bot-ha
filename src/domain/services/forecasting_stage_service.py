@@ -5,10 +5,10 @@ Implements task 4.3 requirements with uncertainty quantification and tournament 
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List, Union
+import re
 from dataclasses import dataclass
 from datetime import datetime
-import re
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ForecastResult:
     """Result from forecasting stage analysis."""
+
     forecast_type: str  # "binary", "multiple_choice", "numeric"
     prediction: Union[float, Dict[str, float], Dict[str, Any]]
     confidence_score: float
@@ -33,6 +34,7 @@ class ForecastResult:
 @dataclass
 class CalibrationMetrics:
     """Calibration metrics for forecast quality assessment."""
+
     base_rate_consideration: float
     scenario_analysis_score: float
     uncertainty_acknowledgment: float
@@ -44,6 +46,7 @@ class CalibrationMetrics:
 @dataclass
 class UncertaintyQuantification:
     """Uncertainty quantification for forecasts."""
+
     confidence_intervals: Dict[str, float]
     scenario_probabilities: Dict[str, float]
     key_uncertainty_factors: List[str]
@@ -78,11 +81,16 @@ class ForecastingStageService:
             "min_reasoning_length": 100,
             "required_uncertainty_acknowledgment": True,
             "required_base_rate_consideration": True,
-            "max_confidence_without_strong_evidence": 0.8
+            "max_confidence_without_strong_evidence": 0.8,
         }
 
-    async def generate_forecast(self, question: str, question_type: str,
-                              research_data: str, context: Dict[str, Any] = None) -> ForecastResult:
+    async def generate_forecast(
+        self,
+        question: str,
+        question_type: str,
+        research_data: str,
+        context: Dict[str, Any] = None,
+    ) -> ForecastResult:
         """
         Generate calibrated forecast using GPT-5 with uncertainty quantification.
 
@@ -110,7 +118,9 @@ class ForecastingStageService:
             raw_forecast = await self._execute_gpt5_forecast(forecast_prompt)
 
             # Step 3: Parse and extract forecast components
-            parsed_forecast = await self._parse_forecast_response(raw_forecast, question_type, context)
+            parsed_forecast = await self._parse_forecast_response(
+                raw_forecast, question_type, context
+            )
 
             # Step 4: Apply calibration checks and adjustments
             calibration_metrics = await self._perform_calibration_analysis(
@@ -139,13 +149,16 @@ class ForecastingStageService:
                 confidence_score=parsed_forecast.get("confidence", 0.5),
                 uncertainty_bounds=uncertainty_metrics.confidence_intervals,
                 calibration_score=calibration_metrics.final_calibration_score,
-                overconfidence_detected=calibration_metrics.final_calibration_score < 0.5,
+                overconfidence_detected=calibration_metrics.final_calibration_score
+                < 0.5,
                 quality_validation_passed=quality_passed,
                 tournament_compliant=tournament_compliant,
                 reasoning=parsed_forecast.get("reasoning", raw_forecast),
                 execution_time=execution_time,
-                cost_estimate=self._estimate_forecast_cost(forecast_prompt, raw_forecast),
-                model_used="openai/gpt-5"
+                cost_estimate=self._estimate_forecast_cost(
+                    forecast_prompt, raw_forecast
+                ),
+                model_used="openai/gpt-5",
             )
 
         except Exception as e:
@@ -164,11 +177,16 @@ class ForecastingStageService:
                 reasoning=f"Forecasting error: {str(e)}",
                 execution_time=execution_time,
                 cost_estimate=0.0,
-                model_used="none"
+                model_used="none",
             )
 
-    async def _create_gpt5_forecasting_prompt(self, question: str, question_type: str,
-                                            research_data: str, context: Dict[str, Any]) -> str:
+    async def _create_gpt5_forecasting_prompt(
+        self,
+        question: str,
+        question_type: str,
+        research_data: str,
+        context: Dict[str, Any],
+    ) -> str:
         """Create GPT-5 optimized forecasting prompt with maximum reasoning capability."""
 
         # Import anti-slop prompts for GPT-5 optimization
@@ -182,7 +200,7 @@ class ForecastingStageService:
                 resolution_criteria=context.get("resolution_criteria", ""),
                 fine_print=context.get("fine_print", ""),
                 research=research_data,
-                model_tier="full"
+                model_tier="full",
             )
         elif question_type == "multiple_choice":
             base_prompt = anti_slop_prompts.get_multiple_choice_prompt(
@@ -192,7 +210,7 @@ class ForecastingStageService:
                 resolution_criteria=context.get("resolution_criteria", ""),
                 fine_print=context.get("fine_print", ""),
                 research=research_data,
-                model_tier="full"
+                model_tier="full",
             )
         elif question_type == "numeric":
             base_prompt = anti_slop_prompts.get_numeric_forecast_prompt(
@@ -204,7 +222,7 @@ class ForecastingStageService:
                 unit_of_measure=context.get("unit_of_measure"),
                 lower_bound=context.get("lower_bound"),
                 upper_bound=context.get("upper_bound"),
-                model_tier="full"
+                model_tier="full",
             )
         else:
             raise ValueError(f"Unsupported question type: {question_type}")
@@ -253,6 +271,7 @@ class ForecastingStageService:
         enhanced_prompt = f"{base_prompt}\n{gpt5_enhancements}"
 
         return enhanced_prompt
+
     async def _execute_gpt5_forecast(self, prompt: str) -> str:
         """Execute forecast using GPT-5 full model with maximum reasoning capability."""
 
@@ -277,8 +296,9 @@ class ForecastingStageService:
             self.logger.error(f"GPT-5 forecast execution failed: {e}")
             raise
 
-    async def _parse_forecast_response(self, response: str, question_type: str,
-                                     context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _parse_forecast_response(
+        self, response: str, question_type: str, context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Parse GPT-5 forecast response and extract structured components."""
 
         parsed = {
@@ -288,18 +308,20 @@ class ForecastingStageService:
             "confidence": 0.5,
             "uncertainty_factors": [],
             "base_rate_mentioned": False,
-            "scenarios_considered": []
+            "scenarios_considered": [],
         }
 
         try:
             if question_type == "binary":
                 # Extract binary probability
-                probability_match = re.search(r'Probability:\s*(\d+(?:\.\d+)?)%', response, re.IGNORECASE)
+                probability_match = re.search(
+                    r"Probability:\s*(\d+(?:\.\d+)?)%", response, re.IGNORECASE
+                )
                 if probability_match:
                     parsed["prediction"] = float(probability_match.group(1)) / 100.0
                 else:
                     # Fallback: look for percentage anywhere in response
-                    percent_matches = re.findall(r'(\d+(?:\.\d+)?)%', response)
+                    percent_matches = re.findall(r"(\d+(?:\.\d+)?)%", response)
                     if percent_matches:
                         # Use the last percentage found (likely the final answer)
                         parsed["prediction"] = float(percent_matches[-1]) / 100.0
@@ -321,7 +343,7 @@ class ForecastingStageService:
                 # Normalize probabilities to sum to 1.0
                 total = sum(probabilities.values())
                 if total > 0:
-                    probabilities = {k: v/total for k, v in probabilities.items()}
+                    probabilities = {k: v / total for k, v in probabilities.items()}
                     parsed["prediction"] = probabilities
                 else:
                     # Default equal probabilities
@@ -331,12 +353,12 @@ class ForecastingStageService:
             elif question_type == "numeric":
                 # Extract percentile estimates
                 percentiles = {}
-                percentile_pattern = r'Percentile\s+(\d+):\s*([0-9,]+(?:\.\d+)?)'
+                percentile_pattern = r"Percentile\s+(\d+):\s*([0-9,]+(?:\.\d+)?)"
                 matches = re.findall(percentile_pattern, response, re.IGNORECASE)
 
                 for percentile, value in matches:
                     # Remove commas and convert to float
-                    clean_value = value.replace(',', '')
+                    clean_value = value.replace(",", "")
                     try:
                         percentiles[int(percentile)] = float(clean_value)
                     except ValueError:
@@ -346,17 +368,19 @@ class ForecastingStageService:
                     parsed["prediction"] = percentiles
                 else:
                     # Fallback: look for any numbers that might be estimates
-                    numbers = re.findall(r'(\d+(?:,\d{3})*(?:\.\d+)?)', response)
+                    numbers = re.findall(r"(\d+(?:,\d{3})*(?:\.\d+)?)", response)
                     if numbers:
                         # Use median of found numbers as rough estimate
-                        clean_numbers = [float(n.replace(',', '')) for n in numbers]
-                        median_val = sorted(clean_numbers)[len(clean_numbers)//2]
+                        clean_numbers = [float(n.replace(",", "")) for n in numbers]
+                        median_val = sorted(clean_numbers)[len(clean_numbers) // 2]
                         parsed["prediction"] = {50: median_val}
                     else:
                         parsed["prediction"] = {}
 
             # Extract confidence level
-            confidence_match = re.search(r'Confidence:\s*(Low|Medium|High)', response, re.IGNORECASE)
+            confidence_match = re.search(
+                r"Confidence:\s*(Low|Medium|High)", response, re.IGNORECASE
+            )
             if confidence_match:
                 confidence_level = confidence_match.group(1).lower()
                 confidence_mapping = {"low": 0.3, "medium": 0.6, "high": 0.8}
@@ -364,24 +388,44 @@ class ForecastingStageService:
 
             # Extract reasoning (everything before final answer)
             reasoning_parts = []
-            lines = response.split('\n')
+            lines = response.split("\n")
             for line in lines:
-                if not re.search(r'(Probability:|Percentile|Confidence:)', line, re.IGNORECASE):
+                if not re.search(
+                    r"(Probability:|Percentile|Confidence:)", line, re.IGNORECASE
+                ):
                     reasoning_parts.append(line.strip())
                 else:
                     break
 
-            parsed["reasoning"] = '\n'.join(reasoning_parts).strip()
+            parsed["reasoning"] = "\n".join(reasoning_parts).strip()
 
             # Check for base rate consideration
-            base_rate_indicators = ["base rate", "historical", "precedent", "similar cases", "reference class"]
-            parsed["base_rate_mentioned"] = any(indicator in response.lower() for indicator in base_rate_indicators)
+            base_rate_indicators = [
+                "base rate",
+                "historical",
+                "precedent",
+                "similar cases",
+                "reference class",
+            ]
+            parsed["base_rate_mentioned"] = any(
+                indicator in response.lower() for indicator in base_rate_indicators
+            )
 
             # Extract uncertainty factors
-            uncertainty_indicators = ["uncertain", "gap", "unknown", "unclear", "missing", "limitation"]
+            uncertainty_indicators = [
+                "uncertain",
+                "gap",
+                "unknown",
+                "unclear",
+                "missing",
+                "limitation",
+            ]
             parsed["uncertainty_factors"] = [
-                line.strip() for line in lines
-                if any(indicator in line.lower() for indicator in uncertainty_indicators)
+                line.strip()
+                for line in lines
+                if any(
+                    indicator in line.lower() for indicator in uncertainty_indicators
+                )
             ]
 
             return parsed
@@ -396,19 +440,28 @@ class ForecastingStageService:
                 "confidence": 0.3,
                 "uncertainty_factors": [],
                 "base_rate_mentioned": False,
-                "scenarios_considered": []
+                "scenarios_considered": [],
             }
-    async def _perform_calibration_analysis(self, parsed_forecast: Dict[str, Any],
-                                           raw_response: str, question_type: str) -> CalibrationMetrics:
+
+    async def _perform_calibration_analysis(
+        self, parsed_forecast: Dict[str, Any], raw_response: str, question_type: str
+    ) -> CalibrationMetrics:
         """Perform calibration analysis and overconfidence detection."""
 
         # Analyze base rate consideration
         base_rate_score = 0.8 if parsed_forecast["base_rate_mentioned"] else 0.2
 
         # Analyze scenario consideration
-        scenario_indicators = ["scenario", "case", "situation", "possibility", "alternative"]
-        scenario_mentions = sum(1 for indicator in scenario_indicators
-                              if indicator in raw_response.lower())
+        scenario_indicators = [
+            "scenario",
+            "case",
+            "situation",
+            "possibility",
+            "alternative",
+        ]
+        scenario_mentions = sum(
+            1 for indicator in scenario_indicators if indicator in raw_response.lower()
+        )
         scenario_score = min(1.0, scenario_mentions / 3.0)  # Normalize to 0-1
 
         # Analyze uncertainty acknowledgment
@@ -421,11 +474,17 @@ class ForecastingStageService:
         if question_type == "binary":
             prediction = parsed_forecast.get("prediction", 0.5)
             if isinstance(prediction, (int, float)):
-                if (prediction > 0.9 or prediction < 0.1) and parsed_forecast["confidence"] < 0.7:
-                    overconfidence_indicators.append("Extreme probability with low confidence in evidence")
+                if (prediction > 0.9 or prediction < 0.1) and parsed_forecast[
+                    "confidence"
+                ] < 0.7:
+                    overconfidence_indicators.append(
+                        "Extreme probability with low confidence in evidence"
+                    )
 
                 if prediction > 0.85 and not parsed_forecast["base_rate_mentioned"]:
-                    overconfidence_indicators.append("High confidence without base rate consideration")
+                    overconfidence_indicators.append(
+                        "High confidence without base rate consideration"
+                    )
 
         # Check for insufficient uncertainty acknowledgment
         if len(parsed_forecast["uncertainty_factors"]) < 2:
@@ -440,23 +499,35 @@ class ForecastingStageService:
         calibration_adjustments = []
 
         if base_rate_score < 0.5:
-            calibration_adjustments.append("Consider historical base rates and precedents")
+            calibration_adjustments.append(
+                "Consider historical base rates and precedents"
+            )
 
         if scenario_score < 0.5:
-            calibration_adjustments.append("Analyze multiple scenarios and their probabilities")
+            calibration_adjustments.append(
+                "Analyze multiple scenarios and their probabilities"
+            )
 
         if uncertainty_score < 0.5:
-            calibration_adjustments.append("Acknowledge more uncertainty factors and information gaps")
+            calibration_adjustments.append(
+                "Acknowledge more uncertainty factors and information gaps"
+            )
 
         if overconfidence_indicators:
-            calibration_adjustments.append("Reduce confidence to account for potential overconfidence")
+            calibration_adjustments.append(
+                "Reduce confidence to account for potential overconfidence"
+            )
 
         # Calculate final calibration score
-        final_calibration_score = (base_rate_score + scenario_score + uncertainty_score) / 3.0
+        final_calibration_score = (
+            base_rate_score + scenario_score + uncertainty_score
+        ) / 3.0
 
         # Penalize for overconfidence indicators
         overconfidence_penalty = len(overconfidence_indicators) * 0.1
-        final_calibration_score = max(0.0, final_calibration_score - overconfidence_penalty)
+        final_calibration_score = max(
+            0.0, final_calibration_score - overconfidence_penalty
+        )
 
         return CalibrationMetrics(
             base_rate_consideration=base_rate_score,
@@ -464,11 +535,16 @@ class ForecastingStageService:
             uncertainty_acknowledgment=uncertainty_score,
             overconfidence_indicators=overconfidence_indicators,
             calibration_adjustments=calibration_adjustments,
-            final_calibration_score=final_calibration_score
+            final_calibration_score=final_calibration_score,
         )
 
-    async def _quantify_uncertainty(self, parsed_forecast: Dict[str, Any], raw_response: str,
-                                  question_type: str, context: Dict[str, Any]) -> UncertaintyQuantification:
+    async def _quantify_uncertainty(
+        self,
+        parsed_forecast: Dict[str, Any],
+        raw_response: str,
+        question_type: str,
+        context: Dict[str, Any],
+    ) -> UncertaintyQuantification:
         """Quantify uncertainty and generate confidence intervals."""
 
         # Extract confidence intervals based on question type
@@ -483,7 +559,7 @@ class ForecastingStageService:
             confidence_intervals = {
                 "lower_bound": max(0.0, prediction - uncertainty_range),
                 "upper_bound": min(1.0, prediction + uncertainty_range),
-                "point_estimate": prediction
+                "point_estimate": prediction,
             }
 
         elif question_type == "multiple_choice":
@@ -491,7 +567,11 @@ class ForecastingStageService:
             if isinstance(prediction, dict):
                 # For multiple choice, confidence intervals are the probability ranges
                 confidence_intervals = {
-                    option: {"point_estimate": prob, "uncertainty": (1 - parsed_forecast.get("confidence", 0.5)) * 0.2}
+                    option: {
+                        "point_estimate": prob,
+                        "uncertainty": (1 - parsed_forecast.get("confidence", 0.5))
+                        * 0.2,
+                    }
                     for option, prob in prediction.items()
                 }
 
@@ -503,24 +583,29 @@ class ForecastingStageService:
                 if len(percentiles) >= 3:
                     confidence_intervals = {
                         "p10": prediction.get(10, prediction[percentiles[0]]),
-                        "p50": prediction.get(50, prediction[percentiles[len(percentiles)//2]]),
+                        "p50": prediction.get(
+                            50, prediction[percentiles[len(percentiles) // 2]]
+                        ),
                         "p90": prediction.get(90, prediction[percentiles[-1]]),
-                        "range": prediction[percentiles[-1]] - prediction[percentiles[0]]
+                        "range": prediction[percentiles[-1]]
+                        - prediction[percentiles[0]],
                     }
 
         # Extract scenario probabilities
         scenario_probabilities = {}
         scenario_patterns = [
-            r'status quo.*?(\d+(?:\.\d+)?)%',
-            r'moderate.*?(\d+(?:\.\d+)?)%',
-            r'disruption.*?(\d+(?:\.\d+)?)%'
+            r"status quo.*?(\d+(?:\.\d+)?)%",
+            r"moderate.*?(\d+(?:\.\d+)?)%",
+            r"disruption.*?(\d+(?:\.\d+)?)%",
         ]
 
         for i, pattern in enumerate(scenario_patterns):
             match = re.search(pattern, raw_response, re.IGNORECASE)
             if match:
                 scenario_names = ["status_quo", "moderate_change", "disruption"]
-                scenario_probabilities[scenario_names[i]] = float(match.group(1)) / 100.0
+                scenario_probabilities[scenario_names[i]] = (
+                    float(match.group(1)) / 100.0
+                )
 
         # Extract key uncertainty factors
         key_uncertainty_factors = parsed_forecast.get("uncertainty_factors", [])
@@ -528,16 +613,21 @@ class ForecastingStageService:
         # Extract information gaps
         gap_indicators = ["gap", "missing", "unknown", "unclear", "unavailable"]
         information_gaps = [
-            line.strip() for line in raw_response.split('\n')
+            line.strip()
+            for line in raw_response.split("\n")
             if any(indicator in line.lower() for indicator in gap_indicators)
-        ][:5]  # Limit to top 5 gaps
+        ][
+            :5
+        ]  # Limit to top 5 gaps
 
         # Simple sensitivity analysis based on confidence
         confidence = parsed_forecast.get("confidence", 0.5)
         sensitivity_analysis = {
             "evidence_quality": confidence,
             "information_completeness": min(1.0, len(key_uncertainty_factors) / 5.0),
-            "base_rate_reliability": 0.8 if parsed_forecast.get("base_rate_mentioned") else 0.3
+            "base_rate_reliability": (
+                0.8 if parsed_forecast.get("base_rate_mentioned") else 0.3
+            ),
         }
 
         return UncertaintyQuantification(
@@ -545,10 +635,15 @@ class ForecastingStageService:
             scenario_probabilities=scenario_probabilities,
             key_uncertainty_factors=key_uncertainty_factors,
             information_gaps=information_gaps,
-            sensitivity_analysis=sensitivity_analysis
+            sensitivity_analysis=sensitivity_analysis,
         )
-    async def _validate_forecast_quality(self, parsed_forecast: Dict[str, Any],
-                                        raw_response: str, calibration_metrics: CalibrationMetrics) -> bool:
+
+    async def _validate_forecast_quality(
+        self,
+        parsed_forecast: Dict[str, Any],
+        raw_response: str,
+        calibration_metrics: CalibrationMetrics,
+    ) -> bool:
         """Validate forecast quality against internal standards."""
 
         quality_checks = []
@@ -588,8 +683,12 @@ class ForecastingStageService:
         # Pass if at least 4 out of 6 checks pass
         return sum(quality_checks) >= 4
 
-    async def _check_tournament_compliance(self, parsed_forecast: Dict[str, Any],
-                                         raw_response: str, calibration_metrics: CalibrationMetrics) -> bool:
+    async def _check_tournament_compliance(
+        self,
+        parsed_forecast: Dict[str, Any],
+        raw_response: str,
+        calibration_metrics: CalibrationMetrics,
+    ) -> bool:
         """Check tournament compliance requirements."""
 
         compliance_checks = []
@@ -601,7 +700,9 @@ class ForecastingStageService:
 
         # Check 2: Uncertainty acknowledgment required
         if self.tournament_requirements["required_uncertainty_acknowledgment"]:
-            uncertainty_present = len(parsed_forecast.get("uncertainty_factors", [])) >= 1
+            uncertainty_present = (
+                len(parsed_forecast.get("uncertainty_factors", [])) >= 1
+            )
             compliance_checks.append(uncertainty_present)
         else:
             compliance_checks.append(True)
@@ -615,7 +716,9 @@ class ForecastingStageService:
 
         # Check 4: Maximum confidence without strong evidence
         prediction = parsed_forecast.get("prediction")
-        max_confidence = self.tournament_requirements["max_confidence_without_strong_evidence"]
+        max_confidence = self.tournament_requirements[
+            "max_confidence_without_strong_evidence"
+        ]
 
         if isinstance(prediction, (int, float)):
             # Binary forecast
@@ -661,7 +764,7 @@ class ForecastingStageService:
             "calibration_thresholds": {
                 "overconfidence_threshold": self.overconfidence_threshold,
                 "minimum_uncertainty_acknowledgment": self.minimum_uncertainty_acknowledgment,
-                "base_rate_consideration_threshold": self.base_rate_consideration_threshold
+                "base_rate_consideration_threshold": self.base_rate_consideration_threshold,
             },
             "tournament_requirements": self.tournament_requirements,
             "tri_model_router_available": bool(self.tri_model_router),
@@ -671,6 +774,6 @@ class ForecastingStageService:
                 "overconfidence_detection",
                 "uncertainty_quantification",
                 "tournament_compliance_checking",
-                "forecast_quality_validation"
-            ]
+                "forecast_quality_validation",
+            ],
         }

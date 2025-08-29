@@ -1,6 +1,7 @@
 """Chain of Thought prompt templates."""
 
 from typing import List
+
 from jinja2 import Template
 
 from ..domain.entities.question import Question
@@ -10,13 +11,14 @@ from ..domain.entities.research_report import ResearchReport, ResearchSource
 class ChainOfThoughtPrompts:
     """
     Prompt templates for Chain of Thought reasoning.
-    
+
     These prompts guide the model through step-by-step thinking,
     encouraging explicit reasoning at each stage.
     """
-    
+
     def __init__(self):
-        self.question_breakdown_template = Template("""
+        self.question_breakdown_template = Template(
+            """
 You are an expert forecaster analyzing a prediction question. Your task is to break down this question into key research areas that need investigation.
 
 QUESTION: {{ question.title }}
@@ -49,9 +51,11 @@ Provide your analysis in the following JSON format:
     ],
     "reasoning": "Your step-by-step reasoning for why these areas are important"
 }
-""")
+"""
+        )
 
-        self.research_analysis_template = Template("""
+        self.research_analysis_template = Template(
+            """
 You are an expert forecaster analyzing research sources to understand a prediction question. Use systematic, step-by-step reasoning.
 
 QUESTION: {{ question.title }}
@@ -107,9 +111,11 @@ Provide your analysis in JSON format:
     "evidence_against": ["evidence supporting negative outcome"],
     "uncertainties": ["key unknowns and limitations"]
 }
-""")
+"""
+        )
 
-        self.prediction_template = Template("""
+        self.prediction_template = Template(
+            """
 You are an expert forecaster making a prediction. Use clear, step-by-step reasoning to arrive at your forecast.
 
 QUESTION: {{ question.title }}
@@ -188,41 +194,39 @@ Provide your prediction in JSON format:
 {% endif %}
 
 Remember: Be precise in your reasoning, acknowledge uncertainties, and ensure your probability reflects your true belief about the outcome.
-""")
-    
+"""
+        )
+
     def get_question_breakdown_prompt(self, question: Question) -> str:
         """Generate question breakdown prompt."""
         return self.question_breakdown_template.render(question=question)
-    
+
     def deconstruct_question(self, question: Question) -> str:
         """Generate question deconstruction prompt - alias for get_question_breakdown_prompt."""
         return self.get_question_breakdown_prompt(question)
-    
+
     def get_research_analysis_prompt(
-        self, 
-        question: Question, 
-        sources: List[ResearchSource]
+        self, question: Question, sources: List[ResearchSource]
     ) -> str:
         """Generate research analysis prompt."""
         return self.research_analysis_template.render(
-            question=question, 
-            sources=sources
+            question=question, sources=sources
         )
-    
+
     def get_prediction_prompt(
-        self, 
-        question: Question, 
-        research_report: ResearchReport
+        self, question: Question, research_report: ResearchReport
     ) -> str:
         """Generate prediction prompt."""
         return self.prediction_template.render(
-            question=question,
-            research_report=research_report
+            question=question, research_report=research_report
         )
-    
-    def identify_research_areas(self, question: Question, question_breakdown: str) -> str:
+
+    def identify_research_areas(
+        self, question: Question, question_breakdown: str
+    ) -> str:
         """Generate prompt to identify research areas based on question breakdown."""
-        template = Template("""
+        template = Template(
+            """
 Based on the question breakdown below, identify 3-5 key research areas that need investigation:
 
 QUESTION: {{ question.title }}
@@ -238,12 +242,16 @@ Identify the most important research areas needed to make an accurate forecast:
 
 Return your response as a JSON list of research areas:
 {"research_areas": ["area1", "area2", "area3"]}
-""")
+"""
+        )
         return template.render(question=question, question_breakdown=question_breakdown)
 
-    def synthesize_findings(self, question: Question, sources: List[ResearchSource]) -> str:
+    def synthesize_findings(
+        self, question: Question, sources: List[ResearchSource]
+    ) -> str:
         """Generate prompt to synthesize research findings into analysis."""
-        template = Template("""
+        template = Template(
+            """
 You are an expert forecaster analyzing research findings. Synthesize the following research sources into a comprehensive analysis for this forecasting question.
 
 QUESTION: {{ question.title }}
@@ -298,9 +306,12 @@ Provide your analysis in JSON format:
     "preliminary_probability": 0.X,
     "reasoning_steps": ["step1", "step2", "step3", "step4", "step5"]
 }
-""")
+"""
+        )
         return template.render(question=question, sources=sources)
 
-    def generate_prediction_prompt(self, question: Question, research_report: ResearchReport) -> str:
+    def generate_prediction_prompt(
+        self, question: Question, research_report: ResearchReport
+    ) -> str:
         """Generate prediction prompt - alias for get_prediction_prompt."""
         return self.get_prediction_prompt(question, research_report)

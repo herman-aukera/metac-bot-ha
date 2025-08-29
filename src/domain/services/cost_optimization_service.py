@@ -3,19 +3,21 @@ Cost Optimization Service for Budget-Aware Operation Modes.
 Implements model selection adjustments, task prioritization algorithms,
 research depth adaptation, and graceful feature degradation.
 """
+
 import logging
-from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
-from ...infrastructure.config.operation_modes import OperationMode
 from ...infrastructure.config.budget_manager import budget_manager
+from ...infrastructure.config.operation_modes import OperationMode
 
 logger = logging.getLogger(__name__)
 
 
 class TaskPriority(Enum):
     """Task priority levels for cost optimization."""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -24,6 +26,7 @@ class TaskPriority(Enum):
 
 class TaskComplexity(Enum):
     """Task complexity levels for resource allocation."""
+
     MINIMAL = "minimal"
     MEDIUM = "medium"
     HIGH = "high"
@@ -32,6 +35,7 @@ class TaskComplexity(Enum):
 @dataclass
 class TaskPrioritizationResult:
     """Result of task prioritization algorithm."""
+
     should_process: bool
     priority_score: float
     reason: str
@@ -42,6 +46,7 @@ class TaskPrioritizationResult:
 @dataclass
 class ModelSelectionResult:
     """Result of model selection optimization."""
+
     selected_model: str
     original_model: str
     cost_reduction: float
@@ -52,12 +57,14 @@ class ModelSelectionResult:
 @dataclass
 class ResearchDepthConfig:
     """Configuration for research depth adaptation."""
+
     max_sources: int
     max_depth: int
     max_iterations: int
     enable_deep_analysis: bool
     complexity_threshold: float
     time_limit_seconds: int
+
 
 class CostOptimizationService:
     """
@@ -81,7 +88,7 @@ class CostOptimizationService:
             "claude-3-5-sonnet": {"input": 3.0, "output": 15.0},
             "claude-3-haiku": {"input": 0.25, "output": 1.25},
             "perplexity/sonar-reasoning": {"input": 5.0, "output": 5.0},
-            "perplexity/sonar-pro": {"input": 1.0, "output": 1.0}
+            "perplexity/sonar-pro": {"input": 1.0, "output": 1.0},
         }
 
         # Model performance scores (0.0 to 1.0)
@@ -91,7 +98,7 @@ class CostOptimizationService:
             "claude-3-5-sonnet": 0.92,
             "claude-3-haiku": 0.78,
             "perplexity/sonar-reasoning": 0.88,
-            "perplexity/sonar-pro": 0.82
+            "perplexity/sonar-pro": 0.82,
         }
 
         # Task priority weights for scoring
@@ -99,21 +106,25 @@ class CostOptimizationService:
             TaskPriority.CRITICAL: 1.0,
             TaskPriority.HIGH: 0.8,
             TaskPriority.NORMAL: 0.6,
-            TaskPriority.LOW: 0.3
+            TaskPriority.LOW: 0.3,
         }
 
         # Complexity cost multipliers
         self.complexity_multipliers = {
             TaskComplexity.MINIMAL: 0.7,
             TaskComplexity.MEDIUM: 1.0,
-            TaskComplexity.HIGH: 1.5
+            TaskComplexity.HIGH: 1.5,
         }
 
         logger.info("Cost optimization service initialized")
 
-    def optimize_model_selection(self, task_type: str, original_model: str,
-                                operation_mode: OperationMode,
-                                task_complexity: TaskComplexity = TaskComplexity.MEDIUM) -> ModelSelectionResult:
+    def optimize_model_selection(
+        self,
+        task_type: str,
+        original_model: str,
+        operation_mode: OperationMode,
+        task_complexity: TaskComplexity = TaskComplexity.MEDIUM,
+    ) -> ModelSelectionResult:
         """
         Optimize model selection based on operation mode and budget constraints.
 
@@ -130,7 +141,9 @@ class CostOptimizationService:
         utilization = budget_status.utilization_percentage / 100.0
 
         # Get mode-specific model preferences
-        mode_preferences = self._get_model_preferences_for_mode(operation_mode, task_type)
+        mode_preferences = self._get_model_preferences_for_mode(
+            operation_mode, task_type
+        )
 
         # Calculate cost-performance scores for available models
         model_scores = {}
@@ -142,13 +155,19 @@ class CostOptimizationService:
                 # Weight based on operation mode
                 if operation_mode == OperationMode.NORMAL:
                     # Prioritize performance
-                    combined_score = (performance_score * 0.7) + ((1.0 - cost_score) * 0.3)
+                    combined_score = (performance_score * 0.7) + (
+                        (1.0 - cost_score) * 0.3
+                    )
                 elif operation_mode == OperationMode.CONSERVATIVE:
                     # Balance cost and performance
-                    combined_score = (performance_score * 0.5) + ((1.0 - cost_score) * 0.5)
+                    combined_score = (performance_score * 0.5) + (
+                        (1.0 - cost_score) * 0.5
+                    )
                 else:  # EMERGENCY
                     # Prioritize cost
-                    combined_score = (performance_score * 0.3) + ((1.0 - cost_score) * 0.7)
+                    combined_score = (performance_score * 0.3) + (
+                        (1.0 - cost_score) * 0.7
+                    )
 
                 model_scores[model] = combined_score
 
@@ -177,11 +196,17 @@ class CostOptimizationService:
             original_model=original_model,
             cost_reduction=cost_reduction,
             performance_impact=performance_impact,
-            rationale=rationale
+            rationale=rationale,
         )
-    def prioritize_task(self, task_description: str, task_priority: TaskPriority,
-                       task_complexity: TaskComplexity, operation_mode: OperationMode,
-                       estimated_tokens: int = 1000) -> TaskPrioritizationResult:
+
+    def prioritize_task(
+        self,
+        task_description: str,
+        task_priority: TaskPriority,
+        task_complexity: TaskComplexity,
+        operation_mode: OperationMode,
+        estimated_tokens: int = 1000,
+    ) -> TaskPrioritizationResult:
         """
         Apply task prioritization algorithm for budget conservation.
 
@@ -205,13 +230,15 @@ class CostOptimizationService:
         mode_adjustments = {
             OperationMode.NORMAL: 1.0,
             OperationMode.CONSERVATIVE: 0.8,
-            OperationMode.EMERGENCY: 0.5
+            OperationMode.EMERGENCY: 0.5,
         }
 
         priority_score = base_priority * mode_adjustments[operation_mode]
 
         # Estimate cost
-        estimated_cost = self._estimate_task_cost(estimated_tokens, task_complexity, operation_mode)
+        estimated_cost = self._estimate_task_cost(
+            estimated_tokens, task_complexity, operation_mode
+        )
 
         # Determine if task should be processed
         should_process = self._should_process_task(
@@ -227,20 +254,25 @@ class CostOptimizationService:
         if should_process:
             reason = f"Task approved: priority={task_priority.value}, mode={operation_mode.value}, cost=${estimated_cost:.4f}"
         else:
-            reason = self._get_rejection_reason(task_priority, operation_mode, estimated_cost, budget_status)
+            reason = self._get_rejection_reason(
+                task_priority, operation_mode, estimated_cost, budget_status
+            )
 
         return TaskPrioritizationResult(
             should_process=should_process,
             priority_score=priority_score,
             reason=reason,
             estimated_cost=estimated_cost,
-            resource_allocation=resource_allocation
+            resource_allocation=resource_allocation,
         )
 
-    def adapt_research_depth(self, base_config: Dict[str, Any],
-                           operation_mode: OperationMode,
-                           task_complexity: TaskComplexity,
-                           budget_remaining: float) -> ResearchDepthConfig:
+    def adapt_research_depth(
+        self,
+        base_config: Dict[str, Any],
+        operation_mode: OperationMode,
+        task_complexity: TaskComplexity,
+        budget_remaining: float,
+    ) -> ResearchDepthConfig:
         """
         Adapt research depth based on budget constraints and operation mode.
 
@@ -265,22 +297,22 @@ class CostOptimizationService:
                 "depth": 1.0,
                 "iterations": 1.0,
                 "enable_deep": True,
-                "time_limit": 300
+                "time_limit": 300,
             },
             OperationMode.CONSERVATIVE: {
                 "sources": 0.6,
                 "depth": 0.7,
                 "iterations": 0.6,
                 "enable_deep": True,
-                "time_limit": 180
+                "time_limit": 180,
             },
             OperationMode.EMERGENCY: {
                 "sources": 0.3,
                 "depth": 0.5,
                 "iterations": 0.4,
                 "enable_deep": False,
-                "time_limit": 90
-            }
+                "time_limit": 90,
+            },
         }
 
         factors = mode_factors[operation_mode]
@@ -289,7 +321,7 @@ class CostOptimizationService:
         complexity_adjustments = {
             TaskComplexity.MINIMAL: 0.7,
             TaskComplexity.MEDIUM: 1.0,
-            TaskComplexity.HIGH: 1.2
+            TaskComplexity.HIGH: 1.2,
         }
 
         complexity_factor = complexity_adjustments[task_complexity]
@@ -315,11 +347,15 @@ class CostOptimizationService:
             max_depth=max_depth,
             max_iterations=max_iterations,
             enable_deep_analysis=factors["enable_deep"],
-            complexity_threshold=0.7 if operation_mode == OperationMode.EMERGENCY else 0.5,
-            time_limit_seconds=factors["time_limit"]
+            complexity_threshold=(
+                0.7 if operation_mode == OperationMode.EMERGENCY else 0.5
+            ),
+            time_limit_seconds=factors["time_limit"],
         )
-    def get_graceful_degradation_strategy(self, operation_mode: OperationMode,
-                                         budget_remaining: float) -> Dict[str, Any]:
+
+    def get_graceful_degradation_strategy(
+        self, operation_mode: OperationMode, budget_remaining: float
+    ) -> Dict[str, Any]:
         """
         Get graceful feature degradation strategy for emergency modes.
 
@@ -338,7 +374,7 @@ class CostOptimizationService:
             "caching_enabled": True,
             "retry_attempts": 3,
             "timeout_seconds": 90,
-            "batch_size": 10
+            "batch_size": 10,
         }
 
         if operation_mode == OperationMode.NORMAL:
@@ -353,7 +389,7 @@ class CostOptimizationService:
                 "detailed_logging": False,
                 "retry_attempts": 2,
                 "timeout_seconds": 60,
-                "batch_size": 5
+                "batch_size": 5,
             }
 
         else:  # EMERGENCY mode
@@ -366,21 +402,20 @@ class CostOptimizationService:
                 "caching_enabled": True,  # Keep caching for efficiency
                 "retry_attempts": 1,
                 "timeout_seconds": 30,
-                "batch_size": 2
+                "batch_size": 2,
             }
 
             # Further degradation based on remaining budget
             if budget_remaining < 0.05:  # Less than 5% remaining
-                degraded_strategy.update({
-                    "caching_enabled": False,
-                    "timeout_seconds": 15,
-                    "batch_size": 1
-                })
+                degraded_strategy.update(
+                    {"caching_enabled": False, "timeout_seconds": 15, "batch_size": 1}
+                )
 
             return degraded_strategy
 
-    def _get_model_preferences_for_mode(self, operation_mode: OperationMode,
-                                      task_type: str) -> List[str]:
+    def _get_model_preferences_for_mode(
+        self, operation_mode: OperationMode, task_type: str
+    ) -> List[str]:
         """Get model preferences based on operation mode and task type."""
         if operation_mode == OperationMode.NORMAL:
             if task_type == "forecast":
@@ -402,7 +437,9 @@ class CostOptimizationService:
             return 0.5  # Default middle score
 
         # Use average of input and output costs
-        model_cost = (self.model_costs[model]["input"] + self.model_costs[model]["output"]) / 2
+        model_cost = (
+            self.model_costs[model]["input"] + self.model_costs[model]["output"]
+        ) / 2
 
         # Apply complexity multiplier
         adjusted_cost = model_cost * self.complexity_multipliers[complexity]
@@ -415,10 +452,16 @@ class CostOptimizationService:
         if model not in self.model_costs:
             return 1.0  # Default cost
 
-        return (self.model_costs[model]["input"] + self.model_costs[model]["output"]) / 2
+        return (
+            self.model_costs[model]["input"] + self.model_costs[model]["output"]
+        ) / 2
 
-    def _estimate_task_cost(self, estimated_tokens: int, complexity: TaskComplexity,
-                          operation_mode: OperationMode) -> float:
+    def _estimate_task_cost(
+        self,
+        estimated_tokens: int,
+        complexity: TaskComplexity,
+        operation_mode: OperationMode,
+    ) -> float:
         """Estimate cost for a task based on tokens and complexity."""
         # Base cost per 1000 tokens (using gpt-4o-mini as baseline)
         base_cost_per_1k = 0.375  # Average of input/output costs
@@ -430,15 +473,25 @@ class CostOptimizationService:
         mode_efficiency = {
             OperationMode.NORMAL: 1.0,
             OperationMode.CONSERVATIVE: 0.8,
-            OperationMode.EMERGENCY: 0.6
+            OperationMode.EMERGENCY: 0.6,
         }
 
         efficiency_factor = mode_efficiency[operation_mode]
 
-        return (estimated_tokens / 1000.0) * base_cost_per_1k * complexity_factor * efficiency_factor
+        return (
+            (estimated_tokens / 1000.0)
+            * base_cost_per_1k
+            * complexity_factor
+            * efficiency_factor
+        )
 
-    def _should_process_task(self, priority_score: float, estimated_cost: float,
-                           operation_mode: OperationMode, budget_status) -> bool:
+    def _should_process_task(
+        self,
+        priority_score: float,
+        estimated_cost: float,
+        operation_mode: OperationMode,
+        budget_status,
+    ) -> bool:
         """Determine if a task should be processed based on priority and budget."""
         # Check if we have enough budget
         if estimated_cost > budget_status.remaining:
@@ -446,66 +499,77 @@ class CostOptimizationService:
 
         # Mode-specific thresholds
         mode_thresholds = {
-            OperationMode.NORMAL: 0.3,      # Process tasks with priority >= 0.3
-            OperationMode.CONSERVATIVE: 0.5, # Process tasks with priority >= 0.5
-            OperationMode.EMERGENCY: 0.7    # Process tasks with priority >= 0.7
+            OperationMode.NORMAL: 0.3,  # Process tasks with priority >= 0.3
+            OperationMode.CONSERVATIVE: 0.5,  # Process tasks with priority >= 0.5
+            OperationMode.EMERGENCY: 0.7,  # Process tasks with priority >= 0.7
         }
 
         return priority_score >= mode_thresholds[operation_mode]
 
-    def _calculate_resource_allocation(self, complexity: TaskComplexity,
-                                     operation_mode: OperationMode,
-                                     priority_score: float) -> Dict[str, Any]:
+    def _calculate_resource_allocation(
+        self,
+        complexity: TaskComplexity,
+        operation_mode: OperationMode,
+        priority_score: float,
+    ) -> Dict[str, Any]:
         """Calculate resource allocation for a task."""
         base_allocation = {
             "cpu_priority": "normal",
             "memory_limit_mb": 512,
             "timeout_seconds": 90,
-            "max_retries": 3
+            "max_retries": 3,
         }
 
         # Adjust based on complexity
         if complexity == TaskComplexity.HIGH:
-            base_allocation.update({
-                "cpu_priority": "high",
-                "memory_limit_mb": 1024,
-                "timeout_seconds": 180
-            })
+            base_allocation.update(
+                {
+                    "cpu_priority": "high",
+                    "memory_limit_mb": 1024,
+                    "timeout_seconds": 180,
+                }
+            )
         elif complexity == TaskComplexity.MINIMAL:
-            base_allocation.update({
-                "cpu_priority": "low",
-                "memory_limit_mb": 256,
-                "timeout_seconds": 30
-            })
+            base_allocation.update(
+                {"cpu_priority": "low", "memory_limit_mb": 256, "timeout_seconds": 30}
+            )
 
         # Adjust based on operation mode
         if operation_mode == OperationMode.EMERGENCY:
-            base_allocation.update({
-                "cpu_priority": "low",
-                "memory_limit_mb": min(base_allocation["memory_limit_mb"], 256),
-                "timeout_seconds": min(base_allocation["timeout_seconds"], 45),
-                "max_retries": 1
-            })
+            base_allocation.update(
+                {
+                    "cpu_priority": "low",
+                    "memory_limit_mb": min(base_allocation["memory_limit_mb"], 256),
+                    "timeout_seconds": min(base_allocation["timeout_seconds"], 45),
+                    "max_retries": 1,
+                }
+            )
         elif operation_mode == OperationMode.CONSERVATIVE:
-            base_allocation.update({
-                "timeout_seconds": min(base_allocation["timeout_seconds"], 60),
-                "max_retries": 2
-            })
+            base_allocation.update(
+                {
+                    "timeout_seconds": min(base_allocation["timeout_seconds"], 60),
+                    "max_retries": 2,
+                }
+            )
 
         return base_allocation
 
-    def _get_rejection_reason(self, priority: TaskPriority, mode: OperationMode,
-                            cost: float, budget_status) -> str:
+    def _get_rejection_reason(
+        self, priority: TaskPriority, mode: OperationMode, cost: float, budget_status
+    ) -> str:
         """Generate reason for task rejection."""
         if cost > budget_status.remaining:
             return f"Insufficient budget: task costs ${cost:.4f}, only ${budget_status.remaining:.4f} remaining"
 
         mode_reasons = {
             OperationMode.CONSERVATIVE: f"Conservative mode: {priority.value} priority tasks not processed",
-            OperationMode.EMERGENCY: f"Emergency mode: only critical/high priority tasks processed"
+            OperationMode.EMERGENCY: f"Emergency mode: only critical/high priority tasks processed",
         }
 
-        return mode_reasons.get(mode, f"Task priority {priority.value} below threshold for {mode.value} mode")
+        return mode_reasons.get(
+            mode,
+            f"Task priority {priority.value} below threshold for {mode.value} mode",
+        )
 
 
 # Global instance

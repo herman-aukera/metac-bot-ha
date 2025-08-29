@@ -6,13 +6,16 @@ Implements task 4 requirements with comprehensive quality assurance.
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from .multi_stage_research_pipeline import MultiStageResearchPipeline, ResearchStageResult
-from .validation_stage_service import ValidationStageService, ValidationResult
 from .forecasting_stage_service import ForecastingStageService, ForecastResult
+from .multi_stage_research_pipeline import (
+    MultiStageResearchPipeline,
+    ResearchStageResult,
+)
+from .validation_stage_service import ValidationResult, ValidationStageService
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MultiStageResult:
     """Complete result from multi-stage validation pipeline."""
+
     question: str
     question_type: str
     research_result: ResearchStageResult
@@ -59,8 +63,7 @@ class MultiStageValidationPipeline:
 
         # Initialize stage services
         self.research_pipeline = MultiStageResearchPipeline(
-            tri_model_router=tri_model_router,
-            tournament_asknews=tournament_asknews
+            tri_model_router=tri_model_router, tournament_asknews=tournament_asknews
         )
 
         self.validation_service = ValidationStageService(
@@ -75,8 +78,9 @@ class MultiStageValidationPipeline:
         self.quality_threshold = 0.6
         self.cost_budget_per_question = 0.02  # $0.02 per question target
 
-    async def process_question(self, question: str, question_type: str,
-                             context: Dict[str, Any] = None) -> MultiStageResult:
+    async def process_question(
+        self, question: str, question_type: str, context: Dict[str, Any] = None
+    ) -> MultiStageResult:
         """
         Process a complete question through all three validation stages.
 
@@ -91,18 +95,21 @@ class MultiStageValidationPipeline:
         context = context or {}
         pipeline_start = datetime.now()
 
-        self.logger.info(f"Starting multi-stage validation pipeline for {question_type} question...")
+        self.logger.info(
+            f"Starting multi-stage validation pipeline for {question_type} question..."
+        )
 
         try:
             # Stage 1: Research with AskNews and GPT-5-mini synthesis
             self.logger.info("Executing Stage 1: Research and synthesis...")
             research_results = await self.research_pipeline.execute_research_pipeline(
-                question=question,
-                context=context
+                question=question, context=context
             )
 
             if not research_results["success"]:
-                self.logger.warning("Research stage failed, proceeding with limited data")
+                self.logger.warning(
+                    "Research stage failed, proceeding with limited data"
+                )
 
             research_content = research_results.get("final_research", "")
 
@@ -111,7 +118,7 @@ class MultiStageValidationPipeline:
             validation_result = await self.validation_service.validate_content(
                 content=research_content,
                 task_type="research_synthesis",
-                context=context
+                context=context,
             )
 
             # Stage 3: Forecasting with GPT-5 and calibration
@@ -120,15 +127,15 @@ class MultiStageValidationPipeline:
                 question=question,
                 question_type=question_type,
                 research_data=research_content,
-                context=context
+                context=context,
             )
 
             # Calculate overall metrics
             total_execution_time = (datetime.now() - pipeline_start).total_seconds()
             total_cost = (
-                research_results.get("total_cost", 0.0) +
-                validation_result.cost_estimate +
-                forecast_result.cost_estimate
+                research_results.get("total_cost", 0.0)
+                + validation_result.cost_estimate
+                + forecast_result.cost_estimate
             )
 
             # Calculate overall quality score
@@ -143,17 +150,17 @@ class MultiStageValidationPipeline:
 
             # Determine pipeline success
             pipeline_success = (
-                research_results.get("success", False) and
-                validation_result.is_valid and
-                forecast_result.quality_validation_passed and
-                quality_score >= self.quality_threshold
+                research_results.get("success", False)
+                and validation_result.is_valid
+                and forecast_result.quality_validation_passed
+                and quality_score >= self.quality_threshold
             )
 
             # Create research stage result for compatibility
             research_quality_score = 0.5  # Default
             if research_results.get("quality_metrics"):
                 quality_metrics = research_results["quality_metrics"]
-                if hasattr(quality_metrics, 'overall_quality'):
+                if hasattr(quality_metrics, "overall_quality"):
                     research_quality_score = quality_metrics.overall_quality
                 elif isinstance(quality_metrics, dict):
                     research_quality_score = quality_metrics.get("overall_quality", 0.5)
@@ -165,8 +172,12 @@ class MultiStageValidationPipeline:
                 cost_estimate=research_results.get("total_cost", 0.0),
                 quality_score=research_quality_score,
                 stage_name="multi_stage_research",
-                execution_time=research_results.get("pipeline_start", datetime.now()).timestamp() if research_results.get("pipeline_start") else 0.0,
-                success=research_results.get("success", False)
+                execution_time=(
+                    research_results.get("pipeline_start", datetime.now()).timestamp()
+                    if research_results.get("pipeline_start")
+                    else 0.0
+                ),
+                success=research_results.get("success", False),
             )
 
             # Compile final reasoning
@@ -186,7 +197,7 @@ class MultiStageValidationPipeline:
                 quality_score=quality_score,
                 tournament_compliant=tournament_compliant,
                 final_forecast=forecast_result.prediction,
-                reasoning=final_reasoning
+                reasoning=final_reasoning,
             )
 
             self.logger.info(
@@ -206,23 +217,41 @@ class MultiStageValidationPipeline:
                 question=question,
                 question_type=question_type,
                 research_result=ResearchStageResult(
-                    content="", sources_used=[], model_used="none",
-                    cost_estimate=0.0, quality_score=0.0, stage_name="failed",
-                    execution_time=0.0, success=False, error_message=str(e)
+                    content="",
+                    sources_used=[],
+                    model_used="none",
+                    cost_estimate=0.0,
+                    quality_score=0.0,
+                    stage_name="failed",
+                    execution_time=0.0,
+                    success=False,
+                    error_message=str(e),
                 ),
                 validation_result=ValidationResult(
-                    is_valid=False, quality_score=0.0, evidence_traceability_score=0.0,
-                    hallucination_detected=True, logical_consistency_score=0.0,
+                    is_valid=False,
+                    quality_score=0.0,
+                    evidence_traceability_score=0.0,
+                    hallucination_detected=True,
+                    logical_consistency_score=0.0,
                     issues_identified=[f"Pipeline error: {str(e)}"],
                     recommendations=["Retry with different approach"],
-                    confidence_level="low", execution_time=0.0, cost_estimate=0.0
+                    confidence_level="low",
+                    execution_time=0.0,
+                    cost_estimate=0.0,
                 ),
                 forecast_result=ForecastResult(
-                    forecast_type=question_type, prediction=0.5 if question_type == "binary" else {},
-                    confidence_score=0.0, uncertainty_bounds=None, calibration_score=0.0,
-                    overconfidence_detected=True, quality_validation_passed=False,
-                    tournament_compliant=False, reasoning=f"Pipeline error: {str(e)}",
-                    execution_time=0.0, cost_estimate=0.0, model_used="none"
+                    forecast_type=question_type,
+                    prediction=0.5 if question_type == "binary" else {},
+                    confidence_score=0.0,
+                    uncertainty_bounds=None,
+                    calibration_score=0.0,
+                    overconfidence_detected=True,
+                    quality_validation_passed=False,
+                    tournament_compliant=False,
+                    reasoning=f"Pipeline error: {str(e)}",
+                    execution_time=0.0,
+                    cost_estimate=0.0,
+                    model_used="none",
                 ),
                 pipeline_success=False,
                 total_execution_time=total_execution_time,
@@ -230,19 +259,22 @@ class MultiStageValidationPipeline:
                 quality_score=0.0,
                 tournament_compliant=False,
                 final_forecast=0.5 if question_type == "binary" else {},
-                reasoning=f"Multi-stage pipeline failed: {str(e)}"
+                reasoning=f"Multi-stage pipeline failed: {str(e)}",
             )
 
-    def _calculate_overall_quality_score(self, research_results: Dict[str, Any],
-                                       validation_result: ValidationResult,
-                                       forecast_result: ForecastResult) -> float:
+    def _calculate_overall_quality_score(
+        self,
+        research_results: Dict[str, Any],
+        validation_result: ValidationResult,
+        forecast_result: ForecastResult,
+    ) -> float:
         """Calculate overall quality score from all stages."""
 
         # Research quality (30% weight)
         research_quality = 0.0
         if research_results.get("quality_metrics"):
             quality_metrics = research_results["quality_metrics"]
-            if hasattr(quality_metrics, 'overall_quality'):
+            if hasattr(quality_metrics, "overall_quality"):
                 research_quality = quality_metrics.overall_quality
             elif isinstance(quality_metrics, dict):
                 research_quality = quality_metrics.get("overall_quality", 0.0)
@@ -257,15 +289,14 @@ class MultiStageValidationPipeline:
 
         # Weighted average
         overall_quality = (
-            research_quality * 0.3 +
-            validation_quality * 0.3 +
-            forecast_quality * 0.4
+            research_quality * 0.3 + validation_quality * 0.3 + forecast_quality * 0.4
         )
 
         return overall_quality
 
-    def _check_overall_tournament_compliance(self, validation_result: ValidationResult,
-                                           forecast_result: ForecastResult) -> bool:
+    def _check_overall_tournament_compliance(
+        self, validation_result: ValidationResult, forecast_result: ForecastResult
+    ) -> bool:
         """Check overall tournament compliance across all stages."""
 
         compliance_checks = []
@@ -283,8 +314,12 @@ class MultiStageValidationPipeline:
         # At least 4 out of 6 compliance checks must pass
         return sum(compliance_checks) >= 4
 
-    def _compile_final_reasoning(self, research_content: str, validation_result: ValidationResult,
-                               forecast_result: ForecastResult) -> str:
+    def _compile_final_reasoning(
+        self,
+        research_content: str,
+        validation_result: ValidationResult,
+        forecast_result: ForecastResult,
+    ) -> str:
         """Compile final reasoning from all stages."""
 
         reasoning_sections = []
@@ -293,16 +328,22 @@ class MultiStageValidationPipeline:
         reasoning_sections.append("## Research Summary")
         if research_content:
             # Extract key findings from research
-            research_lines = research_content.split('\n')[:10]  # First 10 lines
-            reasoning_sections.append('\n'.join(research_lines))
+            research_lines = research_content.split("\n")[:10]  # First 10 lines
+            reasoning_sections.append("\n".join(research_lines))
         else:
             reasoning_sections.append("Research data unavailable.")
 
         # Validation summary
         reasoning_sections.append("\n## Quality Validation")
-        reasoning_sections.append(f"Quality Score: {validation_result.quality_score:.2f}")
-        reasoning_sections.append(f"Evidence Traceability: {validation_result.evidence_traceability_score:.2f}")
-        reasoning_sections.append(f"Hallucination Check: {'✅ Clean' if not validation_result.hallucination_detected else '⚠️ Issues detected'}")
+        reasoning_sections.append(
+            f"Quality Score: {validation_result.quality_score:.2f}"
+        )
+        reasoning_sections.append(
+            f"Evidence Traceability: {validation_result.evidence_traceability_score:.2f}"
+        )
+        reasoning_sections.append(
+            f"Hallucination Check: {'✅ Clean' if not validation_result.hallucination_detected else '⚠️ Issues detected'}"
+        )
 
         if validation_result.issues_identified:
             reasoning_sections.append("Quality Issues:")
@@ -315,11 +356,17 @@ class MultiStageValidationPipeline:
 
         # Final assessment
         reasoning_sections.append("\n## Final Assessment")
-        reasoning_sections.append(f"Calibration Score: {forecast_result.calibration_score:.2f}")
-        reasoning_sections.append(f"Confidence Level: {forecast_result.confidence_score:.2f}")
-        reasoning_sections.append(f"Tournament Compliant: {'✅ Yes' if forecast_result.tournament_compliant else '❌ No'}")
+        reasoning_sections.append(
+            f"Calibration Score: {forecast_result.calibration_score:.2f}"
+        )
+        reasoning_sections.append(
+            f"Confidence Level: {forecast_result.confidence_score:.2f}"
+        )
+        reasoning_sections.append(
+            f"Tournament Compliant: {'✅ Yes' if forecast_result.tournament_compliant else '❌ No'}"
+        )
 
-        return '\n'.join(reasoning_sections)
+        return "\n".join(reasoning_sections)
 
     async def get_pipeline_health_check(self) -> Dict[str, Any]:
         """Get health check status for all pipeline components."""
@@ -327,7 +374,7 @@ class MultiStageValidationPipeline:
         health_status = {
             "pipeline": "MultiStageValidationPipeline",
             "timestamp": datetime.now().isoformat(),
-            "components": {}
+            "components": {},
         }
 
         # Check research pipeline
@@ -335,12 +382,12 @@ class MultiStageValidationPipeline:
             research_status = self.research_pipeline.get_pipeline_status()
             health_status["components"]["research"] = {
                 "status": "healthy",
-                "details": research_status
+                "details": research_status,
             }
         except Exception as e:
             health_status["components"]["research"] = {
                 "status": "unhealthy",
-                "error": str(e)
+                "error": str(e),
             }
 
         # Check validation service
@@ -348,12 +395,12 @@ class MultiStageValidationPipeline:
             validation_status = self.validation_service.get_validation_status()
             health_status["components"]["validation"] = {
                 "status": "healthy",
-                "details": validation_status
+                "details": validation_status,
             }
         except Exception as e:
             health_status["components"]["validation"] = {
                 "status": "unhealthy",
-                "error": str(e)
+                "error": str(e),
             }
 
         # Check forecasting service
@@ -361,17 +408,21 @@ class MultiStageValidationPipeline:
             forecasting_status = self.forecasting_service.get_service_status()
             health_status["components"]["forecasting"] = {
                 "status": "healthy",
-                "details": forecasting_status
+                "details": forecasting_status,
             }
         except Exception as e:
             health_status["components"]["forecasting"] = {
                 "status": "unhealthy",
-                "error": str(e)
+                "error": str(e),
             }
 
         # Overall health
-        component_statuses = [comp["status"] for comp in health_status["components"].values()]
-        health_status["overall_health"] = "healthy" if all(s == "healthy" for s in component_statuses) else "degraded"
+        component_statuses = [
+            comp["status"] for comp in health_status["components"].values()
+        ]
+        health_status["overall_health"] = (
+            "healthy" if all(s == "healthy" for s in component_statuses) else "degraded"
+        )
 
         return health_status
 
@@ -382,27 +433,32 @@ class MultiStageValidationPipeline:
             "stages": [
                 "research_with_asknews_and_gpt5_mini",
                 "validation_with_gpt5_nano",
-                "forecasting_with_gpt5_full"
+                "forecasting_with_gpt5_full",
             ],
             "models_used": {
-                "research": ["AskNews API (free)", "openai/gpt-5-mini", "openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free"],
+                "research": [
+                    "AskNews API (free)",
+                    "openai/gpt-5-mini",
+                    "openai/gpt-oss-20b:free",
+                    "moonshotai/kimi-k2:free",
+                ],
                 "validation": ["openai/gpt-5-nano"],
-                "forecasting": ["openai/gpt-5"]
+                "forecasting": ["openai/gpt-5"],
             },
             "cost_optimization": {
                 "asknews_free_via_metaculusq4": True,
                 "free_model_fallbacks": True,
-                "target_cost_per_question": self.cost_budget_per_question
+                "target_cost_per_question": self.cost_budget_per_question,
             },
             "quality_thresholds": {
                 "overall_quality_threshold": self.quality_threshold,
                 "validation_threshold": 0.6,
-                "calibration_threshold": 0.5
+                "calibration_threshold": 0.5,
             },
             "tournament_compliance": {
                 "evidence_traceability_required": True,
                 "hallucination_detection_enabled": True,
                 "calibration_checks_enabled": True,
-                "uncertainty_quantification_required": True
-            }
+                "uncertainty_quantification_required": True,
+            },
         }

@@ -1,17 +1,18 @@
 """Tests for circuit breaker implementation."""
 
-import pytest
 import asyncio
 import time
 from unittest.mock import AsyncMock, Mock
 
+import pytest
+
 from src.infrastructure.reliability.circuit_breaker import (
     CircuitBreaker,
-    CircuitBreakerState,
     CircuitBreakerConfig,
-    CircuitBreakerOpenError,
     CircuitBreakerManager,
-    circuit_breaker_manager
+    CircuitBreakerOpenError,
+    CircuitBreakerState,
+    circuit_breaker_manager,
 )
 
 
@@ -22,10 +23,7 @@ class TestCircuitBreaker:
     def config(self):
         """Circuit breaker configuration for testing."""
         return CircuitBreakerConfig(
-            failure_threshold=3,
-            recovery_timeout=1.0,
-            success_threshold=2,
-            timeout=0.5
+            failure_threshold=3, recovery_timeout=1.0, success_threshold=2, timeout=0.5
         )
 
     @pytest.fixture
@@ -36,6 +34,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_successful_call(self, circuit_breaker):
         """Test successful function call."""
+
         async def success_func():
             return "success"
 
@@ -48,6 +47,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_failed_call(self, circuit_breaker):
         """Test failed function call."""
+
         async def fail_func():
             raise ValueError("test error")
 
@@ -62,6 +62,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_opens_after_failures(self, circuit_breaker):
         """Test circuit opens after threshold failures."""
+
         async def fail_func():
             raise ValueError("test error")
 
@@ -76,6 +77,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_rejects_when_open(self, circuit_breaker):
         """Test circuit rejects calls when open."""
+
         async def fail_func():
             raise ValueError("test error")
 
@@ -93,6 +95,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_transitions_to_half_open(self, circuit_breaker):
         """Test circuit transitions to half-open after timeout."""
+
         async def fail_func():
             raise ValueError("test error")
 
@@ -117,6 +120,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_closes_after_half_open_successes(self, circuit_breaker):
         """Test circuit closes after successful calls in half-open state."""
+
         async def fail_func():
             raise ValueError("test error")
 
@@ -142,6 +146,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_reopens_on_half_open_failure(self, circuit_breaker):
         """Test circuit reopens on failure in half-open state."""
+
         async def fail_func():
             raise ValueError("test error")
 
@@ -170,6 +175,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_timeout_handling(self, circuit_breaker):
         """Test function timeout handling."""
+
         async def slow_func():
             await asyncio.sleep(1.0)  # Longer than timeout
             return "success"
@@ -182,6 +188,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_sync_function_support(self, circuit_breaker):
         """Test support for synchronous functions."""
+
         def sync_func():
             return "sync_success"
 
@@ -192,6 +199,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_metrics(self, circuit_breaker):
         """Test circuit breaker metrics."""
+
         async def success_func():
             return "success"
 
@@ -216,6 +224,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_reset(self, circuit_breaker):
         """Test circuit breaker reset."""
+
         async def fail_func():
             raise ValueError("test error")
 
@@ -368,7 +377,7 @@ class TestCircuitBreakerConfig:
             recovery_timeout=120.0,
             success_threshold=5,
             timeout=60.0,
-            expected_exception=ValueError
+            expected_exception=ValueError,
         )
 
         assert config.failure_threshold == 10

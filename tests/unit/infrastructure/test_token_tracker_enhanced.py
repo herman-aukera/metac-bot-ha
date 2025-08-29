@@ -1,12 +1,14 @@
 """
 Tests for enhanced TokenTracker with real-time cost calculation and monitoring.
 """
-import pytest
-import tempfile
+
 import json
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.infrastructure.config.token_tracker import TokenTracker, TokenUsageRecord
 
@@ -28,12 +30,16 @@ class TestEnhancedTokenTracker:
         """Test real-time cost calculation for different models."""
         # Test GPT-4o cost calculation
         cost_4o = self.tracker.calculate_real_time_cost("gpt-4o", 1000, 500)
-        expected_4o = (1000 * 0.0025 / 1000) + (500 * 0.01 / 1000)  # $0.0025 + $0.005 = $0.0075
+        expected_4o = (1000 * 0.0025 / 1000) + (
+            500 * 0.01 / 1000
+        )  # $0.0025 + $0.005 = $0.0075
         assert abs(cost_4o - expected_4o) < 0.0001
 
         # Test GPT-4o-mini cost calculation
         cost_mini = self.tracker.calculate_real_time_cost("gpt-4o-mini", 1000, 500)
-        expected_mini = (1000 * 0.00015 / 1000) + (500 * 0.0006 / 1000)  # $0.00015 + $0.0003 = $0.00045
+        expected_mini = (1000 * 0.00015 / 1000) + (
+            500 * 0.0006 / 1000
+        )  # $0.00015 + $0.0003 = $0.00045
         assert abs(cost_mini - expected_mini) < 0.0001
 
         # Test unknown model defaults to GPT-4o pricing
@@ -49,7 +55,7 @@ class TestEnhancedTokenTracker:
             task_type="research",
             input_tokens=800,
             output_tokens=200,
-            success=True
+            success=True,
         )
 
         # Verify record creation
@@ -82,7 +88,7 @@ class TestEnhancedTokenTracker:
             task_type="forecast",
             input_tokens=1000,
             output_tokens=500,
-            success=False
+            success=False,
         )
 
         # Verify record is created but totals are not updated for failed calls
@@ -96,13 +102,15 @@ class TestEnhancedTokenTracker:
         # Add multiple records
         self.tracker.track_api_call("q1", "gpt-4o", "research", 500, 300, True)
         self.tracker.track_api_call("q2", "gpt-4o-mini", "forecast", 800, 200, True)
-        self.tracker.track_api_call("q3", "gpt-4o", "research", 600, 400, False)  # Failed
+        self.tracker.track_api_call(
+            "q3", "gpt-4o", "research", 600, 400, False
+        )  # Failed
 
         summary = self.tracker.get_usage_summary()
 
         # Verify overall summary
         assert summary["total_calls"] == 3
-        assert summary["success_rate"] == 2/3  # 2 successful out of 3
+        assert summary["success_rate"] == 2 / 3  # 2 successful out of 3
 
         # Verify by model breakdown
         assert "gpt-4o" in summary["by_model"]
@@ -110,7 +118,9 @@ class TestEnhancedTokenTracker:
 
         gpt4o_stats = summary["by_model"]["gpt-4o"]
         assert gpt4o_stats["calls"] == 2  # 2 calls to gpt-4o
-        assert gpt4o_stats["tokens"]["total"] == 800  # Only successful call counted (500+300)
+        assert (
+            gpt4o_stats["tokens"]["total"] == 800
+        )  # Only successful call counted (500+300)
 
         mini_stats = summary["by_model"]["gpt-4o-mini"]
         assert mini_stats["calls"] == 1
@@ -167,14 +177,16 @@ class TestEnhancedTokenTracker:
     def test_actual_usage_tracking_with_strings(self):
         """Test tracking actual usage from prompt and response strings."""
         prompt = "What is the probability that AI will achieve AGI by 2030?"
-        response = "Based on current trends and expert opinions, I estimate a 25% probability."
+        response = (
+            "Based on current trends and expert opinions, I estimate a 25% probability."
+        )
 
         result = self.tracker.track_actual_usage(
             prompt=prompt,
             response=response,
             model="gpt-4o-mini",
             question_id="agi-2030",
-            task_type="forecast"
+            task_type="forecast",
         )
 
         # Verify result structure
@@ -187,7 +199,9 @@ class TestEnhancedTokenTracker:
         # Verify tokens were counted
         assert result["input_tokens"] > 0
         assert result["output_tokens"] > 0
-        assert result["total_tokens"] == result["input_tokens"] + result["output_tokens"]
+        assert (
+            result["total_tokens"] == result["input_tokens"] + result["output_tokens"]
+        )
 
         # Verify record was created and tracked
         assert len(self.tracker.usage_records) == 1
@@ -199,7 +213,10 @@ class TestEnhancedTokenTracker:
         """Test model name normalization for cost calculation."""
         # Test provider prefix removal
         assert self.tracker._normalize_model_name("openai/gpt-4o") == "gpt-4o"
-        assert self.tracker._normalize_model_name("anthropic/claude-3-5-sonnet") == "claude-3-5-sonnet"
+        assert (
+            self.tracker._normalize_model_name("anthropic/claude-3-5-sonnet")
+            == "claude-3-5-sonnet"
+        )
 
         # Test direct model names
         assert self.tracker._normalize_model_name("gpt-4o-mini") == "gpt-4o-mini"
@@ -227,7 +244,7 @@ class TestEnhancedTokenTracker:
         self.tracker.track_api_call("q2", "gpt-4o-mini", "forecast", 800, 200, True)
 
         # Test logging methods (should not raise exceptions)
-        with patch('src.infrastructure.config.token_tracker.logger') as mock_logger:
+        with patch("src.infrastructure.config.token_tracker.logger") as mock_logger:
             self.tracker.log_usage_summary()
             assert mock_logger.info.called
 

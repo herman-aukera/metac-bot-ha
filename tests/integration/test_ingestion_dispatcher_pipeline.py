@@ -1,12 +1,15 @@
 """Integration test: ingestion → dispatcher → forecast pipeline."""
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock
 
-from src.infrastructure.metaculus_api import MetaculusAPI
-from src.application.ingestion_service import IngestionService
+import pytest
+
 from src.application.dispatcher import Dispatcher
 from src.application.forecast_service import ForecastService
+from src.application.ingestion_service import IngestionService
 from src.domain.entities.question import QuestionType
+from src.infrastructure.metaculus_api import MetaculusAPI
+
 
 def test_ingestion_dispatcher_forecast_pipeline(monkeypatch):
     # Mock MetaculusAPI to return a sample question JSON
@@ -18,7 +21,7 @@ def test_ingestion_dispatcher_forecast_pipeline(monkeypatch):
         "min_value": None,
         "max_value": None,
         "choices": None,
-        "status": "open"
+        "status": "open",
     }
     api = MagicMock()
     api.fetch_questions.return_value = [sample_json]

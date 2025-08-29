@@ -4,20 +4,23 @@ Tests end-to-end question processing, budget-aware operation mode switching,
 and tournament simulation scenarios.
 """
 
-import pytest
 import asyncio
 import os
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Set up test environment
-os.environ.update({
-    "OPENROUTER_API_KEY": "test_key",
-    "METACULUS_TOKEN": "test_token",
-    "ASKNEWS_CLIENT_ID": "test_client",
-    "ASKNEWS_SECRET": "test_secret",
-    "APP_ENV": "test"
-})
+os.environ.update(
+    {
+        "OPENROUTER_API_KEY": "test_key",
+        "METACULUS_TOKEN": "test_token",
+        "ASKNEWS_CLIENT_ID": "test_client",
+        "ASKNEWS_SECRET": "test_secret",
+        "APP_ENV": "test",
+    }
+)
 
 
 class TestCompleteWorkflowIntegration:
@@ -26,14 +29,17 @@ class TestCompleteWorkflowIntegration:
     @pytest.fixture
     def mock_environment(self):
         """Set up mock environment for integration tests."""
-        with patch.dict(os.environ, {
-            "OPENROUTER_API_KEY": "test_openrouter_key",
-            "METACULUS_TOKEN": "test_metaculus_token",
-            "ASKNEWS_CLIENT_ID": "test_asknews_client",
-            "ASKNEWS_SECRET": "test_asknews_secret",
-            "BUDGET_LIMIT": "100.0",
-            "DRY_RUN": "true"
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENROUTER_API_KEY": "test_openrouter_key",
+                "METACULUS_TOKEN": "test_metaculus_token",
+                "ASKNEWS_CLIENT_ID": "test_asknews_client",
+                "ASKNEWS_SECRET": "test_asknews_secret",
+                "BUDGET_LIMIT": "100.0",
+                "DRY_RUN": "true",
+            },
+        ):
             yield
 
     @pytest.mark.asyncio
@@ -45,7 +51,7 @@ class TestCompleteWorkflowIntegration:
             "title": "Will AI regulation pass in 2025?",
             "description": "Comprehensive AI regulation bill in major jurisdiction",
             "type": "binary",
-            "close_time": datetime.now() + timedelta(days=30)
+            "close_time": datetime.now() + timedelta(days=30),
         }
 
         # Test workflow stages
@@ -65,7 +71,7 @@ class TestCompleteWorkflowIntegration:
             "success": True,
             "content": "Research synthesis with citations [1] Source A [2] Source B",
             "cost": 0.15,
-            "model_used": "gpt-5-mini"
+            "model_used": "gpt-5-mini",
         }
 
         # Stage 2: Validation with GPT-5-nano
@@ -73,7 +79,7 @@ class TestCompleteWorkflowIntegration:
             "passed": True,
             "quality_score": 8.2,
             "cost": 0.03,
-            "model_used": "gpt-5-nano"
+            "model_used": "gpt-5-nano",
         }
 
         # Stage 3: Forecasting with GPT-5
@@ -82,32 +88,48 @@ class TestCompleteWorkflowIntegration:
             "confidence": 7.5,
             "reasoning": "Based on research evidence...",
             "cost": 0.85,
-            "model_used": "gpt-5"
+            "model_used": "gpt-5",
         }
 
         return {
             "research_completed": research_result["success"],
             "validation_completed": validation_result["passed"],
             "forecast_completed": True,
-            "total_cost": sum([research_result["cost"], validation_result["cost"], forecast_result["cost"]]),
-            "models_used": [research_result["model_used"], validation_result["model_used"], forecast_result["model_used"]]
+            "total_cost": sum(
+                [
+                    research_result["cost"],
+                    validation_result["cost"],
+                    forecast_result["cost"],
+                ]
+            ),
+            "models_used": [
+                research_result["model_used"],
+                validation_result["model_used"],
+                forecast_result["model_used"],
+            ],
         }
 
     @pytest.mark.asyncio
     async def test_budget_aware_operation_mode_switching(self, mock_environment):
         """Test budget-aware operation mode switching during workflow."""
         # Test normal mode operation
-        normal_mode_result = await self._test_operation_mode("normal", budget_utilization=0.5)
+        normal_mode_result = await self._test_operation_mode(
+            "normal", budget_utilization=0.5
+        )
         assert "gpt-5" in normal_mode_result["models_allowed"]
         assert normal_mode_result["max_cost_per_question"] >= 2.0
 
         # Test conservative mode operation
-        conservative_mode_result = await self._test_operation_mode("conservative", budget_utilization=0.75)
+        conservative_mode_result = await self._test_operation_mode(
+            "conservative", budget_utilization=0.75
+        )
         assert "gpt-5-mini" in conservative_mode_result["models_allowed"]
         assert conservative_mode_result["max_cost_per_question"] < 1.0
 
         # Test emergency mode operation
-        emergency_mode_result = await self._test_operation_mode("emergency", budget_utilization=0.92)
+        emergency_mode_result = await self._test_operation_mode(
+            "emergency", budget_utilization=0.92
+        )
         assert any("free" in model for model in emergency_mode_result["models_allowed"])
         assert emergency_mode_result["max_cost_per_question"] < 0.10
 
@@ -117,18 +139,18 @@ class TestCompleteWorkflowIntegration:
             "normal": {
                 "models_allowed": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
                 "max_cost_per_question": 2.50,
-                "research_depth": "comprehensive"
+                "research_depth": "comprehensive",
             },
             "conservative": {
                 "models_allowed": ["gpt-5-mini", "gpt-5-nano"],
                 "max_cost_per_question": 0.75,
-                "research_depth": "moderate"
+                "research_depth": "moderate",
             },
             "emergency": {
                 "models_allowed": ["gpt-oss-20b:free", "kimi-k2:free", "gpt-5-nano"],
                 "max_cost_per_question": 0.05,
-                "research_depth": "minimal"
-            }
+                "research_depth": "minimal",
+            },
         }
 
         return mode_configs.get(mode, mode_configs["normal"])
@@ -158,7 +180,7 @@ class TestCompleteWorkflowIntegration:
             "fallback_activated": True,
             "fallback_method": "free_models",
             "research_completed": True,
-            "quality_impact": "moderate"
+            "quality_impact": "moderate",
         }
 
     async def _simulate_model_failure(self) -> dict:
@@ -167,7 +189,7 @@ class TestCompleteWorkflowIntegration:
             "primary_model_failed": True,
             "fallback_model_used": True,
             "fallback_chain": ["gpt-5-mini", "gpt-5-nano", "gpt-oss-20b:free"],
-            "task_completed": True
+            "task_completed": True,
         }
 
     async def _simulate_budget_exhaustion(self) -> dict:
@@ -176,7 +198,7 @@ class TestCompleteWorkflowIntegration:
             "budget_exhausted": True,
             "free_models_only": True,
             "graceful_degradation": True,
-            "emergency_mode_active": True
+            "emergency_mode_active": True,
         }
 
     @pytest.mark.asyncio
@@ -184,9 +206,7 @@ class TestCompleteWorkflowIntegration:
         """Test tournament simulation with full budget scenarios."""
         # Simulate processing 75 questions with $100 budget
         tournament_result = await self._simulate_tournament_scenario(
-            total_questions=75,
-            budget=100.0,
-            duration_days=90
+            total_questions=75, budget=100.0, duration_days=90
         )
 
         assert tournament_result["questions_processed"] == 75
@@ -194,7 +214,9 @@ class TestCompleteWorkflowIntegration:
         assert tournament_result["budget_efficiency"] > 0.7  # At least 70% efficiency
         assert tournament_result["average_quality_score"] > 7.0
 
-    async def _simulate_tournament_scenario(self, total_questions: int, budget: float, duration_days: int) -> dict:
+    async def _simulate_tournament_scenario(
+        self, total_questions: int, budget: float, duration_days: int
+    ) -> dict:
         """Simulate complete tournament scenario."""
         questions_processed = 0
         total_cost = 0.0
@@ -215,7 +237,7 @@ class TestCompleteWorkflowIntegration:
                 question_cost = 0.15  # Emergency mode cost
                 quality_score = 7.2
             else:
-                question_cost = 0.0   # Critical mode - free only
+                question_cost = 0.0  # Critical mode - free only
                 quality_score = 6.8
 
             if total_cost + question_cost <= budget:
@@ -231,7 +253,9 @@ class TestCompleteWorkflowIntegration:
             "questions_processed": questions_processed,
             "total_cost": total_cost,
             "budget_efficiency": questions_processed / budget,
-            "average_quality_score": sum(quality_scores) / len(quality_scores) if quality_scores else 0
+            "average_quality_score": (
+                sum(quality_scores) / len(quality_scores) if quality_scores else 0
+            ),
         }
 
 
@@ -243,7 +267,10 @@ class TestModelSelectionIntegration:
         # Simple question - should route to nano/mini
         simple_question = "What is the current date?"
         simple_routing = self._route_by_complexity(simple_question)
-        assert "nano" in simple_routing["selected_model"] or "mini" in simple_routing["selected_model"]
+        assert (
+            "nano" in simple_routing["selected_model"]
+            or "mini" in simple_routing["selected_model"]
+        )
 
         # Complex question - should route to full model (budget permitting)
         complex_question = """
@@ -251,44 +278,67 @@ class TestModelSelectionIntegration:
         on cryptocurrency security, considering current encryption methods,
         timeline for quantum supremacy, regulatory responses, and market adaptation.
         """
-        complex_routing = self._route_by_complexity(complex_question, budget_mode="normal")
+        complex_routing = self._route_by_complexity(
+            complex_question, budget_mode="normal"
+        )
         assert "gpt-5" in complex_routing["selected_model"]
 
     def _route_by_complexity(self, question: str, budget_mode: str = "normal") -> dict:
         """Route question based on complexity and budget mode."""
         # Simple complexity scoring
-        complexity_indicators = ["analyze", "multifaceted", "implications", "considering"]
-        complexity_score = sum(1 for indicator in complexity_indicators if indicator in question.lower()) / len(complexity_indicators)
+        complexity_indicators = [
+            "analyze",
+            "multifaceted",
+            "implications",
+            "considering",
+        ]
+        complexity_score = sum(
+            1 for indicator in complexity_indicators if indicator in question.lower()
+        ) / len(complexity_indicators)
 
         # Model selection based on complexity and budget
         if budget_mode == "emergency":
-            return {"selected_model": "gpt-oss-20b:free", "complexity_score": complexity_score}
+            return {
+                "selected_model": "gpt-oss-20b:free",
+                "complexity_score": complexity_score,
+            }
         elif complexity_score > 0.6 and budget_mode == "normal":
             return {"selected_model": "gpt-5", "complexity_score": complexity_score}
         elif complexity_score > 0.3:
-            return {"selected_model": "gpt-5-mini", "complexity_score": complexity_score}
+            return {
+                "selected_model": "gpt-5-mini",
+                "complexity_score": complexity_score,
+            }
         else:
-            return {"selected_model": "gpt-5-nano", "complexity_score": complexity_score}
+            return {
+                "selected_model": "gpt-5-nano",
+                "complexity_score": complexity_score,
+            }
 
     def test_budget_constraint_model_selection(self):
         """Test model selection under various budget constraints."""
         # High budget - allow premium models
         high_budget_selection = self._select_by_budget_constraint(
-            remaining_budget=80.0,
-            questions_remaining=20
+            remaining_budget=80.0, questions_remaining=20
         )
         assert "gpt-5" in high_budget_selection["allowed_models"]
 
         # Low budget - restrict to cheaper models
         low_budget_selection = self._select_by_budget_constraint(
-            remaining_budget=5.0,
-            questions_remaining=20
+            remaining_budget=5.0, questions_remaining=20
         )
-        assert all("free" in model or "nano" in model for model in low_budget_selection["allowed_models"])
+        assert all(
+            "free" in model or "nano" in model
+            for model in low_budget_selection["allowed_models"]
+        )
 
-    def _select_by_budget_constraint(self, remaining_budget: float, questions_remaining: int) -> dict:
+    def _select_by_budget_constraint(
+        self, remaining_budget: float, questions_remaining: int
+    ) -> dict:
         """Select models based on budget constraints."""
-        budget_per_question = remaining_budget / questions_remaining if questions_remaining > 0 else 0
+        budget_per_question = (
+            remaining_budget / questions_remaining if questions_remaining > 0 else 0
+        )
 
         if budget_per_question > 2.0:
             return {"allowed_models": ["gpt-5", "gpt-5-mini", "gpt-5-nano"]}
@@ -346,7 +396,9 @@ class TestAntiSlopIntegration:
         score += citation_count * 1.5
 
         # Check for source attribution
-        if any(attr in response.lower() for attr in ["based on", "according to", "from"]):
+        if any(
+            attr in response.lower() for attr in ["based on", "according to", "from"]
+        ):
             score += 2.0
 
         # Check for specific sources
@@ -391,7 +443,9 @@ class TestAntiSlopIntegration:
                 score += 1.0
 
         # Check for probability ranges or qualifiers
-        if any(qual in response_lower for qual in ["approximately", "around", "roughly"]):
+        if any(
+            qual in response_lower for qual in ["approximately", "around", "roughly"]
+        ):
             score += 1.0
 
         return min(score, 10.0)

@@ -1,24 +1,29 @@
 """Risk management service for tournament forecasting."""
 
-from typing import List, Dict, Any, Optional, Tuple
+import statistics
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-import statistics
-import structlog
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
+
+import structlog
 
 from ..entities.forecast import Forecast
 from ..entities.prediction import Prediction
 from ..entities.question import Question
-from ..value_objects.tournament_strategy import TournamentStrategy, RiskProfile, QuestionCategory
 from ..value_objects.confidence import ConfidenceLevel
-
+from ..value_objects.tournament_strategy import (
+    QuestionCategory,
+    RiskProfile,
+    TournamentStrategy,
+)
 
 logger = structlog.get_logger(__name__)
 
 
 class RiskLevel(Enum):
     """Risk levels for forecasting decisions."""
+
     VERY_LOW = "very_low"
     LOW = "low"
     MODERATE = "moderate"
@@ -28,6 +33,7 @@ class RiskLevel(Enum):
 
 class RiskType(Enum):
     """Types of risks in forecasting."""
+
     CALIBRATION_DRIFT = "calibration_drift"
     HIGH_UNCERTAINTY = "high_uncertainty"
     TIME_PRESSURE = "time_pressure"
@@ -52,7 +58,7 @@ class RiskManagementService:
             RiskLevel.LOW: 0.4,
             RiskLevel.MODERATE: 0.6,
             RiskLevel.HIGH: 0.8,
-            RiskLevel.VERY_HIGH: 1.0
+            RiskLevel.VERY_HIGH: 1.0,
         }
         self.risk_history: List[Dict[str, Any]] = []
 
@@ -61,7 +67,7 @@ class RiskManagementService:
         forecast: Forecast,
         question: Question,
         tournament_strategy: Optional[TournamentStrategy] = None,
-        tournament_context: Optional[Dict[str, Any]] = None
+        tournament_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Comprehensive risk assessment for a forecast.
@@ -78,15 +84,29 @@ class RiskManagementService:
         risk_factors = {}
 
         # Assess individual risk factors
-        risk_factors[RiskType.HIGH_UNCERTAINTY] = self._assess_uncertainty_risk(forecast)
-        risk_factors[RiskType.TIME_PRESSURE] = self._assess_time_pressure_risk(question, tournament_context)
-        risk_factors[RiskType.INSUFFICIENT_RESEARCH] = self._assess_research_quality_risk(forecast)
-        risk_factors[RiskType.ENSEMBLE_DISAGREEMENT] = self._assess_ensemble_disagreement_risk(forecast)
-        risk_factors[RiskType.OVERCONFIDENCE] = self._assess_overconfidence_risk(forecast)
-        risk_factors[RiskType.CATEGORY_UNFAMILIARITY] = self._assess_category_risk(question, tournament_strategy)
+        risk_factors[RiskType.HIGH_UNCERTAINTY] = self._assess_uncertainty_risk(
+            forecast
+        )
+        risk_factors[RiskType.TIME_PRESSURE] = self._assess_time_pressure_risk(
+            question, tournament_context
+        )
+        risk_factors[RiskType.INSUFFICIENT_RESEARCH] = (
+            self._assess_research_quality_risk(forecast)
+        )
+        risk_factors[RiskType.ENSEMBLE_DISAGREEMENT] = (
+            self._assess_ensemble_disagreement_risk(forecast)
+        )
+        risk_factors[RiskType.OVERCONFIDENCE] = self._assess_overconfidence_risk(
+            forecast
+        )
+        risk_factors[RiskType.CATEGORY_UNFAMILIARITY] = self._assess_category_risk(
+            question, tournament_strategy
+        )
 
         if tournament_context:
-            risk_factors[RiskType.COMPETITIVE_PRESSURE] = self._assess_competitive_pressure_risk(tournament_context)
+            risk_factors[RiskType.COMPETITIVE_PRESSURE] = (
+                self._assess_competitive_pressure_risk(tournament_context)
+            )
 
         # Calculate overall risk score
         risk_scores = list(risk_factors.values())
@@ -94,7 +114,9 @@ class RiskManagementService:
         overall_risk_level = self._score_to_risk_level(overall_risk_score)
 
         # Generate risk mitigation recommendations
-        mitigation_strategies = self._generate_mitigation_strategies(risk_factors, tournament_strategy)
+        mitigation_strategies = self._generate_mitigation_strategies(
+            risk_factors, tournament_strategy
+        )
 
         # Determine submission recommendation
         submission_recommendation = self._get_submission_recommendation(
@@ -104,27 +126,35 @@ class RiskManagementService:
         risk_assessment = {
             "overall_risk_score": overall_risk_score,
             "overall_risk_level": overall_risk_level,
-            "risk_factors": {risk_type.value: score for risk_type, score in risk_factors.items()},
+            "risk_factors": {
+                risk_type.value: score for risk_type, score in risk_factors.items()
+            },
             "highest_risk_factors": self._get_highest_risk_factors(risk_factors),
             "mitigation_strategies": mitigation_strategies,
             "submission_recommendation": submission_recommendation,
-            "confidence_adjustment": self._calculate_confidence_adjustment(risk_factors),
-            "timestamp": datetime.utcnow()
+            "confidence_adjustment": self._calculate_confidence_adjustment(
+                risk_factors
+            ),
+            "timestamp": datetime.utcnow(),
         }
 
         # Store in risk history
-        self.risk_history.append({
-            "forecast_id": str(forecast.id),
-            "question_id": str(forecast.question_id),
-            "assessment": risk_assessment,
-            "timestamp": datetime.utcnow()
-        })
+        self.risk_history.append(
+            {
+                "forecast_id": str(forecast.id),
+                "question_id": str(forecast.question_id),
+                "assessment": risk_assessment,
+                "timestamp": datetime.utcnow(),
+            }
+        )
 
         logger.info(
             "Completed risk assessment",
             forecast_id=str(forecast.id),
             overall_risk=overall_risk_level.value,
-            highest_risks=[rf.value for rf in self._get_highest_risk_factors(risk_factors)]
+            highest_risks=[
+                rf.value for rf in self._get_highest_risk_factors(risk_factors)
+            ],
         )
 
         return risk_assessment
@@ -145,7 +175,9 @@ class RiskManagementService:
 
         # Check uncertainty quantification
         uncertainty_risk = 0.5  # Default
-        if forecast.final_prediction and hasattr(forecast.final_prediction, 'uncertainty_quantification'):
+        if forecast.final_prediction and hasattr(
+            forecast.final_prediction, "uncertainty_quantification"
+        ):
             uncertainty_data = forecast.final_prediction.uncertainty_quantification
             if uncertainty_data:
                 # Higher uncertainty sources = higher risk
@@ -154,9 +186,7 @@ class RiskManagementService:
         return statistics.mean([variance_risk, confidence_risk, uncertainty_risk])
 
     def _assess_time_pressure_risk(
-        self,
-        question: Question,
-        tournament_context: Optional[Dict[str, Any]]
+        self, question: Question, tournament_context: Optional[Dict[str, Any]]
     ) -> float:
         """Assess risk from time pressure."""
         if not question.close_time:
@@ -176,13 +206,13 @@ class RiskManagementService:
         if hours_to_close < 2:
             return 0.95  # Very high risk
         elif hours_to_close < 12:
-            return 0.8   # High risk
+            return 0.8  # High risk
         elif hours_to_close < 48:
-            return 0.4   # Moderate risk
+            return 0.4  # Moderate risk
         elif hours_to_close < 168:  # 1 week
-            return 0.2   # Low risk
+            return 0.2  # Low risk
         else:
-            return 0.1   # Very low risk
+            return 0.1  # Very low risk
 
     def _assess_research_quality_risk(self, forecast: Forecast) -> float:
         """Assess risk from insufficient or low-quality research."""
@@ -230,13 +260,13 @@ class RiskManagementService:
         variance = forecast.calculate_prediction_variance()
 
         if variance > 0.15:
-            return 0.9   # Very high disagreement
+            return 0.9  # Very high disagreement
         elif variance > 0.1:
-            return 0.7   # High disagreement
+            return 0.7  # High disagreement
         elif variance > 0.05:
-            return 0.4   # Moderate disagreement
+            return 0.4  # Moderate disagreement
         else:
-            return 0.2   # Low disagreement
+            return 0.2  # Low disagreement
 
     def _assess_overconfidence_risk(self, forecast: Forecast) -> float:
         """Assess risk from overconfidence in predictions."""
@@ -266,9 +296,7 @@ class RiskManagementService:
         return min(1.0, base_risk + uniformity_risk)
 
     def _assess_category_risk(
-        self,
-        question: Question,
-        tournament_strategy: Optional[TournamentStrategy]
+        self, question: Question, tournament_strategy: Optional[TournamentStrategy]
     ) -> float:
         """Assess risk from unfamiliarity with question category."""
         category = question.categorize_question()
@@ -282,7 +310,9 @@ class RiskManagementService:
         # Lower specialization = higher risk
         return 1.0 - specialization
 
-    def _assess_competitive_pressure_risk(self, tournament_context: Dict[str, Any]) -> float:
+    def _assess_competitive_pressure_risk(
+        self, tournament_context: Dict[str, Any]
+    ) -> float:
         """Assess risk from competitive pressure in tournament."""
         base_risk = 0.3
 
@@ -315,9 +345,7 @@ class RiskManagementService:
             return RiskLevel.VERY_HIGH
 
     def _get_highest_risk_factors(
-        self,
-        risk_factors: Dict[RiskType, float],
-        top_n: int = 3
+        self, risk_factors: Dict[RiskType, float], top_n: int = 3
     ) -> List[RiskType]:
         """Get the highest risk factors."""
         sorted_risks = sorted(risk_factors.items(), key=lambda x: x[1], reverse=True)
@@ -326,7 +354,7 @@ class RiskManagementService:
     def _generate_mitigation_strategies(
         self,
         risk_factors: Dict[RiskType, float],
-        tournament_strategy: Optional[TournamentStrategy]
+        tournament_strategy: Optional[TournamentStrategy],
     ) -> List[str]:
         """Generate risk mitigation strategies."""
         strategies = []
@@ -337,64 +365,83 @@ class RiskManagementService:
                 strategies.extend(self._get_mitigation_for_risk_type(risk_type, score))
 
         # Strategy-specific mitigations
-        if tournament_strategy and tournament_strategy.risk_profile == RiskProfile.CONSERVATIVE:
+        if (
+            tournament_strategy
+            and tournament_strategy.risk_profile == RiskProfile.CONSERVATIVE
+        ):
             strategies.append("Apply conservative confidence adjustments")
             strategies.append("Require additional validation before submission")
 
         return list(set(strategies))  # Remove duplicates
 
-    def _get_mitigation_for_risk_type(self, risk_type: RiskType, score: float) -> List[str]:
+    def _get_mitigation_for_risk_type(
+        self, risk_type: RiskType, score: float
+    ) -> List[str]:
         """Get specific mitigation strategies for a risk type."""
         strategies = []
 
         if risk_type == RiskType.HIGH_UNCERTAINTY:
-            strategies.extend([
-                "Gather additional research from diverse sources",
-                "Increase ensemble diversity",
-                "Apply uncertainty-adjusted confidence scaling"
-            ])
+            strategies.extend(
+                [
+                    "Gather additional research from diverse sources",
+                    "Increase ensemble diversity",
+                    "Apply uncertainty-adjusted confidence scaling",
+                ]
+            )
 
         elif risk_type == RiskType.TIME_PRESSURE:
-            strategies.extend([
-                "Prioritize high-confidence predictions",
-                "Use rapid validation techniques",
-                "Consider abstaining from low-confidence predictions"
-            ])
+            strategies.extend(
+                [
+                    "Prioritize high-confidence predictions",
+                    "Use rapid validation techniques",
+                    "Consider abstaining from low-confidence predictions",
+                ]
+            )
 
         elif risk_type == RiskType.INSUFFICIENT_RESEARCH:
-            strategies.extend([
-                "Conduct additional targeted research",
-                "Seek expert opinions",
-                "Validate findings with multiple sources"
-            ])
+            strategies.extend(
+                [
+                    "Conduct additional targeted research",
+                    "Seek expert opinions",
+                    "Validate findings with multiple sources",
+                ]
+            )
 
         elif risk_type == RiskType.ENSEMBLE_DISAGREEMENT:
-            strategies.extend([
-                "Investigate sources of disagreement",
-                "Add more diverse reasoning approaches",
-                "Consider median aggregation instead of mean"
-            ])
+            strategies.extend(
+                [
+                    "Investigate sources of disagreement",
+                    "Add more diverse reasoning approaches",
+                    "Consider median aggregation instead of mean",
+                ]
+            )
 
         elif risk_type == RiskType.OVERCONFIDENCE:
-            strategies.extend([
-                "Apply calibration-based confidence adjustment",
-                "Seek disconfirming evidence",
-                "Use conservative confidence scaling"
-            ])
+            strategies.extend(
+                [
+                    "Apply calibration-based confidence adjustment",
+                    "Seek disconfirming evidence",
+                    "Use conservative confidence scaling",
+                ]
+            )
 
         elif risk_type == RiskType.CATEGORY_UNFAMILIARITY:
-            strategies.extend([
-                "Seek domain expert consultation",
-                "Increase research depth for this category",
-                "Apply category-specific confidence penalties"
-            ])
+            strategies.extend(
+                [
+                    "Seek domain expert consultation",
+                    "Increase research depth for this category",
+                    "Apply category-specific confidence penalties",
+                ]
+            )
 
         elif risk_type == RiskType.COMPETITIVE_PRESSURE:
-            strategies.extend([
-                "Focus on high-confidence predictions",
-                "Avoid rushed decisions",
-                "Maintain systematic approach despite pressure"
-            ])
+            strategies.extend(
+                [
+                    "Focus on high-confidence predictions",
+                    "Avoid rushed decisions",
+                    "Maintain systematic approach despite pressure",
+                ]
+            )
 
         return strategies
 
@@ -402,7 +449,7 @@ class RiskManagementService:
         self,
         overall_risk_score: float,
         risk_factors: Dict[RiskType, float],
-        tournament_strategy: Optional[TournamentStrategy]
+        tournament_strategy: Optional[TournamentStrategy],
     ) -> Dict[str, Any]:
         """Get recommendation for forecast submission."""
 
@@ -423,7 +470,9 @@ class RiskManagementService:
 
             if overall_risk_score > risk_tolerance:
                 base_recommendation = "do_not_submit"
-                reason = f"Risk exceeds {tournament_strategy.risk_profile.value} tolerance"
+                reason = (
+                    f"Risk exceeds {tournament_strategy.risk_profile.value} tolerance"
+                )
 
         # Special cases for specific high-risk factors
         if risk_factors.get(RiskType.TIME_PRESSURE, 0) > 0.9:
@@ -434,10 +483,16 @@ class RiskManagementService:
         return {
             "recommendation": base_recommendation,
             "reason": reason,
-            "confidence": "high" if overall_risk_score < 0.3 or overall_risk_score > 0.8 else "medium"
+            "confidence": (
+                "high"
+                if overall_risk_score < 0.3 or overall_risk_score > 0.8
+                else "medium"
+            ),
         }
 
-    def _calculate_confidence_adjustment(self, risk_factors: Dict[RiskType, float]) -> float:
+    def _calculate_confidence_adjustment(
+        self, risk_factors: Dict[RiskType, float]
+    ) -> float:
         """Calculate confidence adjustment based on risk factors."""
         base_adjustment = 0.0
 
@@ -464,7 +519,7 @@ class RiskManagementService:
             RiskProfile.CONSERVATIVE: 0.4,
             RiskProfile.MODERATE: 0.6,
             RiskProfile.AGGRESSIVE: 0.8,
-            RiskProfile.ADAPTIVE: 0.6  # Default to moderate
+            RiskProfile.ADAPTIVE: 0.6,  # Default to moderate
         }
         return tolerance_map.get(risk_profile, 0.6)
 
@@ -472,18 +527,19 @@ class RiskManagementService:
         """Analyze risk trends over time."""
         cutoff_date = datetime.utcnow() - timedelta(days=days_back)
         recent_assessments = [
-            record for record in self.risk_history
-            if record["timestamp"] >= cutoff_date
+            record for record in self.risk_history if record["timestamp"] >= cutoff_date
         ]
 
         if len(recent_assessments) < 5:
             return {
                 "trend_analysis": "insufficient_data",
-                "sample_count": len(recent_assessments)
+                "sample_count": len(recent_assessments),
             }
 
         # Analyze overall risk trends
-        risk_scores = [record["assessment"]["overall_risk_score"] for record in recent_assessments]
+        risk_scores = [
+            record["assessment"]["overall_risk_score"] for record in recent_assessments
+        ]
 
         # Split into early and recent periods
         split_point = len(risk_scores) // 2
@@ -499,7 +555,9 @@ class RiskManagementService:
         risk_factor_counts = {}
         for record in recent_assessments:
             for risk_factor in record["assessment"]["highest_risk_factors"]:
-                risk_factor_counts[risk_factor] = risk_factor_counts.get(risk_factor, 0) + 1
+                risk_factor_counts[risk_factor] = (
+                    risk_factor_counts.get(risk_factor, 0) + 1
+                )
 
         return {
             "trend_analysis": trend,
@@ -507,18 +565,27 @@ class RiskManagementService:
             "recent_avg_risk": recent_avg,
             "risk_change": recent_avg - early_avg,
             "sample_count": len(recent_assessments),
-            "most_common_risks": sorted(risk_factor_counts.items(), key=lambda x: x[1], reverse=True)[:5],
+            "most_common_risks": sorted(
+                risk_factor_counts.items(), key=lambda x: x[1], reverse=True
+            )[:5],
             "risk_distribution": {
-                "low_risk_fraction": sum(1 for score in risk_scores if score < 0.4) / len(risk_scores),
-                "high_risk_fraction": sum(1 for score in risk_scores if score > 0.7) / len(risk_scores)
-            }
+                "low_risk_fraction": sum(1 for score in risk_scores if score < 0.4)
+                / len(risk_scores),
+                "high_risk_fraction": sum(1 for score in risk_scores if score > 0.7)
+                / len(risk_scores),
+            },
         }
 
     def get_risk_management_summary(self) -> Dict[str, Any]:
         """Get summary of risk management service state."""
         return {
             "total_assessments": len(self.risk_history),
-            "recent_trends": self.analyze_risk_trends() if len(self.risk_history) >= 5 else None,
-            "risk_thresholds": {level.value: threshold for level, threshold in self.risk_thresholds.items()},
-            "supported_risk_types": [risk_type.value for risk_type in RiskType]
+            "recent_trends": (
+                self.analyze_risk_trends() if len(self.risk_history) >= 5 else None
+            ),
+            "risk_thresholds": {
+                level.value: threshold
+                for level, threshold in self.risk_thresholds.items()
+            },
+            "supported_risk_types": [risk_type.value for risk_type in RiskType],
         }

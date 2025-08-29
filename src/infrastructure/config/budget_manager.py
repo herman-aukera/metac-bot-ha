@@ -1,13 +1,14 @@
 """
 Budget management and cost tracking for tournament API usage.
 """
-import os
+
 import json
 import logging
+import os
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, asdict
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CostTrackingRecord:
     """Record for tracking individual API call costs."""
+
     timestamp: datetime
     question_id: str
     model_used: str
@@ -27,19 +29,20 @@ class CostTrackingRecord:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
+        data["timestamp"] = self.timestamp.isoformat()
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'CostTrackingRecord':
+    def from_dict(cls, data: Dict[str, Any]) -> "CostTrackingRecord":
         """Create from dictionary for JSON deserialization."""
-        data['timestamp'] = datetime.fromisoformat(data['timestamp'])
+        data["timestamp"] = datetime.fromisoformat(data["timestamp"])
         return cls(**data)
 
 
 @dataclass
 class BudgetStatus:
     """Current budget status and utilization metrics."""
+
     total_budget: float
     spent: float
     remaining: float
@@ -53,7 +56,7 @@ class BudgetStatus:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
-        data['last_updated'] = self.last_updated.isoformat()
+        data["last_updated"] = self.last_updated.isoformat()
         return data
 
 
@@ -74,7 +77,7 @@ class BudgetManager:
             "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
             "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
             "perplexity/sonar-reasoning": {"input": 0.005, "output": 0.005},
-            "perplexity/sonar-pro": {"input": 0.001, "output": 0.001}
+            "perplexity/sonar-pro": {"input": 0.001, "output": 0.001},
         }
 
         # Load existing data if available
@@ -96,7 +99,9 @@ class BudgetManager:
             model_key = "gpt-4o"
 
         rates = self.cost_per_token[model_key]
-        cost = (input_tokens * rates["input"] / 1000) + (output_tokens * rates["output"] / 1000)
+        cost = (input_tokens * rates["input"] / 1000) + (
+            output_tokens * rates["output"] / 1000
+        )
 
         return cost
 
@@ -113,7 +118,7 @@ class BudgetManager:
             "claude-3-5-sonnet": "claude-3-5-sonnet",
             "claude-3-haiku": "claude-3-haiku",
             "sonar-reasoning": "perplexity/sonar-reasoning",
-            "sonar-pro": "perplexity/sonar-pro"
+            "sonar-pro": "perplexity/sonar-pro",
         }
 
         return model_mappings.get(model, model)
@@ -124,8 +129,15 @@ class BudgetManager:
         safety_limit = self.budget_limit * 0.95
         return (self.current_spend + estimated_cost) <= safety_limit
 
-    def record_cost(self, question_id: str, model: str, input_tokens: int,
-                   output_tokens: int, task_type: str, success: bool = True) -> float:
+    def record_cost(
+        self,
+        question_id: str,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        task_type: str,
+        success: bool = True,
+    ) -> float:
         """Record actual cost for an API call."""
         estimated_cost = self.estimate_cost(model, input_tokens, output_tokens)
 
@@ -137,7 +149,7 @@ class BudgetManager:
             output_tokens=output_tokens,
             estimated_cost=estimated_cost,
             task_type=task_type,
-            success=success
+            success=success,
         )
 
         self.cost_records.append(record)
@@ -151,7 +163,9 @@ class BudgetManager:
         if len(self.cost_records) % 10 == 0:
             self._save_data()
 
-        logger.debug(f"Recorded cost: ${estimated_cost:.4f} for {task_type} on {question_id}")
+        logger.debug(
+            f"Recorded cost: ${estimated_cost:.4f} for {task_type} on {question_id}"
+        )
 
         return estimated_cost
 
@@ -178,7 +192,7 @@ class BudgetManager:
             average_cost_per_question=avg_cost,
             estimated_questions_remaining=estimated_remaining,
             status_level=status_level,
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
     def _get_status_level(self, utilization: float) -> str:
@@ -213,14 +227,18 @@ class BudgetManager:
             "by_model": {},
             "by_task_type": {},
             "by_day": {},
-            "total_tokens": {"input": 0, "output": 0}
+            "total_tokens": {"input": 0, "output": 0},
         }
 
         for record in self.cost_records:
             # By model
             model = record.model_used
             if model not in breakdown["by_model"]:
-                breakdown["by_model"][model] = {"cost": 0, "calls": 0, "tokens": {"input": 0, "output": 0}}
+                breakdown["by_model"][model] = {
+                    "cost": 0,
+                    "calls": 0,
+                    "tokens": {"input": 0, "output": 0},
+                }
             breakdown["by_model"][model]["cost"] += record.estimated_cost
             breakdown["by_model"][model]["calls"] += 1
             breakdown["by_model"][model]["tokens"]["input"] += record.input_tokens
@@ -254,10 +272,10 @@ class BudgetManager:
                 "current_spend": self.current_spend,
                 "questions_processed": self.questions_processed,
                 "cost_records": [record.to_dict() for record in self.cost_records],
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
 
-            with open(self.data_file, 'w') as f:
+            with open(self.data_file, "w") as f:
                 json.dump(data, f, indent=2)
 
         except Exception as e:
@@ -267,7 +285,7 @@ class BudgetManager:
         """Load existing budget tracking data if available."""
         try:
             if self.data_file.exists():
-                with open(self.data_file, 'r') as f:
+                with open(self.data_file, "r") as f:
                     data = json.load(f)
 
                 self.current_spend = data.get("current_spend", 0.0)
@@ -275,10 +293,14 @@ class BudgetManager:
 
                 # Load cost records
                 records_data = data.get("cost_records", [])
-                self.cost_records = [CostTrackingRecord.from_dict(record) for record in records_data]
+                self.cost_records = [
+                    CostTrackingRecord.from_dict(record) for record in records_data
+                ]
 
-                logger.info(f"Loaded existing budget data: ${self.current_spend:.4f} spent, "
-                           f"{self.questions_processed} questions processed")
+                logger.info(
+                    f"Loaded existing budget data: ${self.current_spend:.4f} spent, "
+                    f"{self.questions_processed} questions processed"
+                )
 
         except Exception as e:
             logger.warning(f"Failed to load existing budget data: {e}")
@@ -304,17 +326,23 @@ class BudgetManager:
 
         logger.info("=== Budget Status ===")
         logger.info(f"Total Budget: ${status.total_budget:.2f}")
-        logger.info(f"Spent: ${status.spent:.4f} ({status.utilization_percentage:.1f}%)")
+        logger.info(
+            f"Spent: ${status.spent:.4f} ({status.utilization_percentage:.1f}%)"
+        )
         logger.info(f"Remaining: ${status.remaining:.4f}")
         logger.info(f"Questions Processed: {status.questions_processed}")
         logger.info(f"Average Cost/Question: ${status.average_cost_per_question:.4f}")
-        logger.info(f"Estimated Questions Remaining: {status.estimated_questions_remaining}")
+        logger.info(
+            f"Estimated Questions Remaining: {status.estimated_questions_remaining}"
+        )
         logger.info(f"Status Level: {status.status_level.upper()}")
 
         # Alert if budget usage is high
         if self.should_alert_budget_usage():
             alert_level = self.get_budget_alert_level()
-            logger.warning(f"{alert_level} BUDGET USAGE: {status.utilization_percentage:.1f}% of budget used!")
+            logger.warning(
+                f"{alert_level} BUDGET USAGE: {status.utilization_percentage:.1f}% of budget used!"
+            )
 
 
 # Global instance

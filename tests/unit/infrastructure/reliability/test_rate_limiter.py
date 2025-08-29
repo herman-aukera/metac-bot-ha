@@ -1,18 +1,19 @@
 """Tests for rate limiter implementation."""
 
-import pytest
 import asyncio
 import time
 from unittest.mock import AsyncMock, Mock
 
+import pytest
+
 from src.infrastructure.reliability.rate_limiter import (
-    TokenBucketRateLimiter,
-    SlidingWindowRateLimiter,
     RateLimitConfig,
-    RateLimitStrategy,
-    RateLimiterManager,
     RateLimitedClient,
-    rate_limiter_manager
+    RateLimiterManager,
+    RateLimitStrategy,
+    SlidingWindowRateLimiter,
+    TokenBucketRateLimiter,
+    rate_limiter_manager,
 )
 
 
@@ -27,7 +28,7 @@ class TestTokenBucketRateLimiter:
             burst_size=20,
             strategy=RateLimitStrategy.TOKEN_BUCKET,
             backoff_factor=2.0,
-            max_backoff=60.0
+            max_backoff=60.0,
         )
 
     @pytest.fixture
@@ -146,7 +147,7 @@ class TestSlidingWindowRateLimiter:
         return RateLimitConfig(
             requests_per_second=5.0,
             window_size=1.0,  # 1 second window
-            strategy=RateLimitStrategy.SLIDING_WINDOW
+            strategy=RateLimitStrategy.SLIDING_WINDOW,
         )
 
     @pytest.fixture
@@ -198,8 +199,7 @@ class TestRateLimiterManager:
         manager = RateLimiterManager()
 
         config = RateLimitConfig(
-            requests_per_second=5.0,
-            strategy=RateLimitStrategy.TOKEN_BUCKET
+            requests_per_second=5.0, strategy=RateLimitStrategy.TOKEN_BUCKET
         )
 
         limiter = manager.create_rate_limiter("test", config)
@@ -361,7 +361,9 @@ class TestConvenienceFunctions:
 
     def test_create_openai_rate_limiter(self):
         """Test OpenAI rate limiter creation."""
-        from src.infrastructure.reliability.rate_limiter import create_openai_rate_limiter
+        from src.infrastructure.reliability.rate_limiter import (
+            create_openai_rate_limiter,
+        )
 
         limiter = create_openai_rate_limiter()
 
@@ -371,7 +373,9 @@ class TestConvenienceFunctions:
 
     def test_create_metaculus_rate_limiter(self):
         """Test Metaculus rate limiter creation."""
-        from src.infrastructure.reliability.rate_limiter import create_metaculus_rate_limiter
+        from src.infrastructure.reliability.rate_limiter import (
+            create_metaculus_rate_limiter,
+        )
 
         limiter = create_metaculus_rate_limiter()
 
@@ -381,7 +385,9 @@ class TestConvenienceFunctions:
 
     def test_create_tournament_rate_limiter(self):
         """Test tournament rate limiter creation."""
-        from src.infrastructure.reliability.rate_limiter import create_tournament_rate_limiter
+        from src.infrastructure.reliability.rate_limiter import (
+            create_tournament_rate_limiter,
+        )
 
         limiter = create_tournament_rate_limiter()
 
