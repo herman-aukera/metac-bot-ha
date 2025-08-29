@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import yaml
-from src.main import MetaculusForecastingBot
+from main import TemplateForecaster
 
 from src.domain.entities.question import QuestionType
 from src.infrastructure.config.settings import Config
@@ -72,8 +72,8 @@ class TestEndToEndForecasting:
         }
 
         with patch.dict(os.environ, test_env):
-            config = Config(Path(e2e_config_file))
-            return MetaculusForecastingBot(config)
+            # TemplateForecaster inherits from ForecastBot and doesn't need a config parameter
+            return TemplateForecaster()
 
     @pytest.fixture
     def mock_real_apis(self):
