@@ -286,9 +286,16 @@ class Forecast:
     @property
     def method(self) -> str:
         """Get the prediction method for backward compatibility."""
+        if hasattr(self, '_method_override') and self._method_override:
+            return self._method_override
         if self.final_prediction and hasattr(self.final_prediction, "method"):
             return self.final_prediction.method.value
         return "unknown"
+
+    @method.setter
+    def method(self, value: str) -> None:
+        """Set the prediction method for backward compatibility."""
+        self._method_override = value
 
     def apply_tournament_strategy(self, strategy: TournamentStrategy) -> None:
         """Apply tournament strategy to the forecast."""

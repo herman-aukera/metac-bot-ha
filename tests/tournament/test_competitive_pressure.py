@@ -14,7 +14,7 @@ from src.application.forecast_service import ForecastService
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
 from src.domain.services.ensemble_service import EnsembleService
-from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
 
 
@@ -292,7 +292,7 @@ class TestCompetitivePressure:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.5 + (time_quality_factor - 0.5) * 0.3),
-                confidence=Confidence(0.6 + time_quality_factor * 0.3),
+                confidence=ConfidenceLevel(0.6 + time_quality_factor * 0.3),
                 reasoning=f"Time-constrained analysis (quality={time_quality_factor:.2f})",
                 method="chain_of_thought",
                 sources=["time_limited_source"],
@@ -360,7 +360,7 @@ class TestCompetitivePressure:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.5 + (resource_quality_factor - 0.5) * 0.4),
-                confidence=Confidence(0.5 + resource_quality_factor * 0.4),
+                confidence=ConfidenceLevel(0.5 + resource_quality_factor * 0.4),
                 reasoning=f"Resource-constrained analysis (quality={resource_quality_factor:.2f})",
                 method="chain_of_thought",
                 sources=["resource_limited_source"],
@@ -415,7 +415,7 @@ class TestCompetitivePressure:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.45 + random.random() * 0.1),  # Slight variance
-                confidence=Confidence(pressure_adjusted_confidence),
+                confidence=ConfidenceLevel(pressure_adjusted_confidence),
                 reasoning=f"Research-limited analysis (research_time={research_time_limit}s)",
                 method="chain_of_thought",
                 sources=["accuracy_pressure_source"],
@@ -476,7 +476,7 @@ class TestCompetitivePressure:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.4 + combined_quality * 0.2),
-                confidence=Confidence(0.4 + combined_quality * 0.4),
+                confidence=ConfidenceLevel(0.4 + combined_quality * 0.4),
                 reasoning=f"Combined pressure analysis (quality={combined_quality:.2f})",
                 method="chain_of_thought",
                 sources=["combined_pressure_source"],
@@ -537,7 +537,7 @@ class TestCompetitivePressure:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.4 + base_quality * 0.2),
-                confidence=Confidence(base_quality),
+                confidence=ConfidenceLevel(base_quality),
                 reasoning=f"Recovery analysis (call={call_count}, recovery={recovery_factor:.2f})",
                 method="chain_of_thought",
                 sources=["recovery_source"],

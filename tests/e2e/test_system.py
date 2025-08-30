@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 import yaml
-from main import TemplateForecaster
 
+from main import TemplateForecaster
 from src.domain.entities.question import QuestionType
 from src.infrastructure.config.settings import Config
 

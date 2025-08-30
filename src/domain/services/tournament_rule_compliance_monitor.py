@@ -19,6 +19,7 @@ class ComplianceViolationType(Enum):
     NON_AUTOMATED_DECISION = "non_automated_decision"
     EXTERNAL_INPUT = "external_input"
     RULE_VIOLATION = "rule_violation"
+    LATE_SUBMISSION = "late_submission"
 
 
 @dataclass
@@ -426,3 +427,94 @@ class TournamentRuleComplianceMonitor:
             report_timestamp=datetime.utcnow(),
             monitoring_period=monitoring_period,
         )
+
+    def check_human_intervention(self, prediction_metadata: Dict[str, Any]) -> Optional[ComplianceViolation]:
+        """Check for human intervention violations in prediction metadata."""
+
+        # Check for human review flag
+        if prediction_metadata.get("human_review", False):
+            return ComplianceViolation(
+                violation_type=ComplianceViolationType.HUMAN_INTERVENTION,
+                severity="critical",
+                description="Human review detected in prediction process",
+                timestamp=datetime.utcnow(),
+                component="human_intervention_checker",
+                metadata=prediction_metadata,
+                remediation_required=True
+            )
+
+        # Check for manual adjustments
+        manual_adjustments = prediction_metadata.get("manual_adjustments", [])
+        if manual_adjustments:
+            return ComplianceViolation(
+                violation_type=ComplianceViolationType.MANUAL_OVERRIDE,
+                severity="critical",
+                description=f"Manual adjustments detected: {', '.join(manual_adjustments)}",
+                timestamp=datetime.utcnow(),
+                component="manual_adjustment_checker",
+                metadata=prediction_metadata,
+                remediation_required=True
+            )
+
+        # Check for intervention flags
+        intervention_flags = prediction_metadata.get("intervention_flags", [])
+        if intervention_flags:
+            return ComplianceViolation(
+                violation_type=ComplianceViolationType.HUMAN_INTERVENTION,
+                severity="critical",
+                description=f"Intervention flags detected: {', '.join(intervention_flags)}",
+                timestamp=datetime.utcnow(),
+                component="intervention_flag_checker",
+                metadata=prediction_metadata,
+                remediation_required=True
+            )
+
+        # Check agent type
+        agent_type = prediction_metadata.get("agent_type", "unknown")
+        if agent_type != "automated":
+            return ComplianceViolation(
+                violation_type=ComplianceViolationType.NON_AUTOMATED_DECISION,
+                severity="major",
+                description=f"Non-automated agent type: {agent_type}",
+                timestamp=datetime.utcnow(),
+                component="agent_type_checker",
+                metadata=prediction_metadata,
+                remediation_required=True
+            )
+
+        return None  # No violations detected
+
+    def check_submission_timing(self, submission_metadata: Dict[str, Any]) -> Optional[ComplianceViolation]:
+        """Check for submission timing compliance violations."""
+
+        question_close_time = submission_metadata.get("question_close_time")
+        submission_time = submission_metadata.get("submission_time")
+
+        if not question_close_time or not submission_time:
+            return ComplianceViolation(
+                violation_type=ComplianceViolationType.RULE_VIOLATION,
+                severity="major",
+                description="Missing timing information for compliance check",
+                timestamp=datetime.utcnow(),
+                component="timing_checker",
+                metadata=submission_metadata,
+                remediation_required=True
+            )
+
+        # Check if submission was made after question close time
+        if submission_time > question_close_time:
+            return ComplianceViolation(
+                violation_type=ComplianceViolationType.LATE_SUBMISSION,
+                severity="critical",
+                description="Submission made after close time",
+                timestamp=datetime.utcnow(),
+                component="timing_checker",
+                metadata={
+                    "submission_time": submission_time.isoformat() if hasattr(submission_time, 'isoformat') else str(submission_time),
+                    "close_time": question_close_time.isoformat() if hasattr(question_close_time, 'isoformat') else str(question_close_time),
+                    **submission_metadata
+                },
+                remediation_required=True
+            )
+
+        return None  # No timing violations detected

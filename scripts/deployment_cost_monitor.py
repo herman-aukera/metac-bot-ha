@@ -7,13 +7,13 @@ requiring any internal module dependencies. Designed to work reliably
 in GitHub Actions and CI/CD environments.
 """
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -401,13 +401,18 @@ class DeploymentCostMonitor:
 
 def main():
     """Main function to run cost monitoring."""
+    import sys
+
+    # Check for JSON output flag
+    json_output = "--json-output" in sys.argv
+
     logger.info("Starting deployment cost monitoring...")
 
     try:
         monitor = DeploymentCostMonitor()
         monitor.save_reports()
 
-        # Print summary
+        # Get current status
         current_spend = monitor.get_current_spend()
         remaining = monitor.get_remaining_budget()
         utilization = (
@@ -416,23 +421,64 @@ def main():
             else 0
         )
 
-        print(f"\\n=== Cost Monitor Summary ===")
-        print(f"Current Spend: ${current_spend:.2f}")
-        print(f"Remaining Budget: ${remaining:.2f}")
-        print(f"Budget Utilization: {utilization:.1f}%")
-        print(f"Operation Mode: {monitor._determine_operation_mode(utilization)}")
-        print(f"Reports generated successfully!")
+        operation_mode = monitor._determine_operation_mode(utilization)
+
+        if json_output:
+            # Output JSON for jq parsing
+            json_report = {
+                "budget_status": {
+                    "status": operation_mode,
+                    "utilization": round(utilization, 2),
+                    "remaining": round(remaining, 2),
+                    "spent": round(current_spend, 2),
+                    "total_budget": monitor.budget_limit
+                },
+                "actions": {
+                    "should_suspend_workflows": utilization >= 98,
+                    "should_send_alerts": utilization >= 80
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+            print(json.dumps(json_report, indent=2))
+        else:
+            # Regular output
+            print(f"\\n=== Cost Monitor Summary ===")
+            print(f"Current Spend: ${current_spend:.2f}")
+            print(f"Remaining Budget: ${remaining:.2f}")
+            print(f"Budget Utilization: {utilization:.1f}%")
+            print(f"Operation Mode: {operation_mode}")
+            print(f"Reports generated successfully!")
 
     except Exception as e:
         logger.error(f"Cost monitoring failed: {e}")
-        # Still try to generate minimal reports
-        try:
-            monitor = DeploymentCostMonitor()
-            monitor._generate_fallback_reports()
-            print("Generated fallback reports due to error")
-        except Exception as fallback_error:
-            logger.error(f"Fallback report generation failed: {fallback_error}")
-            return 1
+
+        if json_output:
+            # Output error JSON
+            error_report = {
+                "budget_status": {
+                    "status": "error",
+                    "utilization": 0,
+                    "remaining": 100,
+                    "spent": 0,
+                    "total_budget": 100
+                },
+                "actions": {
+                    "should_suspend_workflows": False,
+                    "should_send_alerts": False
+                },
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+            print(json.dumps(error_report, indent=2))
+        else:
+            # Still try to generate minimal reports
+            try:
+                monitor = DeploymentCostMonitor()
+                monitor._generate_fallback_reports()
+                print("Generated fallback reports due to error")
+            except Exception as fallback_error:
+                logger.error(f"Fallback report generation failed: {fallback_error}")
+                return 1
 
     return 0
 

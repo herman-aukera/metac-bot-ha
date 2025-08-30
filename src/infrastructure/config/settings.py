@@ -167,7 +167,7 @@ class BotConfig:
     version: str = "1.0.0"
     research_reports_per_question: int = 2
     predictions_per_research_report: int = 3
-    publish_reports_to_metaculus: bool = True
+    publish_reports_to_metaculus: bool = False
     max_concurrent_questions: int = 2
 
     # Research behavior
@@ -413,7 +413,7 @@ class Config:
                 3,
             ),
             publish_reports_to_metaculus=self._get_config_bool(
-                "bot.publish_reports", "PUBLISH_REPORTS", True
+                "bot.publish_reports", "PUBLISH_REPORTS", False
             ),
             max_concurrent_questions=self._get_config_int(
                 "bot.max_concurrent_questions", "MAX_CONCURRENT_QUESTIONS", 2

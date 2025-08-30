@@ -145,10 +145,10 @@ class TestPatternDetector:
             # Binary questions have higher accuracy (matches the pattern)
             if forecast.final_prediction.created_by == "binary_specialist":
                 # High accuracy for binary questions
-                truth = forecast.prediction > 0.6  # Most should be correct
+                truth = forecast.final_prediction.result.binary_probability > 0.6  # Most should be correct
             elif forecast.final_prediction.created_by == "numeric_agent":
                 # Low accuracy for numeric questions
-                truth = forecast.prediction < 0.4  # Most should be incorrect
+                truth = forecast.final_prediction.result.binary_probability < 0.4  # Most should be incorrect
             else:
                 # Average accuracy for others
                 truth = i % 2 == 0  # 50% accuracy

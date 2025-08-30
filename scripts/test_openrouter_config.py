@@ -4,9 +4,9 @@ Test script for OpenRouter tri-model configuration.
 Verifies that the OpenRouter integration is properly configured.
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 from pathlib import Path
 
 # Add project root to path

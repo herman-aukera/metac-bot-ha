@@ -2,9 +2,10 @@
 """
 Test script for core budget management functionality without forecasting_tools dependencies.
 """
-import sys
 import os
+import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -29,10 +30,10 @@ def test_core_budget_functionality():
     print("=== Testing Core Budget Management ===")
 
     try:
-        from infrastructure.config.budget_manager import budget_manager
-        from infrastructure.config.budget_alerts import budget_alert_system
-        from infrastructure.config.token_tracker import token_tracker
         from infrastructure.config.api_keys import api_key_manager
+        from infrastructure.config.budget_alerts import budget_alert_system
+        from infrastructure.config.budget_manager import budget_manager
+        from infrastructure.config.token_tracker import token_tracker
 
         # Test API key validation
         print("1. Testing API Key Management...")
@@ -122,8 +123,8 @@ def test_emergency_simulation():
     print("=== Testing Emergency Mode Simulation ===")
 
     try:
-        from infrastructure.config.budget_manager import budget_manager
         from infrastructure.config.budget_alerts import budget_alert_system
+        from infrastructure.config.budget_manager import budget_manager
 
         # Save original state
         original_spend = budget_manager.current_spend

@@ -5,9 +5,10 @@ Simple validation script for integration testing without pytest.
 import asyncio
 import sys
 import tempfile
-import yaml
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import yaml
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))

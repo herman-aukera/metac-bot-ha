@@ -5,8 +5,8 @@ Verifies that the system is properly configured to use GPT-5 models with free fa
 skipping expensive GPT-4o models entirely.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(".")
 

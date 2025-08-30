@@ -5,20 +5,21 @@ Tests all tournament optimizations and fallback mechanisms.
 """
 
 import asyncio
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from src.main import MetaculusForecastingBot
+
 from src.infrastructure.config.settings import Config
+from src.infrastructure.external_apis.metaculus_proxy_client import MetaculusProxyClient
 from src.infrastructure.external_apis.tournament_asknews_client import (
     TournamentAskNewsClient,
 )
-from src.infrastructure.external_apis.metaculus_proxy_client import MetaculusProxyClient
-from src.main import MetaculusForecastingBot
 
 
 async def test_tournament_features():

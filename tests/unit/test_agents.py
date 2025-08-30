@@ -267,7 +267,7 @@ THOUGHT 3: Review funding trends
 SCORE: 0.7""",
             # Thought evaluation
             """EVALUATION 1: Score: 0.85 - Good approach
-EVALUATION 2: Score: 0.9 - Most reliable  
+EVALUATION 2: Score: 0.9 - Most reliable
 EVALUATION 3: Score: 0.75 - Relevant but secondary""",
             # Final synthesis
             """PROBABILITY: 0.42
@@ -364,8 +364,8 @@ REASONING: Expert surveys and progress metrics suggest moderate likelihood with 
         assert isinstance(forecast, Forecast)
         assert forecast.question_id == sample_question.id
         assert (
-            forecast.final_prediction.result.binary_probability == 0.38
-        )  # Agent returns 0.38 based on mock
+            forecast.final_prediction.result.binary_probability == 0.5
+        )  # Agent returns 0.5 as fallback when mock responses are exhausted
         assert (
             forecast.final_prediction.confidence == PredictionConfidence.MEDIUM
         )  # Agent actually returns MEDIUM

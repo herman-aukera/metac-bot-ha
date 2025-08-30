@@ -16,7 +16,7 @@ from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
 from src.domain.services.ensemble_service import EnsembleService
 from src.domain.services.tournament_analytics import TournamentAnalytics
-from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
 from src.infrastructure.config.settings import Settings
 
@@ -306,7 +306,7 @@ class TestTournamentSimulation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.4 + random.random() * 0.2),  # 0.4-0.6 range
-                confidence=Confidence(0.7 + random.random() * 0.2),  # 0.7-0.9 range
+                confidence=ConfidenceLevel(0.7 + random.random() * 0.2),  # 0.7-0.9 range
                 reasoning=f"Mocked reasoning for question {question.id}",
                 method="ensemble",
                 sources=["mock_source_1", "mock_source_2"],
@@ -363,7 +363,7 @@ class TestTournamentSimulation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(prediction),
-                confidence=Confidence(0.5 + random.random() * 0.3),  # Lower confidence
+                confidence=ConfidenceLevel(0.5 + random.random() * 0.3),  # Lower confidence
                 reasoning=f"Rushed analysis for question {question.id}",
                 method="ensemble",
                 sources=["limited_source"],
@@ -412,7 +412,7 @@ class TestTournamentSimulation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.45),
-                confidence=Confidence(0.75),
+                confidence=ConfidenceLevel(0.75),
                 reasoning=f"Recovered forecast for question {question.id}",
                 method="ensemble",
                 sources=["recovery_source"],
@@ -453,7 +453,7 @@ class TestTournamentSimulation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.42),  # Consistent prediction
-                confidence=Confidence(0.85),  # High confidence
+                confidence=ConfidenceLevel(0.85),  # High confidence
                 reasoning=f"Optimized forecast for question {question.id}",
                 method="ensemble",
                 sources=["benchmark_source_1", "benchmark_source_2"],
@@ -523,7 +523,7 @@ class TestTournamentSimulation:
                 return Forecast(
                     question_id=question.id,
                     prediction=Probability(0.5 + (effective_accuracy - 0.5) * 0.5),
-                    confidence=Confidence(effective_accuracy),
+                    confidence=ConfidenceLevel(effective_accuracy),
                     reasoning=f"Pressure-affected forecast (pressure={pressure})",
                     method="ensemble",
                     sources=["pressure_source"],

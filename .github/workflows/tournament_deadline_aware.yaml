@@ -170,16 +170,16 @@ jobs:
           echo "budget_remaining=$REMAINING" >> $GITHUB_OUTPUT
 
           # Check if we should continue
-          if status['utilization'] >= 0.98:
-              print('🚨 CRITICAL: Budget exhausted (98%+), suspending workflow')
-              sys.exit(1)
-          elif status['utilization'] >= 0.95:
-              print('⚠️ WARNING: Budget critical (95%+), emergency mode activated')
-          elif status['utilization'] >= 0.80:
-              print('⚠️ CAUTION: Budget high (80%+), conservative mode activated')
-          else:
-              print('✅ Budget status normal, proceeding with forecasting')
-          "
+          if (( $(echo "$UTILIZATION >= 0.98" | bc -l) )); then
+            echo "🚨 CRITICAL: Budget exhausted (98%+), suspending workflow"
+            exit 1
+          elif (( $(echo "$UTILIZATION >= 0.95" | bc -l) )); then
+            echo "⚠️ WARNING: Budget critical (95%+), emergency mode activated"
+          elif (( $(echo "$UTILIZATION >= 0.80" | bc -l) )); then
+            echo "⚠️ CAUTION: Budget high (80%+), conservative mode activated"
+          else
+            echo "✅ Budget status normal, proceeding with forecasting"
+          fi
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
 

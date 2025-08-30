@@ -18,7 +18,7 @@ from src.agents.tree_of_thought_agent import TreeOfThoughtAgent
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
 from src.domain.services.ensemble_service import EnsembleService
-from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
 
 
@@ -677,7 +677,7 @@ class TestAgentPerformance:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(base_pred),
-                confidence=Confidence(0.75),
+                confidence=ConfidenceLevel(0.75),
                 reasoning="Chain of thought analysis...",
                 method="chain_of_thought",
                 sources=["cot_source_1", "cot_source_2"],
@@ -697,7 +697,7 @@ class TestAgentPerformance:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(base_pred),
-                confidence=Confidence(0.82),
+                confidence=ConfidenceLevel(0.82),
                 reasoning="Tree of thought exploration...",
                 method="tree_of_thought",
                 sources=["tot_source_1", "tot_source_2", "tot_source_3"],
@@ -718,7 +718,7 @@ class TestAgentPerformance:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(base_pred),
-                confidence=Confidence(confidence_val),
+                confidence=ConfidenceLevel(confidence_val),
                 reasoning="ReAct reasoning and acting...",
                 method="react",
                 sources=["react_source_1"],
@@ -880,7 +880,7 @@ class TestAgentPerformance:
             return Forecast(
                 question_id=forecasts[0].question_id,
                 prediction=Probability(avg_pred),
-                confidence=Confidence(avg_conf),
+                confidence=ConfidenceLevel(avg_conf),
                 reasoning=f"Ensemble forecast using {method}",
                 method=f"ensemble_{method}",
                 sources=["ensemble"],

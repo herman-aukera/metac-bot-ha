@@ -42,7 +42,7 @@ CALIBRATION STEPS:
 3. SCENARIOS: Consider best/worst/most likely outcomes
 4. CONFIDENCE: Rate your certainty (avoid overconfidence)
 
-{% if question.question_type.value == "BINARY" %}
+{% if question.question_type.value == "binary" %}
 Provide probability (0-1) with confidence interval:
 {
   "probability": 0.XX,
@@ -78,7 +78,7 @@ UNCERTAINTY FACTORS:
 - Unpredictable variables
 - Time horizon effects
 
-{% if question.question_type.value == "BINARY" %}
+{% if question.question_type.value == "binary" %}
 Final forecast:
 {
   "scenarios": {
@@ -114,7 +114,7 @@ CALIBRATION ANCHORS:
 - 90%: Very confident (rare!)
 - 95%: Extremely confident (very rare!)
 
-{% if question.question_type.value == "BINARY" %}
+{% if question.question_type.value == "binary" %}
 Calibrated forecast:
 {
   "initial_intuition": 0.XX,
@@ -149,7 +149,7 @@ Step 2: Historical base rate = ?
 Step 3: This case is different because...
 Step 4: Adjust base rate up/down by...
 
-{% if question.question_type.value == "BINARY" %}
+{% if question.question_type.value == "binary" %}
 Reference class forecast:
 {
   "reference_class": "description",
@@ -244,7 +244,7 @@ STEP 5: CALIBRATION
 - After overconfidence correction
 - Final calibrated probability
 
-{% if question.question_type.value == "BINARY" %}
+{% if question.question_type.value == "binary" %}
 Provide comprehensive calibrated forecast:
 {
   "reference_class": {
@@ -286,6 +286,24 @@ Remember: Good calibration means being right X% of the time when you say X%.
         return self.comprehensive_calibrated_template.render(
             question=question, research_summary=research_summary
         )
+
+    def generate_basic_calibrated_prompt(
+        self, question: Question, research_summary: str
+    ) -> str:
+        """Generate basic calibrated forecasting prompt."""
+        return self.get_basic_calibrated_prompt(question, research_summary)
+
+    def generate_scenario_analysis_prompt(
+        self, question: Question, research_summary: str
+    ) -> str:
+        """Generate scenario analysis forecasting prompt."""
+        return self.get_scenario_analysis_prompt(question, research_summary)
+
+    def generate_overconfidence_reduction_prompt(
+        self, question: Question, research_summary: str
+    ) -> str:
+        """Generate overconfidence reduction forecasting prompt."""
+        return self.get_overconfidence_reduction_prompt(question, research_summary)
 
     def get_calibrated_prompt(
         self, question: Question, research_summary: str, calibration_type: str = "basic"
@@ -462,6 +480,67 @@ class CalibrationPromptManager:
                 "calibration_techniques": self._get_techniques_used(calibration_type),
             },
         }
+
+    def select_optimal_prompt(
+        self,
+        complexity: str = "medium",
+        research_quality: str = "moderate",
+        budget_constraint: str = "normal",
+        question: Optional[Question] = None,
+        research_summary: str = "",
+    ) -> str:
+        """
+        Select optimal prompt based on question characteristics and constraints.
+
+        Args:
+            complexity: Question complexity ("simple", "medium", "complex")
+            research_quality: Available research quality ("limited", "moderate", "comprehensive")
+            budget_constraint: Budget constraint ("tight", "normal", "generous")
+            question: Optional question object for more detailed analysis
+            research_summary: Research summary for prompt generation
+
+        Returns:
+            Optimal prompt string
+        """
+        # Determine calibration type based on inputs
+        calibration_type = self._select_calibration_type(
+            complexity, research_quality, budget_constraint
+        )
+
+        # If we have a question, use it to generate the prompt
+        if question and research_summary:
+            return self.calibrated_prompts.get_calibrated_prompt(
+                question, research_summary, calibration_type
+            )
+
+        # Otherwise return the calibration type recommendation
+        return calibration_type
+
+    def _select_calibration_type(
+        self, complexity: str, research_quality: str, budget_constraint: str
+    ) -> str:
+        """Select calibration type based on constraints."""
+        # Budget constraints take priority
+        if budget_constraint == "tight":
+            return "basic"
+
+        # For complex questions with good research, use advanced methods
+        if complexity == "complex" and research_quality == "comprehensive":
+            if budget_constraint == "generous":
+                return "comprehensive"
+            else:
+                return "scenario"
+
+        # For medium complexity, use overconfidence reduction
+        if complexity == "medium":
+            return "overconfidence"
+
+        # For simple questions or limited research, use basic
+        if complexity == "simple" or research_quality == "limited":
+            return "basic"
+
+        # Default to overconfidence reduction for balanced approach
+        return "overconfidence"
 
     def _get_techniques_used(self, calibration_type: str) -> List[str]:
         """Get list of calibration techniques used in each type."""

@@ -11,7 +11,7 @@ from src.application.forecast_service import ForecastService
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
 from src.domain.services.ensemble_service import EnsembleService
-from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
 from src.infrastructure.config.settings import Settings
 
@@ -54,7 +54,7 @@ def mock_tournament_forecast_service():
         return Forecast(
             question_id=question.id,
             prediction=Probability(min(0.99, max(0.01, base_prediction))),
-            confidence=Confidence(min(0.99, max(0.01, base_confidence))),
+            confidence=ConfidenceLevel(min(0.99, max(0.01, base_confidence))),
             reasoning=f"Tournament forecast for question {question.id}",
             method=(
                 "ensemble" if agent_types and len(agent_types) > 1 else "single_agent"
@@ -106,7 +106,7 @@ def mock_tournament_ensemble_service():
         return Forecast(
             question_id=forecasts[0].question_id,
             prediction=Probability(avg_prediction),
-            confidence=Confidence(avg_confidence),
+            confidence=ConfidenceLevel(avg_confidence),
             reasoning=f"Ensemble forecast using {method}",
             method=f"ensemble_{method}",
             sources=["ensemble"],
@@ -250,7 +250,6 @@ def competitive_pressure_scenarios():
 
 
 # Tournament-specific pytest markers
-pytest_plugins = []
 
 
 def pytest_configure(config):

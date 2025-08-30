@@ -13,7 +13,7 @@ import pytest
 from src.application.forecast_service import ForecastService
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
-from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
 from src.infrastructure.reliability.circuit_breaker import CircuitBreaker
 from src.infrastructure.reliability.retry_manager import RetryManager
@@ -301,7 +301,7 @@ class TestRecoveryResilience:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.45),
-                confidence=Confidence(0.75),
+                confidence=ConfidenceLevel(0.75),
                 reasoning=f"Recovered forecast for question {question.id}",
                 method="chain_of_thought",
                 sources=["recovered_api"],
@@ -358,7 +358,7 @@ class TestRecoveryResilience:
                 return Forecast(
                     question_id=question.id,
                     prediction=Probability(0.42),
-                    confidence=Confidence(0.78),
+                    confidence=ConfidenceLevel(0.78),
                     reasoning=f"Quick forecast after timeout recovery",
                     method="chain_of_thought",
                     sources=["timeout_recovery"],
@@ -415,7 +415,7 @@ class TestRecoveryResilience:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.4 + quality * 0.2),
-                confidence=Confidence(0.5 + quality * 0.3),
+                confidence=ConfidenceLevel(0.5 + quality * 0.3),
                 reasoning=f"Gradual recovery forecast (quality={quality:.2f})",
                 method="chain_of_thought",
                 sources=["gradual_recovery"],
@@ -487,7 +487,7 @@ class TestRecoveryResilience:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.48),
-                confidence=Confidence(0.72),
+                confidence=ConfidenceLevel(0.72),
                 reasoning="Circuit breaker test forecast",
                 method="chain_of_thought",
                 sources=["circuit_breaker_test"],
@@ -565,7 +565,7 @@ class TestRecoveryResilience:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.46),
-                confidence=Confidence(0.74),
+                confidence=ConfidenceLevel(0.74),
                 reasoning="Forecast after cascading failure recovery",
                 method="chain_of_thought",
                 sources=["cascading_recovery"],
@@ -641,7 +641,7 @@ class TestRecoveryResilience:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.4 + recovery_quality * 0.2),
-                confidence=Confidence(0.5 + recovery_quality * 0.3),
+                confidence=ConfidenceLevel(0.5 + recovery_quality * 0.3),
                 reasoning=f"Pressure recovery forecast (quality={recovery_quality:.2f})",
                 method="chain_of_thought",
                 sources=["pressure_recovery"],

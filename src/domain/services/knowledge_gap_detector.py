@@ -544,23 +544,35 @@ class QuantitativeDataDetector(GapDetectionStrategy):
         quantitative_indicators = [
             "data",
             "statistics",
+            "statistical",
             "numbers",
+            "numerical",
             "percentage",
+            "percent",
             "rate",
-            "trend",
             "measurement",
             "survey",
-            "study",
-            "analysis",
-            "research",
-            "findings",
+            "empirical",
+            "quantitative",
+            "metrics",
+            "figures",
         ]
 
         for source in sources:
             content = (source.summary + " " + source.title).lower()
-            has_quantitative = any(
-                indicator in content for indicator in quantitative_indicators
-            )
+
+            # Check for quantitative indicators but exclude negated contexts
+            has_quantitative = False
+            for indicator in quantitative_indicators:
+                if indicator in content:
+                    # Check if the indicator is negated (preceded by "without", "no", "not", etc.)
+                    indicator_pos = content.find(indicator)
+                    if indicator_pos > 0:
+                        preceding_text = content[max(0, indicator_pos-20):indicator_pos]
+                        if any(neg in preceding_text for neg in ["without", "no ", "not ", "lack", "lacking"]):
+                            continue  # Skip negated indicators
+                    has_quantitative = True
+                    break
 
             if has_quantitative:
                 quantitative_sources += 1
@@ -572,7 +584,8 @@ class QuantitativeDataDetector(GapDetectionStrategy):
         if total_sources > 0:
             quantitative_ratio = quantitative_sources / total_sources
 
-            if quantitative_ratio < 0.4:  # Less than 40% quantitative
+            # More aggressive detection - if less than 50% quantitative or very few quantitative sources
+            if quantitative_ratio < 0.5 or quantitative_sources < 2:
                 gap = KnowledgeGap(
                     gap_id="",
                     gap_type=GapType.QUANTITATIVE_DATA_GAP,
@@ -796,9 +809,10 @@ class KnowledgeGapDetector:
         else:
             overall_quality = ResearchQuality.LOW
 
-        # Calculate confidence level
-        gap_penalty = sum(g.confidence_reduction for g in gaps)
-        confidence_level = max(0.1, avg_credibility - gap_penalty)
+        # Calculate confidence level with improved formula
+        gap_penalty = sum(g.confidence_reduction for g in gaps) * 0.5  # Reduce penalty impact
+        base_confidence = (avg_credibility + completeness_score) / 2  # Use both factors
+        confidence_level = max(0.1, base_confidence - gap_penalty)
 
         # Credibility distribution
         credibility_distribution = {

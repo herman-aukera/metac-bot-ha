@@ -15,7 +15,7 @@ import pytest
 from src.agents.base_agent import BaseAgent
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
-from src.domain.value_objects.confidence import Confidence
+from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
 
 
@@ -697,7 +697,7 @@ class TestCalibrationValidation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(prediction),
-                confidence=Confidence(confidence),
+                confidence=ConfidenceLevel(confidence),
                 reasoning="Well-calibrated analysis with appropriate uncertainty",
                 method="calibrated",
                 sources=["calibrated_source"],
@@ -721,7 +721,7 @@ class TestCalibrationValidation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(extreme_prediction),
-                confidence=Confidence(high_confidence),
+                confidence=ConfidenceLevel(high_confidence),
                 reasoning="Very confident analysis with extreme prediction and recent dramatic events suggest high certainty",
                 method="overconfident",
                 sources=["biased_source"],

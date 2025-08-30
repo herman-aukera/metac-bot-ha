@@ -4,10 +4,10 @@ Test script for cost-optimized GPT-5 → Free model configuration.
 Verifies the tri-model router uses the correct fallback chains.
 """
 
-import os
-import sys
 import asyncio
 import logging
+import os
+import sys
 from pathlib import Path
 
 # Add src to path

@@ -69,13 +69,13 @@ jobs:
           # Get the analysis report
           REPORT=$(poetry run python scripts/deployment_cost_monitor.py --json-output)
 
-          # Extract key metrics
-          BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"')
-          UTILIZATION=$(echo "$REPORT" | jq -r '.budget_status.utilization // 0')
-          REMAINING=$(echo "$REPORT" | jq -r '.budget_status.remaining // 100')
-          SPENT=$(echo "$REPORT" | jq -r '.budget_status.spent // 0')
-          SHOULD_SUSPEND=$(echo "$REPORT" | jq -r '.actions.should_suspend_workflows // false')
-          SHOULD_ALERT=$(echo "$REPORT" | jq -r '.actions.should_send_alerts // false')
+          # Extract key metrics safely
+          BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"' 2>/dev/null || echo "normal")
+          UTILIZATION=$(echo "$REPORT" | jq -r '.budget_status.utilization // 0' 2>/dev/null || echo "0")
+          REMAINING=$(echo "$REPORT" | jq -r '.budget_status.remaining // 100' 2>/dev/null || echo "100")
+          SPENT=$(echo "$REPORT" | jq -r '.budget_status.spent // 0' 2>/dev/null || echo "0")
+          SHOULD_SUSPEND=$(echo "$REPORT" | jq -r '.actions.should_suspend_workflows // false' 2>/dev/null || echo "false")
+          SHOULD_ALERT=$(echo "$REPORT" | jq -r '.actions.should_send_alerts // false' 2>/dev/null || echo "false")
 
           # Set outputs
           echo "budget_status=$BUDGET_STATUS" >> $GITHUB_OUTPUT

@@ -2,10 +2,11 @@
 """
 Test script for budget management integration with main application.
 """
-import sys
-import os
 import asyncio
+import os
+import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -85,8 +86,8 @@ def test_budget_workflow():
     print("=== Testing Budget Workflow ===")
 
     try:
-        from infrastructure.config.budget_manager import budget_manager
         from infrastructure.config.budget_alerts import budget_alert_system
+        from infrastructure.config.budget_manager import budget_manager
         from infrastructure.config.enhanced_llm_config import enhanced_llm_config
 
         # Simulate a research task
@@ -217,8 +218,8 @@ def main():
 
         # Final status report
         try:
-            from infrastructure.config.budget_manager import budget_manager
             from infrastructure.config.budget_alerts import budget_alert_system
+            from infrastructure.config.budget_manager import budget_manager
 
             print("\n=== Final Integration Status ===")
             budget_manager.log_budget_status()

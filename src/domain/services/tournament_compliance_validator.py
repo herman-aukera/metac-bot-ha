@@ -18,6 +18,12 @@ class ComplianceIssue:
     category: str  # "reasoning", "transparency", "format", "content"
     message: str
     suggestion: Optional[str] = None
+    description: Optional[str] = None
+
+    def __post_init__(self):
+        # Use message as description if description not provided
+        if self.description is None:
+            self.description = self.message
 
 
 @dataclass
@@ -28,6 +34,11 @@ class ComplianceReport:
     issues: List[ComplianceIssue]
     score: float  # 0.0 to 1.0
     validation_timestamp: datetime
+    compliance_areas_checked: List[str] = None
+
+    def __post_init__(self):
+        if self.compliance_areas_checked is None:
+            self.compliance_areas_checked = []
 
 
 class TournamentComplianceValidator:
@@ -399,3 +410,264 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
             transparency_footer += f" | Details: {metadata_str}"
 
         return reasoning + transparency_footer
+
+    def validate_reasoning_transparency(self, prediction: Prediction, question) -> ComplianceReport:
+        """Validate reasoning transparency requirements for tournament compliance."""
+        issues = []
+
+        # Check if reasoning exists and has sufficient detail
+        if not prediction.reasoning or len(prediction.reasoning.strip()) < self.min_reasoning_length:
+            issues.append(
+                ComplianceIssue(
+                    severity="error",
+                    category="transparency",
+                    message="Reasoning has insufficient detail for transparency requirements",
+                    suggestion="Provide detailed analysis with evidence and reasoning steps"
+                )
+            )
+
+        # Check for required reasoning elements
+        if prediction.reasoning:
+            reasoning_lower = prediction.reasoning.lower()
+            missing_elements = []
+
+            if "analysis" not in reasoning_lower and "based on" not in reasoning_lower:
+                missing_elements.append("analysis")
+            if "evidence" not in reasoning_lower and "data" not in reasoning_lower:
+                missing_elements.append("evidence")
+            if "therefore" not in reasoning_lower and "conclusion" not in reasoning_lower and "estimate" not in reasoning_lower and "probability" not in reasoning_lower:
+                missing_elements.append("conclusion")
+
+            if missing_elements:
+                issues.append(
+                    ComplianceIssue(
+                        severity="warning",
+                        category="transparency",
+                        message=f"Reasoning missing elements: {', '.join(missing_elements)}",
+                        suggestion="Include analysis, evidence, and clear conclusions"
+                    )
+                )
+
+        # Calculate compliance score
+        score = 1.0 - (len(issues) * 0.3)  # Reduce score for each issue
+        is_compliant = len([i for i in issues if i.severity == "error"]) == 0
+
+        return ComplianceReport(
+            is_compliant=is_compliant,
+            issues=issues,
+            score=max(0.0, score),
+            validation_timestamp=datetime.utcnow(),
+            compliance_areas_checked=["transparency", "reasoning_quality"]
+        )
+
+    def validate_automated_decision_making(self, process_metadata: Dict) -> ComplianceReport:
+        """Validate that decision-making process is fully automated."""
+        issues = []
+
+        # Check for human involvement
+        human_involvement = process_metadata.get("human_involvement", "none")
+        if human_involvement != "none":
+            issues.append(
+                ComplianceIssue(
+                    severity="error",
+                    category="automation",
+                    message=f"Human involvement detected: {human_involvement}",
+                    suggestion="Ensure all decision points are fully automated"
+                )
+            )
+
+        # Check decision points
+        decision_points = process_metadata.get("decision_points", [])
+        for point in decision_points:
+            if not point.get("automated", True):
+                issues.append(
+                    ComplianceIssue(
+                        severity="error",
+                        category="automation",
+                        message=f"Non-automated decision point: {point.get('step', 'unknown')}",
+                        suggestion="All decision points must be automated for tournament compliance"
+                    )
+                )
+
+        score = 1.0 - (len(issues) * 0.5)  # Strict scoring for automation
+        is_compliant = len([i for i in issues if i.severity == "error"]) == 0
+
+        return ComplianceReport(
+            is_compliant=is_compliant,
+            issues=issues,
+            score=max(0.0, score),
+            validation_timestamp=datetime.utcnow(),
+            compliance_areas_checked=["automation", "decision_making"]
+        )
+
+    def validate_data_source_compliance(self, data_sources: Dict) -> ComplianceReport:
+        """Validate compliance with data source restrictions."""
+        issues = []
+
+        # Check for private information usage
+        if data_sources.get("private_information", False):
+            issues.append(
+                ComplianceIssue(
+                    severity="error",
+                    category="data_sources",
+                    message="Private information usage detected",
+                    suggestion="Only use publicly available data sources"
+                )
+            )
+
+        # Check for restricted sources
+        restricted_sources = data_sources.get("restricted_sources", [])
+        if restricted_sources:
+            issues.append(
+                ComplianceIssue(
+                    severity="error",
+                    category="data_sources",
+                    message=f"Restricted sources used: {', '.join(restricted_sources)}",
+                    suggestion="Remove restricted data sources from analysis"
+                )
+            )
+
+        # Check source types for compliance
+        sources_used = data_sources.get("sources_used", [])
+        for source in sources_used:
+            source_type = source.get("type", "")
+            if source_type in ["private_database", "insider_information", "confidential"]:
+                issues.append(
+                    ComplianceIssue(
+                        severity="error",
+                        category="data_sources",
+                        message=f"Non-compliant source type: {source_type}",
+                        suggestion="Use only public data sources"
+                    )
+                )
+
+        score = 1.0 - (len(issues) * 0.4)
+        is_compliant = len([i for i in issues if i.severity == "error"]) == 0
+
+        return ComplianceReport(
+            is_compliant=is_compliant,
+            issues=issues,
+            score=max(0.0, score),
+            validation_timestamp=datetime.utcnow(),
+            compliance_areas_checked=["data_sources", "privacy"]
+        )
+
+    def validate_prediction_format(self, prediction: Prediction, question) -> ComplianceReport:
+        """Validate prediction format compliance."""
+        issues = []
+
+        # Check for required fields based on question type
+        if hasattr(prediction, 'result') and prediction.result:
+            if question.question_type.value == "binary":
+                if prediction.result.binary_probability is None:
+                    issues.append(
+                        ComplianceIssue(
+                            severity="error",
+                            category="format",
+                            message="Missing required binary probability",
+                            suggestion="Provide binary probability for binary questions"
+                        )
+                    )
+            elif question.question_type.value == "numeric":
+                if prediction.result.numeric_value is None:
+                    issues.append(
+                        ComplianceIssue(
+                            severity="error",
+                            category="format",
+                            message="Missing required numeric value",
+                            suggestion="Provide numeric value for numeric questions"
+                        )
+                    )
+        else:
+            # Fallback for older prediction format
+            if not hasattr(prediction, 'probability') or prediction.probability is None:
+                issues.append(
+                    ComplianceIssue(
+                        severity="error",
+                        category="format",
+                        message="Missing required probability field",
+                        suggestion="Provide probability value for prediction"
+                    )
+                )
+
+        # Check reasoning field
+        if not prediction.reasoning or len(prediction.reasoning.strip()) == 0:
+            issues.append(
+                ComplianceIssue(
+                    severity="error",
+                    category="format",
+                    message="Missing required reasoning field",
+                    suggestion="Provide detailed reasoning for prediction"
+                )
+            )
+
+        # Check format version if available
+        if hasattr(prediction, 'metadata') and prediction.metadata:
+            format_version = prediction.metadata.get("format_version")
+            if format_version and format_version < "1.0":
+                issues.append(
+                    ComplianceIssue(
+                        severity="warning",
+                        category="format",
+                        message=f"Outdated format version: {format_version}",
+                        suggestion="Update to latest format version"
+                    )
+                )
+
+        score = 1.0 - (len(issues) * 0.3)
+        is_compliant = len([i for i in issues if i.severity == "error"]) == 0
+
+        return ComplianceReport(
+            is_compliant=is_compliant,
+            issues=issues,
+            score=max(0.0, score),
+            validation_timestamp=datetime.utcnow(),
+            compliance_areas_checked=["format", "required_fields"]
+        )
+
+    def run_comprehensive_compliance_check(self, prediction: Prediction, question, metadata: Dict) -> ComplianceReport:
+        """Run comprehensive compliance validation across all areas."""
+        all_issues = []
+        all_areas_checked = []
+        scores = []
+
+        # Run transparency validation
+        transparency_report = self.validate_reasoning_transparency(prediction, question)
+        all_issues.extend(transparency_report.issues)
+        all_areas_checked.extend(transparency_report.compliance_areas_checked)
+        scores.append(transparency_report.score)
+
+        # Run automation validation
+        automation_report = self.validate_automated_decision_making(metadata)
+        all_issues.extend(automation_report.issues)
+        all_areas_checked.extend(automation_report.compliance_areas_checked)
+        scores.append(automation_report.score)
+
+        # Run data source validation
+        data_sources = metadata.get("data_sources", {})
+        if isinstance(data_sources, list):
+            # Convert list format to dict format
+            data_sources = {"sources_used": data_sources, "private_information": False, "restricted_sources": []}
+
+        data_report = self.validate_data_source_compliance(data_sources)
+        all_issues.extend(data_report.issues)
+        all_areas_checked.extend(data_report.compliance_areas_checked)
+        scores.append(data_report.score)
+
+        # Run format validation
+        format_report = self.validate_prediction_format(prediction, question)
+        all_issues.extend(format_report.issues)
+        all_areas_checked.extend(format_report.compliance_areas_checked)
+        scores.append(format_report.score)
+
+        # Calculate overall score
+        overall_score = sum(scores) / len(scores) if scores else 0.0
+        is_compliant = len([i for i in all_issues if i.severity == "error"]) == 0
+
+        return ComplianceReport(
+            is_compliant=is_compliant,
+            issues=all_issues,
+            score=overall_score,
+            validation_timestamp=datetime.utcnow(),
+            compliance_areas_checked=list(set(all_areas_checked))
+        )

@@ -1,0 +1,40 @@
+{
+  "timestamp": 1756562709.730408,
+  "deployment_ready": false,
+  "total_execution_time": 1.2696659564971924,
+  "test_results": {
+    "Python Environment": {
+      "passed": true,
+      "message": "Python 3.13.2"
+    },
+    "Core Imports": {
+      "passed": false,
+      "message": "AskNews import failed - research functionality unavailable"
+    },
+    "Project Structure": {
+      "passed": true,
+      "message": "Project structure complete"
+    },
+    "Environment Variables": {
+      "passed": false,
+      "message": "Missing required: ASKNEWS_CLIENT_ID, ASKNEWS_SECRET, OPENROUTER_API_KEY"
+    },
+    "Configuration": {
+      "passed": false,
+      "message": "LLM configuration missing"
+    },
+    "File Permissions": {
+      "passed": true,
+      "message": "File permissions and directories OK"
+    },
+    "Memory Usage": {
+      "passed": true,
+      "message": "Memory monitoring not available (psutil not installed)"
+    }
+  },
+  "summary": {
+    "total_tests": 7,
+    "passed": 4,
+    "failed": 3
+  }
+}

@@ -38,6 +38,7 @@ class PredictionResult:
     numeric_value: Optional[float] = None
     numeric_distribution: Optional[Dict[str, float]] = None
     multiple_choice_probabilities: Optional[Dict[str, float]] = None
+    choice_index: Optional[int] = None
 
 
 @dataclass
@@ -228,6 +229,40 @@ class Prediction:
             raise ValueError(f"Choice probabilities must sum to 1, got {total_prob}")
 
         result = PredictionResult(multiple_choice_probabilities=choice_probabilities)
+
+        return cls(
+            id=uuid4(),
+            question_id=question_id,
+            research_report_id=research_report_id,
+            result=result,
+            confidence=confidence,
+            method=method,
+            reasoning=reasoning,
+            reasoning_steps=kwargs.get("reasoning_steps", []),
+            created_at=datetime.utcnow(),
+            created_by=created_by,
+            method_metadata=kwargs.get("method_metadata", {}),
+            internal_consistency_score=kwargs.get("internal_consistency_score"),
+            evidence_strength=kwargs.get("evidence_strength"),
+        )
+
+    @classmethod
+    def create_choice_index_prediction(
+        cls,
+        question_id: UUID,
+        research_report_id: UUID,
+        choice_index: int,
+        confidence: PredictionConfidence,
+        method: PredictionMethod,
+        reasoning: str,
+        created_by: str,
+        **kwargs,
+    ) -> "Prediction":
+        """Factory method for choice index predictions."""
+        if choice_index < 0:
+            raise ValueError("Choice index must be non-negative")
+
+        result = PredictionResult(choice_index=choice_index)
 
         return cls(
             id=uuid4(),

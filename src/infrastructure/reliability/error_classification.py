@@ -315,8 +315,8 @@ class ErrorClassifier:
                 error_code="API_SERVER_ERROR",
                 description="API server returned 5xx error",
                 recovery_strategies=[
-                    RecoveryStrategy.RETRY,
                     RecoveryStrategy.FALLBACK_PROVIDER,
+                    RecoveryStrategy.RETRY,
                 ],
                 retry_delay=30.0,
                 max_retries=3,
@@ -373,7 +373,7 @@ class ErrorClassifier:
         return {
             RecoveryStrategy.RETRY: {
                 "base_delay": 1.0,
-                "max_delay": 60.0,
+                "max_delay": 300.0,  # Increased to allow exponential backoff
                 "exponential_base": 2.0,
                 "jitter": True,
             },
@@ -434,7 +434,7 @@ class ErrorClassifier:
         error_type = type(error).__name__.lower()
 
         # Check for specific error patterns
-        classification = self._match_error_pattern(error_message, error_type, context)
+        classification = self._match_error_pattern(error_message, error_type, context, error)
 
         if classification:
             # Log the classification
@@ -445,12 +445,29 @@ class ErrorClassifier:
             return classification
 
         # Default classification for unknown errors
-        return self._create_default_classification(error, context)
+        default_classification = self._create_default_classification(error, context)
+        self._record_error_occurrence(default_classification, context)
+        return default_classification
 
     def _match_error_pattern(
-        self, error_message: str, error_type: str, context: ErrorContext
+        self, error_message: str, error_type: str, context: ErrorContext, error: Exception = None
     ) -> Optional[ErrorClassification]:
         """Match error against known patterns."""
+
+        # Check for specific error types first
+        if error:
+            if isinstance(error, ModelError):
+                return self.error_patterns["model_unavailable"]
+            elif isinstance(error, BudgetError):
+                # Use the error's budget_remaining value, not the context's
+                if error.budget_remaining <= 0:
+                    return self.error_patterns["budget_exhausted"]
+                else:
+                    return self.error_patterns["budget_threshold_warning"]
+            elif isinstance(error, APIError):
+                return self.error_patterns["api_server_error"]
+            elif isinstance(error, QualityError):
+                return self.error_patterns["quality_validation_failed"]
 
         # Rate limit patterns
         if any(
@@ -596,7 +613,11 @@ class ErrorClassifier:
         base_delay = classification.retry_delay
 
         if classification.context_requirements.get("exponential_backoff", False):
-            # Exponential backoff with jitter
+            # For first attempt, return base delay
+            if attempt_number == 1:
+                return base_delay
+
+            # Exponential backoff with jitter for subsequent attempts
             delay = base_delay * (2 ** (attempt_number - 1))
             if self.recovery_strategies[RecoveryStrategy.RETRY].get("jitter", False):
                 import random

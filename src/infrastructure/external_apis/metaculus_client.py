@@ -166,57 +166,7 @@ class MetaculusClient:
             prediction_data = prediction_data_or_question_id
             question_id = prediction_data["question_id"]
             prediction_value = prediction_data["prediction"]
-            raw_reasoning = prediction_data.get("reasoning", "")
-
-            # For dict interface, we need to create a minimal prediction object for formatting
-            # if we don't have the full prediction object
-            if prediction is None:
-                # Create a minimal prediction for formatting purposes
-                from uuid import uuid4
-
-                from ...domain.entities.prediction import (
-                    Prediction,
-                    PredictionConfidence,
-                    PredictionMethod,
-                    PredictionResult,
-                )
-
-                temp_prediction = Prediction(
-                    id=uuid4(),
-                    question_id=uuid4(),  # Will be overridden
-                    research_report_id=uuid4(),
-                    result=PredictionResult(binary_probability=prediction_value),
-                    confidence=PredictionConfidence.MEDIUM,
-                    method=PredictionMethod.ENSEMBLE,
-                    reasoning=raw_reasoning,
-                    reasoning_steps=[],
-                    created_at=datetime.utcnow(),
-                    created_by="api_submission",
-                )
-
-                reasoning = self.reasoning_formatter.format_prediction_comment(
-                    temp_prediction, question_title=f"Question {question_id}"
-                )
-            else:
-                reasoning = self.reasoning_formatter.format_prediction_comment(
-                    prediction, question_title=f"Question {question_id}"
-                )
-
-            # Validate the formatted comment
-            validation_prediction = prediction if prediction else temp_prediction
-            validation_result = (
-                self.reasoning_formatter.validate_comment_before_submission(
-                    reasoning, validation_prediction
-                )
-            )
-
-            if not validation_result["is_valid"]:
-                logger.warning(
-                    "Reasoning comment validation issues",
-                    question_id=question_id,
-                    issues=validation_result["issues"],
-                )
-                reasoning = validation_result["formatted_comment"]
+            reasoning = prediction_data.get("reasoning", "")
         else:
             # Old interface: submit_prediction(question_id, prediction, comment)
             question_id = prediction_data_or_question_id
@@ -233,35 +183,8 @@ class MetaculusClient:
                     "Prediction must have either binary_probability or numeric_value"
                 )
 
-            # Format reasoning comment for tournament compliance
-            raw_reasoning = comment or prediction.reasoning
-            reasoning = self.reasoning_formatter.format_prediction_comment(
-                prediction, question_title=f"Question {question_id}"
-            )
-
-            # Validate the formatted comment
-            validation_result = (
-                self.reasoning_formatter.validate_comment_before_submission(
-                    reasoning, prediction
-                )
-            )
-
-            if not validation_result["is_valid"]:
-                logger.warning(
-                    "Reasoning comment validation issues",
-                    question_id=question_id,
-                    issues=validation_result["issues"],
-                )
-                # Use the formatted version from validation
-                reasoning = validation_result["formatted_comment"]
-
-            logger.info(
-                "Formatted reasoning comment for tournament compliance",
-                question_id=question_id,
-                original_length=len(raw_reasoning) if raw_reasoning else 0,
-                formatted_length=len(reasoning),
-                validation_score=validation_result.get("score", "N/A"),
-            )
+            # Use provided comment or prediction reasoning
+            reasoning = comment or prediction.reasoning
 
         # Check dry_run mode
         if hasattr(self.config, "dry_run") and self.config.dry_run:

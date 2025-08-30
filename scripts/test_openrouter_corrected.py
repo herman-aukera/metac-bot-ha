@@ -4,9 +4,9 @@ Test script for corrected OpenRouter configuration.
 Validates actual model availability and pricing structure.
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 from pathlib import Path
 
 # Add project root to path
