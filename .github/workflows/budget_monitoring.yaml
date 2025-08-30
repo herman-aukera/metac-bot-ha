@@ -34,7 +34,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -52,8 +53,10 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Update poetry lock file
-        run: poetry lock
+      - name: Validate Poetry configuration (no lock)
+        run: |
+          poetry --version
+          poetry check || true
 
       - name: Install dependencies
         run: poetry install --no-interaction --no-root
@@ -61,6 +64,7 @@ jobs:
       - name: Comprehensive budget analysis
         id: budget_analysis
         run: |
+          sudo apt-get update && sudo apt-get install -y jq
           echo "💰 Running comprehensive budget analysis..."
 
           # Generate all artifacts
@@ -94,6 +98,7 @@ jobs:
 
       - name: Generate cost per run analysis
         run: |
+          sudo apt-get update && sudo apt-get install -y jq
           echo "📊 Analyzing cost per workflow run..."
 
           # Generate cost analysis using the monitoring script

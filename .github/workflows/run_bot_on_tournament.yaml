@@ -39,7 +39,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -71,22 +72,11 @@ jobs:
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
         timeout-minutes: 5
 
-      - name: Update poetry lock file with retry
-        timeout-minutes: 10
+      - name: Validate Poetry configuration (no lock)
+        timeout-minutes: 5
         run: |
-          for i in {1..3}; do
-            echo "🔄 Attempt $i to update poetry lock file..."
-            if timeout 300 poetry lock; then
-              echo "✅ Poetry lock successful on attempt $i"
-              break
-            elif [ $i -eq 3 ]; then
-              echo "⚠️ Poetry lock failed after 3 attempts, continuing with existing lock file"
-              break
-            else
-              echo "❌ Poetry lock failed on attempt $i, retrying in 30 seconds..."
-              sleep 30
-            fi
-          done
+          poetry --version
+          poetry check || true
 
       - name: Install dependencies with retry and emergency fallback
         timeout-minutes: 20
