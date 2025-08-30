@@ -313,11 +313,21 @@ class TestSubmissionValidator:
             binary_probability=0.75, numeric_value=None, choice_index=None
         )
 
+        from src.domain.entities.prediction import PredictionConfidence, PredictionMethod
+        from uuid import uuid4
+        from datetime import datetime
+
         prediction = Prediction(
+            id=uuid4(),
             question_id=binary_question.id,
+            research_report_id=uuid4(),
             result=prediction_result,
+            confidence=PredictionConfidence.HIGH,
+            method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Based on analysis of current trends.",
-            confidence=ConfidenceLevel(0.8),
+            reasoning_steps=["Step 1: Analysis", "Step 2: Conclusion"],
+            created_at=datetime.now(),
+            created_by="test-agent",
         )
 
         result, errors = validator.validate_prediction(binary_question, prediction)

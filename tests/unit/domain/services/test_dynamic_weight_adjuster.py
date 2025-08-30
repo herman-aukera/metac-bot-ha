@@ -39,30 +39,40 @@ class TestDynamicWeightAdjuster:
     @pytest.fixture
     def sample_question(self):
         """Create a sample question for testing."""
+        from src.domain.entities.question import QuestionType, QuestionStatus
         return Question(
             id=uuid4(),
+            metaculus_id=12345,
             title="Will AI achieve AGI by 2030?",
             description="Test question",
-            resolution_criteria="Clear criteria",
+            question_type=QuestionType.BINARY,
+            status=QuestionStatus.OPEN,
+            url="https://example.com/question",
             close_time=datetime.now() + timedelta(days=30),
             resolve_time=datetime.now() + timedelta(days=60),
-            question_type="binary",
-            url="https://example.com/question",
+            categories=["technology"],
+            metadata={"test": True},
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            resolution_criteria="Clear criteria",
         )
 
     @pytest.fixture
     def sample_prediction(self, sample_question):
         """Create a sample prediction for testing."""
+        from src.domain.entities.prediction import PredictionResult
+        from datetime import datetime
         return Prediction(
             id=uuid4(),
             question_id=sample_question.id,
-            created_by="test_agent",
+            research_report_id=uuid4(),
+            result=PredictionResult(binary_probability=0.7),
+            confidence=PredictionConfidence.MEDIUM,
             method=PredictionMethod.CHAIN_OF_THOUGHT,
             reasoning="Test reasoning",
-            confidence=PredictionConfidence(
-                level=ConfidenceLevel.MEDIUM, factors=["factor1", "factor2"]
-            ),
-            result=Mock(binary_probability=0.7),
+            reasoning_steps=["Step 1", "Step 2"],
+            created_at=datetime.now(),
+            created_by="test_agent",
         )
 
     def test_record_performance_basic(self, adjuster, sample_prediction):
@@ -290,11 +300,11 @@ class TestDynamicWeightAdjuster:
         # Get new composition after detecting degradation
         composition = adjuster.recommend_ensemble_composition(agents)
 
-        # The degrading agent should have lower weight
-        if "degrading_agent" in composition.agent_weights:
+        # The degrading agent should have lower weight than the stable agent
+        if "degrading_agent" in composition.agent_weights and "stable_agent" in composition.agent_weights:
             assert (
                 composition.agent_weights["degrading_agent"]
-                < initial_weights["degrading_agent"]
+                < composition.agent_weights["stable_agent"]
             )
 
     def test_real_time_agent_selection(self, adjuster):

@@ -25,6 +25,10 @@ class TestCostMonitor:
         # Create test instances with temporary data files
         self.token_tracker = TokenTracker()
         self.token_tracker.data_file = Path(self.temp_dir) / "test_tokens.json"
+        # Clear any existing records to ensure clean state
+        self.token_tracker.usage_records = []
+        self.token_tracker.total_tokens_used = {"input": 0, "output": 0, "total": 0}
+        self.token_tracker.total_estimated_cost = 0.0
 
         self.budget_manager = BudgetManager(
             budget_limit=10.0

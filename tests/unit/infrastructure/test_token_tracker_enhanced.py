@@ -25,6 +25,10 @@ class TestEnhancedTokenTracker:
         # Create tracker with test data file
         self.tracker = TokenTracker()
         self.tracker.data_file = self.test_data_file
+        # Clear any existing records to ensure clean state
+        self.tracker.usage_records = []
+        self.tracker.total_tokens_used = {"input": 0, "output": 0, "total": 0}
+        self.tracker.total_estimated_cost = 0.0
 
     def test_real_time_cost_calculation(self):
         """Test real-time cost calculation for different models."""
