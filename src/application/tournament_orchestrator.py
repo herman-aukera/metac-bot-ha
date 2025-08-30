@@ -499,6 +499,17 @@ class TournamentOrchestrator:
         except Exception as e:
             logger.error("Config reload check failed", error=str(e))
 
+    async def _load_configuration(self) -> Settings:
+        """Load configuration from config manager."""
+        if not self.config_manager:
+            raise RuntimeError("Config manager not initialized")
+
+        settings = self.config_manager.get_current_settings()
+        if not settings:
+            raise RuntimeError("Failed to load settings from config manager")
+
+        return settings
+
     async def _reload_configuration(self) -> None:
         """Reload configuration and update components."""
         try:

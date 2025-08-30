@@ -24,6 +24,10 @@ class TestTournamentSimulation:
         """Set up test environment."""
         # Create mock dependencies
         self.mock_validator = Mock(spec=SubmissionValidator)
+        # Add missing mock methods
+        self.mock_validator.validate_submission = Mock()
+        self.mock_validator.validate_reasoning_transparency = Mock(return_value=True)
+        self.mock_validator.check_human_intervention = Mock(return_value=False)
         self.mock_audit_manager = Mock()
         self.mock_tournament_client = Mock()
 

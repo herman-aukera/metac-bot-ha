@@ -71,12 +71,16 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
         if not event.is_directory and self._is_config_file(event.src_path):
             self.logger.info("Configuration file modified", path=event.src_path)
             try:
+                # Check if there's a running event loop
                 loop = asyncio.get_running_loop()
-                loop.create_task(
-                    self.config_manager._handle_config_change(
-                        ConfigChangeType.MODIFIED, Path(event.src_path)
+                if loop and not loop.is_closed():
+                    loop.create_task(
+                        self.config_manager._handle_config_change(
+                            ConfigChangeType.MODIFIED, Path(event.src_path)
+                        )
                     )
-                )
+                else:
+                    raise RuntimeError("Event loop is closed")
             except RuntimeError:
                 self.logger.warning("No running event loop, deferring config change handling")
                 if not hasattr(self.config_manager, '_deferred_changes'):
@@ -92,11 +96,14 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
             try:
                 # Try to create task if event loop is running
                 loop = asyncio.get_running_loop()
-                loop.create_task(
-                    self.config_manager._handle_config_change(
-                        ConfigChangeType.CREATED, Path(event.src_path)
+                if loop and not loop.is_closed():
+                    loop.create_task(
+                        self.config_manager._handle_config_change(
+                            ConfigChangeType.CREATED, Path(event.src_path)
+                        )
                     )
-                )
+                else:
+                    raise RuntimeError("Event loop is closed")
             except RuntimeError:
                 # No running event loop, defer to main thread
                 self.logger.warning("No running event loop, deferring config change handling")
