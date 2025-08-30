@@ -63,12 +63,15 @@ jobs:
         run: |
           case "${{ matrix.test-type }}" in
             unit)
+              export PYTHONPATH="$GITHUB_WORKSPACE/src:$PYTHONPATH"
               poetry run pytest tests/unit/ -v -m "not external and not slow" --cov=src --cov-report=xml
               ;;
             integration)
+              export PYTHONPATH="$GITHUB_WORKSPACE/src:$PYTHONPATH"
               poetry run pytest tests/integration/ -v -m "not external and not slow"
               ;;
             e2e)
+              export PYTHONPATH="$GITHUB_WORKSPACE/src:$PYTHONPATH"
               poetry run pytest tests/e2e/ -v
               ;;
           esac
@@ -118,7 +121,9 @@ jobs:
           key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Update poetry lock file
-        run: poetry lock
+        run: |
+          # Avoid unnecessary lock churn; lock only if needed
+          poetry lock || true
 
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'

@@ -111,6 +111,7 @@ jobs:
       - name: Run ${{ matrix.test-type }} tests with timeout
         timeout-minutes: 25
         run: |
+          export PYTHONPATH="$GITHUB_WORKSPACE/src:$PYTHONPATH"
           case "${{ matrix.test-type }}" in
             unit)
               if command -v poetry &> /dev/null && poetry env info &> /dev/null; then
@@ -201,21 +202,9 @@ jobs:
         timeout-minutes: 5
 
       - name: Update poetry lock file with retry
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: |
-          for i in {1..3}; do
-            echo "Attempt $i to update poetry lock file..."
-            if timeout 300 poetry lock; then
-              echo "Poetry lock successful on attempt $i"
-              break
-            elif [ $i -eq 3 ]; then
-              echo "Poetry lock failed after 3 attempts, continuing with existing lock file"
-              break
-            else
-              echo "Poetry lock failed on attempt $i, retrying in 30 seconds..."
-              sleep 30
-            fi
-          done
+          echo "Skipping poetry lock update in CI to avoid lock churn"
 
       - name: Install dependencies with retry and fallback
         if: steps.cached-poetry-dependencies-quality.outputs.cache-hit != 'true'
@@ -239,6 +228,7 @@ jobs:
           # Fallback to pip if poetry fails
           echo "Falling back to pip installation..."
           python -m pip install --timeout 60 --retries 3 flake8 black isort mypy pylint
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
       - name: Check code formatting with timeout
         timeout-minutes: 10
@@ -286,7 +276,7 @@ jobs:
         timeout-minutes: 5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+  uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
         timeout-minutes: 5

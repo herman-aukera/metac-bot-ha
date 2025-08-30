@@ -70,10 +70,11 @@ jobs:
               echo "Poetry install successful on attempt $i"
               break
             elif [ $i -eq 3 ]; then
-              echo "Poetry install failed after 3 attempts, trying pip fallback..."
+              echo "Poetry install failed after 3 attempts; trying without lock and then pip fallback..."
+              poetry install --no-interaction --no-root --no-ansi --no-cache || true
               python -m pip install --timeout 60 --retries 3 \
                 flake8 black isort mypy pytest pytest-cov \
-                pydantic requests python-dotenv pyyaml
+                pydantic requests python-dotenv pyyaml openai typer
               break
             else
               echo "Poetry install failed on attempt $i, retrying in 30 seconds..."
@@ -91,8 +92,8 @@ jobs:
                 echo "Project install successful on attempt $i"
                 break
               elif [ $i -eq 3 ]; then
-                echo "Project install failed after 3 attempts, using pip fallback"
-                python -m pip install -e .
+        echo "Project install failed after 3 attempts, using fallback without editable install"
+        echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
                 break
               else
                 echo "Project install failed on attempt $i, retrying in 15 seconds..."
@@ -100,8 +101,8 @@ jobs:
               fi
             done
           else
-            echo "Using pip to install project..."
-            python -m pip install -e .
+      echo "Skipping editable install (package-mode=false); adding src to PYTHONPATH"
+      echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
       - name: Run linting
