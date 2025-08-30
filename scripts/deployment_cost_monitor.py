@@ -437,6 +437,7 @@ def main():
                     "should_suspend_workflows": utilization >= 98,
                     "should_send_alerts": utilization >= 80
                 },
+                "alert_level": "critical" if utilization >= 95 else "warning" if utilization >= 80 else "normal",
                 "timestamp": datetime.now().isoformat()
             }
             print(json.dumps(json_report, indent=2))

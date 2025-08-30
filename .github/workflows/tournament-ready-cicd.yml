@@ -1,0 +1,55 @@
+name: Tournament Ready CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  tournament-readiness:
+    name: Tournament Readiness Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Run tournament readiness check
+        run: |
+          echo "🏆 Checking tournament readiness..."
+          poetry run python scripts/deployment_readiness_check.py --quick
+        env:
+          CI: true
+
+      - name: Validate budget router
+        run: |
+          echo "💰 Testing budget-aware model router..."
+          poetry run python -c "
+          from src.infrastructure.model_router import BudgetAwareModelRouter
+          router = BudgetAwareModelRouter()
+          print('✅ Budget router working')
+          print('CI Model:', router.select_model('test', True, True))
+          "
+        env:
+          CI: true

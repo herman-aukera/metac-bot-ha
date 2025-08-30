@@ -16,8 +16,12 @@ from src.infrastructure.config.settings import Config
 from src.agents.ensemble_agent import EnsembleAgent
 from src.domain.entities.question import Question, QuestionType
 from src.domain.entities.forecast import Forecast
-from src.domain.services.tournament_compliance_validator import TournamentComplianceValidator
-from src.domain.services.tournament_rule_compliance_monitor import TournamentRuleComplianceMonitor
+from src.domain.services.tournament_compliance_validator import (
+    TournamentComplianceValidator,
+)
+from src.domain.services.tournament_rule_compliance_monitor import (
+    TournamentRuleComplianceMonitor,
+)
 
 
 class TestTournamentCompliance:
@@ -91,14 +95,14 @@ class TestTournamentCompliance:
                 "IEA World Energy Outlook 2024",
                 "IPCC Climate Change Reports",
                 "National climate policy databases",
-                "Economic analysis of emission trends"
+                "Economic analysis of emission trends",
             ],
             reasoning_steps=[
                 "Analyzed historical emission trends and patterns",
                 "Reviewed current climate policies and their effectiveness",
                 "Evaluated economic factors affecting emission reductions",
                 "Assessed technological adoption rates for clean energy",
-                "Synthesized expert opinions and forecasting models"
+                "Synthesized expert opinions and forecasting models",
             ],
             metadata={
                 "transparency_score": 0.95,
@@ -107,7 +111,7 @@ class TestTournamentCompliance:
                 "human_intervention": False,
                 "automated_generation": True,
                 "compliance_validated": True,
-            }
+            },
         )
 
     def test_tournament_compliance_validator_initialization(self, tournament_config):
@@ -117,11 +121,11 @@ class TestTournamentCompliance:
         validator = TournamentComplianceValidator(config)
 
         assert validator is not None
-        assert hasattr(validator, 'validate_reasoning_transparency')
-        assert hasattr(validator, 'validate_automated_decision_making')
-        assert hasattr(validator, 'validate_data_source_compliance')
-        assert hasattr(validator, 'validate_prediction_format')
-        assert hasattr(validator, 'run_comprehensive_compliance_check')
+        assert hasattr(validator, "validate_reasoning_transparency")
+        assert hasattr(validator, "validate_automated_decision_making")
+        assert hasattr(validator, "validate_data_source_compliance")
+        assert hasattr(validator, "validate_prediction_format")
+        assert hasattr(validator, "run_comprehensive_compliance_check")
 
     def test_tournament_rule_compliance_monitor_initialization(self, tournament_config):
         """Test that tournament rule compliance monitor can be initialized."""
@@ -130,10 +134,12 @@ class TestTournamentCompliance:
         monitor = TournamentRuleComplianceMonitor(config)
 
         assert monitor is not None
-        assert hasattr(monitor, 'check_human_intervention')
-        assert hasattr(monitor, 'check_submission_timing')
+        assert hasattr(monitor, "check_human_intervention")
+        assert hasattr(monitor, "check_submission_timing")
 
-    def test_reasoning_transparency_validation(self, tournament_config, compliant_forecast):
+    def test_reasoning_transparency_validation(
+        self, tournament_config, compliant_forecast
+    ):
         """Test reasoning transparency validation."""
 
         config = Config.from_dict(tournament_config)
@@ -143,10 +149,10 @@ class TestTournamentCompliance:
         result = validator.validate_reasoning_transparency(compliant_forecast)
 
         assert result is not None
-        assert result.get('compliant', False) is True
-        assert result.get('transparency_score', 0) > 0.8
-        assert 'reasoning_length' in result
-        assert 'reasoning_steps_count' in result
+        assert result.get("compliant", False) is True
+        assert result.get("transparency_score", 0) > 0.8
+        assert "reasoning_length" in result
+        assert "reasoning_steps_count" in result
 
         # Test non-compliant forecast (insufficient reasoning)
         non_compliant_forecast = Forecast(
@@ -160,10 +166,12 @@ class TestTournamentCompliance:
         )
 
         result = validator.validate_reasoning_transparency(non_compliant_forecast)
-        assert result.get('compliant', True) is False
-        assert result.get('transparency_score', 1.0) < 0.5
+        assert result.get("compliant", True) is False
+        assert result.get("transparency_score", 1.0) < 0.5
 
-    def test_automated_decision_making_validation(self, tournament_config, compliant_forecast):
+    def test_automated_decision_making_validation(
+        self, tournament_config, compliant_forecast
+    ):
         """Test automated decision making validation."""
 
         config = Config.from_dict(tournament_config)
@@ -173,11 +181,13 @@ class TestTournamentCompliance:
         result = validator.validate_automated_decision_making(compliant_forecast)
 
         assert result is not None
-        assert result.get('compliant', False) is True
-        assert result.get('human_intervention', True) is False
-        assert result.get('automated_generation', False) is True
+        assert result.get("compliant", False) is True
+        assert result.get("human_intervention", True) is False
+        assert result.get("automated_generation", False) is True
 
-    def test_data_source_compliance_validation(self, tournament_config, compliant_forecast):
+    def test_data_source_compliance_validation(
+        self, tournament_config, compliant_forecast
+    ):
         """Test data source compliance validation."""
 
         config = Config.from_dict(tournament_config)
@@ -187,10 +197,10 @@ class TestTournamentCompliance:
         result = validator.validate_data_source_compliance(compliant_forecast)
 
         assert result is not None
-        assert result.get('compliant', False) is True
-        assert result.get('source_count', 0) > 0
-        assert result.get('reliability_score', 0) > 0.8
-        assert 'validated_sources' in result
+        assert result.get("compliant", False) is True
+        assert result.get("source_count", 0) > 0
+        assert result.get("reliability_score", 0) > 0.8
+        assert "validated_sources" in result
 
     def test_prediction_format_validation(self, tournament_config, compliant_forecast):
         """Test prediction format validation."""
@@ -202,13 +212,15 @@ class TestTournamentCompliance:
         result = validator.validate_prediction_format(compliant_forecast)
 
         assert result is not None
-        assert result.get('compliant', False) is True
-        assert result.get('prediction_valid', False) is True
-        assert result.get('confidence_valid', False) is True
-        assert 0 <= result.get('prediction_value', -1) <= 1
-        assert 0 <= result.get('confidence_value', -1) <= 1
+        assert result.get("compliant", False) is True
+        assert result.get("prediction_valid", False) is True
+        assert result.get("confidence_valid", False) is True
+        assert 0 <= result.get("prediction_value", -1) <= 1
+        assert 0 <= result.get("confidence_value", -1) <= 1
 
-    def test_comprehensive_compliance_check(self, tournament_config, compliant_forecast):
+    def test_comprehensive_compliance_check(
+        self, tournament_config, compliant_forecast
+    ):
         """Test comprehensive compliance check."""
 
         config = Config.from_dict(tournament_config)
@@ -218,20 +230,20 @@ class TestTournamentCompliance:
         result = validator.run_comprehensive_compliance_check(compliant_forecast)
 
         assert result is not None
-        assert 'overall_compliant' in result
-        assert 'compliance_score' in result
-        assert 'validation_results' in result
+        assert "overall_compliant" in result
+        assert "compliance_score" in result
+        assert "validation_results" in result
 
         # Check individual validation results
-        validation_results = result['validation_results']
-        assert 'reasoning_transparency' in validation_results
-        assert 'automated_decision_making' in validation_results
-        assert 'data_source_compliance' in validation_results
-        assert 'prediction_format' in validation_results
+        validation_results = result["validation_results"]
+        assert "reasoning_transparency" in validation_results
+        assert "automated_decision_making" in validation_results
+        assert "data_source_compliance" in validation_results
+        assert "prediction_format" in validation_results
 
         # Overall compliance should be true for compliant forecast
-        assert result.get('overall_compliant', False) is True
-        assert result.get('compliance_score', 0) > 0.8
+        assert result.get("overall_compliant", False) is True
+        assert result.get("compliance_score", 0) > 0.8
 
     def test_human_intervention_check(self, tournament_config, compliant_forecast):
         """Test human intervention check."""
@@ -243,10 +255,14 @@ class TestTournamentCompliance:
         result = monitor.check_human_intervention(compliant_forecast)
 
         assert result is not None
-        assert result.get('human_intervention_detected', True) is False
-        assert result.get('compliant', False) is True  # No human intervention is compliant
+        assert result.get("human_intervention_detected", True) is False
+        assert (
+            result.get("compliant", False) is True
+        )  # No human intervention is compliant
 
-    def test_submission_timing_check(self, tournament_config, sample_tournament_question):
+    def test_submission_timing_check(
+        self, tournament_config, sample_tournament_question
+    ):
         """Test submission timing check."""
 
         config = Config.from_dict(tournament_config)
@@ -256,9 +272,9 @@ class TestTournamentCompliance:
         result = monitor.check_submission_timing(sample_tournament_question)
 
         assert result is not None
-        assert 'submission_allowed' in result
-        assert 'time_until_close' in result
-        assert 'compliant' in result
+        assert "submission_allowed" in result
+        assert "time_until_close" in result
+        assert "compliant" in result
 
     @pytest.mark.asyncio
     async def test_end_to_end_compliance_validation(
@@ -266,23 +282,30 @@ class TestTournamentCompliance:
     ):
         """Test end-to-end compliance validation workflow."""
 
-        with patch.dict(os.environ, {
-            "OPENROUTER_API_KEY": "test-key",
-            "ASKNEWS_CLIENT_ID": "test-client-id",
-            "ASKNEWS_SECRET": "test-secret",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENROUTER_API_KEY": "test-key",
+                "ASKNEWS_CLIENT_ID": "test-client-id",
+                "ASKNEWS_SECRET": "test-secret",
+            },
+        ):
             # Mock compliant LLM response
             mock_llm_response = {
                 "reasoning": "Comprehensive analysis of climate data and policy trends suggests moderate probability of emission reduction targets being met in 2025. Key factors include renewable energy adoption rates, policy implementation effectiveness, and economic conditions.",
                 "prediction": 0.28,
                 "confidence": 0.75,
-                "sources": ["IEA reports", "Climate policy databases", "Economic analysis"],
+                "sources": [
+                    "IEA reports",
+                    "Climate policy databases",
+                    "Economic analysis",
+                ],
                 "reasoning_steps": [
                     "Analyzed historical emission trends",
                     "Reviewed current climate policies",
                     "Evaluated economic factors",
-                    "Synthesized expert predictions"
-                ]
+                    "Synthesized expert predictions",
+                ],
             }
 
             # Mock research results
@@ -311,8 +334,16 @@ class TestTournamentCompliance:
             mock_research_client.search.return_value = mock_research_results
 
             # Create agent and compliance validators
-            with patch('src.infrastructure.external_apis.llm_client.LLMClient', return_value=mock_llm_client), \
-                 patch('src.infrastructure.external_apis.tournament_asknews.TournamentAskNews', return_value=mock_research_client):
+            with (
+                patch(
+                    "src.infrastructure.external_apis.llm_client.LLMClient",
+                    return_value=mock_llm_client,
+                ),
+                patch(
+                    "src.infrastructure.external_apis.tournament_asknews.TournamentAskNews",
+                    return_value=mock_research_client,
+                ),
+            ):
 
                 config = Config.from_dict(tournament_config)
                 agent = EnsembleAgent("tournament-agent", config.llm_config)
@@ -327,23 +358,30 @@ class TestTournamentCompliance:
                 forecast = await agent.forecast(sample_tournament_question)
 
                 # Validate compliance
-                compliance_result = validator.run_comprehensive_compliance_check(forecast)
-                timing_result = monitor.check_submission_timing(sample_tournament_question)
+                compliance_result = validator.run_comprehensive_compliance_check(
+                    forecast
+                )
+                timing_result = monitor.check_submission_timing(
+                    sample_tournament_question
+                )
                 intervention_result = monitor.check_human_intervention(forecast)
 
                 # Verify forecast was generated
                 assert forecast is not None
 
                 # Verify compliance results
-                assert compliance_result.get('overall_compliant', False) is True
-                assert compliance_result.get('compliance_score', 0) > 0.7
+                assert compliance_result.get("overall_compliant", False) is True
+                assert compliance_result.get("compliance_score", 0) > 0.7
 
                 # Verify timing compliance
-                assert timing_result.get('compliant', False) is True
+                assert timing_result.get("compliant", False) is True
 
                 # Verify no human intervention
-                assert intervention_result.get('compliant', False) is True
-                assert intervention_result.get('human_intervention_detected', True) is False
+                assert intervention_result.get("compliant", False) is True
+                assert (
+                    intervention_result.get("human_intervention_detected", True)
+                    is False
+                )
 
     def test_non_compliant_forecast_detection(self, tournament_config):
         """Test detection of non-compliant forecasts."""
@@ -363,21 +401,21 @@ class TestTournamentCompliance:
             metadata={
                 "human_intervention": True,  # Human intervention detected
                 "automated_generation": False,
-            }
+            },
         )
 
         # Run compliance check
         result = validator.run_comprehensive_compliance_check(non_compliant_forecast)
 
         # Should detect non-compliance
-        assert result.get('overall_compliant', True) is False
-        assert result.get('compliance_score', 1.0) < 0.5
+        assert result.get("overall_compliant", True) is False
+        assert result.get("compliance_score", 1.0) < 0.5
 
         # Check specific validation failures
-        validation_results = result['validation_results']
-        assert validation_results['prediction_format']['compliant'] is False
-        assert validation_results['reasoning_transparency']['compliant'] is False
-        assert validation_results['data_source_compliance']['compliant'] is False
+        validation_results = result["validation_results"]
+        assert validation_results["prediction_format"]["compliant"] is False
+        assert validation_results["reasoning_transparency"]["compliant"] is False
+        assert validation_results["data_source_compliance"]["compliant"] is False
 
     def test_tournament_configuration_validation(self, tournament_config):
         """Test tournament configuration validation."""
@@ -385,14 +423,14 @@ class TestTournamentCompliance:
         config = Config.from_dict(tournament_config)
 
         # Verify tournament-specific settings
-        assert hasattr(config, 'tournament_id') or 'tournament' in tournament_config
-        assert config.llm_config.get('structured_output', False) is True
+        assert hasattr(config, "tournament_id") or "tournament" in tournament_config
+        assert config.llm_config.get("structured_output", False) is True
 
         # Verify compliance settings
-        compliance_config = tournament_config.get('compliance', {})
-        assert compliance_config.get('reasoning_transparency', False) is True
-        assert compliance_config.get('data_source_validation', False) is True
-        assert compliance_config.get('prediction_format_validation', False) is True
+        compliance_config = tournament_config.get("compliance", {})
+        assert compliance_config.get("reasoning_transparency", False) is True
+        assert compliance_config.get("data_source_validation", False) is True
+        assert compliance_config.get("prediction_format_validation", False) is True
 
     def test_deployment_readiness_checklist(self, tournament_config):
         """Test deployment readiness checklist for tournament compliance."""
@@ -410,19 +448,19 @@ class TestTournamentCompliance:
 
         # Check 2: All required validation methods exist
         required_validator_methods = [
-            'validate_reasoning_transparency',
-            'validate_automated_decision_making',
-            'validate_data_source_compliance',
-            'validate_prediction_format',
-            'run_comprehensive_compliance_check'
+            "validate_reasoning_transparency",
+            "validate_automated_decision_making",
+            "validate_data_source_compliance",
+            "validate_prediction_format",
+            "run_comprehensive_compliance_check",
         ]
 
         for method in required_validator_methods:
             assert hasattr(validator, method), f"Missing validator method: {method}"
 
         required_monitor_methods = [
-            'check_human_intervention',
-            'check_submission_timing'
+            "check_human_intervention",
+            "check_submission_timing",
         ]
 
         for method in required_monitor_methods:
@@ -430,8 +468,8 @@ class TestTournamentCompliance:
 
         # Check 3: Configuration supports tournament requirements
         assert config.llm_config is not None
-        assert config.llm_config.get('provider') is not None
-        assert config.llm_config.get('model') is not None
+        assert config.llm_config.get("provider") is not None
+        assert config.llm_config.get("model") is not None
 
         # Check 4: Agent can be initialized for tournament
         try:
@@ -449,8 +487,8 @@ class TestTournamentCompliance:
         # Test with None forecast
         result = validator.run_comprehensive_compliance_check(None)
         assert result is not None
-        assert result.get('overall_compliant', True) is False
-        assert 'error' in result
+        assert result.get("overall_compliant", True) is False
+        assert "error" in result
 
         # Test with malformed forecast
         malformed_forecast = Mock()
@@ -460,4 +498,4 @@ class TestTournamentCompliance:
 
         result = validator.validate_prediction_format(malformed_forecast)
         assert result is not None
-        assert result.get('compliant', True) is False
+        assert result.get("compliant", True) is False

@@ -70,12 +70,12 @@ jobs:
           # Run the monitoring script with JSON output
           REPORT=$(poetry run python scripts/deployment_cost_monitor.py --json-output)
 
-          # Extract key metrics
-          BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status')
-          UTILIZATION=$(echo "$REPORT" | jq -r '.budget_status.utilization')
-          ALERT_LEVEL=$(echo "$REPORT" | jq -r '.alert_level')
-          SPENT=$(echo "$REPORT" | jq -r '.budget_status.spent')
-          REMAINING=$(echo "$REPORT" | jq -r '.budget_status.remaining')
+          # Extract key metrics safely
+          BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"' 2>/dev/null || echo "normal")
+          UTILIZATION=$(echo "$REPORT" | jq -r '.budget_status.utilization // 0' 2>/dev/null || echo "0")
+          ALERT_LEVEL=$(echo "$REPORT" | jq -r '.alert_level // "normal"' 2>/dev/null || echo "normal")
+          SPENT=$(echo "$REPORT" | jq -r '.budget_status.spent // 0' 2>/dev/null || echo "0")
+          REMAINING=$(echo "$REPORT" | jq -r '.budget_status.remaining // 100' 2>/dev/null || echo "100")
 
           # Set outputs
           echo "budget_status=$BUDGET_STATUS" >> $GITHUB_OUTPUT

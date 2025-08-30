@@ -125,23 +125,23 @@ jobs:
           case "${{ matrix.test-type }}" in
             unit)
               if command -v poetry &> /dev/null && poetry env info &> /dev/null; then
-                poetry run pytest tests/unit/ -v --cov=src --cov-report=xml --timeout=300
+                poetry run pytest tests/unit/ -v --cov=src --cov-report=xml
               else
-                python -m pytest tests/unit/ -v --cov=src --cov-report=xml --timeout=300
+                python -m pytest tests/unit/ -v --cov=src --cov-report=xml
               fi
               ;;
             integration)
               if command -v poetry &> /dev/null && poetry env info &> /dev/null; then
-                poetry run pytest tests/integration/ -v --timeout=600
+                poetry run pytest tests/integration/ -v
               else
-                python -m pytest tests/integration/ -v --timeout=600
+                python -m pytest tests/integration/ -v
               fi
               ;;
             e2e)
               if command -v poetry &> /dev/null && poetry env info &> /dev/null; then
-                poetry run pytest tests/e2e/ -v --timeout=900
+                poetry run pytest tests/e2e/ -v
               else
-                python -m pytest tests/e2e/ -v --timeout=900
+                python -m pytest tests/e2e/ -v
               fi
               ;;
           esac

@@ -39,7 +39,9 @@ class BudgetAwareModelRouter:
             self.current_spend = float(os.getenv("CURRENT_SPEND", "0.0"))
             self.budget_limit = float(os.getenv("BUDGET_LIMIT", str(self.budget_limit)))
         except (ValueError, TypeError):
-            logger.warning("Could not load budget status from environment, using defaults")
+            logger.warning(
+                "Could not load budget status from environment, using defaults"
+            )
             self.current_spend = 0.0
 
     def get_budget_utilization(self) -> float:
@@ -51,17 +53,14 @@ class BudgetAwareModelRouter:
     def is_test_environment(self) -> bool:
         """Check if running in test/CI environment."""
         return (
-            os.getenv("CI") == "true" or
-            os.getenv("PYTEST_CURRENT_TEST") is not None or
-            os.getenv("GITHUB_ACTIONS") == "true" or
-            "test" in os.getenv("ENVIRONMENT", "").lower()
+            os.getenv("CI") == "true"
+            or os.getenv("PYTEST_CURRENT_TEST") is not None
+            or os.getenv("GITHUB_ACTIONS") == "true"
+            or "test" in os.getenv("ENVIRONMENT", "").lower()
         )
 
     def select_model(
-        self,
-        task_type: str,
-        requires_tools: bool = False,
-        is_test: bool = None
+        self, task_type: str, requires_tools: bool = False, is_test: bool = None
     ) -> str:
         """
         Select appropriate model based on budget and requirements.
@@ -87,20 +86,28 @@ class BudgetAwareModelRouter:
 
         # Critical budget situation (>95%) - free models only
         if utilization > 95:
-            logger.warning(f"Critical budget utilization ({utilization:.1f}%), using free models only")
+            logger.warning(
+                f"Critical budget utilization ({utilization:.1f}%), using free models only"
+            )
             if requires_tools:
                 return "openai/gpt-oss-120b:free"  # Supports tools
             else:
-                return "moonshotai/kimi-k2:free"  # No tools but potentially better quality
+                return (
+                    "moonshotai/kimi-k2:free"  # No tools but potentially better quality
+                )
 
         # High budget utilization (>80%) - budget-conscious models
         elif utilization > 80:
-            logger.info(f"High budget utilization ({utilization:.1f}%), using budget-conscious models")
+            logger.info(
+                f"High budget utilization ({utilization:.1f}%), using budget-conscious models"
+            )
             return "gpt-4o-mini"
 
         # Medium budget utilization (>50%) - balanced approach
         elif utilization > 50:
-            logger.info(f"Medium budget utilization ({utilization:.1f}%), using balanced model selection")
+            logger.info(
+                f"Medium budget utilization ({utilization:.1f}%), using balanced model selection"
+            )
             if task_type in ["research", "validation"]:
                 return "gpt-4o-mini"  # Use cheaper model for non-critical tasks
             else:
@@ -108,7 +115,9 @@ class BudgetAwareModelRouter:
 
         # Low budget utilization (<50%) - premium models allowed
         else:
-            logger.info(f"Low budget utilization ({utilization:.1f}%), using premium models")
+            logger.info(
+                f"Low budget utilization ({utilization:.1f}%), using premium models"
+            )
             if task_type == "forecasting":
                 return "gpt-4o"  # Best model for critical forecasting
             else:
@@ -165,7 +174,9 @@ class BudgetAwareModelRouter:
         remaining_budget = self.budget_limit - self.current_spend
         return estimated_cost <= remaining_budget
 
-    def get_fallback_model(self, original_model: str, requires_tools: bool = False) -> str:
+    def get_fallback_model(
+        self, original_model: str, requires_tools: bool = False
+    ) -> str:
         """Get fallback model if original model is too expensive."""
         if requires_tools:
             return "openai/gpt-oss-120b:free"
@@ -177,7 +188,7 @@ class BudgetAwareModelRouter:
         task_type: str,
         requires_tools: bool = False,
         estimated_tokens: int = 1000,
-        is_test: bool = None
+        is_test: bool = None,
     ) -> str:
         """
         Select model with automatic fallback if budget insufficient.
@@ -206,7 +217,9 @@ class BudgetAwareModelRouter:
         )
         return fallback_model
 
-    def log_model_usage(self, model_name: str, tokens_used: int, actual_cost: float = None) -> None:
+    def log_model_usage(
+        self, model_name: str, tokens_used: int, actual_cost: float = None
+    ) -> None:
         """Log model usage for budget tracking."""
         if actual_cost is None:
             actual_cost = self.estimate_cost(model_name, tokens_used)
@@ -272,12 +285,14 @@ class BudgetAwareModelRouter:
 # Global instance for easy access
 _global_router = None
 
+
 def get_model_router() -> BudgetAwareModelRouter:
     """Get global model router instance."""
     global _global_router
     if _global_router is None:
         _global_router = BudgetAwareModelRouter()
     return _global_router
+
 
 def select_model_for_task(task_type: str, requires_tools: bool = False) -> str:
     """Convenience function to select model for a task."""

@@ -8,7 +8,11 @@ import os
 import pytest
 from unittest.mock import patch
 
-from src.infrastructure.model_router import BudgetAwareModelRouter, get_model_router, select_model_for_task
+from src.infrastructure.model_router import (
+    BudgetAwareModelRouter,
+    get_model_router,
+    select_model_for_task,
+)
 
 
 class TestBudgetAwareModelRouter:
@@ -86,10 +90,14 @@ class TestBudgetAwareModelRouter:
         router.current_spend = 60.0  # 60% utilization
 
         # Should use balanced approach
-        research_model = router.select_model("research", requires_tools=False, is_test=False)
+        research_model = router.select_model(
+            "research", requires_tools=False, is_test=False
+        )
         assert research_model == "gpt-4o-mini"
 
-        forecast_model = router.select_model("forecasting", requires_tools=False, is_test=False)
+        forecast_model = router.select_model(
+            "forecasting", requires_tools=False, is_test=False
+        )
         assert forecast_model == "gpt-4o"
 
     def test_model_selection_low_budget(self):
@@ -98,10 +106,14 @@ class TestBudgetAwareModelRouter:
         router.current_spend = 30.0  # 30% utilization
 
         # Should allow premium models for forecasting
-        forecast_model = router.select_model("forecasting", requires_tools=False, is_test=False)
+        forecast_model = router.select_model(
+            "forecasting", requires_tools=False, is_test=False
+        )
         assert forecast_model == "gpt-4o"
 
-        research_model = router.select_model("research", requires_tools=False, is_test=False)
+        research_model = router.select_model(
+            "research", requires_tools=False, is_test=False
+        )
         assert research_model == "gpt-4o-mini"
 
     def test_model_config_retrieval(self):
@@ -135,7 +147,9 @@ class TestBudgetAwareModelRouter:
         router.current_spend = 95.0  # Only $5 remaining
 
         # Should not be able to afford expensive model
-        can_afford_expensive = router.can_afford_model("gpt-4o", 500000)  # ~$7.50, more than $5 remaining
+        can_afford_expensive = router.can_afford_model(
+            "gpt-4o", 500000
+        )  # ~$7.50, more than $5 remaining
         assert can_afford_expensive is False
 
         # Should be able to afford free model
@@ -149,7 +163,9 @@ class TestBudgetAwareModelRouter:
         fallback_with_tools = router.get_fallback_model("gpt-4o", requires_tools=True)
         assert fallback_with_tools == "openai/gpt-oss-120b:free"
 
-        fallback_without_tools = router.get_fallback_model("gpt-4o", requires_tools=False)
+        fallback_without_tools = router.get_fallback_model(
+            "gpt-4o", requires_tools=False
+        )
         assert fallback_without_tools == "moonshotai/kimi-k2:free"
 
     def test_model_selection_with_fallback(self):
@@ -162,7 +178,7 @@ class TestBudgetAwareModelRouter:
             "forecasting",
             requires_tools=True,
             estimated_tokens=10000,  # Would cost ~$0.15 for gpt-4o
-            is_test=False
+            is_test=False,
         )
         assert model == "openai/gpt-oss-120b:free"
 
@@ -191,10 +207,7 @@ class TestBudgetAwareModelRouter:
 
     def test_environment_variable_loading(self):
         """Test loading budget status from environment variables."""
-        with patch.dict(os.environ, {
-            "BUDGET_LIMIT": "200.0",
-            "CURRENT_SPEND": "50.0"
-        }):
+        with patch.dict(os.environ, {"BUDGET_LIMIT": "200.0", "CURRENT_SPEND": "50.0"}):
             router = BudgetAwareModelRouter()
             router.load_budget_status()
 
@@ -240,14 +253,17 @@ class TestBudgetAwareModelRouter:
         critical_recs = router._get_recommended_models(96.0)
         assert critical_recs["forecasting"] == "openai/gpt-oss-120b:free"
 
-    @pytest.mark.parametrize("utilization,expected_mode", [
-        (0.0, "normal"),
-        (30.0, "normal"),
-        (60.0, "conservative"),
-        (85.0, "emergency"),
-        (96.0, "critical"),
-        (99.0, "critical"),
-    ])
+    @pytest.mark.parametrize(
+        "utilization,expected_mode",
+        [
+            (0.0, "normal"),
+            (30.0, "normal"),
+            (60.0, "conservative"),
+            (85.0, "emergency"),
+            (96.0, "critical"),
+            (99.0, "critical"),
+        ],
+    )
     def test_operation_modes(self, utilization, expected_mode):
         """Test operation mode determination for various utilization levels."""
         router = BudgetAwareModelRouter()

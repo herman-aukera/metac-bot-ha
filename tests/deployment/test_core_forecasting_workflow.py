@@ -76,13 +76,17 @@ class TestCoreForeccastingWorkflow:
             "reasoning": "Based on current AI research trends and expert opinions, I estimate a moderate probability of AGI by 2030. Key factors include rapid progress in large language models, increasing computational resources, and growing industry investment. However, significant challenges remain in areas like reasoning, planning, and real-world understanding.",
             "prediction": 0.35,
             "confidence": 0.72,
-            "sources": ["AI expert surveys", "Recent ML research papers", "Industry progress reports"],
+            "sources": [
+                "AI expert surveys",
+                "Recent ML research papers",
+                "Industry progress reports",
+            ],
             "reasoning_steps": [
                 "Analyzed current AI capabilities and limitations",
                 "Reviewed expert surveys and predictions",
                 "Considered technological and resource constraints",
-                "Evaluated potential breakthrough scenarios"
-            ]
+                "Evaluated potential breakthrough scenarios",
+            ],
         }
 
     @pytest.fixture
@@ -111,11 +115,14 @@ class TestCoreForeccastingWorkflow:
     ):
         """Test minimal forecasting workflow with mocked dependencies."""
 
-        with patch.dict(os.environ, {
-            "OPENROUTER_API_KEY": "test-key",
-            "ASKNEWS_CLIENT_ID": "test-client-id",
-            "ASKNEWS_SECRET": "test-secret",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENROUTER_API_KEY": "test-key",
+                "ASKNEWS_CLIENT_ID": "test-client-id",
+                "ASKNEWS_SECRET": "test-secret",
+            },
+        ):
             # Mock LLM client
             mock_llm_client = AsyncMock()
             mock_llm_client.generate_response.return_value = str(mock_llm_response)
@@ -126,8 +133,16 @@ class TestCoreForeccastingWorkflow:
             mock_research_client.search.return_value = mock_research_results
 
             # Create agent with mocked dependencies
-            with patch('src.infrastructure.external_apis.llm_client.LLMClient', return_value=mock_llm_client), \
-                 patch('src.infrastructure.external_apis.tournament_asknews.TournamentAskNews', return_value=mock_research_client):
+            with (
+                patch(
+                    "src.infrastructure.external_apis.llm_client.LLMClient",
+                    return_value=mock_llm_client,
+                ),
+                patch(
+                    "src.infrastructure.external_apis.tournament_asknews.TournamentAskNews",
+                    return_value=mock_research_client,
+                ),
+            ):
 
                 config = Config.from_dict(minimal_config)
                 agent = EnsembleAgent("test-agent", config.llm_config)
@@ -170,26 +185,41 @@ class TestCoreForeccastingWorkflow:
     ):
         """Test forecasting workflow when research fails but LLM still works."""
 
-        with patch.dict(os.environ, {
-            "OPENROUTER_API_KEY": "test-key",
-            "ASKNEWS_CLIENT_ID": "test-client-id",
-            "ASKNEWS_SECRET": "test-secret",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENROUTER_API_KEY": "test-key",
+                "ASKNEWS_CLIENT_ID": "test-client-id",
+                "ASKNEWS_SECRET": "test-secret",
+            },
+        ):
             # Mock LLM client (working)
             mock_llm_client = AsyncMock()
-            mock_llm_client.generate_response.return_value = str({
-                **mock_llm_response,
-                "confidence": 0.5,  # Reduced confidence due to no research
-                "reasoning": "Analysis without research data - reduced confidence due to limited information sources."
-            })
+            mock_llm_client.generate_response.return_value = str(
+                {
+                    **mock_llm_response,
+                    "confidence": 0.5,  # Reduced confidence due to no research
+                    "reasoning": "Analysis without research data - reduced confidence due to limited information sources.",
+                }
+            )
 
             # Mock research client (failing)
             mock_research_client = AsyncMock()
-            mock_research_client.search.side_effect = Exception("Research service unavailable")
+            mock_research_client.search.side_effect = Exception(
+                "Research service unavailable"
+            )
 
             # Create agent with mocked dependencies
-            with patch('src.infrastructure.external_apis.llm_client.LLMClient', return_value=mock_llm_client), \
-                 patch('src.infrastructure.external_apis.tournament_asknews.TournamentAskNews', return_value=mock_research_client):
+            with (
+                patch(
+                    "src.infrastructure.external_apis.llm_client.LLMClient",
+                    return_value=mock_llm_client,
+                ),
+                patch(
+                    "src.infrastructure.external_apis.tournament_asknews.TournamentAskNews",
+                    return_value=mock_research_client,
+                ),
+            ):
 
                 config = Config.from_dict(minimal_config)
                 agent = EnsembleAgent("test-agent", config.llm_config)
@@ -209,7 +239,10 @@ class TestCoreForeccastingWorkflow:
                 assert forecast.confidence.value <= 0.6
 
                 # Verify reasoning mentions limited information
-                assert "limited" in forecast.reasoning.lower() or "reduced" in forecast.reasoning.lower()
+                assert (
+                    "limited" in forecast.reasoning.lower()
+                    or "reduced" in forecast.reasoning.lower()
+                )
 
     @pytest.mark.asyncio
     async def test_forecasting_performance_benchmark(
@@ -217,11 +250,14 @@ class TestCoreForeccastingWorkflow:
     ):
         """Test forecasting performance meets deployment requirements."""
 
-        with patch.dict(os.environ, {
-            "OPENROUTER_API_KEY": "test-key",
-            "ASKNEWS_CLIENT_ID": "test-client-id",
-            "ASKNEWS_SECRET": "test-secret",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENROUTER_API_KEY": "test-key",
+                "ASKNEWS_CLIENT_ID": "test-client-id",
+                "ASKNEWS_SECRET": "test-secret",
+            },
+        ):
             # Mock fast responses
             mock_llm_client = AsyncMock()
             mock_llm_client.generate_response.return_value = str(mock_llm_response)
@@ -230,8 +266,16 @@ class TestCoreForeccastingWorkflow:
             mock_research_client.search.return_value = mock_research_results
 
             # Create agent with mocked dependencies
-            with patch('src.infrastructure.external_apis.llm_client.LLMClient', return_value=mock_llm_client), \
-                 patch('src.infrastructure.external_apis.tournament_asknews.TournamentAskNews', return_value=mock_research_client):
+            with (
+                patch(
+                    "src.infrastructure.external_apis.llm_client.LLMClient",
+                    return_value=mock_llm_client,
+                ),
+                patch(
+                    "src.infrastructure.external_apis.tournament_asknews.TournamentAskNews",
+                    return_value=mock_research_client,
+                ),
+            ):
 
                 config = Config.from_dict(minimal_config)
                 agent = EnsembleAgent("test-agent", config.llm_config)
@@ -242,6 +286,7 @@ class TestCoreForeccastingWorkflow:
 
                 # Measure execution time
                 import time
+
                 start_time = time.time()
 
                 forecast = await agent.forecast(sample_question)
@@ -251,21 +296,30 @@ class TestCoreForeccastingWorkflow:
 
                 # Verify performance requirements
                 assert forecast is not None
-                assert execution_time < 30  # Should complete within 30 seconds with mocks
+                assert (
+                    execution_time < 30
+                )  # Should complete within 30 seconds with mocks
 
                 # Verify API call efficiency
-                assert mock_llm_client.generate_response.call_count <= 5  # Limited API calls
-                assert mock_research_client.search.call_count <= 3  # Limited research calls
+                assert (
+                    mock_llm_client.generate_response.call_count <= 5
+                )  # Limited API calls
+                assert (
+                    mock_research_client.search.call_count <= 3
+                )  # Limited research calls
 
     @pytest.mark.asyncio
     async def test_configuration_validation(self, minimal_config):
         """Test that minimal configuration is valid for deployment."""
 
-        with patch.dict(os.environ, {
-            "OPENROUTER_API_KEY": "test-key",
-            "ASKNEWS_CLIENT_ID": "test-client-id",
-            "ASKNEWS_SECRET": "test-secret",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENROUTER_API_KEY": "test-key",
+                "ASKNEWS_CLIENT_ID": "test-client-id",
+                "ASKNEWS_SECRET": "test-secret",
+            },
+        ):
             # Test configuration loading
             config = Config.from_dict(minimal_config)
 
@@ -276,7 +330,7 @@ class TestCoreForeccastingWorkflow:
             assert config.llm_config.get("api_key") is not None
 
             # Verify tournament configuration
-            assert hasattr(config, 'tournament_id') or 'tournament' in minimal_config
+            assert hasattr(config, "tournament_id") or "tournament" in minimal_config
 
             # Verify agent can be initialized with this config
             agent = EnsembleAgent("test-agent", config.llm_config)
@@ -309,11 +363,7 @@ class TestCoreForeccastingWorkflow:
     def test_environment_variable_handling(self):
         """Test environment variable handling for deployment."""
 
-        required_vars = [
-            "OPENROUTER_API_KEY",
-            "ASKNEWS_CLIENT_ID",
-            "ASKNEWS_SECRET"
-        ]
+        required_vars = ["OPENROUTER_API_KEY", "ASKNEWS_CLIENT_ID", "ASKNEWS_SECRET"]
 
         # Test with missing variables
         for var in required_vars:
@@ -325,13 +375,18 @@ class TestCoreForeccastingWorkflow:
                     assert True  # If we get here, config handled missing vars
                 except Exception as e:
                     # Error should be informative
-                    assert var.lower() in str(e).lower() or "environment" in str(e).lower()
+                    assert (
+                        var.lower() in str(e).lower() or "environment" in str(e).lower()
+                    )
 
         # Test with all variables present
-        with patch.dict(os.environ, {
-            "OPENROUTER_API_KEY": "test-key",
-            "ASKNEWS_CLIENT_ID": "test-client-id",
-            "ASKNEWS_SECRET": "test-secret",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENROUTER_API_KEY": "test-key",
+                "ASKNEWS_CLIENT_ID": "test-client-id",
+                "ASKNEWS_SECRET": "test-secret",
+            },
+        ):
             config = Config()
             assert config is not None
