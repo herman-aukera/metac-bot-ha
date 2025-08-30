@@ -1,0 +1,33 @@
+{
+  "checks": {
+    "Python Version": {
+      "success": true,
+      "message": "Python 3.13.2"
+    },
+    "Essential Imports": {
+      "success": true,
+      "message": "All essential modules available"
+    },
+    "Optional Imports": {
+      "success": true,
+      "message": "Available: Forecasting Tools | Missing: AskNews SDK"
+    },
+    "Environment Variables": {
+      "success": true,
+      "message": "Fork mode: Environment variable check skipped (secrets not available in forks)"
+    },
+    "Project Structure": {
+      "success": true,
+      "message": "Essential project structure complete"
+    }
+  },
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "warnings": 0
+  },
+  "deployment_ready": true,
+  "fork_mode": true,
+  "timestamp": "2025-08-30T17:10:12.794234"
+}
