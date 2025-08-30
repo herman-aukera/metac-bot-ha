@@ -70,31 +70,61 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
         """Handle file modification events."""
         if not event.is_directory and self._is_config_file(event.src_path):
             self.logger.info("Configuration file modified", path=event.src_path)
-            asyncio.create_task(
-                self.config_manager._handle_config_change(
-                    ConfigChangeType.MODIFIED, Path(event.src_path)
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(
+                    self.config_manager._handle_config_change(
+                        ConfigChangeType.MODIFIED, Path(event.src_path)
+                    )
                 )
-            )
+            except RuntimeError:
+                self.logger.warning("No running event loop, deferring config change handling")
+                if not hasattr(self.config_manager, '_deferred_changes'):
+                    self.config_manager._deferred_changes = []
+                self.config_manager._deferred_changes.append(
+                    (ConfigChangeType.MODIFIED, Path(event.src_path))
+                )
 
     def on_created(self, event):
         """Handle file creation events."""
         if not event.is_directory and self._is_config_file(event.src_path):
             self.logger.info("Configuration file created", path=event.src_path)
-            asyncio.create_task(
-                self.config_manager._handle_config_change(
-                    ConfigChangeType.CREATED, Path(event.src_path)
+            try:
+                # Try to create task if event loop is running
+                loop = asyncio.get_running_loop()
+                loop.create_task(
+                    self.config_manager._handle_config_change(
+                        ConfigChangeType.CREATED, Path(event.src_path)
+                    )
                 )
-            )
+            except RuntimeError:
+                # No running event loop, defer to main thread
+                self.logger.warning("No running event loop, deferring config change handling")
+                # Store change for later processing
+                if not hasattr(self.config_manager, '_deferred_changes'):
+                    self.config_manager._deferred_changes = []
+                self.config_manager._deferred_changes.append(
+                    (ConfigChangeType.CREATED, Path(event.src_path))
+                )
 
     def on_deleted(self, event):
         """Handle file deletion events."""
         if not event.is_directory and self._is_config_file(event.src_path):
             self.logger.info("Configuration file deleted", path=event.src_path)
-            asyncio.create_task(
-                self.config_manager._handle_config_change(
-                    ConfigChangeType.DELETED, Path(event.src_path)
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(
+                    self.config_manager._handle_config_change(
+                        ConfigChangeType.DELETED, Path(event.src_path)
+                    )
                 )
-            )
+            except RuntimeError:
+                self.logger.warning("No running event loop, deferring config change handling")
+                if not hasattr(self.config_manager, '_deferred_changes'):
+                    self.config_manager._deferred_changes = []
+                self.config_manager._deferred_changes.append(
+                    (ConfigChangeType.DELETED, Path(event.src_path))
+                )
 
     def on_moved(self, event):
         """Handle file move events."""
@@ -105,11 +135,17 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
             self.logger.info(
                 "Configuration file moved", src=event.src_path, dest=event.dest_path
             )
-            asyncio.create_task(
-                self.config_manager._handle_config_change(
-                    ConfigChangeType.MOVED, Path(event.dest_path)
+            try:
+                loop = asyncio.get_running_loop()
+                    )
                 )
-            )
+            except RuntimeError:
+                self.logger.warning("No running event loop, deferring config change handling")
+                if not hasattr(self.config_manager, '_deferred_changes'):
+                    self.config_manager._deferred_changes = []
+                self.config_manager._deferred_changes.append(
+                    (ConfigChangeType.MOVED, Path(event.dest_path))
+                )
 
     def _is_config_file(self, file_path: str) -> bool:
         """Check if file is a configuration file."""
