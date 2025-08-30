@@ -568,8 +568,13 @@ class QuantitativeDataDetector(GapDetectionStrategy):
                     # Check if the indicator is negated (preceded by "without", "no", "not", etc.)
                     indicator_pos = content.find(indicator)
                     if indicator_pos > 0:
-                        preceding_text = content[max(0, indicator_pos-20):indicator_pos]
-                        if any(neg in preceding_text for neg in ["without", "no ", "not ", "lack", "lacking"]):
+                        preceding_text = content[
+                            max(0, indicator_pos - 20) : indicator_pos
+                        ]
+                        if any(
+                            neg in preceding_text
+                            for neg in ["without", "no ", "not ", "lack", "lacking"]
+                        ):
                             continue  # Skip negated indicators
                     has_quantitative = True
                     break
@@ -810,7 +815,9 @@ class KnowledgeGapDetector:
             overall_quality = ResearchQuality.LOW
 
         # Calculate confidence level with improved formula
-        gap_penalty = sum(g.confidence_reduction for g in gaps) * 0.5  # Reduce penalty impact
+        gap_penalty = (
+            sum(g.confidence_reduction for g in gaps) * 0.5
+        )  # Reduce penalty impact
         base_confidence = (avg_credibility + completeness_score) / 2  # Use both factors
         confidence_level = max(0.1, base_confidence - gap_penalty)
 

@@ -306,7 +306,9 @@ class TestTournamentSimulation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(0.4 + random.random() * 0.2),  # 0.4-0.6 range
-                confidence=ConfidenceLevel(0.7 + random.random() * 0.2),  # 0.7-0.9 range
+                confidence=ConfidenceLevel(
+                    0.7 + random.random() * 0.2
+                ),  # 0.7-0.9 range
                 reasoning=f"Mocked reasoning for question {question.id}",
                 method="ensemble",
                 sources=["mock_source_1", "mock_source_2"],
@@ -363,7 +365,9 @@ class TestTournamentSimulation:
             return Forecast(
                 question_id=question.id,
                 prediction=Probability(prediction),
-                confidence=ConfidenceLevel(0.5 + random.random() * 0.3),  # Lower confidence
+                confidence=ConfidenceLevel(
+                    0.5 + random.random() * 0.3
+                ),  # Lower confidence
                 reasoning=f"Rushed analysis for question {question.id}",
                 method="ensemble",
                 sources=["limited_source"],

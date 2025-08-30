@@ -40,6 +40,7 @@ class TestDynamicWeightAdjuster:
     def sample_question(self):
         """Create a sample question for testing."""
         from src.domain.entities.question import QuestionType, QuestionStatus
+
         return Question(
             id=uuid4(),
             metaculus_id=12345,
@@ -62,6 +63,7 @@ class TestDynamicWeightAdjuster:
         """Create a sample prediction for testing."""
         from src.domain.entities.prediction import PredictionResult
         from datetime import datetime
+
         return Prediction(
             id=uuid4(),
             question_id=sample_question.id,
@@ -301,7 +303,10 @@ class TestDynamicWeightAdjuster:
         composition = adjuster.recommend_ensemble_composition(agents)
 
         # The degrading agent should have lower weight than the stable agent
-        if "degrading_agent" in composition.agent_weights and "stable_agent" in composition.agent_weights:
+        if (
+            "degrading_agent" in composition.agent_weights
+            and "stable_agent" in composition.agent_weights
+        ):
             assert (
                 composition.agent_weights["degrading_agent"]
                 < composition.agent_weights["stable_agent"]

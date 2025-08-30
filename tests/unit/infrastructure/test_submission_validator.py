@@ -313,7 +313,10 @@ class TestSubmissionValidator:
             binary_probability=0.75, numeric_value=None, choice_index=None
         )
 
-        from src.domain.entities.prediction import PredictionConfidence, PredictionMethod
+        from src.domain.entities.prediction import (
+            PredictionConfidence,
+            PredictionMethod,
+        )
         from uuid import uuid4
         from datetime import datetime
 

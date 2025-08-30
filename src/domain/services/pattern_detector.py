@@ -263,10 +263,10 @@ class PatternDetector:
         for i, forecast in enumerate(forecasts):
             question_type = question_type_map.get(forecast.question_id)
             if question_type and ground_truth and i < len(ground_truth):
-                prediction_prob = getattr(forecast.final_prediction.result, 'binary_probability', 0.5)
-                accuracy = (
-                    1.0 if (prediction_prob > 0.5) == ground_truth[i] else 0.0
+                prediction_prob = getattr(
+                    forecast.final_prediction.result, "binary_probability", 0.5
                 )
+                accuracy = 1.0 if (prediction_prob > 0.5) == ground_truth[i] else 0.0
                 type_performance[question_type].append(
                     {
                         "forecast": forecast,
@@ -294,7 +294,17 @@ class PatternDetector:
             overall_accuracy = (
                 statistics.mean(
                     [
-                        1.0 if (getattr(f.final_prediction.result, 'binary_probability', 0.5) > 0.5) == truth else 0.0
+                        (
+                            1.0
+                            if (
+                                getattr(
+                                    f.final_prediction.result, "binary_probability", 0.5
+                                )
+                                > 0.5
+                            )
+                            == truth
+                            else 0.0
+                        )
                         for f, truth in zip(forecasts, ground_truth or [])
                         if truth is not None
                     ]
@@ -305,7 +315,9 @@ class PatternDetector:
 
             performance_diff = avg_accuracy - overall_accuracy
 
-            if abs(performance_diff) > 0.05:  # Significant difference (lowered threshold)
+            if (
+                abs(performance_diff) > 0.05
+            ):  # Significant difference (lowered threshold)
                 trend = "improving" if performance_diff > 0 else "declining"
 
                 pattern = DetectedPattern(
@@ -388,11 +400,23 @@ class PatternDetector:
             window_data = sorted_forecasts[i : i + window_size]
             window_accuracy = statistics.mean(
                 [
-                    1.0 if (getattr(f.final_prediction.result, 'binary_probability', 0.5) > 0.5) == truth else 0.0
+                    (
+                        1.0
+                        if (
+                            getattr(
+                                f.final_prediction.result, "binary_probability", 0.5
+                            )
+                            > 0.5
+                        )
+                        == truth
+                        else 0.0
+                    )
                     for f, truth in window_data
                 ]
             )
-            window_confidence = statistics.mean([f.confidence_score for f, _ in window_data])
+            window_confidence = statistics.mean(
+                [f.confidence_score for f, _ in window_data]
+            )
             window_time = statistics.mean(
                 [f.created_at.timestamp() for f, _ in window_data]
             )
@@ -492,7 +516,15 @@ class PatternDetector:
             if truth is None:
                 continue
 
-            accuracy = 1.0 if (getattr(forecast.final_prediction.result, 'binary_probability', 0.5) > 0.5) == truth else 0.0
+            accuracy = (
+                1.0
+                if (
+                    getattr(forecast.final_prediction.result, "binary_probability", 0.5)
+                    > 0.5
+                )
+                == truth
+                else 0.0
+            )
 
             if forecast.confidence_score < 0.4:
                 confidence_bins["low"].append(accuracy)
@@ -569,7 +601,9 @@ class PatternDetector:
                 continue
 
             method = forecast.method
-            prediction_prob = getattr(forecast.final_prediction.result, 'binary_probability', 0.5)
+            prediction_prob = getattr(
+                forecast.final_prediction.result, "binary_probability", 0.5
+            )
             accuracy = 1.0 if (prediction_prob > 0.5) == truth else 0.0
             brier_score = (prediction_prob - (1.0 if truth else 0.0)) ** 2
 
@@ -753,10 +787,10 @@ class PatternDetector:
 
         for i, forecast in enumerate(forecasts):
             if ground_truth and i < len(ground_truth) and ground_truth[i] is not None:
-                prediction_prob = getattr(forecast.final_prediction.result, 'binary_probability', 0.5)
-                accuracy = (
-                    1.0 if (prediction_prob > 0.5) == ground_truth[i] else 0.0
+                prediction_prob = getattr(
+                    forecast.final_prediction.result, "binary_probability", 0.5
                 )
+                accuracy = 1.0 if (prediction_prob > 0.5) == ground_truth[i] else 0.0
 
                 month = forecast.created_at.month
                 weekday = forecast.created_at.weekday()

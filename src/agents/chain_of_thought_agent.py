@@ -459,12 +459,15 @@ Uncertainty sources:
             title=f"Chain of Thought Research: {question.title}",
             executive_summary="Research conducted using chain-of-thought reasoning methodology",
             detailed_analysis="Systematic analysis using multiple reasoning steps and hypothesis evaluation",
-            sources=[ResearchSource(
-                url=source["url"],
-                title=source["title"],
-                summary="Research source for chain-of-thought analysis",
-                credibility_score=source.get("credibility_score", 0.8)
-            ) for source in sources],
+            sources=[
+                ResearchSource(
+                    url=source["url"],
+                    title=source["title"],
+                    summary="Research source for chain-of-thought analysis",
+                    credibility_score=source.get("credibility_score", 0.8),
+                )
+                for source in sources
+            ],
             created_by=self.name,
             key_factors=key_findings,
             confidence_level=reasoning_trace.overall_confidence,
@@ -485,7 +488,12 @@ Uncertainty sources:
         # Calculate prediction value based on question type
         prediction_value = self._calculate_prediction_value(question, reasoning_trace)
 
-        from ..domain.entities.prediction import Prediction, PredictionMethod, PredictionResult, PredictionConfidence
+        from ..domain.entities.prediction import (
+            Prediction,
+            PredictionMethod,
+            PredictionResult,
+            PredictionConfidence,
+        )
 
         # Create prediction result based on question type
         if question.question_type.value == "binary":

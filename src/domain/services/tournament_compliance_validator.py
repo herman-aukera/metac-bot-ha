@@ -411,18 +411,23 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
 
         return reasoning + transparency_footer
 
-    def validate_reasoning_transparency(self, prediction: Prediction, question) -> ComplianceReport:
+    def validate_reasoning_transparency(
+        self, prediction: Prediction, question
+    ) -> ComplianceReport:
         """Validate reasoning transparency requirements for tournament compliance."""
         issues = []
 
         # Check if reasoning exists and has sufficient detail
-        if not prediction.reasoning or len(prediction.reasoning.strip()) < self.min_reasoning_length:
+        if (
+            not prediction.reasoning
+            or len(prediction.reasoning.strip()) < self.min_reasoning_length
+        ):
             issues.append(
                 ComplianceIssue(
                     severity="error",
                     category="transparency",
                     message="Reasoning has insufficient detail for transparency requirements",
-                    suggestion="Provide detailed analysis with evidence and reasoning steps"
+                    suggestion="Provide detailed analysis with evidence and reasoning steps",
                 )
             )
 
@@ -435,7 +440,12 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                 missing_elements.append("analysis")
             if "evidence" not in reasoning_lower and "data" not in reasoning_lower:
                 missing_elements.append("evidence")
-            if "therefore" not in reasoning_lower and "conclusion" not in reasoning_lower and "estimate" not in reasoning_lower and "probability" not in reasoning_lower:
+            if (
+                "therefore" not in reasoning_lower
+                and "conclusion" not in reasoning_lower
+                and "estimate" not in reasoning_lower
+                and "probability" not in reasoning_lower
+            ):
                 missing_elements.append("conclusion")
 
             if missing_elements:
@@ -444,7 +454,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                         severity="warning",
                         category="transparency",
                         message=f"Reasoning missing elements: {', '.join(missing_elements)}",
-                        suggestion="Include analysis, evidence, and clear conclusions"
+                        suggestion="Include analysis, evidence, and clear conclusions",
                     )
                 )
 
@@ -457,10 +467,12 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
             issues=issues,
             score=max(0.0, score),
             validation_timestamp=datetime.utcnow(),
-            compliance_areas_checked=["transparency", "reasoning_quality"]
+            compliance_areas_checked=["transparency", "reasoning_quality"],
         )
 
-    def validate_automated_decision_making(self, process_metadata: Dict) -> ComplianceReport:
+    def validate_automated_decision_making(
+        self, process_metadata: Dict
+    ) -> ComplianceReport:
         """Validate that decision-making process is fully automated."""
         issues = []
 
@@ -472,7 +484,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                     severity="error",
                     category="automation",
                     message=f"Human involvement detected: {human_involvement}",
-                    suggestion="Ensure all decision points are fully automated"
+                    suggestion="Ensure all decision points are fully automated",
                 )
             )
 
@@ -485,7 +497,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                         severity="error",
                         category="automation",
                         message=f"Non-automated decision point: {point.get('step', 'unknown')}",
-                        suggestion="All decision points must be automated for tournament compliance"
+                        suggestion="All decision points must be automated for tournament compliance",
                     )
                 )
 
@@ -497,7 +509,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
             issues=issues,
             score=max(0.0, score),
             validation_timestamp=datetime.utcnow(),
-            compliance_areas_checked=["automation", "decision_making"]
+            compliance_areas_checked=["automation", "decision_making"],
         )
 
     def validate_data_source_compliance(self, data_sources: Dict) -> ComplianceReport:
@@ -511,7 +523,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                     severity="error",
                     category="data_sources",
                     message="Private information usage detected",
-                    suggestion="Only use publicly available data sources"
+                    suggestion="Only use publicly available data sources",
                 )
             )
 
@@ -523,7 +535,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                     severity="error",
                     category="data_sources",
                     message=f"Restricted sources used: {', '.join(restricted_sources)}",
-                    suggestion="Remove restricted data sources from analysis"
+                    suggestion="Remove restricted data sources from analysis",
                 )
             )
 
@@ -531,13 +543,17 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
         sources_used = data_sources.get("sources_used", [])
         for source in sources_used:
             source_type = source.get("type", "")
-            if source_type in ["private_database", "insider_information", "confidential"]:
+            if source_type in [
+                "private_database",
+                "insider_information",
+                "confidential",
+            ]:
                 issues.append(
                     ComplianceIssue(
                         severity="error",
                         category="data_sources",
                         message=f"Non-compliant source type: {source_type}",
-                        suggestion="Use only public data sources"
+                        suggestion="Use only public data sources",
                     )
                 )
 
@@ -549,15 +565,17 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
             issues=issues,
             score=max(0.0, score),
             validation_timestamp=datetime.utcnow(),
-            compliance_areas_checked=["data_sources", "privacy"]
+            compliance_areas_checked=["data_sources", "privacy"],
         )
 
-    def validate_prediction_format(self, prediction: Prediction, question) -> ComplianceReport:
+    def validate_prediction_format(
+        self, prediction: Prediction, question
+    ) -> ComplianceReport:
         """Validate prediction format compliance."""
         issues = []
 
         # Check for required fields based on question type
-        if hasattr(prediction, 'result') and prediction.result:
+        if hasattr(prediction, "result") and prediction.result:
             if question.question_type.value == "binary":
                 if prediction.result.binary_probability is None:
                     issues.append(
@@ -565,7 +583,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                             severity="error",
                             category="format",
                             message="Missing required binary probability",
-                            suggestion="Provide binary probability for binary questions"
+                            suggestion="Provide binary probability for binary questions",
                         )
                     )
             elif question.question_type.value == "numeric":
@@ -575,18 +593,18 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                             severity="error",
                             category="format",
                             message="Missing required numeric value",
-                            suggestion="Provide numeric value for numeric questions"
+                            suggestion="Provide numeric value for numeric questions",
                         )
                     )
         else:
             # Fallback for older prediction format
-            if not hasattr(prediction, 'probability') or prediction.probability is None:
+            if not hasattr(prediction, "probability") or prediction.probability is None:
                 issues.append(
                     ComplianceIssue(
                         severity="error",
                         category="format",
                         message="Missing required probability field",
-                        suggestion="Provide probability value for prediction"
+                        suggestion="Provide probability value for prediction",
                     )
                 )
 
@@ -597,12 +615,12 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                     severity="error",
                     category="format",
                     message="Missing required reasoning field",
-                    suggestion="Provide detailed reasoning for prediction"
+                    suggestion="Provide detailed reasoning for prediction",
                 )
             )
 
         # Check format version if available
-        if hasattr(prediction, 'metadata') and prediction.metadata:
+        if hasattr(prediction, "metadata") and prediction.metadata:
             format_version = prediction.metadata.get("format_version")
             if format_version and format_version < "1.0":
                 issues.append(
@@ -610,7 +628,7 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
                         severity="warning",
                         category="format",
                         message=f"Outdated format version: {format_version}",
-                        suggestion="Update to latest format version"
+                        suggestion="Update to latest format version",
                     )
                 )
 
@@ -622,10 +640,12 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
             issues=issues,
             score=max(0.0, score),
             validation_timestamp=datetime.utcnow(),
-            compliance_areas_checked=["format", "required_fields"]
+            compliance_areas_checked=["format", "required_fields"],
         )
 
-    def run_comprehensive_compliance_check(self, prediction: Prediction, question, metadata: Dict) -> ComplianceReport:
+    def run_comprehensive_compliance_check(
+        self, prediction: Prediction, question, metadata: Dict
+    ) -> ComplianceReport:
         """Run comprehensive compliance validation across all areas."""
         all_issues = []
         all_areas_checked = []
@@ -647,7 +667,11 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
         data_sources = metadata.get("data_sources", {})
         if isinstance(data_sources, list):
             # Convert list format to dict format
-            data_sources = {"sources_used": data_sources, "private_information": False, "restricted_sources": []}
+            data_sources = {
+                "sources_used": data_sources,
+                "private_information": False,
+                "restricted_sources": [],
+            }
 
         data_report = self.validate_data_source_compliance(data_sources)
         all_issues.extend(data_report.issues)
@@ -669,5 +693,5 @@ Confidence: {prediction.confidence.value} confidence based on available evidence
             issues=all_issues,
             score=overall_score,
             validation_timestamp=datetime.utcnow(),
-            compliance_areas_checked=list(set(all_areas_checked))
+            compliance_areas_checked=list(set(all_areas_checked)),
         )

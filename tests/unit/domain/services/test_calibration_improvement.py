@@ -10,7 +10,11 @@ import pytest
 
 from uuid import uuid4
 
-from src.domain.entities.prediction import Prediction, PredictionConfidence, PredictionMethod
+from src.domain.entities.prediction import (
+    Prediction,
+    PredictionConfidence,
+    PredictionMethod,
+)
 from src.domain.services.tournament_calibration_service import (
     CalibrationAdjustment,
     CommunityPredictionData,
@@ -26,7 +30,9 @@ class TestCalibrationImprovement:
         """Set up test environment."""
         self.calibration_service = TournamentCalibrationService()
 
-    def _create_mock_prediction(self, probability_value: float, confidence: PredictionConfidence) -> Mock:
+    def _create_mock_prediction(
+        self, probability_value: float, confidence: PredictionConfidence
+    ) -> Mock:
         """Create a properly configured mock prediction."""
         prediction = Mock(spec=Prediction)
         prediction.id = uuid4()
@@ -50,7 +56,9 @@ class TestCalibrationImprovement:
     def test_overconfidence_mitigation(self):
         """Test overconfidence mitigation for extreme predictions."""
         # Create overconfident prediction (too close to extreme)
-        overconfident_prediction = self._create_mock_prediction(0.98, PredictionConfidence.VERY_HIGH)
+        overconfident_prediction = self._create_mock_prediction(
+            0.98, PredictionConfidence.VERY_HIGH
+        )
 
         # Apply calibration
         calibrated_pred, adjustment = self.calibration_service.calibrate_prediction(
@@ -67,7 +75,11 @@ class TestCalibrationImprovement:
             calibrated_value < original_value
         ), "Should reduce overconfident prediction"
         assert calibrated_value > 0.5, "Should still indicate positive prediction"
-        assert adjustment.adjustment_type in ["overconfidence", "extreme_avoidance", "overconfidence_mitigation"]
+        assert adjustment.adjustment_type in [
+            "overconfidence",
+            "extreme_avoidance",
+            "overconfidence_mitigation",
+        ]
 
     def test_extreme_value_avoidance(self):
         """Test avoidance of extreme values for log scoring optimization."""
@@ -80,7 +92,9 @@ class TestCalibrationImprovement:
 
         for extreme_value, description in extreme_cases:
             # Create prediction with extreme value
-            extreme_prediction = self._create_mock_prediction(extreme_value, PredictionConfidence.HIGH)
+            extreme_prediction = self._create_mock_prediction(
+                extreme_value, PredictionConfidence.HIGH
+            )
 
             # Apply calibration
             calibrated_pred, adjustment = self.calibration_service.calibrate_prediction(
@@ -110,7 +124,9 @@ class TestCalibrationImprovement:
     def test_community_anchoring_adjustment(self):
         """Test community anchoring for calibration improvement."""
         # Create individual prediction
-        individual_prediction = self._create_mock_prediction(0.8, PredictionConfidence.MEDIUM)
+        individual_prediction = self._create_mock_prediction(
+            0.8, PredictionConfidence.MEDIUM
+        )
 
         # Create community data
         community_data = CommunityPredictionData(
@@ -187,7 +203,9 @@ class TestCalibrationImprovement:
         ]
 
         for pred_value, actual_outcome in risky_predictions:
-            prediction = self._create_mock_prediction(pred_value, PredictionConfidence.HIGH)
+            prediction = self._create_mock_prediction(
+                pred_value, PredictionConfidence.HIGH
+            )
 
             calibrated_pred, adjustment = self.calibration_service.calibrate_prediction(
                 prediction
@@ -251,7 +269,9 @@ class TestCalibrationImprovement:
     def test_no_adjustment_for_well_calibrated_predictions(self):
         """Test that well-calibrated predictions receive minimal adjustment."""
         # Create well-calibrated prediction (moderate confidence, reasonable value)
-        well_calibrated_prediction = self._create_mock_prediction(0.65, PredictionConfidence.MEDIUM)
+        well_calibrated_prediction = self._create_mock_prediction(
+            0.65, PredictionConfidence.MEDIUM
+        )
 
         # Apply calibration
         calibrated_pred, adjustment = self.calibration_service.calibrate_prediction(

@@ -286,7 +286,7 @@ class Forecast:
     @property
     def method(self) -> str:
         """Get the prediction method for backward compatibility."""
-        if hasattr(self, '_method_override') and self._method_override:
+        if hasattr(self, "_method_override") and self._method_override:
             return self._method_override
         if self.final_prediction and hasattr(self.final_prediction, "method"):
             return self.final_prediction.method.value

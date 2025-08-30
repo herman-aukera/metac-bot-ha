@@ -775,12 +775,22 @@ class ReActAgent(BaseAgent):
             return self._parse_reasoning_response(response)
         except StopAsyncIteration:
             # Handle case where mock responses are exhausted during testing
-            logger.warning("LLM client exhausted responses during reasoning, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during reasoning, using fallback"
+            )
             # Provide a fallback response that will trigger finalization
             if step_number >= 3:
-                return ("I have sufficient information to make a prediction", ActionType.FINALIZE, "ready to provide final prediction")
+                return (
+                    "I have sufficient information to make a prediction",
+                    ActionType.FINALIZE,
+                    "ready to provide final prediction",
+                )
             else:
-                return ("I need to gather more information", ActionType.SEARCH, f"information about {question.title}")
+                return (
+                    "I need to gather more information",
+                    ActionType.SEARCH,
+                    f"information about {question.title}",
+                )
 
     async def _execute_action(
         self, action: ActionType, action_input: str, question: Question
@@ -870,7 +880,9 @@ Consider relevant factors, potential outcomes, and implications.
             )
             return f"Thinking about '{thought_focus}':\n{response}"
         except StopAsyncIteration:
-            logger.warning("LLM client exhausted responses during think action, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during think action, using fallback"
+            )
             return f"Thinking about '{thought_focus}': This aspect requires careful consideration in the context of the forecasting question."
 
     async def _execute_analyze_action(
@@ -904,7 +916,9 @@ Provide a structured analysis including:
             )
             return f"Analysis of '{analysis_target}':\n{response}"
         except StopAsyncIteration:
-            logger.warning("LLM client exhausted responses during analyze action, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during analyze action, using fallback"
+            )
             return f"Analysis of '{analysis_target}': This information provides relevant insights for the forecasting question and should be considered in the probability assessment."
 
     async def _execute_synthesize_action(
@@ -933,7 +947,9 @@ Focus on how different factors interact and what they collectively suggest about
             )
             return f"Synthesis on '{synthesis_focus}':\n{response}"
         except StopAsyncIteration:
-            logger.warning("LLM client exhausted responses during synthesize action, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during synthesize action, using fallback"
+            )
             return f"Synthesis on '{synthesis_focus}': Integrating available information suggests moderate confidence in the analysis."
 
     async def _execute_validate_action(
@@ -968,7 +984,9 @@ Provide a structured validation assessment.
             )
             return f"Validation of '{validation_focus}':\n{response}"
         except StopAsyncIteration:
-            logger.warning("LLM client exhausted responses during validate action, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during validate action, using fallback"
+            )
             return f"Validation of '{validation_focus}': The reasoning appears logically consistent with available evidence."
 
     async def _execute_bias_check_action(
@@ -1004,7 +1022,9 @@ Identify any potential biases and suggest corrections.
             )
             return f"Bias check for '{bias_focus}':\n{response}"
         except StopAsyncIteration:
-            logger.warning("LLM client exhausted responses during bias check action, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during bias check action, using fallback"
+            )
             return f"Bias check for '{bias_focus}': No significant cognitive biases detected in the reasoning process."
 
     async def _execute_uncertainty_assess_action(
@@ -1044,7 +1064,9 @@ Provide a structured uncertainty assessment.
             )
             return f"Uncertainty assessment for '{uncertainty_focus}':\n{response}"
         except StopAsyncIteration:
-            logger.warning("LLM client exhausted responses during uncertainty assess action, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during uncertainty assess action, using fallback"
+            )
             return f"Uncertainty assessment for '{uncertainty_focus}': Moderate uncertainty identified due to limited information and inherent unpredictability."
 
     async def _reflect_on_observation(
@@ -1086,7 +1108,9 @@ Provide reasoning about:
             return response
         except StopAsyncIteration:
             # Handle case where mock responses are exhausted during testing
-            logger.warning("LLM client exhausted responses during reflection, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during reflection, using fallback"
+            )
             return f"Reflection on {action.value}: {observation[:100]}... This step provides relevant information for the forecasting question."
 
     async def _generate_final_prediction(
@@ -1116,7 +1140,9 @@ Provide reasoning about:
             probability, confidence, reasoning = self._parse_final_response(response)
         except StopAsyncIteration:
             # Handle case where mock responses are exhausted during testing
-            logger.warning("LLM client exhausted responses during final prediction, using fallback")
+            logger.warning(
+                "LLM client exhausted responses during final prediction, using fallback"
+            )
             # Provide fallback prediction based on available information
             probability = Probability(0.5)  # Default neutral probability
             confidence = PredictionConfidence.MEDIUM

@@ -434,7 +434,9 @@ class ErrorClassifier:
         error_type = type(error).__name__.lower()
 
         # Check for specific error patterns
-        classification = self._match_error_pattern(error_message, error_type, context, error)
+        classification = self._match_error_pattern(
+            error_message, error_type, context, error
+        )
 
         if classification:
             # Log the classification
@@ -450,7 +452,11 @@ class ErrorClassifier:
         return default_classification
 
     def _match_error_pattern(
-        self, error_message: str, error_type: str, context: ErrorContext, error: Exception = None
+        self,
+        error_message: str,
+        error_type: str,
+        context: ErrorContext,
+        error: Exception = None,
     ) -> Optional[ErrorClassification]:
         """Match error against known patterns."""
 

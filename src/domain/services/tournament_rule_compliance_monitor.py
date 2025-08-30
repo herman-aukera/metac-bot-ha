@@ -428,7 +428,9 @@ class TournamentRuleComplianceMonitor:
             monitoring_period=monitoring_period,
         )
 
-    def check_human_intervention(self, prediction_metadata: Dict[str, Any]) -> Optional[ComplianceViolation]:
+    def check_human_intervention(
+        self, prediction_metadata: Dict[str, Any]
+    ) -> Optional[ComplianceViolation]:
         """Check for human intervention violations in prediction metadata."""
 
         # Check for human review flag
@@ -440,7 +442,7 @@ class TournamentRuleComplianceMonitor:
                 timestamp=datetime.utcnow(),
                 component="human_intervention_checker",
                 metadata=prediction_metadata,
-                remediation_required=True
+                remediation_required=True,
             )
 
         # Check for manual adjustments
@@ -453,7 +455,7 @@ class TournamentRuleComplianceMonitor:
                 timestamp=datetime.utcnow(),
                 component="manual_adjustment_checker",
                 metadata=prediction_metadata,
-                remediation_required=True
+                remediation_required=True,
             )
 
         # Check for intervention flags
@@ -466,7 +468,7 @@ class TournamentRuleComplianceMonitor:
                 timestamp=datetime.utcnow(),
                 component="intervention_flag_checker",
                 metadata=prediction_metadata,
-                remediation_required=True
+                remediation_required=True,
             )
 
         # Check agent type
@@ -479,12 +481,14 @@ class TournamentRuleComplianceMonitor:
                 timestamp=datetime.utcnow(),
                 component="agent_type_checker",
                 metadata=prediction_metadata,
-                remediation_required=True
+                remediation_required=True,
             )
 
         return None  # No violations detected
 
-    def check_submission_timing(self, submission_metadata: Dict[str, Any]) -> Optional[ComplianceViolation]:
+    def check_submission_timing(
+        self, submission_metadata: Dict[str, Any]
+    ) -> Optional[ComplianceViolation]:
         """Check for submission timing compliance violations."""
 
         question_close_time = submission_metadata.get("question_close_time")
@@ -498,7 +502,7 @@ class TournamentRuleComplianceMonitor:
                 timestamp=datetime.utcnow(),
                 component="timing_checker",
                 metadata=submission_metadata,
-                remediation_required=True
+                remediation_required=True,
             )
 
         # Check if submission was made after question close time
@@ -510,11 +514,19 @@ class TournamentRuleComplianceMonitor:
                 timestamp=datetime.utcnow(),
                 component="timing_checker",
                 metadata={
-                    "submission_time": submission_time.isoformat() if hasattr(submission_time, 'isoformat') else str(submission_time),
-                    "close_time": question_close_time.isoformat() if hasattr(question_close_time, 'isoformat') else str(question_close_time),
-                    **submission_metadata
+                    "submission_time": (
+                        submission_time.isoformat()
+                        if hasattr(submission_time, "isoformat")
+                        else str(submission_time)
+                    ),
+                    "close_time": (
+                        question_close_time.isoformat()
+                        if hasattr(question_close_time, "isoformat")
+                        else str(question_close_time)
+                    ),
+                    **submission_metadata,
                 },
-                remediation_required=True
+                remediation_required=True,
             )
 
         return None  # No timing violations detected
