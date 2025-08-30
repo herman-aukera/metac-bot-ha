@@ -35,11 +35,13 @@ jobs:
       - name: Install dependencies
         run: |
           poetry check || true
-          poetry install --no-interaction --no-root || (
-            echo "Poetry install failed, trying pip fallback for minimal deps" && \
-            python -m pip install --upgrade pip && \
-            python -m pip install pydantic requests python-dotenv pyyaml || true
-          )
+          if ! poetry install --no-interaction --no-root; then
+            echo "Poetry install failed, trying pip fallback for minimal deps"
+            python -m pip install --upgrade pip --timeout 60 --retries 3
+            python -m pip install --timeout 60 --retries 3 -r requirements-emergency.txt || \
+            python -m pip install --timeout 60 --retries 3 requests openai pydantic typer python-dotenv httpx
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          fi
 
       - name: Run tournament readiness check
         run: |
