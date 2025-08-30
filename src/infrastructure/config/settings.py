@@ -740,6 +740,32 @@ class Config:
             },
         }
 
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> "Config":
+        """Create Config instance from dictionary."""
+        # Create a temporary config instance
+        config = cls()
+
+        # Update bot config if provided
+        if "bot" in config_dict:
+            bot_config = config_dict["bot"]
+            config.bot = BotConfig(
+                name=bot_config.get("name", "MetaculusBotHA"),
+                version=bot_config.get("version", "1.0.0"),
+                research_reports_per_question=bot_config.get("research_reports_per_question", 2),
+                predictions_per_research_report=bot_config.get("predictions_per_research_report", 3),
+                publish_reports_to_metaculus=bot_config.get("publish_reports_to_metaculus", True),
+                max_concurrent_questions=bot_config.get("max_concurrent_questions", 2),
+                enable_deep_research=bot_config.get("enable_deep_research", True),
+                research_timeout_minutes=bot_config.get("research_timeout_minutes", 10),
+                min_sources_per_topic=bot_config.get("min_sources_per_topic", 3),
+                require_confidence_score=bot_config.get("require_confidence_score", True),
+                min_confidence_threshold=bot_config.get("min_confidence_threshold", 0.5),
+                enable_uncertainty_quantification=bot_config.get("enable_uncertainty_quantification", True),
+            )
+
+        return config
+
 
 @dataclass
 class Settings:

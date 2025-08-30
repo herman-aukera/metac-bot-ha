@@ -68,16 +68,14 @@ class TestTournamentCompliance:
     @pytest.fixture
     def sample_tournament_question(self):
         """Create a sample tournament question."""
-        return Question(
-            id=98765,
+        return Question.create_new(
+            metaculus_id=98765,
             title="Will global CO2 emissions decrease by 5% in 2025?",
             description="This question asks about the likelihood of a 5% decrease in global CO2 emissions during 2025 compared to 2024 levels.",
-            resolution_criteria="Resolution based on official IPCC or IEA data for global CO2 emissions.",
             question_type=QuestionType.BINARY,
-            close_time="2025-12-01T00:00:00Z",
-            resolve_time="2026-01-31T23:59:59Z",
+            url="https://metaculus.com/questions/98765",
+            close_time=datetime.utcnow() + timedelta(days=30),
             categories=["Environment", "Climate"],
-            tags=["climate-change", "emissions", "environment"],
             url="https://metaculus.com/questions/98765/",
             tournament_id=32813,
         )

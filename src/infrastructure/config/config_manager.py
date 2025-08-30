@@ -144,6 +144,9 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
             )
             try:
                 loop = asyncio.get_running_loop()
+                loop.create_task(
+                    self.config_manager._handle_config_change(
+                        ConfigChangeType.MOVED, Path(event.dest_path)
                     )
                 )
             except RuntimeError:

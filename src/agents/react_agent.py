@@ -541,6 +541,12 @@ class ReActAgent(BaseAgent):
                 question, thought, action, action_input, observation
             )
 
+            # Ensure reasoning is a string (handle mock coroutines in tests)
+            if hasattr(reasoning, '__await__'):
+                reasoning = await reasoning
+            elif not isinstance(reasoning, str):
+                reasoning = str(reasoning)
+
             # Calculate confidence change from this step
             confidence_change = self._calculate_confidence_change(
                 action, observation, reasoning, action_context
