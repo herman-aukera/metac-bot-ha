@@ -43,40 +43,11 @@ jobs:
           echo "PY_RUN=python" >> $GITHUB_ENV
           echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
-      - name: Validate Poetry configuration (no lock)
+      # Keep this workflow minimal and valid to avoid YAML issues
+      - name: Verify Python and env
         run: |
-          poetry --version
-          poetry check || true
-
-      - name: Install dependencies with retry and fallback
-        run: |
-          set -e
-          echo "Attempting dependency installation via Poetry..."
-          for i in {1..2}; do
-            echo "Attempt $i"
-            if poetry install --no-interaction --no-root; then
-              echo "Poetry install successful"
-              break
-            elif [ $i -eq 2 ]; then
-              echo "Poetry install failed after $i attempts; falling back to pip"
-              python -m pip install --upgrade pip --timeout 60 --retries 3
-              if [ -f requirements-emergency.txt ]; then
-                python -m pip install --timeout 60 --retries 3 -r requirements-emergency.txt || true
-              fi
-              python -m pip install --timeout 60 --retries 3 \
-                pydantic requests python-dotenv pyyaml openai httpx typer pytest || true
-            else
-              echo "Retrying in 15s..."
-              sleep 15
-            fi
-          done
+          python --version
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
           # Configure portable Python runner
           if poetry env info >/dev/null 2>&1; then

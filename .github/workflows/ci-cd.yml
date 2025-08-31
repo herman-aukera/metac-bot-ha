@@ -98,45 +98,53 @@ jobs:
               echo "Attempt $i to install project with poetry..."
               if timeout 300 poetry install --no-interaction; then
                 echo "Project install successful on attempt $i"
-                break
-              elif [ $i -eq 3 ]; then
-        echo "Project install failed after 3 attempts, using fallback without editable install"
-        echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
-                break
-              else
-                echo "Project install failed on attempt $i, retrying in 15 seconds..."
-                sleep 15
+                exit 0
               fi
+              echo "Project install failed on attempt $i, retrying in 15 seconds..."
+              sleep 15
             done
+            echo "Project install failed after 3 attempts, using fallback without editable install"
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           else
-      echo "Skipping editable install (package-mode=false); adding src to PYTHONPATH"
-      echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+            echo "Skipping editable install (package-mode=false); adding src to PYTHONPATH"
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          fi
+
+      - name: Configure runner commands
+        run: |
+          if command -v poetry &> /dev/null && poetry env info &> /dev/null; then
+            echo "Using poetry run"
+            echo "PY_CMD=poetry run" >> $GITHUB_ENV
+          else
+            echo "Using python -m"
+            echo "PY_CMD=python -m" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
       - name: Run linting
         run: |
-          poetry run flake8 src tests
-          poetry run black --check src tests || echo "black formatting issues detected (non-fatal)"
-          poetry run isort --check-only src tests
+          $PY_CMD flake8 src tests
+          $PY_CMD black --check src tests || echo "black formatting issues detected (non-fatal)"
+          $PY_CMD isort --check-only src tests
 
       - name: Run type checking
-        run: poetry run mypy src || echo "mypy completed with issues"
+        run: $PY_CMD mypy src || echo "mypy completed with issues"
 
       - name: Run unit tests
-        run: poetry run pytest tests/unit -v -m "not external and not slow" --cov=src --cov-report=xml
+        run: $PY_CMD pytest tests/unit -v -m "not external and not slow" --cov=src --cov-report=xml
 
       - name: Run integration tests
         continue-on-error: true
-        run: poetry run pytest tests/integration -v -m "not external and not slow" || echo "integration tests failed (non-fatal)"
+        run: $PY_CMD pytest tests/integration -v -m "not external and not slow" || echo "integration tests failed (non-fatal)"
 
       - name: Run e2e tests (non-fatal)
         continue-on-error: true
-        run: poetry run pytest tests/e2e -v || echo "e2e tests failed (non-fatal)"
+        run: $PY_CMD pytest tests/e2e -v || echo "e2e tests failed (non-fatal)"
 
-      - name: Upload coverage to Codecov
+    - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          file: ./coverage.xml
+      files: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
 

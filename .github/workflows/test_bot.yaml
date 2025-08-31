@@ -99,7 +99,7 @@ jobs:
         if: matrix.test-type == 'unit'
         uses: codecov/codecov-action@v3
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           fail_ci_if_error: false
   # Code quality checks
   quality:
