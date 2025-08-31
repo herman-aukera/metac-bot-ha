@@ -11,6 +11,13 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
+  kickoff:
+    name: Kickoff
+    runs-on: ubuntu-latest
+    steps:
+      - name: No-op kickoff
+        run: echo "Kickoff job running to ensure workflow is not empty"
+
   tournament-readiness:
     name: Tournament Readiness Check
     runs-on: ubuntu-latest
@@ -70,15 +77,15 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
 
-    - name: Validate budget router (best effort)
+      - name: Validate budget router (best effort)
         run: |
           echo "💰 Testing budget-aware model router..."
-      $PY_RUN -c "
+          $PY_RUN - <<'PY'
           from src.infrastructure.model_router import BudgetAwareModelRouter
           router = BudgetAwareModelRouter()
           print('✅ Budget router working')
           print('CI Model:', router.select_model('test', True, True))
-          "
+          PY
         env:
           CI: true
           ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
