@@ -63,7 +63,7 @@ class BudgetStatus:
 class BudgetManager:
     """Manages API budget tracking and cost estimation for tournament usage."""
 
-    def __init__(self, budget_limit: float = None):
+    def __init__(self, budget_limit: Optional[float] = None):
         """Initialize budget manager with configurable budget limit."""
         self.budget_limit = budget_limit or float(os.getenv("BUDGET_LIMIT", "100.0"))
         self.current_spend = 0.0
@@ -195,6 +195,15 @@ class BudgetManager:
             last_updated=datetime.now(),
         )
 
+    def get_remaining_budget(self) -> float:
+        """Return remaining budget in dollars (helper expected by tests)."""
+        try:
+            status = self.get_budget_status()
+            return max(0.0, float(status.remaining))
+        except Exception:
+            # Conservative fallback
+            return max(0.0, float(self.budget_limit - self.current_spend))
+
     def _get_status_level(self, utilization: float) -> str:
         """Determine budget status level based on utilization."""
         if utilization < 0.8:
@@ -305,7 +314,7 @@ class BudgetManager:
         except Exception as e:
             logger.warning(f"Failed to load existing budget data: {e}")
 
-    def reset_budget(self, new_limit: float = None):
+    def reset_budget(self, new_limit: Optional[float] = None):
         """Reset budget tracking (use with caution)."""
         if new_limit:
             self.budget_limit = new_limit

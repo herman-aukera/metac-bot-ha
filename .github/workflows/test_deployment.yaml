@@ -13,6 +13,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  kickoff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kickoff
+        run: echo "Starting test_deployment workflow"
+
   test_deployment:
     runs-on: ubuntu-latest
     timeout-minutes: 15
