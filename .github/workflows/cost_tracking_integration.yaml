@@ -59,8 +59,36 @@ jobs:
           poetry --version
           poetry check || true
 
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-root
+      - name: Install dependencies with retry and fallback
+        run: |
+          set -e
+          echo "Attempting dependency installation via Poetry..."
+          for i in {1..2}; do
+            echo "Attempt $i"
+            if poetry install --no-interaction --no-root; then
+              echo "Poetry install successful"
+              break
+            elif [ $i -eq 2 ]; then
+              echo "Poetry install failed after $i attempts; falling back to pip"
+              python -m pip install --upgrade pip --timeout 60 --retries 3
+              if [ -f requirements-emergency.txt ]; then
+                python -m pip install --timeout 60 --retries 3 -r requirements-emergency.txt || true
+              fi
+              python -m pip install --timeout 60 --retries 3 \
+                pydantic requests python-dotenv pyyaml openai httpx typer pytest || true
+            else
+              echo "Retrying in 15s..."
+              sleep 15
+            fi
+          done
+
+          # Configure portable Python runner
+          if poetry env info >/dev/null 2>&1; then
+            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
+          else
+            echo "PY_RUN=python" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          fi
 
       - name: Run cost analysis
         id: cost_analysis
@@ -69,10 +97,10 @@ jobs:
           echo "📊 Running comprehensive cost analysis..."
 
           # Generate all artifacts first
-          poetry run python scripts/deployment_cost_monitor.py --generate-artifacts
+          $PY_RUN scripts/deployment_cost_monitor.py --generate-artifacts
 
           # Run the monitoring script with JSON output
-          REPORT=$(poetry run python scripts/deployment_cost_monitor.py --json-output)
+          REPORT=$($PY_RUN scripts/deployment_cost_monitor.py --json-output)
 
           # Extract key metrics safely
           BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"' 2>/dev/null || echo "normal")
@@ -107,7 +135,7 @@ jobs:
           echo "🔍 Checking if workflows should be suspended..."
 
           # Use the monitoring script to check suspension requirements
-          if poetry run python scripts/deployment_cost_monitor.py --check-suspension --json-output; then
+          if $PY_RUN scripts/deployment_cost_monitor.py --check-suspension --json-output; then
             SHOULD_SUSPEND="false"
             echo "✅ Budget allows continued operation"
           else
@@ -126,18 +154,18 @@ jobs:
           echo "📋 Generating detailed cost and efficiency report..."
 
           # Generate comprehensive reports
-          poetry run python scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_efficiency_report.json
-          poetry run python scripts/deployment_cost_monitor.py --workflow-recommendations --json-output > workflow_recommendations.json
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_efficiency_report.json
+          $PY_RUN scripts/deployment_cost_monitor.py --workflow-recommendations --json-output > workflow_recommendations.json
 
           # Display summary
           echo "📊 DETAILED COST ANALYSIS"
           echo "========================"
-          poetry run python scripts/deployment_cost_monitor.py --cost-analysis
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis
 
           echo ""
           echo "🔧 WORKFLOW RECOMMENDATIONS"
           echo "==========================="
-          poetry run python scripts/deployment_cost_monitor.py --workflow-recommendations
+          $PY_RUN scripts/deployment_cost_monitor.py --workflow-recommendations
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
 
@@ -146,7 +174,7 @@ jobs:
           echo "📈 Tracking cost per workflow run..."
 
           # Calculate cost per run metrics
-          CURRENT_RUN_COST=$(poetry run python -c "
+          CURRENT_RUN_COST=$($PY_RUN -c "
           from src.infrastructure.config.budget_manager import BudgetManager
           import os
 

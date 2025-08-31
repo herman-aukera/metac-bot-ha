@@ -110,8 +110,36 @@ jobs:
           poetry --version
           poetry check || true
 
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-root
+      - name: Install dependencies with retry and fallback
+        run: |
+          set -e
+          echo "Attempting dependency installation via Poetry..."
+          for i in {1..2}; do
+            echo "Attempt $i"
+            if poetry install --no-interaction --no-root; then
+              echo "Poetry install successful"
+              break
+            elif [ $i -eq 2 ]; then
+              echo "Poetry install failed after $i attempts; falling back to pip"
+              python -m pip install --upgrade pip --timeout 60 --retries 3
+              if [ -f requirements-emergency.txt ]; then
+                python -m pip install --timeout 60 --retries 3 -r requirements-emergency.txt || true
+              fi
+              python -m pip install --timeout 60 --retries 3 \
+                pydantic requests python-dotenv pyyaml openai httpx typer pytest || true
+            else
+              echo "Retrying in 15s..."
+              sleep 15
+            fi
+          done
+
+          # Configure portable Python runner
+          if poetry env info >/dev/null 2>&1; then
+            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
+          else
+            echo "PY_RUN=python" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          fi
 
       - name: Validate API keys
         run: |
@@ -194,7 +222,7 @@ jobs:
           echo "⏱️ Frequency: Every ${{ needs.determine_scheduling.outputs.frequency_hours }} hours"
           echo "💰 Budget utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
           echo "💵 Budget remaining: ${{ steps.budget_check.outputs.budget_remaining }}"
-          poetry run python main.py
+          $PY_RUN main.py
           echo "✅ Tournament forecasting completed successfully"
         env:
           # Required API keys
@@ -245,7 +273,7 @@ jobs:
         run: |
           echo "📊 Generating comprehensive cost analysis reports..."
           export PYTHONPATH=$GITHUB_WORKSPACE
-          poetry run python scripts/deployment_cost_monitor.py
+          $PY_RUN scripts/deployment_cost_monitor.py
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100.0' }}
           AIB_TOURNAMENT_ID: 32813

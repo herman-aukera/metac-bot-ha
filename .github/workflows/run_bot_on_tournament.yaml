@@ -86,7 +86,7 @@ jobs:
             echo "🔄 Attempt $i to install dependencies with poetry..."
             if timeout 600 poetry install --no-interaction --no-root; then
               echo "✅ Poetry install successful on attempt $i"
-              exit 0
+              break
             elif [ $i -eq 3 ]; then
               echo "⚠️ Poetry install failed after 3 attempts, trying emergency pip fallback..."
               break
@@ -106,9 +106,17 @@ jobs:
 
           echo "✅ Emergency dependencies installed - tournament can proceed"
 
+          # Configure portable Python runner
+          if poetry env info >/dev/null 2>&1; then
+            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
+          else
+            echo "PY_RUN=python" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          fi
+
       - name: Validate API keys
         run: |
-          poetry run python -c "
+          $PY_RUN -c "
           from src.infrastructure.config.api_keys import api_key_manager
           import sys
           validation = api_key_manager.validate_required_keys()
@@ -189,7 +197,7 @@ jobs:
           echo "💵 Budget remaining: ${{ steps.budget_check.outputs.budget_remaining }}"
 
           # Run with cost tracking
-          poetry run python main.py
+          $PY_RUN main.py
           echo "✅ Tournament forecasting completed successfully"
         env:
           # Required API keys (must be configured in GitHub secrets)
@@ -241,7 +249,7 @@ jobs:
         run: |
           echo "📊 Generating comprehensive cost analysis reports..."
           export PYTHONPATH=$GITHUB_WORKSPACE
-          poetry run python scripts/deployment_cost_monitor.py
+          $PY_RUN scripts/deployment_cost_monitor.py
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100.0' }}
           AIB_TOURNAMENT_ID: 32813
