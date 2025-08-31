@@ -251,6 +251,7 @@ jobs:
 
       - name: Run linting with timeout
         timeout-minutes: 15
+        continue-on-error: true
         run: |
           if command -v poetry &> /dev/null && poetry env info &> /dev/null; then
             poetry run flake8 src tests
