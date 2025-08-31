@@ -13,6 +13,7 @@ env:
 
 jobs:
   kickoff:
+  if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Kickoff
@@ -127,6 +128,10 @@ jobs:
       - name: Run integration tests
         continue-on-error: true
         run: poetry run pytest tests/integration -v -m "not external and not slow" || echo "integration tests failed (non-fatal)"
+
+      - name: Run e2e tests (non-fatal)
+        continue-on-error: true
+        run: poetry run pytest tests/e2e -v || echo "e2e tests failed (non-fatal)"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
