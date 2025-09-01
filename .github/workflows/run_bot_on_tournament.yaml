@@ -255,6 +255,16 @@ jobs:
           CURRENT_SPEND: ${{ vars.CURRENT_SPEND || '0.0' }}
           QUESTIONS_PROCESSED: ${{ vars.QUESTIONS_PROCESSED || '1' }}
 
+      - name: Show run summary (if present)
+        if: always()
+        run: |
+          if [ -f run_summary.json ]; then
+            echo "📄 Run Summary:"
+            cat run_summary.json
+          else
+            echo "ℹ️ run_summary.json not found."
+          fi
+
       - name: Check for budget alerts
         if: always() && steps.budget_check.outputs.budget_utilization >= '0.80'
         run: |
@@ -300,6 +310,7 @@ jobs:
         with:
           name: tournament-run-${{ github.run_number }}-${{ steps.budget_check.outputs.budget_status || 'unknown' }}
           path: |
+            run_summary.json
             cost_report.json
             *.log
             logs/

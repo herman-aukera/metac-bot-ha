@@ -1,4 +1,5 @@
 import argparse
+import json
 import asyncio
 import logging
 import os
@@ -1971,6 +1972,7 @@ if __name__ == "__main__":
         help="Specify the run mode (default: tournament)",
     )
     args = parser.parse_args()
+    run_started_at = datetime.utcnow().isoformat()
     run_mode: Literal["tournament", "quarterly_cup", "test_questions"] = (
         args.mode
     )
@@ -2301,5 +2303,24 @@ if __name__ == "__main__":
                 logger.error("Exception %d: %s: %s", i, type(exc).__name__, exc)
     except Exception as e:
         logger.warning("Failed to log final summary: %s", e)
+
+    # Write a lightweight run summary for CI artifacts/verification
+    try:
+        summary = {
+            "run_mode": run_mode,
+            "tournament_mode": os.getenv("TOURNAMENT_MODE", "false"),
+            "tournament_id": os.getenv("AIB_TOURNAMENT_ID", "unknown"),
+            "publish_reports": os.getenv("PUBLISH_REPORTS", "false"),
+            "successful_forecasts": len([r for r in forecast_reports if not isinstance(r, Exception)]),
+            "failed_forecasts": len([r for r in forecast_reports if isinstance(r, Exception)]),
+            "total_processed": len(forecast_reports),
+            "started_at": run_started_at,
+            "finished_at": datetime.utcnow().isoformat(),
+        }
+        with open("run_summary.json", "w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2)
+        logger.info("Run summary written to run_summary.json")
+    except Exception as e:
+        logger.warning("Failed to write run summary: %s", e)
 
     logger.info("Bot execution completed.")

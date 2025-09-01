@@ -101,12 +101,23 @@ jobs:
           LOG_LEVEL: INFO
           ENABLE_PROXY_CREDITS: true
 
+      - name: Show run summary (if present)
+        if: always()
+        run: |
+          if [ -f run_summary.json ]; then
+            echo "📄 Run Summary:"
+            cat run_summary.json
+          else
+            echo "ℹ️ run_summary.json not found."
+          fi
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: minibench-run-${{ github.run_number }}
           path: |
+            run_summary.json
             *.log
             logs/
           retention-days: 14
