@@ -48,14 +48,7 @@ jobs:
         run: |
           python --version
           echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
-
-          # Configure portable Python runner
-          if poetry env info >/dev/null 2>&1; then
-            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
-          else
-            echo "PY_RUN=python" >> $GITHUB_ENV
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
-          fi
+          echo "PY_RUN=python" >> $GITHUB_ENV
 
       - name: Test API key validation system
         run: |
@@ -96,7 +89,7 @@ jobs:
       - name: Test dry run mode
         run: |
           echo "🧪 Testing bot in dry run mode..."
-          $PY_RUN main.py --dry-run || echo "✅ Dry run test completed (expected to exit early)"
+          $PY_RUN main.py --mode test_questions || echo "✅ Dry run test completed (non-fatal)"
         env:
           METACULUS_TOKEN: test_token
           OPENROUTER_API_KEY: test_key
