@@ -17,6 +17,14 @@ on:
           - normal
           - critical
           - final_24h
+      tournament_id:
+        description: 'Metaculus tournament ID to target (overrides default)'
+        required: false
+        type: string
+      tournament_slug:
+        description: 'Metaculus tournament slug (for reference/logging)'
+        required: false
+        type: string
   # Optimized tournament scheduling - runs every 4 hours for sustainable operation
   # Configurable scheduling based on tournament phase and budget constraints
   # For deadline-aware scheduling, use the tournament_deadline_aware.yaml workflow
@@ -114,8 +122,8 @@ jobs:
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
-  - name: Validate API keys
-    continue-on-error: true
+      - name: Validate API keys
+        continue-on-error: true
         run: |
           $PY_RUN -c "
           from src.infrastructure.config.api_keys import api_key_manager
@@ -124,8 +132,8 @@ jobs:
           api_key_manager.log_key_status()
           if not validation['valid']:
               print('❌ Missing required API keys:', [k['key'] for k in validation['missing_keys']])
-      # Don't fail the workflow in tournament mode; proceed with reduced functionality
-      sys.exit(0)
+              # Don't fail the workflow in tournament mode; proceed with reduced functionality
+              sys.exit(0)
           else:
               print('✅ All required API keys are configured')
           "
@@ -148,6 +156,8 @@ jobs:
           echo "  Critical period frequency: ${{ vars.CRITICAL_PERIOD_FREQUENCY_HOURS || '2' }} hours"
           echo "  Final 24h frequency: ${{ vars.FINAL_24H_FREQUENCY_HOURS || '1' }} hours"
           echo "  Tournament scope: ${{ vars.TOURNAMENT_SCOPE || 'seasonal' }}"
+          echo "  Tournament ID: ${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}"
+          echo "  Tournament slug: ${{ github.event.inputs.tournament_slug || vars.AIB_TOURNAMENT_SLUG || 'n/a' }}"
 
       - name: Check budget status before run
         id: budget_check
@@ -198,6 +208,7 @@ jobs:
           echo "🚀 Starting tournament forecasting bot..."
           echo "💰 Budget utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
           echo "💵 Budget remaining: ${{ steps.budget_check.outputs.budget_remaining }}"
+          echo "🎯 Targeting tournament ID: ${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }} (slug: ${{ github.event.inputs.tournament_slug || vars.AIB_TOURNAMENT_SLUG || 'n/a' }})"
 
           # Run with cost tracking
           $PY_RUN main.py || true
@@ -222,7 +233,8 @@ jobs:
 
           # Tournament configuration
           PUBLISH_REPORTS: true
-          AIB_TOURNAMENT_ID: 32813
+          AIB_TOURNAMENT_ID: ${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}
+          AIB_TOURNAMENT_SLUG: ${{ github.event.inputs.tournament_slug || vars.AIB_TOURNAMENT_SLUG || '' }}
           TOURNAMENT_MODE: true
 
           # Budget management configuration
@@ -256,7 +268,7 @@ jobs:
           $PY_RUN scripts/deployment_cost_monitor.py || true
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100.0' }}
-          AIB_TOURNAMENT_ID: 32813
+          AIB_TOURNAMENT_ID: ${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}
           CURRENT_SPEND: ${{ vars.CURRENT_SPEND || '0.0' }}
           QUESTIONS_PROCESSED: ${{ vars.QUESTIONS_PROCESSED || '1' }}
 

@@ -1,0 +1,115 @@
+name: Forecast on MiniBench tournament
+
+on:
+  workflow_dispatch:
+    inputs:
+      tournament_id:
+        description: 'MiniBench tournament ID (overrides repo var)'
+        required: false
+        type: string
+      scheduling_frequency_minutes:
+        description: 'Run frequency in minutes'
+        required: false
+        default: '60'
+        type: string
+  schedule:
+    # Check hourly by default (MiniBench can open short-lived questions)
+    - cron: '*/60 * * * *'
+
+concurrency:
+  group: minibench-forecasting
+  cancel-in-progress: true
+
+jobs:
+  minibench_forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install poetry (with fallback)
+        id: install-poetry
+        continue-on-error: true
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Fallback to pip if poetry fails
+        if: steps.install-poetry.outcome == 'failure'
+        run: |
+          python -m pip install --upgrade pip --timeout 60 --retries 3
+          python -m pip install --timeout 60 --retries 3 poetry || true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies (fast path)
+        run: |
+          set +e
+          poetry install --no-interaction --no-root || true
+          if poetry env info >/dev/null 2>&1; then
+            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
+          else
+            echo "PY_RUN=python" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          fi
+          # Emergency deps
+          python -m pip install --timeout 60 --retries 3 \
+            pydantic requests python-dotenv pyyaml httpx aiohttp pytest || true
+
+      - name: Resolve MiniBench tournament ID
+        id: resolve_id
+        run: |
+          MID="${{ github.event.inputs.tournament_id || vars.AIB_MINIBENCH_TOURNAMENT_ID || '' }}"
+          if [ -z "$MID" ]; then
+            echo "⚠️ MiniBench tournament ID is not configured. Set repo var AIB_MINIBENCH_TOURNAMENT_ID or pass input.";
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Using MiniBench tournament ID: $MID"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "minibench_id=$MID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run MiniBench bot
+        if: steps.resolve_id.outputs.should_run == 'true'
+        continue-on-error: true
+        run: |
+          echo "🚀 Running MiniBench bot for tournament ${{ steps.resolve_id.outputs.minibench_id }}"
+          AIB_TOURNAMENT_ID=${{ steps.resolve_id.outputs.minibench_id }} \
+          TOURNAMENT_MODE=true \
+          PUBLISH_REPORTS=true \
+          DRY_RUN=false \
+          $PY_RUN main.py --mode tournament || true
+        env:
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
+          LOG_LEVEL: INFO
+          ENABLE_PROXY_CREDITS: true
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minibench-run-${{ github.run_number }}
+          path: |
+            *.log
+            logs/
+          retention-days: 14
