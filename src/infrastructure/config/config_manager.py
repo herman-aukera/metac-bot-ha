@@ -199,8 +199,8 @@ class ConfigManager:
         self.validation_listeners: List[Callable[[ConfigValidationResult], None]] = []
 
     # File watching
-        self.observer: Optional[Observer] = None
-        self.file_handler: Optional[ConfigFileHandler] = None
+    self.observer: Optional[Observer] = None
+    self.file_handler: Optional[ConfigFileHandler] = None
     self._polling_task: Optional[asyncio.Task] = None
 
         # Configuration cache
