@@ -24,6 +24,11 @@ jobs:
   minibench_forecast:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
+      ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -93,14 +98,6 @@ jobs:
           DRY_RUN=false \
           $PY_RUN main.py --mode tournament || true
         env:
-          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
-          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
-          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
-          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
           LOG_LEVEL: INFO
           ENABLE_PROXY_CREDITS: true
 

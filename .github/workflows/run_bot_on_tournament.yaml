@@ -43,6 +43,13 @@ jobs:
     timeout-minutes: 30 # Prevent hanging workflows
     strategy:
       fail-fast: false # Continue even if one attempt fails
+    env:
+      # Make required secrets available to all steps
+      METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      # Optional (used if present)
+      ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
+      ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -122,30 +129,18 @@ jobs:
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
-      - name: Validate API keys
+      - name: Validate required API keys
         continue-on-error: true
         run: |
-          $PY_RUN -c "
-          from src.infrastructure.config.api_keys import api_key_manager
-          import sys
-          validation = api_key_manager.validate_required_keys()
-          api_key_manager.log_key_status()
-          if not validation['valid']:
-              print('❌ Missing required API keys:', [k['key'] for k in validation['missing_keys']])
-              # Don't fail the workflow in tournament mode; proceed with reduced functionality
-              sys.exit(0)
-          else:
-              print('✅ All required API keys are configured')
-          "
-        env:
-          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
-          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
-          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
-          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
+          MISSING=""
+          [ -z "$METACULUS_TOKEN" ] && MISSING="$MISSING METACULUS_TOKEN"
+          [ -z "$OPENROUTER_API_KEY" ] && MISSING="$MISSING OPENROUTER_API_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required API keys:$MISSING"
+            # Continue in reduced mode
+            exit 0
+          fi
+          echo "✅ Required API keys present"
 
       - name: Display scheduling configuration
         run: |
@@ -214,18 +209,6 @@ jobs:
           $PY_RUN main.py || true
           echo "✅ Tournament forecasting completed successfully"
         env:
-          # Required API keys (must be configured in GitHub secrets)
-          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-
-          # Optional API keys (will use fallback if not configured)
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
-          EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'dummy_anthropic_key' }}
-          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID || 'dummy_asknews_client' }}
-          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET || 'dummy_asknews_secret' }}
-
           # Bot configuration
           APP_ENV: production
           LOG_LEVEL: INFO
