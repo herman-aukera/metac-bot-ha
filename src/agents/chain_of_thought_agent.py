@@ -91,10 +91,32 @@ class ChainOfThoughtAgent(BaseAgent):
             question, search_config
         )
 
+        # If a search client is available, gather at least one batch of results
+        gathered_sources: List[ResearchSource] = []
+        try:
+            if self.search_client:
+                query = question.title or getattr(question, "description", "")
+                results = await self._gather_research(query)
+                for r in (results or [])[:5]:
+                    gathered_sources.append(
+                        ResearchSource(
+                            url=r.get("url", ""),
+                            title=r.get("title", ""),
+                            summary=r.get("snippet", ""),
+                            credibility_score=0.8,
+                        )
+                    )
+        except Exception as e:
+            self.logger.warning("Search gathering failed", error=str(e))
+
         # Extract research findings from reasoning trace
         research_report = await self._create_research_report_from_trace(
             question, research_trace, search_config
         )
+
+        # If we gathered real sources, prefer them (append to keep deterministic fields)
+        if gathered_sources:
+            research_report.sources.extend(gathered_sources)
 
         self.logger.info(
             "CoT research completed",

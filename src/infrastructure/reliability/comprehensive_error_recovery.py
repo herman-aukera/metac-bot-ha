@@ -158,6 +158,14 @@ class ComprehensiveErrorRecoveryManager:
                 f"Recovery {recovery_id} failed with exception: {recovery_error}"
             )
 
+            # Log error via logging system so summaries reflect failures
+            try:
+                await self.fallback_orchestrator.logging_system.log_error(
+                    recovery_error, context
+                )
+            except Exception:
+                pass
+
             # Create failure result
             recovery_time = time.time() - recovery_start_time
             failure_result = RecoveryResult(
@@ -237,6 +245,15 @@ class ComprehensiveErrorRecoveryManager:
                     strategy, error_classification, context, last_error
                 )
 
+                # Update circuit breaker tracking on every attempt
+                try:
+                    self.error_recovery_manager._update_circuit_breaker(
+                        error_classification.error_code,
+                        RecoveryAction(strategy=strategy, parameters={}, expected_delay=0, success_probability=0.0),
+                    )
+                except Exception:
+                    pass
+
                 if strategy_result.success:
                     recovery_time = time.time() - recovery_start_time
 
@@ -266,6 +283,14 @@ class ComprehensiveErrorRecoveryManager:
                         f"Recovery strategy {strategy.value} failed: {strategy_result.message}"
                     )
                     last_error = strategy_result.final_error or last_error
+
+                    # Log failed attempt for visibility in error summaries
+                    try:
+                        await self.fallback_orchestrator.logging_system.log_error(
+                            last_error or Exception(strategy_result.message), context
+                        )
+                    except Exception:
+                        pass
 
                     # Add delay before next attempt if specified
                     if error_classification.retry_delay > 0:

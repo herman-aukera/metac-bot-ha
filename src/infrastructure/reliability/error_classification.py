@@ -468,6 +468,9 @@ class ErrorClassifier:
                 # Use the error's budget_remaining value, not the context's
                 if error.budget_remaining <= 0:
                     return self.error_patterns["budget_exhausted"]
+                # Treat critically low budgets (<5%) as emergency conditions
+                elif error.budget_remaining < 5:
+                    return self.error_patterns["budget_exhausted"]
                 else:
                     return self.error_patterns["budget_threshold_warning"]
             elif isinstance(error, APIError):
@@ -498,6 +501,9 @@ class ErrorClassifier:
 
         # Budget patterns
         if context.budget_remaining <= 0:
+            return self.error_patterns["budget_exhausted"]
+        # Critically low budget should trigger emergency-mode path
+        elif context.budget_remaining < 5:  # Less than 5% remaining
             return self.error_patterns["budget_exhausted"]
         elif context.budget_remaining < 15:  # Less than 15% remaining
             return self.error_patterns["budget_threshold_warning"]

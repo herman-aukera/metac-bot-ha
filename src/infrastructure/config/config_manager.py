@@ -198,9 +198,10 @@ class ConfigManager:
         self.change_listeners: List[Callable[[ConfigChangeEvent], None]] = []
         self.validation_listeners: List[Callable[[ConfigValidationResult], None]] = []
 
-        # File watching
+    # File watching
         self.observer: Optional[Observer] = None
         self.file_handler: Optional[ConfigFileHandler] = None
+    self._polling_task: Optional[asyncio.Task] = None
 
         # Configuration cache
         self.config_cache: Dict[str, Any] = {}
@@ -412,27 +413,78 @@ class ConfigManager:
 
     async def _start_file_watching(self) -> None:
         """Start file system watching for configuration changes."""
-        if not self.watch_directories or not WATCHDOG_AVAILABLE:
-            if not WATCHDOG_AVAILABLE:
-                logger.warning("Watchdog not available, file watching disabled")
+        if not self.watch_directories:
             return
 
+        if WATCHDOG_AVAILABLE:
+            try:
+                self.observer = Observer()
+                self.file_handler = ConfigFileHandler(self)
+
+                for watch_dir in self.watch_directories:
+                    if watch_dir.exists():
+                        self.observer.schedule(
+                            self.file_handler, str(watch_dir), recursive=True
+                        )
+                        logger.info(
+                            f"Watching directory for config changes: {watch_dir}"
+                        )
+
+                self.observer.start()
+                logger.info("File watching started")
+
+            except Exception as e:
+                logger.error("Failed to start file watching", error=str(e))
+        else:
+            # Fallback to polling watcher
+            logger.warning(
+                "Watchdog not available, starting polling-based config watcher"
+            )
+            self._polling_task = asyncio.create_task(self._poll_for_changes())
+
+    async def _poll_for_changes(self) -> None:
+        """Polling fallback to detect configuration changes when watchdog is unavailable."""
         try:
-            self.observer = Observer()
-            self.file_handler = ConfigFileHandler(self)
-
-            for watch_dir in self.watch_directories:
-                if watch_dir.exists():
-                    self.observer.schedule(
-                        self.file_handler, str(watch_dir), recursive=True
+            # Initialize timestamps
+            for p in self.config_paths:
+                if p.exists():
+                    self.file_timestamps[p] = datetime.fromtimestamp(
+                        p.stat().st_mtime, tz=timezone.utc
                     )
-                    logger.info(f"Watching directory for config changes: {watch_dir}")
 
-            self.observer.start()
-            logger.info("File watching started")
+            while True:
+                await asyncio.sleep(0.2)
 
+                candidate_files: Set[Path] = set(self.config_paths)
+                for watch_dir in self.watch_directories:
+                    if watch_dir.exists():
+                        for fp in watch_dir.rglob("*"):
+                            if fp.is_file() and fp.suffix.lower() in {".yaml", ".yml", ".json", ".toml"}:
+                                candidate_files.add(fp)
+
+                for fp in candidate_files:
+                    try:
+                        if not fp.exists():
+                            if fp in self.file_timestamps:
+                                await self._handle_config_change(ConfigChangeType.DELETED, fp)
+                                del self.file_timestamps[fp]
+                            continue
+
+                        mtime = datetime.fromtimestamp(fp.stat().st_mtime, tz=timezone.utc)
+                        last = self.file_timestamps.get(fp)
+                        if last is None:
+                            self.file_timestamps[fp] = mtime
+                            await self._handle_config_change(ConfigChangeType.CREATED, fp)
+                        elif mtime > last:
+                            self.file_timestamps[fp] = mtime
+                            await self._handle_config_change(ConfigChangeType.MODIFIED, fp)
+                    except Exception as e:
+                        logger.warning("Polling watcher error", path=str(fp), error=str(e))
+                        continue
+        except asyncio.CancelledError:
+            logger.info("Polling watcher cancelled")
         except Exception as e:
-            logger.error("Failed to start file watching", error=str(e))
+            logger.error("Polling watcher crashed", error=str(e))
 
     async def _handle_config_change(
         self, change_type: ConfigChangeType, file_path: Path
@@ -575,9 +627,9 @@ class ConfigManager:
             "validation_listeners": len(self.validation_listeners),
             "config_history_count": len(self.config_history),
             "file_watching_active": (
-                self.observer is not None and self.observer.is_alive()
+                (self.observer is not None and self.observer.is_alive())
                 if WATCHDOG_AVAILABLE
-                else False
+                else (self._polling_task is not None and not self._polling_task.done())
             ),
         }
 
@@ -591,6 +643,16 @@ class ConfigManager:
                 self.observer.stop()
                 self.observer.join(timeout=5.0)
                 self.observer = None
+
+            # Stop polling watcher
+            if self._polling_task and not self._polling_task.done():
+                try:
+                    self._polling_task.cancel()
+                    await self._polling_task
+                except Exception:
+                    pass
+                finally:
+                    self._polling_task = None
 
             # Clear listeners
             self.change_listeners.clear()

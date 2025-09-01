@@ -30,6 +30,7 @@ from forecasting_tools import (
 )
 
 logger = logging.getLogger(__name__)
+SAFE_REASONING_FALLBACK = "Forecast generated without detailed reasoning due to fallback."
 
 # Tournament components - import after forecasting_tools to avoid conflicts
 try:
@@ -221,6 +222,28 @@ class TemplateForecaster(ForecastBot):
         if not hasattr(self, '_max_concurrent_questions'):
             self._max_concurrent_questions = 2
             self._concurrency_limiter = asyncio.Semaphore(self._max_concurrent_questions)
+
+        # Initialize a search client for tests and research integrations
+        try:
+            from src.infrastructure.config.settings import get_settings, Settings
+            from src.infrastructure.external_apis.search_client import create_search_client, SearchClient
+
+            settings = get_settings()
+            self.search_client = create_search_client(settings)
+            logger.info("Search client initialized for TemplateForecaster")
+        except Exception as e:
+            logger.warning(f"Search client not available, using no-op stub: {e}")
+
+            class _NoOpSearchClient:
+                async def search(self, query: str, max_results: int = 10):  # pragma: no cover
+                    _ = (query, max_results)
+                    return []
+
+                async def health_check(self) -> bool:  # pragma: no cover
+                    await asyncio.sleep(0)
+                    return True
+
+            self.search_client = _NoOpSearchClient()
 
     def _has_openrouter_key(self) -> bool:
         """Check if OpenRouter API key is available."""
@@ -1250,8 +1273,10 @@ Be very clear about what information may be outdated or incomplete.
             f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
 
+        safe_reasoning = reasoning or SAFE_REASONING_FALLBACK
+
         return ReasonedPrediction(
-            prediction_value=prediction, reasoning=reasoning
+            prediction_value=prediction, reasoning=safe_reasoning
         )
 
     async def _legacy_binary_forecast(self, question: BinaryQuestion, research: str) -> str:
@@ -1508,8 +1533,10 @@ Be very clear about what information may be outdated or incomplete.
             f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
 
+        safe_reasoning = reasoning or SAFE_REASONING_FALLBACK
+
         return ReasonedPrediction(
-            prediction_value=prediction, reasoning=reasoning
+            prediction_value=prediction, reasoning=safe_reasoning
         )
 
     async def _legacy_multiple_choice_forecast(self, question: MultipleChoiceQuestion, research: str) -> str:
@@ -1806,8 +1833,10 @@ Be very clear about what information may be outdated or incomplete.
             f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
 
+        safe_reasoning = reasoning or SAFE_REASONING_FALLBACK
+
         return ReasonedPrediction(
-            prediction_value=prediction, reasoning=reasoning
+            prediction_value=prediction, reasoning=safe_reasoning
         )
 
     async def _legacy_numeric_forecast(self, question: NumericQuestion, research: str) -> str:
@@ -2161,40 +2190,49 @@ if __name__ == "__main__":
         llms=enhanced_llms,
     )
 
-    if run_mode == "tournament":
-        # Use specific tournament ID from environment variable (Fall 2025 tournament)
-        tournament_id = int(os.getenv("AIB_TOURNAMENT_ID", "32813"))
-        forecast_reports = asyncio.run(
-            template_bot.forecast_on_tournament(
-                tournament_id, return_exceptions=True
+    forecast_reports = []  # ensure defined for summary even if failures occur
+    try:
+        if run_mode == "tournament":
+            # Use specific tournament ID from environment variable (Fall 2025 tournament)
+            tournament_id = int(os.getenv("AIB_TOURNAMENT_ID", "32813"))
+            forecast_reports = asyncio.run(
+                template_bot.forecast_on_tournament(
+                    tournament_id, return_exceptions=True
+                )
             )
-        )
-    elif run_mode == "quarterly_cup":
-        # The quarterly cup is a good way to test the bot's performance on regularly open questions. You can also use AXC_2025_TOURNAMENT_ID = 32564
-        # The new quarterly cup may not be initialized near the beginning of a quarter
-        template_bot.skip_previously_forecasted_questions = False
-        forecast_reports = asyncio.run(
-            template_bot.forecast_on_tournament(
-                MetaculusApi.CURRENT_QUARTERLY_CUP_ID, return_exceptions=True
+        elif run_mode == "quarterly_cup":
+            # The quarterly cup is a good way to test the bot's performance on regularly open questions. You can also use AXC_2025_TOURNAMENT_ID = 32564
+            # The new quarterly cup may not be initialized near the beginning of a quarter
+            template_bot.skip_previously_forecasted_questions = False
+            forecast_reports = asyncio.run(
+                template_bot.forecast_on_tournament(
+                    MetaculusApi.CURRENT_QUARTERLY_CUP_ID, return_exceptions=True
+                )
             )
-        )
-    elif run_mode == "test_questions":
-        # Example questions are a good way to test the bot's performance on a single question
-        EXAMPLE_QUESTIONS = [
-            "https://www.metaculus.com/questions/578/human-extinction-by-2100/",  # Human Extinction - Binary
-            "https://www.metaculus.com/questions/14333/age-of-oldest-human-as-of-2100/",  # Age of Oldest Human - Numeric
-            "https://www.metaculus.com/questions/22427/number-of-new-leading-ai-labs/",  # Number of New Leading AI Labs - Multiple Choice
-        ]
-        template_bot.skip_previously_forecasted_questions = False
-        questions = [
-            MetaculusApi.get_question_by_url(question_url)
-            for question_url in EXAMPLE_QUESTIONS
-        ]
-        forecast_reports = asyncio.run(
-            template_bot.forecast_questions(questions, return_exceptions=True)
-        )
-    # Log comprehensive report summary
-    TemplateForecaster.log_report_summary(forecast_reports)  # type: ignore
+        elif run_mode == "test_questions":
+            # Example questions are a good way to test the bot's performance on a single question
+            EXAMPLE_QUESTIONS = [
+                "https://www.metaculus.com/questions/578/human-extinction-by-2100/",  # Human Extinction - Binary
+                "https://www.metaculus.com/questions/14333/age-of-oldest-human-as-of-2100/",  # Age of Oldest Human - Numeric
+                "https://www.metaculus.com/questions/22427/number-of-new-leading-ai-labs/",  # Number of New Leading AI Labs - Multiple Choice
+            ]
+            template_bot.skip_previously_forecasted_questions = False
+            questions = [
+                MetaculusApi.get_question_by_url(question_url)
+                for question_url in EXAMPLE_QUESTIONS
+            ]
+            forecast_reports = asyncio.run(
+                template_bot.forecast_questions(questions, return_exceptions=True)
+            )
+    except Exception as e:
+        logger.error("Forecasting run failed: %s", e)
+        # Preserve the exception in the report list so downstream summary still works
+        forecast_reports = [e]
+    # Log comprehensive report summary (tolerant to missing/exception entries)
+    try:
+        TemplateForecaster.log_report_summary(forecast_reports)  # type: ignore
+    except Exception as e:
+        logger.warning("Failed to log report summary: %s", e)
 
     # Log budget usage statistics if available
     if hasattr(template_bot, 'budget_manager') and template_bot.budget_manager:
@@ -2211,10 +2249,10 @@ if __name__ == "__main__":
                 if suggestions:
                     logger.info("Cost Optimization Suggestions:")
                     for i, suggestion in enumerate(suggestions[:3], 1):
-                        logger.info(f"  {i}. {suggestion}")
+                        logger.info("  %d. %s", i, suggestion)
 
         except Exception as e:
-            logger.warning(f"Failed to log budget statistics: {e}")
+            logger.warning("Failed to log budget statistics: %s", e)
 
     # Log tournament usage statistics if available
     if TOURNAMENT_COMPONENTS_AVAILABLE and hasattr(template_bot, 'tournament_asknews') and template_bot.tournament_asknews:
@@ -2230,7 +2268,10 @@ if __name__ == "__main__":
 
             # Alert if quota usage is high
             if stats['quota_usage_percentage'] > 80:
-                logger.warning(f"HIGH QUOTA USAGE: {stats['quota_usage_percentage']:.1f}% of AskNews quota used!")
+                logger.warning(
+                    "HIGH QUOTA USAGE: %.1f%% of AskNews quota used!",
+                    stats['quota_usage_percentage']
+                )
 
             # Log fallback provider status
             fallback_status = template_bot.tournament_asknews.get_fallback_providers_status()
@@ -2243,19 +2284,22 @@ if __name__ == "__main__":
             logger.warning(f"Failed to log tournament statistics: {e}")
 
     # Final status summary
-    successful_forecasts = len([r for r in forecast_reports if not isinstance(r, Exception)])
-    failed_forecasts = len([r for r in forecast_reports if isinstance(r, Exception)])
+    try:
+        successful_forecasts = len([r for r in forecast_reports if not isinstance(r, Exception)])
+        failed_forecasts = len([r for r in forecast_reports if isinstance(r, Exception)])
 
-    logger.info("=== Final Summary ===")
-    logger.info(f"Successful forecasts: {successful_forecasts}")
-    logger.info(f"Failed forecasts: {failed_forecasts}")
-    logger.info(f"Total questions processed: {len(forecast_reports)}")
+        logger.info("=== Final Summary ===")
+        logger.info("Successful forecasts: %d", successful_forecasts)
+        logger.info("Failed forecasts: %d", failed_forecasts)
+        logger.info("Total questions processed: %d", len(forecast_reports))
 
-    if failed_forecasts > 0:
-        logger.warning(f"Some forecasts failed. Check logs above for details.")
-        # Log first few exceptions for debugging
-        exceptions = [r for r in forecast_reports if isinstance(r, Exception)][:3]
-        for i, exc in enumerate(exceptions, 1):
-            logger.error(f"Exception {i}: {type(exc).__name__}: {exc}")
+        if failed_forecasts > 0:
+            logger.warning("Some forecasts failed. Check logs above for details.")
+            # Log first few exceptions for debugging
+            exceptions = [r for r in forecast_reports if isinstance(r, Exception)][:3]
+            for i, exc in enumerate(exceptions, 1):
+                logger.error("Exception %d: %s: %s", i, type(exc).__name__, exc)
+    except Exception as e:
+        logger.warning("Failed to log final summary: %s", e)
 
     logger.info("Bot execution completed.")
