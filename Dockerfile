@@ -1,5 +1,5 @@
 # Multi-stage build for production AI forecasting bot
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -25,7 +25,7 @@ RUN poetry config virtualenvs.create false \
     || (poetry lock --no-interaction && poetry install --only main --no-interaction)
 
 # Production stage
-FROM python:3.11-slim as production
+FROM python:3.11-slim AS production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -51,7 +51,6 @@ WORKDIR /app
 COPY src/ ./src/
 COPY config/ ./config/
 COPY main.py ./
-
 
 # Create necessary directories
 RUN mkdir -p logs/performance logs/reasoning data
