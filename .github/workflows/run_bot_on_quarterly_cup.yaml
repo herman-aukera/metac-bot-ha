@@ -22,6 +22,7 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+  id: setup-python
         with:
           python-version: '3.11'
 
@@ -101,7 +102,7 @@ jobs:
       - name: Run bot with monitoring
         run: |
           echo "🚀 Starting quarterly cup forecasting bot..."
-            $PY_RUN main.py --mode quarterly_cup
+          $PY_RUN main.py --mode quarterly_cup
           echo "✅ Quarterly cup forecasting completed successfully"
         env:
           # Required API keys (must be configured in GitHub secrets)

@@ -12,6 +12,17 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  workflow-lint:
+    name: Lint GitHub Workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actionlint
+        run: |
+          curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- -b ./bin
+      - name: Run actionlint
+        run: |
+          ./bin/actionlint -color
   kickoff:
     if: ${{ always() }}
     runs-on: ubuntu-latest

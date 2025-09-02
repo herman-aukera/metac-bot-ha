@@ -88,6 +88,7 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+  id: setup-python
         with:
           python-version: '3.11'
 
@@ -193,7 +194,11 @@ jobs:
 
           echo "💰 Budget Status: $STATUS"
           echo "💸 Spent: \$$CURRENT_SPEND / \$$BUDGET_LIMIT"
-          echo "📊 Utilization: $(python -c "print(f'{$UTILIZATION:.1%}')")"
+          echo "📊 Utilization: $(python - <<'PY'
+u = float("${UTILIZATION}") if "${UTILIZATION}" != "" else 0.0
+print(f"{u:.1%}")
+PY
+)"
 
           # Set outputs for workflow decisions
           echo "budget_status=$STATUS" >> $GITHUB_OUTPUT

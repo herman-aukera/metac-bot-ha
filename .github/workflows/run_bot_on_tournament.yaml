@@ -23,8 +23,8 @@ on:
         type: string
       tournament_slug:
   description: 'Metaculus tournament slug (e.g., fall-aib-2025)'
-        required: false
-        type: string
+  required: false
+  type: string
   # Optimized tournament scheduling - runs every 4 hours for sustainable operation
   # Configurable scheduling based on tournament phase and budget constraints
   # For deadline-aware scheduling, use the tournament_deadline_aware.yaml workflow
@@ -56,6 +56,7 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+  id: setup-python
         with:
           python-version: '3.11'
 
@@ -129,16 +130,14 @@ jobs:
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
-      - name: Validate required API keys
-        continue-on-error: true
+  - name: Validate required API keys
         run: |
           MISSING=""
           [ -z "$METACULUS_TOKEN" ] && MISSING="$MISSING METACULUS_TOKEN"
           [ -z "$OPENROUTER_API_KEY" ] && MISSING="$MISSING OPENROUTER_API_KEY"
           if [ -n "$MISSING" ]; then
             echo "❌ Missing required API keys:$MISSING"
-            # Continue in reduced mode
-            exit 0
+    exit 1
           fi
           echo "✅ Required API keys present"
 
@@ -175,7 +174,11 @@ jobs:
 
           echo "💰 Budget Status: $STATUS"
           echo "💸 Spent: \$$CURRENT_SPEND / \$$BUDGET_LIMIT"
-          echo "📊 Utilization: $(python -c "print(f'{$UTILIZATION:.1%}')")"
+          echo "📊 Utilization: $(python - <<'PY'
+u = float("${UTILIZATION}") if "${UTILIZATION}" != "" else 0.0
+print(f"{u:.1%}")
+PY
+)"
 
           # Set outputs for workflow decisions
           echo "budget_status=$STATUS" >> $GITHUB_OUTPUT

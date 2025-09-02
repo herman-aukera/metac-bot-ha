@@ -36,6 +36,7 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+  id: setup-python
         with:
           python-version: '3.11'
 
