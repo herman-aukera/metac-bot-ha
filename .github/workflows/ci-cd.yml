@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install actionlint
         run: |
+          mkdir -p ./bin
           curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- latest ./bin
       - name: Run actionlint
         run: |
