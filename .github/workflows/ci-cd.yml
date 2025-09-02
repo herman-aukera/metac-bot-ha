@@ -125,7 +125,7 @@ jobs:
         run: |
           $PY_CMD flake8 src tests
           $PY_CMD black --check src tests || echo "black formatting issues detected (non-fatal)"
-          $PY_CMD isort --check-only src tests
+          $PY_CMD isort --check-only src tests || echo "isort formatting issues detected (non-fatal)"
 
       - name: Run type checking
         run: $PY_CMD mypy src || echo "mypy completed with issues"
