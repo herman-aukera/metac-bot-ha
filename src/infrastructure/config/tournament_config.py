@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 
 class TournamentMode(Enum):
@@ -54,7 +54,7 @@ class TournamentConfig:
 
     # Question filtering and prioritization
     enable_question_filtering: bool = True
-    priority_categories: list = None
+    priority_categories: Optional[List[str]] = None
     min_confidence_threshold: float = 0.6
 
     # API and resource limits
@@ -89,7 +89,7 @@ class TournamentConfig:
 
         return cls(
             tournament_id=int(os.getenv("AIB_TOURNAMENT_ID", "32813")),
-            tournament_slug=os.getenv("TOURNAMENT_SLUG", "fall-aib-2025"),
+            tournament_slug=os.getenv("AIB_TOURNAMENT_SLUG", os.getenv("TOURNAMENT_SLUG", "fall-aib-2025")),
             tournament_name=os.getenv(
                 "TOURNAMENT_NAME", "Fall 2025 AI Forecasting Benchmark"
             ),
@@ -203,12 +203,13 @@ class TournamentConfig:
 
         # Category-based scoring
         categories = question_data.get("categories", [])
-        for category in categories:
-            if any(
-                priority_cat.lower() in category.lower()
-                for priority_cat in self.priority_categories
-            ):
-                score += 0.3
+        if self.priority_categories:
+            for category in categories:
+                if any(
+                    priority_cat.lower() in category.lower()
+                    for priority_cat in self.priority_categories
+                ):
+                    score += 0.3
 
         # Recency scoring (newer questions get higher priority)
         # This would need actual question creation date

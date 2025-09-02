@@ -3,6 +3,10 @@ name: Forecast on MiniBench tournament
 on:
   workflow_dispatch:
     inputs:
+      tournament_slug:
+        description: 'MiniBench tournament slug (e.g., minibench)'
+        required: false
+        type: string
       tournament_id:
         description: 'MiniBench tournament ID (overrides repo var)'
         required: false
@@ -77,14 +81,19 @@ jobs:
       - name: Resolve MiniBench tournament ID
         id: resolve_id
         run: |
+          SLUG="${{ github.event.inputs.tournament_slug || vars.AIB_MINIBENCH_TOURNAMENT_SLUG || '' }}"
           MID="${{ github.event.inputs.tournament_id || vars.AIB_MINIBENCH_TOURNAMENT_ID || '' }}"
-          if [ -z "$MID" ]; then
-            echo "⚠️ MiniBench tournament ID is not configured. Set repo var AIB_MINIBENCH_TOURNAMENT_ID or pass input.";
-            echo "should_run=false" >> $GITHUB_OUTPUT
-          else
+          if [ -n "$SLUG" ]; then
+            echo "✅ Using MiniBench tournament slug: $SLUG"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "minibench_target=$SLUG" >> $GITHUB_OUTPUT
+          elif [ -n "$MID" ]; then
             echo "✅ Using MiniBench tournament ID: $MID"
             echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "minibench_id=$MID" >> $GITHUB_OUTPUT
+            echo "minibench_target=$MID" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ MiniBench slug/ID is not configured. Set repo var AIB_MINIBENCH_TOURNAMENT_SLUG='minibench' or AIB_MINIBENCH_TOURNAMENT_ID, or pass input.";
+            echo "should_run=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Write skipped summary (no tournament ID)
@@ -109,8 +118,10 @@ jobs:
         if: steps.resolve_id.outputs.should_run == 'true'
         continue-on-error: true
         run: |
-          echo "🚀 Running MiniBench bot for tournament ${{ steps.resolve_id.outputs.minibench_id }}"
-          AIB_TOURNAMENT_ID=${{ steps.resolve_id.outputs.minibench_id }} \
+          echo "🚀 Running MiniBench bot for tournament ${{ steps.resolve_id.outputs.minibench_target }}"
+          # Accept slug or ID in target envs
+          AIB_TOURNAMENT_SLUG=${{ steps.resolve_id.outputs.minibench_target }} \
+          AIB_TOURNAMENT_ID=${{ steps.resolve_id.outputs.minibench_target }} \
           TOURNAMENT_MODE=true \
           PUBLISH_REPORTS=true \
           DRY_RUN=false \

@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Literal
 from pathlib import Path
 from dotenv import load_dotenv
@@ -2178,7 +2178,13 @@ if __name__ == "__main__":
     logger.info(f"  Publish reports to Metaculus: {publish_reports}")
     logger.info(f"  Skip previously forecasted: {skip_previously_forecasted}")
     logger.info(f"  Tournament mode: {os.getenv('TOURNAMENT_MODE', 'false')}")
-    logger.info(f"  Tournament ID: {os.getenv('AIB_TOURNAMENT_ID', '32813')}")
+    tournament_target_env = (
+        os.getenv("AIB_TOURNAMENT_ID")
+        or os.getenv("AIB_TOURNAMENT_SLUG")
+        or os.getenv("TOURNAMENT_SLUG")
+        or "32813"
+    )
+    logger.info(f"  Tournament target: {tournament_target_env}")
     logger.info(f"  Budget limit: ${os.getenv('BUDGET_LIMIT', '100.0')}")
     logger.info(f"  Scheduling frequency: {os.getenv('SCHEDULING_FREQUENCY_HOURS', '4')} hours")
 
@@ -2195,11 +2201,15 @@ if __name__ == "__main__":
     forecast_reports = []  # ensure defined for summary even if failures occur
     try:
         if run_mode == "tournament":
-            # Use specific tournament ID from environment variable (Fall 2025 tournament)
-            tournament_id = int(os.getenv("AIB_TOURNAMENT_ID", "32813"))
+            # Accept tournament ID or slug. Prefer explicit slug if provided.
+            tournament_target = (
+                os.getenv("AIB_TOURNAMENT_SLUG")
+                or os.getenv("TOURNAMENT_SLUG")
+                or os.getenv("AIB_TOURNAMENT_ID", "32813")
+            )
             forecast_reports = asyncio.run(
                 template_bot.forecast_on_tournament(
-                    tournament_id, return_exceptions=True
+                    tournament_target, return_exceptions=True
                 )
             )
         elif run_mode == "quarterly_cup":
@@ -2309,13 +2319,18 @@ if __name__ == "__main__":
         summary = {
             "run_mode": run_mode,
             "tournament_mode": os.getenv("TOURNAMENT_MODE", "false"),
-            "tournament_id": os.getenv("AIB_TOURNAMENT_ID", "unknown"),
+            # Record either ID or slug for transparency
+            "tournament_target": (
+                os.getenv("AIB_TOURNAMENT_SLUG")
+                or os.getenv("TOURNAMENT_SLUG")
+                or os.getenv("AIB_TOURNAMENT_ID", "unknown")
+            ),
             "publish_reports": os.getenv("PUBLISH_REPORTS", "false"),
             "successful_forecasts": len([r for r in forecast_reports if not isinstance(r, Exception)]),
             "failed_forecasts": len([r for r in forecast_reports if isinstance(r, Exception)]),
             "total_processed": len(forecast_reports),
             "started_at": run_started_at,
-            "finished_at": datetime.utcnow().isoformat(),
+            "finished_at": datetime.now(timezone.utc).isoformat(),
         }
         with open("run_summary.json", "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
