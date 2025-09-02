@@ -13,16 +13,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  kickoff:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Kickoff
-        run: echo "Starting test_deployment workflow"
-
   test_deployment:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -32,7 +25,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Fast path: pip-only minimal deps (skip Poetry)
+      - name: "Fast path: pip-only minimal deps (skip Poetry)"
         run: |
           python -m pip install --upgrade pip --timeout 60 --retries 3
           if [ -f requirements-emergency.txt ]; then
@@ -43,7 +36,6 @@ jobs:
           echo "PY_RUN=python" >> $GITHUB_ENV
           echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
-      # Keep this workflow minimal and valid to avoid YAML issues
       - name: Verify Python and env
         run: |
           python --version
@@ -52,15 +44,8 @@ jobs:
 
       - name: Test API key validation system
         run: |
-          echo "🧪 Testing API key validation..."
-          $PY_RUN -c "
-          from src.infrastructure.config.api_keys import api_key_manager
-          print('✅ API key manager imported successfully')
-          validation = api_key_manager.validate_required_keys()
-          print('✅ API key validation system working')
-          api_key_manager.log_key_status()
-          print('✅ Key status logging working')
-          "
+          echo "Testing API key validation..."
+          $PY_RUN -c "from src.infrastructure.config.api_keys import api_key_manager; print('ok'); api_key_manager.validate_required_keys(); api_key_manager.log_key_status()"
         env:
           METACULUS_TOKEN: test_token
           OPENROUTER_API_KEY: test_key
@@ -73,14 +58,8 @@ jobs:
 
       - name: Test configuration loading
         run: |
-          echo "🧪 Testing configuration system..."
-          $PY_RUN -c "
-          from src.infrastructure.config.tournament_config import TournamentConfig
-          config = TournamentConfig()
-          print('✅ Tournament configuration loaded successfully')
-          print(f'Tournament ID: {config.tournament_id}')
-          print(f'Tournament mode: {config.is_tournament_mode()}')
-          "
+          echo "Testing configuration system..."
+          $PY_RUN -c "from src.infrastructure.config.tournament_config import TournamentConfig; c=TournamentConfig(); print('ok', c.tournament_id, c.is_tournament_mode())"
         env:
           APP_ENV: test
           TOURNAMENT_MODE: true
@@ -88,8 +67,8 @@ jobs:
 
       - name: Test dry run mode
         run: |
-          echo "🧪 Testing bot in dry run mode..."
-          $PY_RUN main.py --mode test_questions || echo "✅ Dry run test completed (non-fatal)"
+          echo "Testing bot in dry run mode..."
+          $PY_RUN main.py --mode test_questions || echo "dry run non-fatal"
         env:
           METACULUS_TOKEN: test_token
           OPENROUTER_API_KEY: test_key
@@ -99,10 +78,4 @@ jobs:
 
       - name: Deployment test summary
         run: |
-          echo "✅ All deployment tests passed!"
-          echo "📊 Test Results:"
-          echo "  - API key validation: ✅"
-          echo "  - Configuration loading: ✅"
-          echo "  - Dry run execution: ✅"
-          echo "  - GPL-3.0 license: ✅"
-          echo "🚀 Automated deployment system is ready!"
+          echo "All deployment tests ran."

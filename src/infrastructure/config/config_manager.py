@@ -194,22 +194,22 @@ class ConfigManager:
         self.config_history: List[ConfigChangeEvent] = []
         self.last_reload_time: Optional[datetime] = None
 
-        # Change listeners
-        self.change_listeners: List[Callable[[ConfigChangeEvent], None]] = []
-        self.validation_listeners: List[Callable[[ConfigValidationResult], None]] = []
+    # Change listeners
+    self.change_listeners: List[Callable[[ConfigChangeEvent], None]] = []
+    self.validation_listeners: List[Callable[[ConfigValidationResult], None]] = []
 
     # File watching
     self.observer: Optional[Observer] = None
     self.file_handler: Optional[ConfigFileHandler] = None
     self._polling_task: Optional[asyncio.Task] = None
 
-        # Configuration cache
-        self.config_cache: Dict[str, Any] = {}
-        self.file_timestamps: Dict[Path, datetime] = {}
+    # Configuration cache
+    self.config_cache: Dict[str, Any] = {}
+    self.file_timestamps: Dict[Path, datetime] = {}
 
-        # Validation rules
-        self.validation_rules: Dict[str, Callable[[Any], bool]] = {}
-        self._setup_default_validation_rules()
+    # Validation rules
+    self.validation_rules: Dict[str, Callable[[Any], bool]] = {}
+    self._setup_default_validation_rules()
 
     def _setup_default_validation_rules(self) -> None:
         """Setup default configuration validation rules."""
