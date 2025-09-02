@@ -22,9 +22,9 @@ on:
         required: false
         type: string
       tournament_slug:
-  description: 'Metaculus tournament slug (e.g., fall-aib-2025)'
-  required: false
-  type: string
+        description: 'Metaculus tournament slug (e.g., fall-aib-2025)'
+        required: false
+        type: string
   # Optimized tournament scheduling - runs every 4 hours for sustainable operation
   # Configurable scheduling based on tournament phase and budget constraints
   # For deadline-aware scheduling, use the tournament_deadline_aware.yaml workflow

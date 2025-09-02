@@ -27,6 +27,9 @@ on:
       budget_status:
         required: true
         type: string
+      remaining_budget:
+        required: false
+        type: string
       utilization:
         required: true
         type: string

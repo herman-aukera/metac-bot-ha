@@ -194,11 +194,7 @@ jobs:
 
           echo "💰 Budget Status: $STATUS"
           echo "💸 Spent: \$$CURRENT_SPEND / \$$BUDGET_LIMIT"
-          echo "📊 Utilization: $(python - <<'PY'
-u = float("${UTILIZATION}") if "${UTILIZATION}" != "" else 0.0
-print(f"{u:.1%}")
-PY
-)"
+          echo "📊 Utilization: $(python -c 'import os; u=float(os.environ.get("UTILIZATION") or 0.0); print(f"{u:.1%}")')"
 
           # Set outputs for workflow decisions
           echo "budget_status=$STATUS" >> $GITHUB_OUTPUT

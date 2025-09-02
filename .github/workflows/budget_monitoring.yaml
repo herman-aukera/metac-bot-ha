@@ -29,6 +29,7 @@ jobs:
       budget_status: ${{ steps.budget_analysis.outputs.budget_status }}
       should_suspend: ${{ steps.budget_analysis.outputs.should_suspend }}
       utilization: ${{ steps.budget_analysis.outputs.utilization }}
+  remaining_budget: ${{ steps.budget_analysis.outputs.remaining_budget }}
 
     steps:
       - name: Check out repository
