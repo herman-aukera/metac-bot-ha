@@ -193,7 +193,6 @@ class ConfigManager:
         self.current_settings: Optional[Settings] = None
         self.config_history: List[ConfigChangeEvent] = []
         self.last_reload_time: Optional[datetime] = None
-
     # Change listeners
     self.change_listeners: List[Callable[[ConfigChangeEvent], None]] = []
     self.validation_listeners: List[Callable[[ConfigValidationResult], None]] = []

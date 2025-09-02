@@ -153,7 +153,7 @@ jobs:
         if: matrix.test-type == 'unit'
         timeout-minutes: 10
         continue-on-error: true
-        uses: codecov/codecov-action@v3
+  uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
