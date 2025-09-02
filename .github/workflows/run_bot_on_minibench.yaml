@@ -87,6 +87,24 @@ jobs:
             echo "minibench_id=$MID" >> $GITHUB_OUTPUT
           fi
 
+      - name: Write skipped summary (no tournament ID)
+        if: steps.resolve_id.outputs.should_run != 'true'
+        run: |
+          cat > run_summary.json << 'JSON'
+          {
+            "run_mode": "tournament",
+            "tournament_mode": "true",
+            "tournament_id": "missing",
+            "publish_reports": "false",
+            "successful_forecasts": 0,
+            "failed_forecasts": 0,
+            "total_processed": 0,
+            "status": "skipped",
+            "reason": "AIB_MINIBENCH_TOURNAMENT_ID not configured and no input provided"
+          }
+          JSON
+          echo "Wrote run_summary.json indicating skipped run."
+
       - name: Run MiniBench bot
         if: steps.resolve_id.outputs.should_run == 'true'
         continue-on-error: true
