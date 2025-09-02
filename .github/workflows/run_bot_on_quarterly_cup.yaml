@@ -89,8 +89,8 @@ jobs:
               print('✅ All required API keys are configured')
           "
         env:
-          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN || 'dummy_perplexity_key' }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || 'dummy_perplexity_key' }}
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY || 'dummy_perplexity_key' }}
           EXA_API_KEY: ${{ secrets.EXA_API_KEY || 'dummy_exa_key' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy_openai_key' }}
@@ -121,6 +121,16 @@ jobs:
           LOG_LEVEL: INFO
           DRY_RUN: false
 
+      - name: Show run summary (if present)
+        if: always()
+        run: |
+          if [ -f run_summary.json ]; then
+            echo "📄 Run Summary:"
+            cat run_summary.json
+          else
+            echo "ℹ️ run_summary.json not found."
+          fi
+
       - name: Monitor deployment status
         if: always()
         run: |
@@ -142,3 +152,14 @@ jobs:
             *.log
             logs/
           retention-days: 7
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarterly-cup-run-${{ github.run_number }}
+          path: |
+            run_summary.json
+            *.log
+            logs/
+          retention-days: 14
