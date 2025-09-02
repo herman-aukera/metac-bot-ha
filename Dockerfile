@@ -50,7 +50,7 @@ WORKDIR /app
 COPY src/ ./src/
 COPY config/ ./config/
 COPY main.py ./
-COPY agent.yaml ./
+
 
 # Create necessary directories
 RUN mkdir -p logs/performance logs/reasoning data
