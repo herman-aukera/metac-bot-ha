@@ -1,0 +1,36 @@
+name: Debug Configuration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug_config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show all configuration values
+        run: |
+          echo "🔍 VARIABLES (from vars.*):"
+          echo "AIB_MINIBENCH_TOURNAMENT_SLUG: '${{ vars.AIB_MINIBENCH_TOURNAMENT_SLUG }}'"
+          echo "AIB_MINIBENCH_TOURNAMENT_ID: '${{ vars.AIB_MINIBENCH_TOURNAMENT_ID }}'"
+          echo "AIB_TOURNAMENT_SLUG: '${{ vars.AIB_TOURNAMENT_SLUG }}'"
+          echo "AIB_TOURNAMENT_ID: '${{ vars.AIB_TOURNAMENT_ID }}'"
+          echo "BUDGET_LIMIT: '${{ vars.BUDGET_LIMIT }}'"
+          echo ""
+          echo "🔐 SECRETS (availability only - values hidden):"
+          echo "METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN != '' && 'SET' || 'MISSING' }}"
+          echo "OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY != '' && 'SET' || 'MISSING' }}"
+          echo "ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID != '' && 'SET' || 'MISSING' }}"
+          echo "ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET != '' && 'SET' || 'MISSING' }}"
+          echo ""
+          echo "🎯 MiniBench Resolution Test:"
+          SLUG="${{ vars.AIB_MINIBENCH_TOURNAMENT_SLUG || '' }}"
+          MID="${{ vars.AIB_MINIBENCH_TOURNAMENT_ID || '' }}"
+          echo "Resolved SLUG: '$SLUG'"
+          echo "Resolved MID: '$MID'"
+          if [ -n "$SLUG" ]; then
+            echo "✅ MiniBench would run with slug: $SLUG"
+          elif [ -n "$MID" ]; then
+            echo "✅ MiniBench would run with ID: $MID"
+          else
+            echo "❌ MiniBench would SKIP - no slug or ID configured"
+          fi
