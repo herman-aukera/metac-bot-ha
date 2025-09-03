@@ -68,18 +68,51 @@ jobs:
             fi
           done
 
-          # Configure portable Python runner
-          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
+          # Enhanced Python runner configuration with dependency verification
+          echo "🔍 Configuring Python execution environment..."
+          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1 && poetry run python -c "import pydantic, requests" 2>/dev/null; then
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
-            echo "🔧 Using Poetry environment"
+            echo "� Poetry environment verified and working"
           else
             echo "PY_RUN=python" >> "$GITHUB_ENV"
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
-            echo "🔧 Using system Python with PYTHONPATH"
+            echo "� Using system Python with PYTHONPATH"
           fi
 
-          # Always ensure core dependencies are available
-          python -m pip install --timeout 60 --retries 3 python-dotenv pydantic requests forecasting-tools httpx aiofiles || echo "Backup install failed but continuing"
+          # Robust dependency installation with emergency fallback
+          echo "📦 Installing core dependencies..."
+          pip install --upgrade pip
+
+          # Install critical packages with proper error handling
+          pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest || {
+            echo "⚠️ First pip install attempt failed, retrying with individual packages..."
+            for pkg in python-dotenv pydantic requests openai anthropic; do
+              pip install "$pkg" || echo "❌ Failed to install $pkg"
+            done
+          }
+
+          # Install forecasting_tools separately as it might not be available
+          pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
+
+          # Verify critical packages are available
+          echo "🧪 Verifying critical dependencies..."
+          python -c "
+          critical_packages = ['dotenv', 'pydantic', 'requests']
+          missing = []
+          for pkg in critical_packages:
+              try:
+                  __import__(pkg)
+                  print(f'✅ {pkg}: available')
+              except ImportError:
+                  missing.append(pkg)
+                  print(f'❌ {pkg}: missing')
+
+          if missing:
+              print(f'⚠️ Critical packages still missing: {missing}')
+              exit(1)
+          else:
+              print('✅ All critical dependencies verified')
+          "
 
       - name: Validate API keys
         run: |

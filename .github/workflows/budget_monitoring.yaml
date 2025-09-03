@@ -60,38 +60,91 @@ jobs:
           poetry --version
           poetry check || true
 
-      - name: Install dependencies with retry and fallback
+      - name: Install dependencies with robust fallback
         run: |
           set -e
-          echo "Attempting dependency installation via Poetry..."
-          for i in {1..2}; do
-            echo "Attempt $i"
-            if poetry install --no-interaction --no-root; then
-              echo "Poetry install successful"
-              break
-            elif [ "$i" -eq 2 ]; then
-              echo "Poetry install failed after $i attempts; falling back to pip"
-              python -m pip install --upgrade pip --timeout 60 --retries 3
-              if [ -f requirements-emergency.txt ]; then
-                python -m pip install --timeout 60 --retries 3 -r requirements-emergency.txt || true
-              fi
-              python -m pip install --timeout 60 --retries 3 \
-                pydantic requests python-dotenv pyyaml openai httpx typer pytest || true
-            else
-              echo "Retrying in 15s..."
-              sleep 15
-            fi
-          done
+          echo "🔍 Attempting dependency installation..."
 
-          # Configure portable Python runner
-          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
+          # Try Poetry first
+          if poetry install --only main --no-interaction --no-root; then
+            echo "✅ Poetry installation successful"
+            POETRY_SUCCESS=true
+          else
+            echo "⚠️ Poetry installation failed, using pip fallback"
+            POETRY_SUCCESS=false
+          fi
+
+          # If Poetry failed, use pip with essential packages
+          if [ "$POETRY_SUCCESS" = "false" ]; then
+            echo "📦 Installing essential packages via pip..."
+            python -m pip install --upgrade pip
+
+            # Install core dependencies that are definitely needed
+            python -m pip install \
+              python-dotenv \
+              pydantic \
+              requests \
+              openai \
+              anthropic \
+              httpx \
+              aiofiles \
+              pyyaml \
+              typer \
+              pytest
+
+            # Try to install forecasting-tools
+            python -m pip install forecasting-tools || echo "⚠️ forecasting-tools failed but continuing"
+
+            # Install emergency requirements if available
+            if [ -f requirements-emergency.txt ]; then
+              python -m pip install -r requirements-emergency.txt || echo "⚠️ Emergency requirements failed but continuing"
+            fi
+
+            echo "✅ Pip installation completed"
+          fi
+
+          # Configure Python runner and verify dependencies
+          if [ "$POETRY_SUCCESS" = "true" ] && poetry run python --version >/dev/null 2>&1; then
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
             echo "✅ Using Poetry environment"
           else
             echo "PY_RUN=python" >> "$GITHUB_ENV"
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
-            echo "⚠️ Poetry not available, using system Python with PYTHONPATH"
+            echo "⚠️ Using system Python with PYTHONPATH"
           fi
+
+          # Verify critical dependencies are available
+          echo "🧪 Verifying critical dependencies..."
+          python -c "
+          import sys
+          required_packages = ['dotenv', 'pydantic', 'requests']
+          missing_packages = []
+
+          for package in required_packages:
+              try:
+                  __import__(package)
+                  print(f'✅ {package}: OK')
+              except ImportError:
+                  missing_packages.append(package)
+                  print(f'❌ {package}: MISSING')
+
+          if missing_packages:
+              print(f'💥 Missing critical packages: {missing_packages}')
+              print('🔄 Attempting emergency installation...')
+              import subprocess
+              for package in missing_packages:
+                  try:
+                      if package == 'dotenv':
+                          subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'python-dotenv'])
+                      else:
+                          subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+                      print(f'✅ Installed {package}')
+                  except subprocess.CalledProcessError:
+                      print(f'❌ Failed to install {package}')
+                      sys.exit(1)
+          else:
+              print('✅ All critical dependencies available')
+          "
 
       - name: Comprehensive budget analysis
         id: budget_analysis

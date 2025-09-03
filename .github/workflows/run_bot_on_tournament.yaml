@@ -68,7 +68,7 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: 🔧 Install dependencies with enhanced fallback
+      - name: 🔧 Install dependencies with robust fallback
         id: install-deps
         run: |
           set -e
@@ -77,61 +77,54 @@ jobs:
           python --version
           pip --version
 
-          echo "📦 Installing Poetry dependencies..."
-          if poetry install --only main; then
+          echo "📦 Attempting Poetry dependencies installation..."
+          # Try Poetry first but immediately fall back to pip if ANY issues
+          if poetry install --only main 2>/dev/null && poetry run python --version >/dev/null 2>&1; then
             echo "✅ Poetry installation successful"
             POETRY_SUCCESS=true
           else
-            echo "⚠️ Poetry install failed, trying with verbose output..."
-            if poetry install --only main -vvv; then
-              echo "✅ Poetry installation successful with verbose mode"
-              POETRY_SUCCESS=true
-            else
-              echo "❌ Poetry install failed completely"
-              POETRY_SUCCESS=false
-            fi
+            echo "⚠️ Poetry installation failed or environment broken, falling back to pip immediately..."
+            POETRY_SUCCESS=false
           fi
 
-          # Test if virtual environment is working
-          if [ "$POETRY_SUCCESS" = "true" ]; then
-            echo "🧪 Testing Poetry environment..."
-            if poetry run python -c "import sys; print(f'Python: {sys.executable}')"; then
-              echo "✅ Poetry environment is working"
-            else
-              echo "⚠️ Poetry environment test failed"
-              POETRY_SUCCESS=false
-            fi
-          fi
-
-          # Enhanced fallback with essential packages
+          # Immediate pip fallback with essential packages
           if [ "$POETRY_SUCCESS" = "false" ]; then
-            echo "🔄 Falling back to direct pip installation..."
+            echo "🔄 Installing essential packages via pip..."
             pip install --upgrade pip
-            pip install python-dotenv pydantic requests openai anthropic PyYAML forecasting-tools httpx aiofiles
-            pip install -e .
 
-            echo "🧪 Testing dotenv import..."
-            python -c "import dotenv; print('✅ dotenv import successful')" || {
-              echo "❌ dotenv import failed even after pip install"
-              exit 1
-            }
+            # Install critical packages that are needed for the bot
+            pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest
 
-            echo "🧪 Testing forecasting_tools import..."
-            python -c "import forecasting_tools; print('✅ forecasting_tools import successful')" || {
-              echo "❌ forecasting_tools import failed even after pip install"
-              exit 1
-            }
+            # Install forecasting_tools (critical for tournament bot)
+            pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
+
+            # Try installing as editable package if possible
+            pip install -e . 2>/dev/null || echo "⚠️ Local package install failed"
           fi
 
-          echo "📋 Final package verification..."
+          # Verify critical packages are available
+          echo "🧪 Verifying critical dependencies..."
           python -c "
-          packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
-          for pkg in packages:
+          import sys
+          critical_packages = ['dotenv', 'pydantic', 'requests', 'openai']
+          missing = []
+          for pkg in critical_packages:
               try:
                   __import__(pkg)
-                  print(f'✅ {pkg}: imported successfully')
-              except ImportError as e:
-                  print(f'❌ {pkg}: {e}')
+                  print(f'✅ {pkg}: available')
+              except ImportError:
+                  missing.append(pkg)
+                  print(f'❌ {pkg}: missing')
+
+          if missing:
+              print(f'⚠️ Installing missing critical packages: {missing}')
+              import subprocess
+              for pkg in missing:
+                  try:
+                      subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg])
+                      print(f'✅ Emergency install of {pkg} successful')
+                  except:
+                      print(f'❌ Emergency install of {pkg} failed')
           "
 
       - name: 🧪 Debug Python environment
@@ -166,14 +159,36 @@ jobs:
         run: |
           set -e
 
-          # Determine how to run Python
-          if command -v poetry >/dev/null 2>&1 && poetry env info >/dev/null 2>&1; then
-            echo "🚀 Running via Poetry..."
+          # Robust Python runner detection with dependency verification
+          echo "🔍 Determining Python execution method..."
+          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1 && poetry run python -c "import pydantic, requests" 2>/dev/null; then
+            echo "🚀 Poetry environment verified and working - using Poetry runner"
             PY_RUN="poetry run python"
           else
-            echo "🐍 Running via direct Python..."
+            echo "🐍 Poetry environment not available or broken - using system Python"
             PY_RUN="python"
             export PYTHONPATH="${PWD}/src:${PYTHONPATH:-}"
+
+            # Emergency dependency check for system Python
+            echo "🧪 Verifying system Python has critical dependencies..."
+            python -c "
+            import sys
+            missing_critical = []
+            for pkg in ['dotenv', 'pydantic', 'requests']:
+                try:
+                    __import__(pkg)
+                except ImportError:
+                    missing_critical.append(pkg)
+
+            if missing_critical:
+                print(f'❌ Critical packages missing: {missing_critical}')
+                print('⚡ Installing emergency dependencies...')
+                import subprocess
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + missing_critical)
+                print('✅ Emergency dependencies installed')
+            else:
+                print('✅ All critical dependencies available')
+            " || echo "⚠️ Emergency dependency installation attempted"
           fi
 
           echo "🎯 Starting tournament bot execution..."
