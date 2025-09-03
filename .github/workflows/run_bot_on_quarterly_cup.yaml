@@ -54,7 +54,7 @@ jobs:
             if poetry install --no-interaction --no-root; then
               echo "Poetry install successful"
               break
-            elif [ $i -eq 2 ]; then
+            elif [ "$i" -eq 2 ]; then
               echo "Poetry install failed after $i attempts; falling back to pip"
               python -m pip install --upgrade pip --timeout 60 --retries 3
               if [ -f requirements-emergency.txt ]; then
@@ -70,11 +70,11 @@ jobs:
 
           # Configure portable Python runner
           if poetry env info >/dev/null 2>&1; then
-            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
+            echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
             echo "🔧 Using Poetry environment"
           else
-            echo "PY_RUN=python" >> $GITHUB_ENV
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+            echo "PY_RUN=python" >> "$GITHUB_ENV"
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
             echo "🔧 Using system Python with PYTHONPATH"
           fi
 
@@ -149,19 +149,7 @@ jobs:
             cat run_summary.json
           else
             echo "ℹ️ run_summary.json not found, creating fallback summary..."
-            cat > run_summary.json << 'JSON'
-{
-  "run_mode": "quarterly_cup",
-  "tournament_mode": "false",
-  "tournament_id": "",
-  "publish_reports": "true",
-  "successful_forecasts": 0,
-  "failed_forecasts": 0,
-  "total_processed": 0,
-  "status": "failed",
-  "reason": "Bot execution failed - check logs for details"
-}
-JSON
+            echo '{"run_mode":"quarterly_cup","tournament_mode":"false","tournament_id":"","publish_reports":"true","successful_forecasts":0,"failed_forecasts":0,"total_processed":0,"status":"failed","reason":"Bot execution failed - check logs for details"}' > run_summary.json
             echo "📄 Fallback Summary Created:"
             cat run_summary.json
           fi
