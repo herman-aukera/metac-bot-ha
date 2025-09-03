@@ -42,24 +42,24 @@ jobs:
           # Immediate pip fallback with essential packages
           if [ "$POETRY_SUCCESS" = "false" ]; then
             echo "🔄 Installing essential packages via pip..."
-            python -m pip install --upgrade pip
+            python3 -m pip install --upgrade pip
 
             # Install critical packages that are needed for forecasting tools
-            python -m pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest
+            python3 -m pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest
 
             # Install forecasting_tools (critical for this test workflow)
-            python -m pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
+            python3 -m pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
 
             # Try installing as editable package if possible
-            python -m pip install -e . 2>/dev/null || echo "⚠️ Local package install failed"
+            python3 -m pip install -e . 2>/dev/null || echo "⚠️ Local package install failed"
           fi
 
           # Configure portable Python runner for subsequent steps
-          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
+      if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
             echo "✅ Using Poetry environment for tests"
           else
-            echo "PY_RUN=python" >> "$GITHUB_ENV"
+      echo "PY_RUN=python3" >> "$GITHUB_ENV"
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
             echo "⚠️ Using system Python with PYTHONPATH for tests"
           fi
