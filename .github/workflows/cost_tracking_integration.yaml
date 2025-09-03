@@ -100,10 +100,10 @@ jobs:
           echo "📊 Running comprehensive cost analysis..."
 
           # Generate all artifacts first
-          "$PY_RUN" scripts/deployment_cost_monitor.py --generate-artifacts
+          $PY_RUN scripts/deployment_cost_monitor.py --generate-artifacts
 
           # Run the monitoring script with JSON output
-          REPORT=$("$PY_RUN" scripts/deployment_cost_monitor.py --json-output)
+          REPORT=$($PY_RUN scripts/deployment_cost_monitor.py --json-output)
 
           # Extract key metrics safely
           BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"' 2>/dev/null || echo "normal")
@@ -159,18 +159,18 @@ jobs:
           echo "📋 Generating detailed cost and efficiency report..."
 
           # Generate comprehensive reports
-          "$PY_RUN" scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_efficiency_report.json
-          "$PY_RUN" scripts/deployment_cost_monitor.py --workflow-recommendations --json-output > workflow_recommendations.json
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_efficiency_report.json
+          $PY_RUN scripts/deployment_cost_monitor.py --workflow-recommendations --json-output > workflow_recommendations.json
 
           # Display summary
           echo "📊 DETAILED COST ANALYSIS"
           echo "========================"
-          "$PY_RUN" scripts/deployment_cost_monitor.py --cost-analysis
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis
 
           echo ""
           echo "🔧 WORKFLOW RECOMMENDATIONS"
           echo "==========================="
-          "$PY_RUN" scripts/deployment_cost_monitor.py --workflow-recommendations
+          $PY_RUN scripts/deployment_cost_monitor.py --workflow-recommendations
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
 
@@ -179,7 +179,7 @@ jobs:
           echo "📈 Tracking cost per workflow run..."
 
           # Calculate cost per run metrics
-          CURRENT_RUN_COST=$("$PY_RUN" -c "
+          CURRENT_RUN_COST=$($PY_RUN -c "
           from src.infrastructure.config.budget_manager import BudgetManager
           import os
 

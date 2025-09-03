@@ -87,16 +87,16 @@ jobs:
           # Immediate pip fallback with essential packages
           if [ "$POETRY_SUCCESS" = "false" ]; then
             echo "🔄 Installing essential packages via pip..."
-            pip install --upgrade pip
+            python -m pip install --upgrade pip
 
             # Install critical packages that are needed for the bot
-            pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest
+            python -m pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest
 
             # Install forecasting_tools (critical for minibench bot)
-            pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
+            python -m pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
 
             # Try installing as editable package if possible
-            pip install -e . 2>/dev/null || echo "⚠️ Local package install failed"
+            python -m pip install -e . 2>/dev/null || echo "⚠️ Local package install failed"
           fi
 
           # Verify critical packages are available
@@ -123,7 +123,7 @@ jobs:
                   except:
                       print(f'❌ Emergency install of {pkg} failed')
           "
-          fi
+
 
           echo "📋 Final package verification..."
           python -c "

@@ -229,7 +229,7 @@ jobs:
           echo "⏱️ Frequency: Every ${{ needs.determine_scheduling.outputs.frequency_hours }} hours"
           echo "💰 Budget utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
           echo "💵 Budget remaining: ${{ steps.budget_check.outputs.budget_remaining }}"
-          "$PY_RUN" main.py
+          $PY_RUN main.py
           echo "✅ Tournament forecasting completed successfully"
         env:
           # Required API keys

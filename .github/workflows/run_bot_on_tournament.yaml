@@ -192,7 +192,7 @@ jobs:
           fi
 
           echo "🎯 Starting tournament bot execution..."
-          if "$PY_RUN" main.py; then
+          if $PY_RUN main.py; then
             echo "✅ Bot execution completed successfully"
             echo "success=true" >> "$GITHUB_OUTPUT"
           else
