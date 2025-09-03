@@ -1,0 +1,91 @@
+name: Test Forecasting Tools Dependency
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/run_bot_on_*.yaml'
+
+jobs:
+  test-forecasting-tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 🔧 Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: 📦 Test dependency installation
+        run: |
+          echo "🔍 Testing Poetry installation..."
+          if poetry install --no-dev; then
+            echo "✅ Poetry installation successful"
+            POETRY_SUCCESS=true
+          else
+            echo "⚠️ Poetry failed, testing pip fallback..."
+            POETRY_SUCCESS=false
+          fi
+
+          if [ "$POETRY_SUCCESS" = "false" ]; then
+            echo "🔄 Testing emergency pip installation..."
+            pip install --upgrade pip
+            pip install python-dotenv pydantic requests openai anthropic PyYAML forecasting-tools httpx aiofiles
+          fi
+
+      - name: 🧪 Test critical imports
+        run: |
+          echo "🧪 Testing all critical imports:"
+          python -c "
+          import sys
+          packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
+          all_success = True
+          for pkg in packages:
+              try:
+                  __import__(pkg)
+                  print(f'✅ {pkg}: imported successfully')
+              except ImportError as e:
+                  print(f'❌ {pkg}: {e}')
+                  all_success = False
+
+          if all_success:
+              print('🎉 All critical dependencies are available!')
+              sys.exit(0)
+          else:
+              print('💥 Some dependencies failed to import')
+              sys.exit(1)
+          "
+
+      - name: 🧪 Test main.py imports
+        run: |
+          echo "🧪 Testing main.py import resolution:"
+          python -c "
+          try:
+              from dotenv import load_dotenv
+              print('✅ dotenv import from main.py works')
+
+              from forecasting_tools import (
+                  ForecastingQuestion,
+                  BinaryQuestion,
+                  MultipleChoiceQuestion,
+                  NumericQuestion
+              )
+              print('✅ forecasting_tools imports from main.py work')
+              print('🎉 main.py should be able to start successfully!')
+
+          except ImportError as e:
+              print(f'❌ main.py import failed: {e}')
+              import sys
+              sys.exit(1)
+          "
