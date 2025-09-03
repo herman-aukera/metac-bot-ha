@@ -79,7 +79,7 @@ jobs:
           fi
 
           # Always ensure core dependencies are available
-          python -m pip install --timeout 60 --retries 3 python-dotenv pydantic requests || echo "Backup install failed but continuing"
+          python -m pip install --timeout 60 --retries 3 python-dotenv pydantic requests forecasting-tools httpx aiofiles || echo "Backup install failed but continuing"
 
       - name: Validate API keys
         run: |

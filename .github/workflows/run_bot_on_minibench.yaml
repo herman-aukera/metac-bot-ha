@@ -105,7 +105,7 @@ jobs:
           if [ "$POETRY_SUCCESS" = "false" ]; then
             echo "🔄 Falling back to direct pip installation..."
             pip install --upgrade pip
-            pip install python-dotenv pydantic requests openai anthropic PyYAML httpx aiohttp
+            pip install python-dotenv pydantic requests openai anthropic PyYAML forecasting-tools httpx aiofiles
             pip install -e .
 
             echo "🧪 Testing dotenv import..."
@@ -113,11 +113,15 @@ jobs:
               echo "❌ dotenv import failed even after pip install"
               exit 1
             }
-          fi
 
-          echo "📋 Final package verification..."
+            echo "🧪 Testing forecasting_tools import..."
+            python -c "import forecasting_tools; print('✅ forecasting_tools import successful')" || {
+              echo "❌ forecasting_tools import failed even after pip install"
+              exit 1
+            }
+          fi          echo "📋 Final package verification..."
           python -c "
-          packages = ['dotenv', 'pydantic', 'requests', 'openai']
+          packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
           for pkg in packages:
               try:
                   __import__(pkg)
