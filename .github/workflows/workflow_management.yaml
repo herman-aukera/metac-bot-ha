@@ -17,6 +17,16 @@ on:
         required: false
         default: 'Manual intervention'
         type: string
+      budget_status:
+        description: 'Budget status string when calling manually'
+        required: false
+        default: 'unknown'
+        type: string
+      utilization:
+        description: 'Utilization value when calling manually'
+        required: false
+        default: '0'
+        type: string
 
   # Trigger from budget monitoring workflow
   workflow_call:
