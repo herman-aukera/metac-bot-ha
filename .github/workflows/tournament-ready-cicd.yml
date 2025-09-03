@@ -62,10 +62,10 @@ jobs:
           echo "🏆 Checking tournament readiness..."
           if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
             echo "⚠️  Running from fork - secrets not available, using mock deployment check"
-            "$PY_RUN" scripts/ci_deployment_check.py --fork-mode || echo "Fork deployment check completed"
+            $PY_RUN scripts/ci_deployment_check.py --fork-mode || echo "Fork deployment check completed"
           else
             echo "🔐 Running with full secrets access"
-            if ! "$PY_RUN" scripts/ci_deployment_check.py; then
+            if ! $PY_RUN scripts/ci_deployment_check.py; then
               echo "⚠️ Readiness check failed but will not fail the job (recording results)"
               echo "READINESS_FAILED=true" >> "$GITHUB_ENV"
             fi
@@ -80,7 +80,7 @@ jobs:
       - name: Validate budget router (best effort)
         run: |
           echo "💰 Testing budget-aware model router..."
-          "$PY_RUN" - <<'PY'
+          $PY_RUN - <<'PY'
           from src.infrastructure.model_router import BudgetAwareModelRouter
           router = BudgetAwareModelRouter()
           print('✅ Budget router working')

@@ -16,7 +16,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🐍 Set up Python
-        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -27,100 +26,69 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - name: 📦 Test dependency installation
+      - name: 📦 Install dependencies (Poetry with pip fallback)
         run: |
-          echo "🔍 Testing Poetry installation..."
-          # Try Poetry first but immediately fall back to pip if ANY issues
-          if poetry install --only main 2>/dev/null && poetry run python --version >/dev/null 2>&1; then
-            echo "✅ Poetry installation successful"
-            POETRY_SUCCESS=true
-          else
-            echo "⚠️ Poetry installation failed or environment broken, falling back to pip immediately..."
-            POETRY_SUCCESS=false
-          fi
-
-          # Immediate pip fallback with essential packages
-          if [ "$POETRY_SUCCESS" = "false" ]; then
-            echo "🔄 Installing essential packages via pip..."
-            python3 -m pip install --upgrade pip
-
-            # Install critical packages that are needed for forecasting tools
-            python3 -m pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest
-
-            # Install forecasting_tools (critical for this test workflow)
-            python3 -m pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
-
-            # Try installing as editable package if possible
-            python3 -m pip install -e . 2>/dev/null || echo "⚠️ Local package install failed"
-          fi
-
-          # Configure portable Python runner for subsequent steps
-          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
+          set -e
+          echo "🔍 Trying Poetry install..."
+          if poetry install --only main -n >/dev/null 2>&1 && poetry run python -c "import sys; print(sys.version)" >/dev/null 2>&1; then
+            echo "✅ Poetry environment ready"
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
-            echo "✅ Using Poetry environment for tests"
           else
+            echo "⚠️ Poetry failed or not usable; falling back to pip"
+            python3 -m pip install --upgrade pip
+            python3 -m pip install python-dotenv pydantic requests openai anthropic httpx aiofiles pyyaml typer pytest
+            python3 -m pip install forecasting-tools || echo "⚠️ forecasting-tools not available via pip"
+            python3 -m pip install -e . || true
             echo "PY_RUN=python3" >> "$GITHUB_ENV"
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
-            echo "⚠️ Using system Python with PYTHONPATH for tests"
           fi
 
       - name: 🧪 Test critical imports
         run: |
-      echo "🧪 Testing all critical imports:"
-      $PY_RUN -c "
-      import sys
-      packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
-      all_success = True
-      for pkg in packages:
-        try:
-          __import__(pkg)
-          print(f'✅ {pkg}: imported successfully')
-        except ImportError as e:
-          print(f'❌ {pkg}: {e}')
-          all_success = False
-
-      if all_success:
-        print('🎉 All critical dependencies are available!')
-        sys.exit(0)
-      else:
-        print('💥 Some dependencies failed to import')
-        sys.exit(1)
-      "
+          echo "🧪 Testing all critical imports:"
+          $PY_RUN - <<'PY'
+          import sys
+          pkgs = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
+          failed = []
+          for p in pkgs:
+              try:
+                  __import__(p)
+                  print(f'✅ {p}: imported successfully')
+              except Exception as e:
+                  print(f'❌ {p}: {e}')
+                  failed.append(p)
+          if failed:
+              print('💥 Missing:', failed)
+              sys.exit(1)
+          print('🎉 All critical dependencies are available!')
+          PY
 
       - name: 🧪 Test main.py imports
         run: |
-      echo "🧪 Testing main.py import resolution:"
-      $PY_RUN -c "
-      try:
-        from dotenv import load_dotenv
-        print('✅ dotenv import from main.py works')
-
-        # Test the actual imports from main.py
-        from forecasting_tools import (
-          AskNewsSearcher,
-          BinaryQuestion,
-          ForecastBot,
-          GeneralLlm,
-          MetaculusApi,
-          MetaculusQuestion,
-          MultipleChoiceQuestion,
-          NumericDistribution,
-          NumericQuestion,
-          PredictedOption
-        )
-        print('✅ All forecasting_tools imports from main.py work!')
-        print('🎉 main.py should be able to start successfully!')
-
-      except ImportError as e:
-        print(f'❌ main.py import failed: {e}')
-
-        # Fallback: explore what's actually available
-        try:
-          import forecasting_tools
-          print(f'📦 forecasting_tools available attributes: {[attr for attr in dir(forecasting_tools) if not attr.startswith(\"_\")]})')
-        except ImportError:
-          print('❌ forecasting_tools package not available at all')
-
-        import sys
-        sys.exit(1)
-      "
+          echo "🧪 Testing main.py import resolution:"
+          $PY_RUN - <<'PY'
+          import sys
+          try:
+              from dotenv import load_dotenv
+              from forecasting_tools import (
+                  AskNewsSearcher,
+                  BinaryQuestion,
+                  ForecastBot,
+                  GeneralLlm,
+                  MetaculusApi,
+                  MetaculusQuestion,
+                  MultipleChoiceQuestion,
+                  NumericDistribution,
+                  NumericQuestion,
+                  PredictedOption,
+              )
+              print('✅ forecasting_tools imports from main.py succeed')
+          except Exception as e:
+              print(f'❌ main.py import failed: {e}')
+              try:
+                  import forecasting_tools as ft
+                  print('📦 forecasting_tools attrs:', [a for a in dir(ft) if not a.startswith('_')][:30])
+              except Exception as ie:
+                  print('❌ forecasting_tools not importable:', ie)
+              sys.exit(1)
+          PY

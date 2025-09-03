@@ -114,8 +114,8 @@ jobs:
           echo "📊 Utilization: ${{ steps.determine_action.outputs.utilization }}"
           echo "📝 Reason: ${{ steps.determine_action.outputs.reason }}"
 
-          # Create backup of original workflows
-          mkdir -p .github/workflows/backup
+          # Create backup of original workflows (outside workflows dir to avoid restricted pushes)
+          mkdir -p .github/workflow_backups
 
           WORKFLOWS=(
             "run_bot_on_tournament.yaml"
@@ -128,7 +128,7 @@ jobs:
               echo "🔄 Processing $workflow..."
 
               # Backup original
-              cp ".github/workflows/$workflow" ".github/workflows/backup/${workflow}.backup"
+              cp ".github/workflows/$workflow" ".github/workflow_backups/${workflow}.backup"
 
               # Comment out cron schedules
               sed -i 's/^[[:space:]]*- cron:/    # SUSPENDED - cron:/' ".github/workflows/$workflow"
@@ -157,7 +157,7 @@ jobs:
           done
 
           echo "🛑 All tournament workflows have been suspended"
-          echo "💾 Backups saved to .github/workflows/backup/"
+          echo "💾 Backups saved to .github/workflow_backups/"
 
       - name: Resume workflows
         if: steps.determine_action.outputs.action == 'resume_all'
@@ -172,9 +172,9 @@ jobs:
           )
 
           for workflow in "${WORKFLOWS[@]}"; do
-            if [ -f ".github/workflows/backup/${workflow}.backup" ]; then
+            if [ -f ".github/workflow_backups/${workflow}.backup" ]; then
               echo "🔄 Restoring $workflow from backup..."
-              cp ".github/workflows/backup/${workflow}.backup" ".github/workflows/$workflow"
+              cp ".github/workflow_backups/${workflow}.backup" ".github/workflows/$workflow"
               echo "  ✅ $workflow restored"
             else
               echo "  ❓ No backup found for $workflow"
@@ -271,7 +271,7 @@ jobs:
           case "${{ steps.determine_action.outputs.action }}" in
             "suspend_all")
               echo "🛑 All tournament workflows have been suspended"
-              echo "💾 Backups created in .github/workflows/backup/"
+              echo "💾 Backups created in .github/workflow_backups/"
               echo "▶️ To resume: Run this workflow with action 'resume_all'"
               ;;
             "resume_all")
