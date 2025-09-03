@@ -4,10 +4,10 @@
 
 ### **YAML Syntax Errors** ✅ FIXED
 - ❌ `run_bot_on_tournament.yaml#L40` - Missing dash and improper indentation in step definition
-- ❌ `budget_monitoring.yaml#L34` - Outputs block indentation issue 
+- ❌ `budget_monitoring.yaml#L34` - Outputs block indentation issue
 - ❌ Heredoc Python blocks causing YAML parser confusion
 
-### **Docker Build Issues** ✅ FIXED  
+### **Docker Build Issues** ✅ FIXED
 - ❌ Missing `agent.yaml` file in COPY command
 - ❌ Docker stage casing inconsistencies
 
@@ -23,7 +23,7 @@
 ## 📊 **Current Status**
 
 ### **Workflows**
-- ✅ All YAML files parse correctly 
+- ✅ All YAML files parse correctly
 - ✅ actionlint passes without critical errors
 - ✅ Secrets validation works (fails fast when missing)
 - ✅ Run summaries generated even on skip
@@ -38,7 +38,7 @@
 You have the configuration mostly correct, but need to:
 
 1. **Remove duplicates from Secrets** (these aren't read):
-   - `AIB_MINIBENCH_TOURNAMENT_ID` 
+   - `AIB_MINIBENCH_TOURNAMENT_ID`
    - `AIB_TOURNAMENT_ID`
    - `AIB_MINIBENCH_TOURNAMENT_SLUG`
 
@@ -63,7 +63,7 @@ gh workflow run run_bot_on_minibench.yaml --field tournament_slug=minibench
 ## 📈 **Pipeline Health Summary**
 
 - **YAML Parsing**: ✅ All workflows valid
-- **Secret Loading**: ✅ Validates and fails fast 
+- **Secret Loading**: ✅ Validates and fails fast
 - **Docker Builds**: ✅ No missing files or warnings
 - **Artifact Upload**: ✅ Always produces run_summary.json
 - **Error Handling**: ✅ Clear messages about missing config

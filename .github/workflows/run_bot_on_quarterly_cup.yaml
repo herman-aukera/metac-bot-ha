@@ -71,10 +71,15 @@ jobs:
           # Configure portable Python runner
           if poetry env info >/dev/null 2>&1; then
             echo "PY_RUN=poetry run python" >> $GITHUB_ENV
+            echo "🔧 Using Poetry environment"
           else
             echo "PY_RUN=python" >> $GITHUB_ENV
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+            echo "🔧 Using system Python with PYTHONPATH"
           fi
+
+          # Always ensure core dependencies are available
+          python -m pip install --timeout 60 --retries 3 python-dotenv pydantic requests || echo "Backup install failed but continuing"
 
       - name: Validate API keys
         run: |
@@ -102,6 +107,20 @@ jobs:
       - name: Run bot with monitoring
         run: |
           echo "🚀 Starting quarterly cup forecasting bot..."
+
+          # Debug Python environment
+          echo "🔍 Python environment debug:"
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo "PY_RUN: $PY_RUN"
+          python --version
+          python -m pip list | grep -E "(dotenv|pydantic|requests)" || echo "Core packages not found"
+
+          # Test dotenv import specifically
+          echo "🧪 Testing dotenv import:"
+          python -c "import dotenv; print('✅ dotenv import successful')" || echo "❌ dotenv import failed"
+
+          # Run quarterly cup bot
+          echo "🚀 Executing main.py for quarterly cup..."
           $PY_RUN main.py --mode quarterly_cup
           echo "✅ Quarterly cup forecasting completed successfully"
         env:
@@ -129,7 +148,22 @@ jobs:
             echo "📄 Run Summary:"
             cat run_summary.json
           else
-            echo "ℹ️ run_summary.json not found."
+            echo "ℹ️ run_summary.json not found, creating fallback summary..."
+            cat > run_summary.json << 'JSON'
+            {
+              "run_mode": "quarterly_cup",
+              "tournament_mode": "false",
+              "tournament_id": "",
+              "publish_reports": "true",
+              "successful_forecasts": 0,
+              "failed_forecasts": 0,
+              "total_processed": 0,
+              "status": "failed",
+              "reason": "Bot execution failed - check logs for details"
+            }
+            JSON
+            echo "📄 Fallback Summary Created:"
+            cat run_summary.json
           fi
 
       - name: Monitor deployment status
