@@ -248,36 +248,42 @@ jobs:
       - name: Generate deployment report
         if: always()
         run: |
-          echo "📊 Emergency Deployment Report" > deployment-report.md
-          echo "================================" >> deployment-report.md
-          echo "" >> deployment-report.md
-          echo "**Deployment Details:**" >> deployment-report.md
-          echo "- OS: ${{ matrix.os }}" >> deployment-report.md
-          echo "- Mode: ${{ inputs.emergency_mode }}" >> deployment-report.md
-          echo "- Skip Tests: ${{ inputs.skip_tests }}" >> deployment-report.md
-          echo "- Use Pip Only: ${{ inputs.use_pip_only }}" >> deployment-report.md
-          echo "- Status: ${{ job.status }}" >> deployment-report.md
-          echo "- Timestamp: $(date -u)" >> deployment-report.md
-          echo "" >> deployment-report.md
+          {
+            echo "📊 Emergency Deployment Report"
+            echo "================================"
+            echo ""
+            echo "**Deployment Details:**"
+            echo "- OS: ${{ matrix.os }}"
+            echo "- Mode: ${{ inputs.emergency_mode }}"
+            echo "- Skip Tests: ${{ inputs.skip_tests }}"
+            echo "- Use Pip Only: ${{ inputs.use_pip_only }}"
+            echo "- Status: ${{ job.status }}"
+            echo "- Timestamp: $(date -u)"
+            echo ""
+          } > deployment-report.md
 
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ **Emergency deployment successful**" >> deployment-report.md
-            echo "" >> deployment-report.md
-            echo "**Next Steps:**" >> deployment-report.md
-            echo "1. Download the emergency-deployment artifact" >> deployment-report.md
-            echo "2. Extract to your deployment server" >> deployment-report.md
-            echo "3. Run: \`./emergency_deploy.sh\`" >> deployment-report.md
-            echo "4. Verify: \`python verify_deployment.py\`" >> deployment-report.md
+            {
+              echo "✅ **Emergency deployment successful**"
+              echo ""
+              echo "**Next Steps:**"
+              echo "1. Download the emergency-deployment artifact"
+              echo "2. Extract to your deployment server"
+              echo "3. Run: \`./emergency_deploy.sh\`"
+              echo "4. Verify: \`python verify_deployment.py\`"
+            } >> deployment-report.md
             echo "5. Deploy: \`python main.py\`" >> deployment-report.md
           else
-            echo "❌ **Emergency deployment failed**" >> deployment-report.md
-            echo "" >> deployment-report.md
-            echo "**Manual Deployment Required:**" >> deployment-report.md
-            echo "1. Clone repository manually" >> deployment-report.md
-            echo "2. Install Python 3.11+" >> deployment-report.md
-            echo "3. Run: \`pip install pydantic requests python-dotenv pyyaml openai anthropic httpx aiohttp\`" >> deployment-report.md
-            echo "4. Set environment variables" >> deployment-report.md
-            echo "5. Run: \`python main.py\`" >> deployment-report.md
+            {
+              echo "❌ **Emergency deployment failed**"
+              echo ""
+              echo "**Manual Deployment Required:**"
+              echo "1. Clone repository manually"
+              echo "2. Install Python 3.11+"
+              echo "3. Run: \`pip install pydantic requests python-dotenv pyyaml openai anthropic httpx aiohttp\`"
+              echo "4. Set environment variables"
+              echo "5. Run: \`python main.py\`"
+            } >> deployment-report.md
           fi
 
       - name: Upload deployment report

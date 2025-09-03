@@ -158,15 +158,15 @@ jobs:
           MID="${{ github.event.inputs.tournament_id || vars.AIB_MINIBENCH_TOURNAMENT_ID || '' }}"
           if [ -n "$SLUG" ]; then
             echo "✅ Using MiniBench tournament slug: $SLUG"
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "minibench_target=$SLUG" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "minibench_target=$SLUG" >> "$GITHUB_OUTPUT"
           elif [ -n "$MID" ]; then
             echo "✅ Using MiniBench tournament ID: $MID"
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "minibench_target=$MID" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "minibench_target=$MID" >> "$GITHUB_OUTPUT"
           else
             echo "⚠️ MiniBench slug/ID is not configured. Set repo var AIB_MINIBENCH_TOURNAMENT_SLUG='minibench' or AIB_MINIBENCH_TOURNAMENT_ID, or pass input.";
-            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Write skipped summary (no tournament ID)

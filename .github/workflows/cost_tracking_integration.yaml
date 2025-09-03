@@ -111,11 +111,13 @@ jobs:
           REMAINING=$(echo "$REPORT" | jq -r '.budget_status.remaining // 100' 2>/dev/null || echo "100")
 
           # Set outputs
-          echo "budget_status=$BUDGET_STATUS" >> "$GITHUB_OUTPUT"
-          echo "utilization=$UTILIZATION" >> "$GITHUB_OUTPUT"
-          echo "alert_level=$ALERT_LEVEL" >> "$GITHUB_OUTPUT"
-          echo "spent=$SPENT" >> "$GITHUB_OUTPUT"
-          echo "remaining=$REMAINING" >> "$GITHUB_OUTPUT"
+          {
+            echo "budget_status=$BUDGET_STATUS"
+            echo "utilization=$UTILIZATION"
+            echo "alert_level=$ALERT_LEVEL"
+            echo "spent=$SPENT"
+            echo "remaining=$REMAINING"
+          } >> "$GITHUB_OUTPUT"
 
           # Save full report
           echo "$REPORT" > cost_analysis_report.json

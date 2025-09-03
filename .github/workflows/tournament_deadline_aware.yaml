@@ -68,9 +68,11 @@ jobs:
             esac
           fi
 
-          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
-          echo "frequency_hours=$FREQUENCY_HOURS" >> "$GITHUB_OUTPUT"
-          echo "scheduling_mode=$SCHEDULING_MODE" >> "$GITHUB_OUTPUT"
+          {
+            echo "should_run=$SHOULD_RUN"
+            echo "frequency_hours=$FREQUENCY_HOURS"
+            echo "scheduling_mode=$SCHEDULING_MODE"
+          } >> "$GITHUB_OUTPUT"
 
           echo "🕐 Scheduling Mode: $SCHEDULING_MODE"
           echo "⏱️ Frequency: Every $FREQUENCY_HOURS hours"
@@ -197,9 +199,11 @@ jobs:
           echo "📊 Utilization: $(UTILIZATION=\"$UTILIZATION\" python -c 'import os; u=float(os.environ.get("UTILIZATION") or 0.0); print(f"{u:.1%}")')"
 
           # Set outputs for workflow decisions
-          echo "budget_status=$STATUS" >> "$GITHUB_OUTPUT"
-          echo "budget_utilization=$UTILIZATION" >> "$GITHUB_OUTPUT"
-          echo "budget_remaining=$REMAINING" >> "$GITHUB_OUTPUT"
+          {
+            echo "budget_status=$STATUS"
+            echo "budget_utilization=$UTILIZATION"
+            echo "budget_remaining=$REMAINING"
+          } >> "$GITHUB_OUTPUT"
 
           # Check if we should continue
           if (( $(echo "$UTILIZATION >= 0.98" | bc -l) )); then

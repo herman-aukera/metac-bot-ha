@@ -111,11 +111,13 @@ jobs:
           SHOULD_ALERT=$(echo "$REPORT" | jq -r '.actions.should_send_alerts // false' 2>/dev/null || echo "false")
 
           # Set outputs
-          echo "budget_status=$BUDGET_STATUS" >> "$GITHUB_OUTPUT"
-          echo "should_suspend=$SHOULD_SUSPEND" >> "$GITHUB_OUTPUT"
-          echo "utilization=$UTILIZATION" >> "$GITHUB_OUTPUT"
-          echo "remaining_budget=$REMAINING" >> "$GITHUB_OUTPUT"
-          echo "should_alert=$SHOULD_ALERT" >> "$GITHUB_OUTPUT"
+          {
+            echo "budget_status=$BUDGET_STATUS"
+            echo "should_suspend=$SHOULD_SUSPEND"
+            echo "utilization=$UTILIZATION"
+            echo "remaining_budget=$REMAINING"
+            echo "should_alert=$SHOULD_ALERT"
+          } >> "$GITHUB_OUTPUT"
 
           # Display the report
           "$PY_RUN" scripts/deployment_cost_monitor.py
