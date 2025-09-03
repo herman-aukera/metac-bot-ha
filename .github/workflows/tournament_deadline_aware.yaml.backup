@@ -68,9 +68,9 @@ jobs:
             esac
           fi
 
-          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
-          echo "frequency_hours=$FREQUENCY_HOURS" >> "$GITHUB_OUTPUT"
-          echo "scheduling_mode=$SCHEDULING_MODE" >> "$GITHUB_OUTPUT"
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+          echo "frequency_hours=$FREQUENCY_HOURS" >> $GITHUB_OUTPUT
+          echo "scheduling_mode=$SCHEDULING_MODE" >> $GITHUB_OUTPUT
 
           echo "🕐 Scheduling Mode: $SCHEDULING_MODE"
           echo "⏱️ Frequency: Every $FREQUENCY_HOURS hours"
@@ -120,7 +120,7 @@ jobs:
             if poetry install --no-interaction --no-root; then
               echo "Poetry install successful"
               break
-            elif [ "$i" -eq 2 ]; then
+            elif [ $i -eq 2 ]; then
               echo "Poetry install failed after $i attempts; falling back to pip"
               python -m pip install --upgrade pip --timeout 60 --retries 3
               if [ -f requirements-emergency.txt ]; then
@@ -136,10 +136,10 @@ jobs:
 
           # Configure portable Python runner
           if poetry env info >/dev/null 2>&1; then
-            echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
+            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
           else
-            echo "PY_RUN=python" >> "$GITHUB_ENV"
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+            echo "PY_RUN=python" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
       - name: Validate API keys
@@ -197,9 +197,9 @@ jobs:
           echo "📊 Utilization: $(UTILIZATION=\"$UTILIZATION\" python -c 'import os; u=float(os.environ.get("UTILIZATION") or 0.0); print(f"{u:.1%}")')"
 
           # Set outputs for workflow decisions
-          echo "budget_status=$STATUS" >> "$GITHUB_OUTPUT"
-          echo "budget_utilization=$UTILIZATION" >> "$GITHUB_OUTPUT"
-          echo "budget_remaining=$REMAINING" >> "$GITHUB_OUTPUT"
+          echo "budget_status=$STATUS" >> $GITHUB_OUTPUT
+          echo "budget_utilization=$UTILIZATION" >> $GITHUB_OUTPUT
+          echo "budget_remaining=$REMAINING" >> $GITHUB_OUTPUT
 
           # Check if we should continue
           if (( $(echo "$UTILIZATION >= 0.98" | bc -l) )); then
@@ -223,7 +223,7 @@ jobs:
           echo "⏱️ Frequency: Every ${{ needs.determine_scheduling.outputs.frequency_hours }} hours"
           echo "💰 Budget utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
           echo "💵 Budget remaining: ${{ steps.budget_check.outputs.budget_remaining }}"
-          "$PY_RUN" main.py
+          $PY_RUN main.py
           echo "✅ Tournament forecasting completed successfully"
         env:
           # Required API keys
@@ -274,7 +274,7 @@ jobs:
         run: |
           echo "📊 Generating comprehensive cost analysis reports..."
           export PYTHONPATH=$GITHUB_WORKSPACE
-          "$PY_RUN" scripts/deployment_cost_monitor.py
+          $PY_RUN scripts/deployment_cost_monitor.py
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100.0' }}
           AIB_TOURNAMENT_ID: 32813

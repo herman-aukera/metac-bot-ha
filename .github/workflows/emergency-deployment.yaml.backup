@@ -60,7 +60,7 @@ jobs:
             if python -m pip install --upgrade pip --timeout 60 --retries 5; then
               echo "✅ Pip upgrade successful on attempt $i"
               break
-            elif [ "$i" -eq 5 ]; then
+            elif [ $i -eq 5 ]; then
               echo "❌ Pip upgrade failed after 5 attempts"
               exit 1
             else

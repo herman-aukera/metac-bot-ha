@@ -83,8 +83,7 @@ jobs:
             POETRY_SUCCESS=true
           else
             echo "⚠️ Poetry install failed, trying with verbose output..."
-            poetry install --only main -vvv
-            if [ $? -eq 0 ]; then
+            if poetry install --only main -vvv; then
               echo "✅ Poetry installation successful with verbose mode"
               POETRY_SUCCESS=true
             else
@@ -122,7 +121,9 @@ jobs:
               echo "❌ forecasting_tools import failed even after pip install"
               exit 1
             }
-          fi          echo "📋 Final package verification..."
+          fi
+
+          echo "📋 Final package verification..."
           python -c "
           packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
           for pkg in packages:
@@ -176,7 +177,7 @@ jobs:
           fi
 
           echo "🎯 Starting tournament bot execution..."
-          if $PY_RUN main.py; then
+          if "$PY_RUN" main.py; then
             echo "✅ Bot execution completed successfully"
             echo "success=true" >> "$GITHUB_OUTPUT"
           else

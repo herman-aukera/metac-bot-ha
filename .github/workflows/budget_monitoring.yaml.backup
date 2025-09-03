@@ -88,7 +88,7 @@ jobs:
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
           else
             echo "PY_RUN=python" >> "$GITHUB_ENV"
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
       - name: Comprehensive budget analysis
@@ -98,10 +98,10 @@ jobs:
           echo "💰 Running comprehensive budget analysis..."
 
           # Generate all artifacts
-          "$PY_RUN" scripts/deployment_cost_monitor.py --generate-artifacts
+          $PY_RUN scripts/deployment_cost_monitor.py --generate-artifacts
 
           # Get the analysis report
-          REPORT=$("$PY_RUN" scripts/deployment_cost_monitor.py --json-output)
+          REPORT=$($PY_RUN scripts/deployment_cost_monitor.py --json-output)
 
           # Extract key metrics safely
           BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"' 2>/dev/null || echo "normal")
@@ -118,7 +118,7 @@ jobs:
           echo "should_alert=$SHOULD_ALERT" >> "$GITHUB_OUTPUT"
 
           # Display the report
-          "$PY_RUN" scripts/deployment_cost_monitor.py
+          $PY_RUN scripts/deployment_cost_monitor.py
 
           # Save as budget monitoring report
           echo "$REPORT" > budget_monitoring_report.json
@@ -131,10 +131,10 @@ jobs:
           echo "📊 Analyzing cost per workflow run..."
 
           # Generate cost analysis using the monitoring script
-          "$PY_RUN" scripts/deployment_cost_monitor.py --cost-analysis
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis
 
           # Save the analysis to the expected file
-          "$PY_RUN" scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_per_run_analysis.json
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_per_run_analysis.json
 
           echo "📄 Cost analysis saved to cost_per_run_analysis.json"
         env:

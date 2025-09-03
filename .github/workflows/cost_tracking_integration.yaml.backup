@@ -69,7 +69,7 @@ jobs:
             if poetry install --no-interaction --no-root; then
               echo "Poetry install successful"
               break
-            elif [ "$i" -eq 2 ]; then
+            elif [ $i -eq 2 ]; then
               echo "Poetry install failed after $i attempts; falling back to pip"
               python -m pip install --upgrade pip --timeout 60 --retries 3
               if [ -f requirements-emergency.txt ]; then
@@ -85,10 +85,10 @@ jobs:
 
           # Configure portable Python runner
           if poetry env info >/dev/null 2>&1; then
-            echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
+            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
           else
-            echo "PY_RUN=python" >> "$GITHUB_ENV"
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+            echo "PY_RUN=python" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
       - name: Run cost analysis
@@ -98,10 +98,10 @@ jobs:
           echo "📊 Running comprehensive cost analysis..."
 
           # Generate all artifacts first
-          "$PY_RUN" scripts/deployment_cost_monitor.py --generate-artifacts
+          $PY_RUN scripts/deployment_cost_monitor.py --generate-artifacts
 
           # Run the monitoring script with JSON output
-          REPORT=$("$PY_RUN" scripts/deployment_cost_monitor.py --json-output)
+          REPORT=$($PY_RUN scripts/deployment_cost_monitor.py --json-output)
 
           # Extract key metrics safely
           BUDGET_STATUS=$(echo "$REPORT" | jq -r '.budget_status.status // "normal"' 2>/dev/null || echo "normal")
@@ -111,11 +111,11 @@ jobs:
           REMAINING=$(echo "$REPORT" | jq -r '.budget_status.remaining // 100' 2>/dev/null || echo "100")
 
           # Set outputs
-          echo "budget_status=$BUDGET_STATUS" >> "$GITHUB_OUTPUT"
-          echo "utilization=$UTILIZATION" >> "$GITHUB_OUTPUT"
-          echo "alert_level=$ALERT_LEVEL" >> "$GITHUB_OUTPUT"
-          echo "spent=$SPENT" >> "$GITHUB_OUTPUT"
-          echo "remaining=$REMAINING" >> "$GITHUB_OUTPUT"
+          echo "budget_status=$BUDGET_STATUS" >> $GITHUB_OUTPUT
+          echo "utilization=$UTILIZATION" >> $GITHUB_OUTPUT
+          echo "alert_level=$ALERT_LEVEL" >> $GITHUB_OUTPUT
+          echo "spent=$SPENT" >> $GITHUB_OUTPUT
+          echo "remaining=$REMAINING" >> $GITHUB_OUTPUT
 
           # Save full report
           echo "$REPORT" > cost_analysis_report.json
@@ -136,7 +136,7 @@ jobs:
           echo "🔍 Checking if workflows should be suspended..."
 
           # Use the monitoring script to check suspension requirements
-          if "$PY_RUN" scripts/deployment_cost_monitor.py --check-suspension --json-output; then
+          if $PY_RUN scripts/deployment_cost_monitor.py --check-suspension --json-output; then
             SHOULD_SUSPEND="false"
             echo "✅ Budget allows continued operation"
           else
@@ -144,7 +144,7 @@ jobs:
             echo "🚨 Budget exhausted - workflows should be suspended"
           fi
 
-          echo "should_suspend=$SHOULD_SUSPEND" >> "$GITHUB_OUTPUT"
+          echo "should_suspend=$SHOULD_SUSPEND" >> $GITHUB_OUTPUT
           echo "Should suspend workflows: $SHOULD_SUSPEND"
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
@@ -155,18 +155,18 @@ jobs:
           echo "📋 Generating detailed cost and efficiency report..."
 
           # Generate comprehensive reports
-          "$PY_RUN" scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_efficiency_report.json
-          "$PY_RUN" scripts/deployment_cost_monitor.py --workflow-recommendations --json-output > workflow_recommendations.json
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis --json-output > cost_efficiency_report.json
+          $PY_RUN scripts/deployment_cost_monitor.py --workflow-recommendations --json-output > workflow_recommendations.json
 
           # Display summary
           echo "📊 DETAILED COST ANALYSIS"
           echo "========================"
-          "$PY_RUN" scripts/deployment_cost_monitor.py --cost-analysis
+          $PY_RUN scripts/deployment_cost_monitor.py --cost-analysis
 
           echo ""
           echo "🔧 WORKFLOW RECOMMENDATIONS"
           echo "==========================="
-          "$PY_RUN" scripts/deployment_cost_monitor.py --workflow-recommendations
+          $PY_RUN scripts/deployment_cost_monitor.py --workflow-recommendations
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
 
@@ -175,7 +175,7 @@ jobs:
           echo "📈 Tracking cost per workflow run..."
 
           # Calculate cost per run metrics
-          CURRENT_RUN_COST=$("$PY_RUN" -c "
+          CURRENT_RUN_COST=$($PY_RUN -c "
           from src.infrastructure.config.budget_manager import BudgetManager
           import os
 
@@ -277,11 +277,11 @@ jobs:
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/issues" \
-            -d "{
-              \"title\": \"🚨 CRITICAL: Budget Exhausted - Workflows Suspended\",
-              \"body\": \"## Budget Exhaustion Alert\\n\\n**Timestamp:** $(date -u)\\n**Budget Status:** ${{ needs.cost_tracking.outputs.budget_status }}\\n**Utilization:** ${{ needs.cost_tracking.outputs.utilization }}\\n**Alert Level:** ${{ needs.cost_tracking.outputs.alert_level }}\\n\\n### Actions Taken\\n- [x] Automatic workflow suspension triggered\\n- [x] Cost tracking reports generated\\n- [x] Alert issue created\\n\\n### Required Actions\\n- [ ] Review cost optimization opportunities\\n- [ ] Consider budget increase if tournament participation is critical\\n- [ ] Manually manage critical forecasting deadlines\\n- [ ] Update budget limits and resume workflows when ready\\n\\n### Reports\\nCheck the latest workflow artifacts for detailed cost analysis and recommendations.\\n\\n**Workflow Run:** ${{ github.run_number }}\\n**Repository:** ${{ github.repository }}\",
-              \"labels\": [\"critical\", \"budget\", \"automation\"]
-            }"
+            -d '{
+              "title": "🚨 CRITICAL: Budget Exhausted - Workflows Suspended",
+              "body": "## Budget Exhaustion Alert\n\n**Timestamp:** $(date -u)\n**Budget Status:** ${{ needs.cost_tracking.outputs.budget_status }}\n**Utilization:** ${{ needs.cost_tracking.outputs.utilization }}\n**Alert Level:** ${{ needs.cost_tracking.outputs.alert_level }}\n\n### Actions Taken\n- [x] Automatic workflow suspension triggered\n- [x] Cost tracking reports generated\n- [x] Alert issue created\n\n### Required Actions\n- [ ] Review cost optimization opportunities\n- [ ] Consider budget increase if tournament participation is critical\n- [ ] Manually manage critical forecasting deadlines\n- [ ] Update budget limits and resume workflows when ready\n\n### Reports\nCheck the latest workflow artifacts for detailed cost analysis and recommendations.\n\n**Workflow Run:** ${{ github.run_number }}\n**Repository:** ${{ github.repository }}",
+              "labels": ["critical", "budget", "automation"]
+            }'
 
           echo "✅ Budget exhaustion issue created"
 

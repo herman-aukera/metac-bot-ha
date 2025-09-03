@@ -67,10 +67,10 @@ jobs:
           UTILIZATION="${{ github.event.inputs.utilization || inputs.utilization || '0' }}"
           REASON="${{ github.event.inputs.reason || 'Automated budget management' }}"
 
-          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
-          echo "budget_status=$BUDGET_STATUS" >> "$GITHUB_OUTPUT"
-          echo "utilization=$UTILIZATION" >> "$GITHUB_OUTPUT"
-          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "budget_status=$BUDGET_STATUS" >> $GITHUB_OUTPUT
+          echo "utilization=$UTILIZATION" >> $GITHUB_OUTPUT
+          echo "reason=$REASON" >> $GITHUB_OUTPUT
 
           echo "🔧 Workflow Management Action: $ACTION"
           echo "💰 Budget Status: $BUDGET_STATUS"
@@ -95,7 +95,7 @@ jobs:
               # Check if workflow has active cron schedules
               if grep -q "cron:" ".github/workflows/$workflow" && ! grep -q "#.*cron:" ".github/workflows/$workflow"; then
                 echo "  ✅ $workflow - ACTIVE"
-                echo "active_workflows=$workflow" >> "$GITHUB_OUTPUT"
+                echo "active_workflows=$workflow" >> $GITHUB_OUTPUT
               else
                 echo "  ⏸️ $workflow - SUSPENDED"
               fi

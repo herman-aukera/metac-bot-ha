@@ -64,12 +64,12 @@ jobs:
         id: determine-method
         run: |
           if command -v poetry &> /dev/null && poetry --version; then
-            echo "method=poetry" >> "$GITHUB_OUTPUT"
-            echo "poetry-available=true" >> "$GITHUB_OUTPUT"
+            echo "method=poetry" >> $GITHUB_OUTPUT
+            echo "poetry-available=true" >> $GITHUB_OUTPUT
             echo "✅ Poetry is available"
           else
-            echo "method=pip" >> "$GITHUB_OUTPUT"
-            echo "poetry-available=false" >> "$GITHUB_OUTPUT"
+            echo "method=pip" >> $GITHUB_OUTPUT
+            echo "poetry-available=false" >> $GITHUB_OUTPUT
             echo "⚠️ Using pip fallback"
           fi
 
@@ -85,7 +85,7 @@ jobs:
               if timeout 300 poetry lock; then
                 echo "Poetry lock successful on attempt $i"
                 break
-              elif [ "$i" -eq 3 ]; then
+              elif [ $i -eq 3 ]; then
                 echo "Poetry lock failed after 3 attempts, continuing with existing lock file"
                 break
               else
@@ -100,7 +100,7 @@ jobs:
               if timeout 600 poetry install --no-interaction; then
                 echo "Poetry install successful on attempt $i"
                 exit 0
-              elif [ "$i" -eq 3 ]; then
+              elif [ $i -eq 3 ]; then
                 echo "Poetry install failed after 3 attempts"
                 if [ "${{ inputs.enable-emergency-mode }}" == "true" ]; then
                   echo "🚨 Enabling emergency pip fallback..."

@@ -49,319 +49,165 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install poetry with timeout and fallback
-        id: install-poetry-tournament
-        timeout-minutes: 5
-        continue-on-error: true
+      - name: 🔧 Install Poetry
         uses: snok/install-poetry@v1
         with:
           virtualenvs-create: true
           virtualenvs-in-project: true
-          installer-parallel: true
 
-      - name: Fallback to pip installation if poetry fails
-        if: steps.install-poetry-tournament.outcome == 'failure'
-        timeout-minutes: 10
-        run: |
-          echo "🚨 Poetry installation failed, falling back to pip for tournament..."
-          python -m pip install --upgrade pip --timeout 60 --retries 3
-          python -m pip install --timeout 60 --retries 3 poetry
-          poetry config virtualenvs.create true
-          poetry config virtualenvs.in-project true
-
-      - name: Load cached venv with timeout
+      - name: 📦 Load cached venv
         id: cached-poetry-dependencies
         uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-        timeout-minutes: 5
 
-      - name: Validate Poetry configuration (no lock)
-        timeout-minutes: 5
+      - name: 🔧 Install dependencies with enhanced fallback
+        id: install-deps
         run: |
-          poetry --version
-          poetry check || true
+          set -e
 
-      - name: Install dependencies with retry and emergency fallback
-        timeout-minutes: 20
-        run: |
-          set -e  # Exit on error
-          POETRY_SUCCESS=false
-
-          # Try poetry install first
-          for i in {1..3}; do
-            echo "🔄 Attempt $i to install dependencies with poetry..."
-            if timeout 600 poetry install --no-interaction --no-root; then
-              echo "✅ Poetry install successful on attempt $i"
-              POETRY_SUCCESS=true
-              break
-            else
-              echo "❌ Poetry install failed on attempt $i"
-              if [ $i -lt 3 ]; then
-                echo "⏳ Retrying in 30 seconds..."
-                sleep 30
-              fi
-            fi
-          done
-
-          # If poetry failed, use pip emergency fallback
-          if [ "$POETRY_SUCCESS" != "true" ]; then
-            echo "🚨 EMERGENCY: Poetry failed, using pip fallback..."
-            python -m pip install --upgrade pip --timeout 60 --retries 3
-            python -m pip install --timeout 60 --retries 3 \
-              pydantic requests python-dotenv pyyaml \
-              openai anthropic httpx aiohttp \
-              pytest pytest-asyncio beautifulsoup4 \
-              numpy pandas matplotlib seaborn typer
-            echo "✅ Emergency pip dependencies installed"
-          fi
-
-          # Always install core dependencies as backup
-          python -m pip install --timeout 60 --retries 3 python-dotenv pydantic requests || echo "Backup install failed but continuing"
-
-          # Configure portable Python runner
-          if [ "$POETRY_SUCCESS" = "true" ] && poetry env info >/dev/null 2>&1; then
-            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
-            echo "🔧 Using Poetry environment"
-          else
-            echo "PY_RUN=python" >> $GITHUB_ENV
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
-            echo "🔧 Using system Python with PYTHONPATH"
-          fi
-
-      - name: Validate required API keys
-        run: |
-          MISSING=""
-          [ -z "$METACULUS_TOKEN" ] && MISSING="$MISSING METACULUS_TOKEN"
-          [ -z "$OPENROUTER_API_KEY" ] && MISSING="$MISSING OPENROUTER_API_KEY"
-          if [ -n "$MISSING" ]; then
-            echo "❌ Missing required API keys:$MISSING"
-            exit 1
-          fi
-          echo "✅ Required API keys present"
-
-      - name: Display scheduling configuration
-        run: |
-          echo "📅 Tournament Scheduling Configuration:"
-          echo "  Frequency: ${{ github.event.inputs.scheduling_frequency_hours || vars.SCHEDULING_FREQUENCY_HOURS || '4' }} hours"
-          echo "  Mode: ${{ github.event.inputs.tournament_mode || 'normal' }}"
-          echo "  Deadline-aware: ${{ vars.DEADLINE_AWARE_SCHEDULING || 'true' }}"
-          echo "  Critical period frequency: ${{ vars.CRITICAL_PERIOD_FREQUENCY_HOURS || '2' }} hours"
-          echo "  Final 24h frequency: ${{ vars.FINAL_24H_FREQUENCY_HOURS || '1' }} hours"
-          echo "  Tournament scope: ${{ vars.TOURNAMENT_SCOPE || 'seasonal' }}"
-          echo "  Tournament ID: ${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}"
-          echo "  Tournament slug: ${{ github.event.inputs.tournament_slug || vars.AIB_TOURNAMENT_SLUG || 'n/a' }}"
-
-      - name: Check budget status before run
-        id: budget_check
-        run: |
-          echo "💰 Checking budget status before forecasting run..."
-          BUDGET_LIMIT="${{ vars.BUDGET_LIMIT || '100' }}"
-          CURRENT_SPEND="${{ vars.CURRENT_SPEND || '0.0' }}"
-
-          # Simple budget calculation
-          REMAINING=$(python -c "print(max(0, $BUDGET_LIMIT - $CURRENT_SPEND))")
-          UTILIZATION=$(python -c "print($CURRENT_SPEND / $BUDGET_LIMIT if $BUDGET_LIMIT > 0 else 0)")
-
-          if (( $(echo "$UTILIZATION >= 0.95" | bc -l) )); then
-            STATUS="critical"
-          elif (( $(echo "$UTILIZATION >= 0.80" | bc -l) )); then
-            STATUS="warning"
-          else
-            STATUS="normal"
-          fi
-
-          echo "💰 Budget Status: $STATUS"
-          echo "💸 Spent: \$$CURRENT_SPEND / \$$BUDGET_LIMIT"
-          echo "📊 Utilization: $(UTILIZATION=\"$UTILIZATION\" python -c 'import os; u=float(os.environ.get("UTILIZATION") or 0.0); print(f"{u:.1%}")')"
-
-          # Set outputs for workflow decisions
-          echo "budget_status=$STATUS" >> $GITHUB_OUTPUT
-          echo "budget_utilization=$UTILIZATION" >> $GITHUB_OUTPUT
-          echo "budget_remaining=$REMAINING" >> $GITHUB_OUTPUT
-
-          # Check if we should continue
-          if (( $(echo "$UTILIZATION >= 0.98" | bc -l) )); then
-            echo "🚨 CRITICAL: Budget exhausted (98%+), suspending workflow"
-            exit 1
-          elif (( $(echo "$UTILIZATION >= 0.95" | bc -l) )); then
-            echo "⚠️ WARNING: Budget critical (95%+), emergency mode activated"
-          elif (( $(echo "$UTILIZATION >= 0.80" | bc -l) )); then
-            echo "⚠️ CAUTION: Budget high (80%+), conservative mode activated"
-          else
-            echo "✅ Budget status normal, proceeding with forecasting"
-          fi
-        env:
-          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
-
-      - name: Run bot with monitoring
-        continue-on-error: true
-        if: steps.budget_check.outputs.budget_utilization < '0.98'
-        run: |
-          echo "🚀 Starting tournament forecasting bot..."
-          echo "💰 Budget utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
-          echo "💵 Budget remaining: ${{ steps.budget_check.outputs.budget_remaining }}"
-          echo "🎯 Targeting tournament: ${{ github.event.inputs.tournament_slug || vars.AIB_TOURNAMENT_SLUG || github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}"
-
-          # Debug Python environment
-          echo "🔍 Python environment debug:"
-          echo "PYTHONPATH: $PYTHONPATH"
-          echo "PY_RUN: $PY_RUN"
+          echo "🔍 Checking Python environment..."
           python --version
-          python -m pip list | grep -E "(dotenv|pydantic|requests)" || echo "Core packages not found"
+          pip --version
 
-          # Test dotenv import specifically
-          echo "🧪 Testing dotenv import:"
-          python -c "import dotenv; print('✅ dotenv import successful')" || echo "❌ dotenv import failed"
-
-          # Run with cost tracking
-          echo "🚀 Executing main.py..."
-          $PY_RUN main.py
-          echo "✅ Tournament forecasting completed successfully"
-        env:
-          # Bot configuration
-          APP_ENV: production
-          LOG_LEVEL: INFO
-          DRY_RUN: false
-
-          # Tournament configuration
-          PUBLISH_REPORTS: true
-          AIB_TOURNAMENT_ID: ${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}
-          AIB_TOURNAMENT_SLUG: ${{ github.event.inputs.tournament_slug || vars.AIB_TOURNAMENT_SLUG || '' }}
-          TOURNAMENT_MODE: true
-
-          # Budget management configuration
-          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100' }}
-          COST_TRACKING_ENABLED: true
-          EMERGENCY_MODE_THRESHOLD: 0.95
-          CONSERVATIVE_MODE_THRESHOLD: 0.80
-          BUDGET_STATUS: ${{ steps.budget_check.outputs.budget_status }}
-
-          # Tournament scheduling configuration
-          SCHEDULING_FREQUENCY_HOURS: ${{ github.event.inputs.scheduling_frequency_hours || vars.SCHEDULING_FREQUENCY_HOURS || '4' }}
-          DEADLINE_AWARE_SCHEDULING: ${{ vars.DEADLINE_AWARE_SCHEDULING || 'true' }}
-          CRITICAL_PERIOD_FREQUENCY_HOURS: ${{ vars.CRITICAL_PERIOD_FREQUENCY_HOURS || '2' }}
-          FINAL_24H_FREQUENCY_HOURS: ${{ vars.FINAL_24H_FREQUENCY_HOURS || '1' }}
-          TOURNAMENT_SCOPE: ${{ vars.TOURNAMENT_SCOPE || 'seasonal' }}
-          TOURNAMENT_MODE_INPUT: ${{ github.event.inputs.tournament_mode || 'normal' }}
-
-          # Metaculus proxy configuration
-          ENABLE_PROXY_CREDITS: true
-          METACULUS_DEFAULT_MODEL: ${{ secrets.METACULUS_DEFAULT_MODEL || 'metaculus/claude-3-5-sonnet' }}
-          METACULUS_SUMMARIZER_MODEL: ${{ secrets.METACULUS_SUMMARIZER_MODEL || 'metaculus/gpt-4o-mini' }}
-          METACULUS_RESEARCH_MODEL: ${{ secrets.METACULUS_RESEARCH_MODEL || 'metaculus/gpt-4o' }}
-          MAX_PROXY_REQUESTS: 1000
-
-      - name: Generate cost reports
-        continue-on-error: true
-        if: always()
-        run: |
-          echo "📊 Generating comprehensive cost analysis reports..."
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          $PY_RUN scripts/deployment_cost_monitor.py || true
-        env:
-          BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100.0' }}
-          AIB_TOURNAMENT_ID: ${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}
-          CURRENT_SPEND: ${{ vars.CURRENT_SPEND || '0.0' }}
-          QUESTIONS_PROCESSED: ${{ vars.QUESTIONS_PROCESSED || '1' }}
-
-      - name: Show run summary (if present)
-        if: always()
-        run: |
-          if [ -f run_summary.json ]; then
-            echo "📄 Run Summary:"
-            cat run_summary.json
+          echo "📦 Installing Poetry dependencies..."
+          if poetry install --only main; then
+            echo "✅ Poetry installation successful"
+            POETRY_SUCCESS=true
           else
-            echo "ℹ️ run_summary.json not found, creating fallback summary..."
-            cat > run_summary.json << 'JSON'
-            {
-              "run_mode": "tournament",
-              "tournament_mode": "true",
-              "tournament_id": "${{ github.event.inputs.tournament_id || vars.AIB_TOURNAMENT_ID || '32813' }}",
-              "tournament_slug": "${{ github.event.inputs.tournament_slug || vars.AIB_TOURNAMENT_SLUG || '' }}",
-              "publish_reports": "true",
-              "successful_forecasts": 0,
-              "failed_forecasts": 0,
-              "total_processed": 0,
-              "status": "failed",
-              "reason": "Bot execution failed - check logs for details"
-            }
-            JSON
-            echo "📄 Fallback Summary Created:"
-            cat run_summary.json
-          fi
-
-      - name: Check for budget alerts
-        if: always() && steps.budget_check.outputs.budget_utilization >= '0.80'
-        run: |
-          echo "🚨 Budget Alert Triggered!"
-          echo "Current utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
-          echo "Remaining budget: ${{ steps.budget_check.outputs.budget_remaining }}"
-
-          if (( $(echo "${{ steps.budget_check.outputs.budget_utilization }} >= 0.95" | bc -l) )); then
-            echo "🔴 CRITICAL ALERT: Budget utilization >= 95%"
-            echo "Action required: Consider suspending automated runs"
-          elif (( $(echo "${{ steps.budget_check.outputs.budget_utilization }} >= 0.80" | bc -l) )); then
-            echo "🟡 WARNING ALERT: Budget utilization >= 80%"
-            echo "Action recommended: Monitor closely and consider conservative mode"
-          fi
-
-      - name: Monitor deployment status
-        if: always()
-        continue-on-error: true
-        run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Tournament forecasting deployment successful"
-            echo "📊 Monitoring: Bot executed without errors"
-            echo "💰 Budget Status: ${{ steps.budget_check.outputs.budget_status }}"
-            echo "📈 Budget Utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
-          else
-            echo "❌ Tournament forecasting deployment failed"
-            echo "🔍 Check logs above for error details"
-
-            # Check if failure was due to budget exhaustion
-            if [ "${{ steps.budget_check.outputs.budget_utilization }}" != "" ]; then
-              if (( $(echo "${{ steps.budget_check.outputs.budget_utilization }} >= 0.98" | bc -l) )); then
-                echo "💸 Failure cause: Budget exhausted"
-                echo "🛑 Workflow suspended due to budget limits"
-              fi
+            echo "⚠️ Poetry install failed, trying with verbose output..."
+            if poetry install --only main -vvv; then
+              echo "✅ Poetry installation successful with verbose mode"
+              POETRY_SUCCESS=true
+            else
+              echo "❌ Poetry install failed completely"
+              POETRY_SUCCESS=false
             fi
-            # Do not fail the job; surface warnings only in tournament mode
-            :
           fi
 
-      - name: Upload cost report and logs
-        if: always()
+          # Test if virtual environment is working
+          if [ "$POETRY_SUCCESS" = "true" ]; then
+            echo "🧪 Testing Poetry environment..."
+            if poetry run python -c "import sys; print(f'Python: {sys.executable}')"; then
+              echo "✅ Poetry environment is working"
+            else
+              echo "⚠️ Poetry environment test failed"
+              POETRY_SUCCESS=false
+            fi
+          fi
+
+          # Enhanced fallback with essential packages
+          if [ "$POETRY_SUCCESS" = "false" ]; then
+            echo "🔄 Falling back to direct pip installation..."
+            pip install --upgrade pip
+            pip install python-dotenv pydantic requests openai anthropic PyYAML forecasting-tools httpx aiofiles
+            pip install -e .
+
+            echo "🧪 Testing dotenv import..."
+            python -c "import dotenv; print('✅ dotenv import successful')" || {
+              echo "❌ dotenv import failed even after pip install"
+              exit 1
+            }
+
+            echo "🧪 Testing forecasting_tools import..."
+            python -c "import forecasting_tools; print('✅ forecasting_tools import successful')" || {
+              echo "❌ forecasting_tools import failed even after pip install"
+              exit 1
+            }
+          fi          echo "📋 Final package verification..."
+          python -c "
+          packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
+          for pkg in packages:
+              try:
+                  __import__(pkg)
+                  print(f'✅ {pkg}: imported successfully')
+              except ImportError as e:
+                  print(f'❌ {pkg}: {e}')
+          "
+
+      - name: 🧪 Debug Python environment
+        run: |
+          echo "🔍 Python Environment Debug:"
+          python --version
+          python -c "import sys; print('Python executable:', sys.executable)"
+          python -c "import sys; print('Python path:', sys.path)"
+          echo "📦 Installed packages:"
+          pip list | head -20
+
+          echo "🧪 Testing critical imports:"
+          python -c "
+          import sys
+          try:
+              import dotenv
+              print('✅ dotenv imported successfully')
+          except ImportError as e:
+              print(f'❌ Failed to import dotenv: {e}')
+              sys.exit(1)
+          "
+
+      - name: 🎯 Run tournament forecasting bot
+        id: run-bot
+        env:
+          # Tournament targeting (GitHub Variables)
+          TOURNAMENT_ID: ${{ vars.AIB_TOURNAMENT_ID || '' }}
+          TOURNAMENT_SLUG: ${{ vars.AIB_TOURNAMENT_SLUG || inputs.tournament_slug || '' }}
+          # Optional config overrides
+          SCHEDULING_FREQUENCY_HOURS: ${{ inputs.scheduling_frequency_hours || '4' }}
+          TOURNAMENT_MODE: ${{ inputs.tournament_mode || 'normal' }}
+        run: |
+          set -e
+
+          # Determine how to run Python
+          if command -v poetry >/dev/null 2>&1 && poetry env info >/dev/null 2>&1; then
+            echo "🚀 Running via Poetry..."
+            PY_RUN="poetry run python"
+          else
+            echo "🐍 Running via direct Python..."
+            PY_RUN="python"
+            export PYTHONPATH="${PWD}/src:${PYTHONPATH:-}"
+          fi
+
+          echo "🎯 Starting tournament bot execution..."
+          if $PY_RUN main.py; then
+            echo "✅ Bot execution completed successfully"
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Bot execution failed"
+            echo "success=false" >> "$GITHUB_OUTPUT"
+
+            # Create fallback summary for failed executions
+            cat > run_summary.json << EOF
+          {
+            "status": "failed",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "error": "Bot execution failed during tournament forecasting",
+            "workflow_run": "${{ github.run_id }}",
+            "commit": "${{ github.sha }}"
+          }
+          EOF
+
+            exit 1
+          fi
+
+      - name: 📊 Upload execution summary
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: tournament-run-${{ github.run_number }}-${{ steps.budget_check.outputs.budget_status || 'unknown' }}
-          path: |
-            run_summary.json
-            cost_report.json
-            *.log
-            logs/
+          name: tournament-run-summary-${{ github.run_id }}
+          path: run_summary.json
           retention-days: 30
 
-      - name: Budget exhaustion workflow suspension
-        if: always() && steps.budget_check.outputs.budget_utilization >= '0.98'
-        run: |
-          echo "🚨 CRITICAL: Budget exhausted, workflow should be suspended"
-          echo "Current utilization: ${{ steps.budget_check.outputs.budget_utilization }}"
-          echo "Remaining budget: ${{ steps.budget_check.outputs.budget_remaining }}"
-          echo ""
-          echo "🛑 RECOMMENDED ACTIONS:"
-          echo "1. Disable scheduled workflow runs"
-          echo "2. Review cost optimization opportunities"
-          echo "3. Consider increasing budget if tournament continues"
-          echo "4. Switch to manual forecasting mode if needed"
-
-          # This will cause the workflow to fail, preventing future scheduled runs
-          # until the issue is addressed
-          exit 1
+      - name: 📁 Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tournament-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7

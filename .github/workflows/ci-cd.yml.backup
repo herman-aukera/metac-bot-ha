@@ -89,7 +89,7 @@ jobs:
             if timeout 600 poetry install --no-interaction --no-root; then
               echo "Poetry install successful on attempt $i"
               break
-            elif [ "$i" -eq 3 ]; then
+            elif [ $i -eq 3 ]; then
               echo "Poetry install failed after 3 attempts; trying without lock and then pip fallback..."
               poetry install --no-interaction --no-root --no-ansi --no-cache || true
               python -m pip install --timeout 60 --retries 3 \
@@ -116,21 +116,21 @@ jobs:
               sleep 15
             done
             echo "Project install failed after 3 attempts, using fallback without editable install"
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           else
             echo "Skipping editable install (package-mode=false); adding src to PYTHONPATH"
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
       - name: Configure runner commands
         run: |
           if command -v poetry &> /dev/null && poetry env info &> /dev/null; then
             echo "Using poetry run"
-            echo "PY_CMD=poetry run" >> "$GITHUB_ENV"
+            echo "PY_CMD=poetry run" >> $GITHUB_ENV
           else
             echo "Using python -m"
-            echo "PY_CMD=python -m" >> "$GITHUB_ENV"
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+            echo "PY_CMD=python -m" >> $GITHUB_ENV
+            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
           fi
 
       - name: Run linting

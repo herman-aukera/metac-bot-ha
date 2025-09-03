@@ -218,7 +218,7 @@ jobs:
             if timeout 600 poetry install --no-interaction; then
               echo "Poetry install successful on attempt $i"
               exit 0
-            elif [ "$i" -eq 3 ]; then
+            elif [ $i -eq 3 ]; then
               echo "Poetry install failed after 3 attempts, trying pip fallback..."
               break
             else
@@ -230,7 +230,7 @@ jobs:
           # Fallback to pip if poetry fails
           echo "Falling back to pip installation..."
           python -m pip install --timeout 60 --retries 3 flake8 black isort mypy pylint
-          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
       - name: Check code formatting with timeout
         continue-on-error: true

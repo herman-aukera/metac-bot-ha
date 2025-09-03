@@ -4,7 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       tournament_slug:
-        description: 'MiniBench tournament slug (e.g., minibench)'
+        description:          fi
+
+          echo "📋 Final package verification..."
+          python -c "
+packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
+for pkg in packages:
+    try:
+        __import__(pkg)
+        print(f'✅ {pkg}: imported successfully')
+    except ImportError as e:
+        print(f'❌ {pkg}: {e}')
+" tournament slug (e.g., minibench)'
         required: false
         type: string
       tournament_id:
@@ -118,9 +129,7 @@ jobs:
               echo "❌ forecasting_tools import failed even after pip install"
               exit 1
             }
-          fi
-
-          echo "📋 Final package verification..."
+          fi          echo "📋 Final package verification..."
           python -c "
           packages = ['dotenv', 'pydantic', 'requests', 'openai', 'forecasting_tools']
           for pkg in packages:

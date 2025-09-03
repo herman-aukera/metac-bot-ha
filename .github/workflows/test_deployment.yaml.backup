@@ -33,19 +33,19 @@ jobs:
           fi
           python -m pip install --timeout 60 --retries 3 \
             pydantic requests python-dotenv pyyaml openai httpx typer pytest || true
-          echo "PY_RUN=python" >> "$GITHUB_ENV"
-          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+          echo "PY_RUN=python" >> $GITHUB_ENV
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
       - name: Verify Python and env
         run: |
           python --version
-          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
-          echo "PY_RUN=python" >> "$GITHUB_ENV"
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          echo "PY_RUN=python" >> $GITHUB_ENV
 
       - name: Test API key validation system
         run: |
           echo "Testing API key validation..."
-          "$PY_RUN" -c "from src.infrastructure.config.api_keys import api_key_manager; print('ok'); api_key_manager.validate_required_keys(); api_key_manager.log_key_status()"
+          $PY_RUN -c "from src.infrastructure.config.api_keys import api_key_manager; print('ok'); api_key_manager.validate_required_keys(); api_key_manager.log_key_status()"
         env:
           METACULUS_TOKEN: test_token
           OPENROUTER_API_KEY: test_key
@@ -59,7 +59,7 @@ jobs:
       - name: Test configuration loading
         run: |
           echo "Testing configuration system..."
-          "$PY_RUN" -c "from src.infrastructure.config.tournament_config import TournamentConfig; c=TournamentConfig(); print('ok', c.tournament_id, c.is_tournament_mode())"
+          $PY_RUN -c "from src.infrastructure.config.tournament_config import TournamentConfig; c=TournamentConfig(); print('ok', c.tournament_id, c.is_tournament_mode())"
         env:
           APP_ENV: test
           TOURNAMENT_MODE: true
@@ -68,7 +68,7 @@ jobs:
       - name: Test dry run mode
         run: |
           echo "Testing bot in dry run mode..."
-          "$PY_RUN" main.py --mode test_questions || echo "dry run non-fatal"
+          $PY_RUN main.py --mode test_questions || echo "dry run non-fatal"
         env:
           METACULUS_TOKEN: test_token
           OPENROUTER_API_KEY: test_key
