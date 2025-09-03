@@ -55,17 +55,17 @@ jobs:
           fi
 
           # Configure portable Python runner for subsequent steps
-      if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
+          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
             echo "✅ Using Poetry environment for tests"
           else
-      echo "PY_RUN=python3" >> "$GITHUB_ENV"
+            echo "PY_RUN=python3" >> "$GITHUB_ENV"
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
             echo "⚠️ Using system Python with PYTHONPATH for tests"
           fi
 
-    - name: 🧪 Test critical imports
-    run: |
+      - name: 🧪 Test critical imports
+        run: |
       echo "🧪 Testing all critical imports:"
       $PY_RUN -c "
       import sys
@@ -87,8 +87,8 @@ jobs:
         sys.exit(1)
       "
 
-    - name: 🧪 Test main.py imports
-    run: |
+      - name: 🧪 Test main.py imports
+        run: |
       echo "🧪 Testing main.py import resolution:"
       $PY_RUN -c "
       try:
