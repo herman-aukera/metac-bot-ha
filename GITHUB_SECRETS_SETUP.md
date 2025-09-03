@@ -24,10 +24,10 @@ This document lists all the required **Secrets** and **Variables** that need to 
 ## 📊 Required Variables
 
 ### Tournament Configuration
-- `AIB_TOURNAMENT_ID` - Main tournament ID (default: '32813')
+- `AIB_TOURNAMENT_ID` - Main tournament ID (numeric, e.g., '32813')
 - `AIB_TOURNAMENT_SLUG` - Main tournament slug (e.g., 'fall-aib-2025')
 - `AIB_MINIBENCH_TOURNAMENT_SLUG` - MiniBench tournament slug (should be 'minibench')
-- `AIB_MINIBENCH_TOURNAMENT_ID` - MiniBench tournament ID (alternative to slug)
+- `AIB_MINIBENCH_TOURNAMENT_ID` - MiniBench tournament ID (numeric, alternative to slug)
 
 ### Budget Management
 - `BUDGET_LIMIT` - Maximum budget in dollars (default: '100')
@@ -63,27 +63,44 @@ BUDGET_LIMIT=100
 ```
 
 ### 4. Optional: Add Tournament Configuration
+If you know the numeric tournament ID, you can use either:
 ```
+# Option A: Use tournament slug (recommended)
 AIB_TOURNAMENT_SLUG=fall-aib-2025
+
+# Option B: Use numeric tournament ID
 AIB_TOURNAMENT_ID=32813
 ```
+
+⚠️ **Important**: Make sure tournament IDs are in **Variables**, not **Secrets**!
 
 ## ⚠️ Troubleshooting
 
 If workflows are skipping with messages like:
-- "MiniBench slug/ID is not configured" → Set `AIB_MINIBENCH_TOURNAMENT_SLUG=minibench`
-- "Missing required API keys" → Check that `METACULUS_TOKEN` and `OPENROUTER_API_KEY` are set
+- "MiniBench slug/ID is not configured" → Set `AIB_MINIBENCH_TOURNAMENT_SLUG=minibench` in **Variables** (not Secrets)
+- "Missing required API keys" → Check that `METACULUS_TOKEN` and `OPENROUTER_API_KEY` are set in **Secrets**
 - "Budget exhausted" → Check `BUDGET_LIMIT` and `CURRENT_SPEND` variables
+
+### Common Configuration Mistakes:
+1. **Tournament IDs in Secrets instead of Variables** - Workflows read `vars.AIB_*`, not `secrets.AIB_*`
+2. **Wrong tournament ID format** - Use numeric IDs (like '32813') or proper slugs (like 'fall-aib-2025')
+3. **MiniBench ID as slug** - Don't set `AIB_MINIBENCH_TOURNAMENT_ID=minibench`, use `AIB_MINIBENCH_TOURNAMENT_SLUG=minibench`
 
 ## 🔧 Testing Configuration
 
-Run the workflow manually with:
+### Option 1: Debug Workflow
+Run the debug workflow to see what GitHub Actions is reading:
+```bash
+gh workflow run debug_config.yaml
+```
+
+### Option 2: Manual Test
 ```bash
 # Test MiniBench
 gh workflow run run_bot_on_minibench.yaml --field tournament_slug=minibench
 
 # Test main tournament
-gh workflow run run_bot_on_tournament.yaml --field tournament_slug=your-tournament-slug
+gh workflow run run_bot_on_tournament.yaml --field tournament_slug=fall-aib-2025
 ```
 
 ---
