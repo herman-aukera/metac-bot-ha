@@ -69,7 +69,7 @@ jobs:
           done
 
           # Configure portable Python runner
-          if poetry env info >/dev/null 2>&1; then
+          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
             echo "🔧 Using Poetry environment"
           else

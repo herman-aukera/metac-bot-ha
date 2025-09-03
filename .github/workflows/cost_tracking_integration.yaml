@@ -84,11 +84,13 @@ jobs:
           done
 
           # Configure portable Python runner
-          if poetry env info >/dev/null 2>&1; then
+          if poetry env info >/dev/null 2>&1 && poetry run python --version >/dev/null 2>&1; then
             echo "PY_RUN=poetry run python" >> "$GITHUB_ENV"
+            echo "✅ Using Poetry environment"
           else
             echo "PY_RUN=python" >> "$GITHUB_ENV"
             echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> "$GITHUB_ENV"
+            echo "⚠️ Poetry not available, using system Python with PYTHONPATH"
           fi
 
       - name: Run cost analysis
