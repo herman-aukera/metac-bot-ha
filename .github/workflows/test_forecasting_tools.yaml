@@ -30,7 +30,7 @@ jobs:
       - name: 📦 Test dependency installation
         run: |
           echo "🔍 Testing Poetry installation..."
-          if poetry install --no-dev; then
+          if poetry install --only main; then
             echo "✅ Poetry installation successful"
             POETRY_SUCCESS=true
           else
@@ -75,17 +75,32 @@ jobs:
               from dotenv import load_dotenv
               print('✅ dotenv import from main.py works')
 
+              # Test the actual imports from main.py
               from forecasting_tools import (
-                  ForecastingQuestion,
+                  AskNewsSearcher,
                   BinaryQuestion,
+                  ForecastBot,
+                  GeneralLlm,
+                  MetaculusApi,
+                  MetaculusQuestion,
                   MultipleChoiceQuestion,
-                  NumericQuestion
+                  NumericDistribution,
+                  NumericQuestion,
+                  PredictedOption
               )
-              print('✅ forecasting_tools imports from main.py work')
+              print('✅ All forecasting_tools imports from main.py work!')
               print('🎉 main.py should be able to start successfully!')
 
           except ImportError as e:
               print(f'❌ main.py import failed: {e}')
+
+              # Fallback: explore what's actually available
+              try:
+                  import forecasting_tools
+                  print(f'📦 forecasting_tools available attributes: {[attr for attr in dir(forecasting_tools) if not attr.startswith(\"_\")]}')
+              except ImportError:
+                  print('❌ forecasting_tools package not available at all')
+
               import sys
               sys.exit(1)
           "

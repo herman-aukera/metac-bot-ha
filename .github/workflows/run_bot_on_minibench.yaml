@@ -75,12 +75,12 @@ jobs:
           pip --version
 
           echo "📦 Installing Poetry dependencies..."
-          if poetry install --no-dev; then
+          if poetry install --only main; then
             echo "✅ Poetry installation successful"
             POETRY_SUCCESS=true
           else
             echo "⚠️ Poetry install failed, trying with verbose output..."
-            poetry install --no-dev -vvv
+            poetry install --only main -vvv
             if [ $? -eq 0 ]; then
               echo "✅ Poetry installation successful with verbose mode"
               POETRY_SUCCESS=true
