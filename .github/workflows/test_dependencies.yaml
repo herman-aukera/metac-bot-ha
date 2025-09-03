@@ -8,27 +8,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Test direct pip install
         run: |
           echo "🧪 Testing direct pip installation of core dependencies..."
           python -m pip install --upgrade pip
           python -m pip install python-dotenv pydantic requests pyyaml
-          
+
           echo "📦 Installed packages:"
           python -m pip list | grep -E "(dotenv|pydantic|requests|pyyaml)"
-          
+
           echo "🧪 Testing imports:"
           python -c "import dotenv; print('✅ dotenv OK')"
           python -c "import pydantic; print('✅ pydantic OK')"
           python -c "import requests; print('✅ requests OK')"
           python -c "import yaml; print('✅ yaml OK')"
-          
+
           echo "🧪 Testing main.py imports (first few lines):"
           python -c "
           import sys
@@ -37,7 +37,7 @@ jobs:
           load_dotenv()
           print('✅ main.py imports work')
           "
-          
+
       - name: Test Poetry installation
         run: |
           echo "🧪 Testing Poetry installation..."
@@ -45,7 +45,7 @@ jobs:
           poetry config virtualenvs.create true
           poetry config virtualenvs.in-project true
           poetry install --no-root || echo "❌ Poetry install failed"
-          
+
           if poetry env info >/dev/null 2>&1; then
             echo "✅ Poetry environment created successfully"
             poetry run python -c "import dotenv; print('✅ dotenv in Poetry env')"

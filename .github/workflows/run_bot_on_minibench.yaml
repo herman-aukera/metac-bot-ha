@@ -65,19 +65,86 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies (fast path)
+      - name: 🔧 Install dependencies with enhanced fallback
+        id: install-deps
         run: |
-          set +e
-          poetry install --no-interaction --no-root || true
-          if poetry env info >/dev/null 2>&1; then
-            echo "PY_RUN=poetry run python" >> $GITHUB_ENV
+          set -e
+
+          echo "🔍 Checking Python environment..."
+          python --version
+          pip --version
+
+          echo "📦 Installing Poetry dependencies..."
+          if poetry install --no-dev; then
+            echo "✅ Poetry installation successful"
+            POETRY_SUCCESS=true
           else
-            echo "PY_RUN=python" >> $GITHUB_ENV
-            echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+            echo "⚠️ Poetry install failed, trying with verbose output..."
+            poetry install --no-dev -vvv
+            if [ $? -eq 0 ]; then
+              echo "✅ Poetry installation successful with verbose mode"
+              POETRY_SUCCESS=true
+            else
+              echo "❌ Poetry install failed completely"
+              POETRY_SUCCESS=false
+            fi
           fi
-          # Emergency deps
-          python -m pip install --timeout 60 --retries 3 \
-            pydantic requests python-dotenv pyyaml httpx aiohttp pytest || true
+
+          # Test if virtual environment is working
+          if [ "$POETRY_SUCCESS" = "true" ]; then
+            echo "🧪 Testing Poetry environment..."
+            if poetry run python -c "import sys; print(f'Python: {sys.executable}')"; then
+              echo "✅ Poetry environment is working"
+            else
+              echo "⚠️ Poetry environment test failed"
+              POETRY_SUCCESS=false
+            fi
+          fi
+
+          # Enhanced fallback with essential packages
+          if [ "$POETRY_SUCCESS" = "false" ]; then
+            echo "🔄 Falling back to direct pip installation..."
+            pip install --upgrade pip
+            pip install python-dotenv pydantic requests openai anthropic PyYAML httpx aiohttp
+            pip install -e .
+
+            echo "🧪 Testing dotenv import..."
+            python -c "import dotenv; print('✅ dotenv import successful')" || {
+              echo "❌ dotenv import failed even after pip install"
+              exit 1
+            }
+          fi
+
+          echo "📋 Final package verification..."
+          python -c "
+          packages = ['dotenv', 'pydantic', 'requests', 'openai']
+          for pkg in packages:
+              try:
+                  __import__(pkg)
+                  print(f'✅ {pkg}: imported successfully')
+              except ImportError as e:
+                  print(f'❌ {pkg}: {e}')
+          "
+
+      - name: 🧪 Debug Python environment
+        run: |
+          echo "🔍 Python Environment Debug:"
+          python --version
+          python -c "import sys; print('Python executable:', sys.executable)"
+          python -c "import sys; print('Python path:', sys.path)"
+          echo "📦 Installed packages:"
+          pip list | head -20
+
+          echo "🧪 Testing critical imports:"
+          python -c "
+          import sys
+          try:
+              import dotenv
+              print('✅ dotenv imported successfully')
+          except ImportError as e:
+              print(f'❌ Failed to import dotenv: {e}')
+              sys.exit(1)
+          "
 
       - name: Resolve MiniBench tournament ID
         id: resolve_id
@@ -117,16 +184,49 @@ jobs:
 
       - name: Run MiniBench bot
         if: steps.resolve_id.outputs.should_run == 'true'
-        continue-on-error: true
+        id: run-bot
         run: |
+          set -e
+
+          # Determine how to run Python
+          if command -v poetry >/dev/null 2>&1 && poetry env info >/dev/null 2>&1; then
+            echo "🚀 Running via Poetry..."
+            PY_RUN="poetry run python"
+          else
+            echo "🐍 Running via direct Python..."
+            PY_RUN="python"
+            export PYTHONPATH="${PWD}/src:${PYTHONPATH:-}"
+          fi
+
           echo "🚀 Running MiniBench bot for tournament ${{ steps.resolve_id.outputs.minibench_target }}"
+
           # Accept slug or ID in target envs
-          AIB_TOURNAMENT_SLUG=${{ steps.resolve_id.outputs.minibench_target }} \
-          AIB_TOURNAMENT_ID=${{ steps.resolve_id.outputs.minibench_target }} \
-          TOURNAMENT_MODE=true \
-          PUBLISH_REPORTS=true \
-          DRY_RUN=false \
-          $PY_RUN main.py --mode tournament || true
+          if AIB_TOURNAMENT_SLUG=${{ steps.resolve_id.outputs.minibench_target }} \
+             AIB_TOURNAMENT_ID=${{ steps.resolve_id.outputs.minibench_target }} \
+             TOURNAMENT_MODE=true \
+             PUBLISH_REPORTS=true \
+             DRY_RUN=false \
+             $PY_RUN main.py --mode tournament; then
+            echo "✅ Bot execution completed successfully"
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Bot execution failed"
+            echo "success=false" >> "$GITHUB_OUTPUT"
+
+            # Create fallback summary for failed executions
+            cat > run_summary.json << EOF
+          {
+            "status": "failed",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "error": "Bot execution failed during MiniBench forecasting",
+            "workflow_run": "${{ github.run_id }}",
+            "commit": "${{ github.sha }}",
+            "tournament_target": "${{ steps.resolve_id.outputs.minibench_target }}"
+          }
+          EOF
+
+            exit 1
+          fi
         env:
           LOG_LEVEL: INFO
           ENABLE_PROXY_CREDITS: true
