@@ -119,20 +119,28 @@ async def test_metaculus_api():
             for profile_url in profile_endpoints:
                 print(f"📡 Testing endpoint: {profile_url}")
                 async with session.get(profile_url, headers=headers) as response:
-                print(f"📊 Response Status: {response.status}")
+                    print(f"📊 Response Status: {response.status}")
 
-                if response.status == 200:
-                    data = await response.json()
-                    username = data.get('username', 'Unknown')
-                    user_id = data.get('id', 'Unknown')
-                    print(f"✅ Metaculus API working!")
-                    print(f"👤 User: {username} (ID: {user_id})")
-                    return True
-                else:
-                    error_text = await response.text()
-                    print(f"❌ Metaculus API failed: {response.status}")
-                    print(f"Error: {error_text[:200]}...")
-                    return False
+                    if response.status == 200:
+                        data = await response.json()
+                        username = data.get('username', data.get('user', {}).get('username', 'Unknown'))
+                        user_id = data.get('id', data.get('user', {}).get('id', 'Unknown'))
+                        print(f"✅ Metaculus API working!")
+                        print(f"👤 User: {username} (ID: {user_id})")
+                        return True
+                    elif response.status in (301, 302, 307, 308, 401, 403, 404):
+                        # Try next candidate endpoint on redirects/unauthorized/not found
+                        text = await response.text()
+                        print(f"ℹ️ Endpoint returned {response.status}, trying next... ({text[:120]}...)")
+                        continue
+                    else:
+                        error_text = await response.text()
+                        print(f"❌ Metaculus API failed: {response.status}")
+                        print(f"Error: {error_text[:200]}...")
+                        return False
+
+            print("❌ None of the tested Metaculus endpoints succeeded")
+            return False
 
     except Exception as e:
         print(f"💥 Metaculus test error: {e}")

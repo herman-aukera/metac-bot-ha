@@ -121,7 +121,10 @@ class OpenRouterTriModelRouter:
     def __init__(self):
         """Initialize OpenRouter tri-model configuration with strategic routing."""
         self.openrouter_key = os.getenv("OPENROUTER_API_KEY")
-        self.openrouter_base_url = "https://openrouter.ai/api/v1"
+        # Allow overriding base URL via env; default to official OpenRouter API
+        self.openrouter_base_url = os.getenv(
+            "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        )
         self.openrouter_headers = self._get_attribution_headers()
 
         # OpenRouter model configurations with actual pricing
@@ -188,7 +191,9 @@ class OpenRouterTriModelRouter:
         """Cost-optimized model configurations with free fallbacks."""
         return {
             "nano": ModelConfig(
-                model_name=os.getenv("NANO_MODEL", "openai/gpt-5-nano"),
+                model_name=self._normalize_model_id(
+                    os.getenv("NANO_MODEL", "openai/gpt-5-nano")
+                ),
                 cost_per_million_input=0.05,  # GPT-5 Nano
                 cost_per_million_output=0.05,
                 temperature=0.1,
@@ -197,7 +202,9 @@ class OpenRouterTriModelRouter:
                 description="GPT-5 Nano with free OSS/Kimi fallbacks",
             ),
             "mini": ModelConfig(
-                model_name=os.getenv("MINI_MODEL", "openai/gpt-5-mini"),
+                model_name=self._normalize_model_id(
+                    os.getenv("MINI_MODEL", "openai/gpt-5-mini")
+                ),
                 cost_per_million_input=0.25,  # GPT-5 Mini
                 cost_per_million_output=0.25,
                 temperature=0.3,
@@ -206,7 +213,9 @@ class OpenRouterTriModelRouter:
                 description="GPT-5 Mini with free fallbacks",
             ),
             "full": ModelConfig(
-                model_name=os.getenv("DEFAULT_MODEL", "openai/gpt-5"),
+                model_name=self._normalize_model_id(
+                    os.getenv("DEFAULT_MODEL", "openai/gpt-5")
+                ),
                 cost_per_million_input=1.50,  # GPT-5 Full
                 cost_per_million_output=1.50,
                 temperature=0.0,
@@ -521,6 +530,8 @@ class OpenRouterTriModelRouter:
         self, model_name: str, operation_mode: Optional[OperationMode]
     ) -> str:
         """Apply OpenRouter model shortcuts based on operation mode."""
+        # Ensure model has provider prefix before adding shortcuts
+        model_name = self._normalize_model_id(model_name)
         if operation_mode is None:
             # No shortcuts for testing or special cases
             return model_name
@@ -534,6 +545,38 @@ class OpenRouterTriModelRouter:
                 return f"{model_name}:nitro"
 
         return model_name
+
+    def _normalize_model_id(self, model_name: str) -> str:
+        """Normalize model identifiers to include provider prefix for OpenRouter/litellm.
+
+        Examples:
+        - gpt-5-nano -> openai/gpt-5-nano
+        - gpt-5-mini:floor -> openai/gpt-5-mini:floor
+        - claude-3-5-sonnet -> anthropic/claude-3-5-sonnet
+        - gpt-oss-20b:free -> openai/gpt-oss-20b:free
+        Leaves already-qualified IDs ("openai/...", "anthropic/...", "moonshotai/...",
+        "metaculus/...") untouched.
+        """
+        if not model_name:
+            return model_name
+        if "/" in model_name or model_name.startswith("metaculus/"):
+            return model_name
+
+        # Preserve suffix like :nitro/:floor/:free while normalizing the base name
+        parts = model_name.split(":", 1)
+        base = parts[0]
+        suffix = parts[1] if len(parts) > 1 else ""
+
+        normalized_base = base
+        lower = base.lower()
+        if lower.startswith("gpt-5") or lower.startswith("gpt-4o") or lower.startswith("gpt-oss"):
+            normalized_base = f"openai/{base}"
+        elif lower.startswith("claude"):
+            normalized_base = f"anthropic/{base}"
+        elif lower.startswith("kimi") or lower.startswith("k2"):
+            normalized_base = f"moonshotai/{base}"
+
+        return f"{normalized_base}{(':' + suffix) if suffix else ''}"
 
     def _get_api_key_for_model(self, model_name: str) -> Optional[str]:
         """Get the appropriate API key for a given model."""

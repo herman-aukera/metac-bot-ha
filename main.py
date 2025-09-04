@@ -35,8 +35,10 @@ SAFE_REASONING_FALLBACK = "Forecast generated without detailed reasoning due to 
 
 # Tournament components - import after forecasting_tools to avoid conflicts
 try:
-    # Add src to path for tournament components
-    sys.path.insert(0, str(Path(__file__).parent / "src"))
+    # Add src to path for tournament components (append to avoid overshadowing site-packages)
+    _src_path = str(Path(__file__).parent / "src")
+    if _src_path not in sys.path:
+        sys.path.append(_src_path)
     from infrastructure.external_apis.tournament_asknews_client import TournamentAskNewsClient
     from infrastructure.config.tournament_config import get_tournament_config
     from infrastructure.config.api_keys import api_key_manager
@@ -2182,7 +2184,7 @@ if __name__ == "__main__":
         os.getenv("AIB_TOURNAMENT_ID")
         or os.getenv("AIB_TOURNAMENT_SLUG")
         or os.getenv("TOURNAMENT_SLUG")
-        or "32813"
+        or "minibench"
     )
     logger.info(f"  Tournament target: {tournament_target_env}")
     logger.info(f"  Budget limit: ${os.getenv('BUDGET_LIMIT', '100.0')}")
@@ -2205,13 +2207,39 @@ if __name__ == "__main__":
             tournament_target = (
                 os.getenv("AIB_TOURNAMENT_SLUG")
                 or os.getenv("TOURNAMENT_SLUG")
-                or os.getenv("AIB_TOURNAMENT_ID", "32813")
+                or os.getenv("AIB_TOURNAMENT_ID", "minibench")
             )
+            # In dry-run, allow reprocessing to validate pipeline end-to-end
+            if os.getenv("DRY_RUN", "false").lower() == "true":
+                template_bot.skip_previously_forecasted_questions = False
             forecast_reports = asyncio.run(
                 template_bot.forecast_on_tournament(
                     tournament_target, return_exceptions=True
                 )
             )
+            # Safe fallback: if nothing processed, try Quarterly Cup (usually has open qs)
+            if not forecast_reports:
+                logger.warning(
+                    "No questions processed for '%s'. Trying Quarterly Cup fallback...",
+                    tournament_target,
+                )
+                try:
+                    template_bot.skip_previously_forecasted_questions = False
+                    fallback_reports = asyncio.run(
+                        template_bot.forecast_on_tournament(
+                            MetaculusApi.CURRENT_QUARTERLY_CUP_ID, return_exceptions=True
+                        )
+                    )
+                    if fallback_reports:
+                        forecast_reports = fallback_reports
+                        logger.info(
+                            "Fallback succeeded via Quarterly Cup with %d question(s)",
+                            len(forecast_reports),
+                        )
+                    else:
+                        logger.warning("Fallback also returned zero questions")
+                except Exception as fe:
+                    logger.warning("Fallback attempt failed: %s", fe)
         elif run_mode == "quarterly_cup":
             # The quarterly cup is a good way to test the bot's performance on regularly open questions. You can also use AXC_2025_TOURNAMENT_ID = 32564
             # The new quarterly cup may not be initialized near the beginning of a quarter

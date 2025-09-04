@@ -3,6 +3,7 @@ Enhanced LLM configuration with budget management and smart model selection.
 """
 
 import logging
+import asyncio
 import os
 from typing import Any, Dict, Optional, Tuple
 
@@ -26,12 +27,26 @@ class EnhancedLLMConfig:
         self.operation_mode_manager = operation_mode_manager
 
         # Get OpenRouter API key
+        self.mock_mode = False
         self.openrouter_key = api_key_manager.get_api_key("OPENROUTER_API_KEY")
+
+        # Allow operation in DRY_RUN or local CI without a real key by switching to mock mode
+        is_dry_run = os.getenv("DRY_RUN", "false").lower() == "true"
+        local_network_enabled = os.getenv("LOCAL_CI_NETWORK", "0") in ("1", "true")
+
         if not self.openrouter_key:
-            logger.error(
-                "OpenRouter API key not found! This is required for tournament operation."
-            )
-            raise ValueError("OpenRouter API key is required")
+            if is_dry_run and not local_network_enabled:
+                # In local dry-run without network, don't hard-fail – use mock LLMs
+                self.mock_mode = True
+                self.openrouter_key = "dummy_local_dry_run"
+                logger.warning(
+                    "OPENROUTER_API_KEY missing, entering mock LLM mode for DRY_RUN without network"
+                )
+            else:
+                logger.error(
+                    "OpenRouter API key not found! This is required for tournament operation."
+                )
+                raise ValueError("OpenRouter API key is required")
 
         # Model configuration based on budget status
         self.model_configs = self._setup_model_configs()
@@ -80,16 +95,40 @@ class EnhancedLLMConfig:
     def get_llm_for_task(
         self,
         task_type: str,
-        question_complexity: str = "medium",
+        _question_complexity: str = "medium",
         complexity_assessment=None,
     ):
         """Get appropriate LLM based on task type, complexity assessment, and operation mode."""
+        # If running in mock mode (e.g., local DRY_RUN without network), return an async mock LLM
+        if getattr(self, "mock_mode", False):
+            class AsyncMockLLM:
+                def __init__(self, **kwargs):
+                    self.model = kwargs.get("model", "mock-model")
+                    self.temperature = kwargs.get("temperature", 0.1)
+                    self.max_tokens = kwargs.get("max_tokens", 1000)
+
+                async def invoke(self, prompt: str) -> str:
+                    # Deterministic short response for tests/dry-runs
+                    await asyncio.sleep(0)
+                    return (
+                        "[MOCK-LLM] Deterministic response for "
+                        f"{task_type} (temp={self.temperature}, max_tokens={self.max_tokens})\n"
+                        + (prompt[:300] if isinstance(prompt, str) else "")
+                    )
+
+            # Use the configured model for the task, but serve through the mock
+            model_config = self.model_configs.get(task_type, self.model_configs["simple"]).copy()
+            return AsyncMockLLM(**model_config)
+
         # Check and update operation mode based on current budget
         mode_changed, transition = self.operation_mode_manager.check_and_update_mode()
-        if mode_changed:
-            logger.warning(
-                f"Operation mode automatically changed: {transition.from_mode.value} → {transition.to_mode.value}"
-            )
+        if mode_changed and transition is not None:
+            try:
+                logger.warning(
+                    f"Operation mode automatically changed: {transition.from_mode.value} → {transition.to_mode.value}"
+                )
+            except Exception:
+                logger.warning("Operation mode automatically changed")
 
         # Get model from operation mode manager (integrates complexity analysis)
         recommended_model = self.operation_mode_manager.get_model_for_task(
@@ -125,14 +164,21 @@ class EnhancedLLMConfig:
         except ImportError as e:
             logger.error(f"Failed to import GeneralLlm: {e}")
 
-            # Return a mock object for testing
-            class MockLLM:
+            # Return an async mock for testing to match call sites (await llm.invoke)
+            class AsyncMockLLMImportFallback:
                 def __init__(self, **kwargs):
                     self.model = kwargs.get("model", "mock-model")
                     self.temperature = kwargs.get("temperature", 0.1)
                     self.max_tokens = kwargs.get("max_tokens", 1000)
 
-            return MockLLM(**llm_config)
+                async def invoke(self, prompt: str) -> str:
+                    await asyncio.sleep(0)
+                    return (
+                        "[MOCK-LLM] Deterministic response (import fallback)\n"
+                        + (prompt[:300] if isinstance(prompt, str) else "")
+                    )
+
+            return AsyncMockLLMImportFallback(**llm_config)
 
     def estimate_task_cost(
         self,

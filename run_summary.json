@@ -1,0 +1,11 @@
+{
+  "run_mode": "quarterly_cup",
+  "tournament_mode": "true",
+  "tournament_target": "32813",
+  "publish_reports": "false",
+  "successful_forecasts": 4,
+  "failed_forecasts": 0,
+  "total_processed": 4,
+  "started_at": "2025-09-04T13:15:00.122574",
+  "finished_at": "2025-09-04T13:26:30.515419+00:00"
+}

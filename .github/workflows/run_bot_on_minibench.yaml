@@ -181,18 +181,17 @@ jobs:
           # Validate METACULUS_TOKEN (required for tournament fetching/submission)
           if [ -z "${METACULUS_TOKEN}" ]; then
             echo "❌ METACULUS_TOKEN is missing. Set repository secret METACULUS_TOKEN."
-            cat > run_summary.json << 'JSON'
-            {
-              "run_mode": "tournament",
-              "tournament_mode": "true",
-              "publish_reports": "false",
-              "successful_forecasts": 0,
-              "failed_forecasts": 0,
-              "total_processed": 0,
-              "status": "failed",
-              "reason": "Missing METACULUS_TOKEN secret"
-            }
-JSON
+            printf '%s\n' \
+              '{' \
+              '  "run_mode": "tournament",' \
+              '  "tournament_mode": "true",' \
+              '  "publish_reports": "false",' \
+              '  "successful_forecasts": 0,' \
+              '  "failed_forecasts": 0,' \
+              '  "total_processed": 0,' \
+              '  "status": "failed",' \
+              '  "reason": "Missing METACULUS_TOKEN secret"' \
+              '}' > run_summary.json
             exit 1
           else
             echo "✅ METACULUS_TOKEN is set"
@@ -212,19 +211,18 @@ JSON
       - name: Write skipped summary (no tournament ID)
         if: steps.resolve_id.outputs.should_run != 'true'
         run: |
-          cat > run_summary.json << 'JSON'
-          {
-            "run_mode": "tournament",
-            "tournament_mode": "true",
-            "tournament_id": "missing",
-            "publish_reports": "false",
-            "successful_forecasts": 0,
-            "failed_forecasts": 0,
-            "total_processed": 0,
-            "status": "skipped",
-            "reason": "AIB_MINIBENCH_TOURNAMENT_ID not configured and no input provided"
-          }
-          JSON
+          printf '%s\n' \
+            '{' \
+            '  "run_mode": "tournament",' \
+            '  "tournament_mode": "true",' \
+            '  "tournament_id": "missing",' \
+            '  "publish_reports": "false",' \
+            '  "successful_forecasts": 0,' \
+            '  "failed_forecasts": 0,' \
+            '  "total_processed": 0,' \
+            '  "status": "skipped",' \
+            '  "reason": "AIB_MINIBENCH_TOURNAMENT_ID not configured and no input provided"' \
+            '}' > run_summary.json
           echo "Wrote run_summary.json indicating skipped run."
 
       - name: Run MiniBench bot
@@ -280,17 +278,17 @@ JSON
             echo "❌ Bot execution failed"
             echo "success=false" >> "$GITHUB_OUTPUT"
 
-            # Create fallback summary for failed executions
-            cat > run_summary.json << EOF
-          {
-            "status": "failed",
-            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "error": "Bot execution failed during MiniBench forecasting",
-            "workflow_run": "${{ github.run_id }}",
-            "commit": "${{ github.sha }}",
-            "tournament_target": "${{ steps.resolve_id.outputs.minibench_target }}"
-          }
-          EOF
+            # Create fallback summary for failed executions (no heredoc for shellcheck compliance)
+            ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf '%s\n' \
+              '{' \
+              '  "status": "failed",' \
+              "  \"timestamp\": \"$ts\"," \
+              '  "error": "Bot execution failed during MiniBench forecasting",' \
+              '  "workflow_run": "${{ github.run_id }}",' \
+              '  "commit": "${{ github.sha }}",' \
+              '  "tournament_target": "${{ steps.resolve_id.outputs.minibench_target }}"' \
+              '}' > run_summary.json
 
             exit 1
           fi

@@ -3,22 +3,22 @@ set -Eeuo pipefail
 
 echo "[local-ci] Starting MiniBench local CI simulation..."
 
-# Load .env without echoing values
-if [[ -f ".env" ]]; then
-  echo "[local-ci] Loading .env"
-  set -a
-  # shellcheck disable=SC1091
-  . ./.env
-  set +a
-else
-  echo "[local-ci] No .env found; continuing with current env"
-fi
-
 # Safe local overrides to avoid side effects
 export TOURNAMENT_MODE=true
 export DRY_RUN=true
 export PUBLISH_REPORTS=false
-export PYTHONPATH="${PWD}/src:${PYTHONPATH:-}"
+# Avoid setting PYTHONPATH=src to prevent module name collisions with forecasting_tools
+
+# Offline by default to avoid accidental spend; set LOCAL_CI_NETWORK=1 to enable networked run
+: "${LOCAL_CI_NETWORK:=0}"
+if [[ "$LOCAL_CI_NETWORK" != "1" ]]; then
+  export OPENROUTER_API_KEY="dummy_local"
+  export ENABLE_PROXY_CREDITS=false
+  export ENABLE_ASKNEWS_RESEARCH=false
+  echo "[local-ci] Network disabled (LOCAL_CI_NETWORK=0): OpenRouter/Proxy/AskNews disabled"
+else
+  echo "[local-ci] Network enabled (LOCAL_CI_NETWORK=1): using .env values via python-dotenv"
+fi
 
 python3 --version || true
 python3 -m pip install --upgrade pip >/dev/null 2>&1 || true
@@ -43,24 +43,27 @@ if missing:
     sys.exit(1)
 PY
 
-echo "[local-ci] Preflight: checking secrets and target (values not printed)"
-if [[ -z "${METACULUS_TOKEN:-}" ]]; then
-  echo "[local-ci] ERROR: METACULUS_TOKEN missing. Add it to .env or your shell env."
-  exit 1
-fi
-if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
-  echo "[local-ci] WARN: OPENROUTER_API_KEY not set; will rely on proxy/fallbacks"
-fi
-
-# Resolve target from .env similar to the workflow (prefer slug then id)
-TARGET="${AIB_TOURNAMENT_SLUG:-}"
-if [[ -z "$TARGET" ]]; then
-  TARGET="${TOURNAMENT_SLUG:-}"
-fi
-if [[ -z "$TARGET" ]]; then
-  TARGET="${AIB_TOURNAMENT_ID:-32813}"
-fi
-echo "[local-ci] Tournament target resolved"
+echo "[local-ci] Preflight: loading .env via python-dotenv and checking requirements"
+python3 - <<'PY'
+import os, sys
+from dotenv import load_dotenv
+load_dotenv(dotenv_path='.env', override=True)
+if not os.getenv('METACULUS_TOKEN'):
+  print('[local-ci] ERROR: METACULUS_TOKEN missing (.env or env)')
+  sys.exit(2)
+if not os.getenv('OPENROUTER_API_KEY'):
+  print('[local-ci] WARN: OPENROUTER_API_KEY not set; will rely on fallbacks')
+target = (
+  os.getenv('AIB_TOURNAMENT_SLUG')
+  or os.getenv('TOURNAMENT_SLUG')
+  or os.getenv('AIB_TOURNAMENT_ID')
+  or 'minibench'
+)
+print('[local-ci] Tournament target:', '(hidden)')
+with open('.local_target.tmp','w') as f:
+  f.write(target)
+PY
+TARGET=$(cat .local_target.tmp); rm -f .local_target.tmp
 
 echo "[local-ci] Running bot (dry-run: $DRY_RUN, publish: $PUBLISH_REPORTS)"
 set +e
@@ -68,7 +71,8 @@ if AIB_TOURNAMENT_SLUG="$TARGET" \
    AIB_TOURNAMENT_ID="$TARGET" \
    TOURNAMENT_MODE=true \
    PUBLISH_REPORTS=false \
-   DRY_RUN=true \
+  DRY_RUN=true \
+  SKIP_PREVIOUSLY_FORECASTED=false \
    python3 main.py --mode tournament; then
   echo "[local-ci] Bot run completed"
 else
