@@ -174,6 +174,41 @@ jobs:
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Preflight validation (secrets and target)
+        if: steps.resolve_id.outputs.should_run == 'true'
+        run: |
+          echo "🔎 Preflight: validating secrets and target..."
+          # Validate METACULUS_TOKEN (required for tournament fetching/submission)
+          if [ -z "${METACULUS_TOKEN}" ]; then
+            echo "❌ METACULUS_TOKEN is missing. Set repository secret METACULUS_TOKEN."
+            cat > run_summary.json << 'JSON'
+            {
+              "run_mode": "tournament",
+              "tournament_mode": "true",
+              "publish_reports": "false",
+              "successful_forecasts": 0,
+              "failed_forecasts": 0,
+              "total_processed": 0,
+              "status": "failed",
+              "reason": "Missing METACULUS_TOKEN secret"
+            }
+JSON
+            exit 1
+          else
+            echo "✅ METACULUS_TOKEN is set"
+          fi
+
+          # Warn if OpenRouter key is missing (we can still run with fallbacks)
+          if [ -z "${OPENROUTER_API_KEY}" ]; then
+            echo "⚠️ OPENROUTER_API_KEY not set; will rely on proxy/fallbacks where possible"
+          else
+            echo "✅ OPENROUTER_API_KEY is set"
+          fi
+
+          echo "🎯 Tournament target resolved: ${{ steps.resolve_id.outputs.minibench_target }}"
+          echo "TOURNAMENT_MODE=true"
+          echo "PUBLISH_REPORTS=true"
+
       - name: Write skipped summary (no tournament ID)
         if: steps.resolve_id.outputs.should_run != 'true'
         run: |
