@@ -280,7 +280,7 @@ jobs:
         run: |
           echo "📊 Generating comprehensive cost analysis reports..."
           export PYTHONPATH=$GITHUB_WORKSPACE
-          "$PY_RUN" scripts/deployment_cost_monitor.py
+          $PY_RUN scripts/deployment_cost_monitor.py
         env:
           BUDGET_LIMIT: ${{ vars.BUDGET_LIMIT || '100.0' }}
           AIB_TOURNAMENT_ID: 32813

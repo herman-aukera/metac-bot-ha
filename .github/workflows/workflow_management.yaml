@@ -44,6 +44,10 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+  actions: write
+
 concurrency:
   group: workflow-management
   cancel-in-progress: false
@@ -108,15 +112,14 @@ jobs:
 
       - name: Suspend workflows
         if: steps.determine_action.outputs.action == 'suspend_all'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🛑 Suspending tournament workflows due to budget constraints..."
+          echo "🛑 Suspending tournament workflows via GitHub API..."
           echo "💰 Budget Status: ${{ steps.determine_action.outputs.budget_status }}"
           echo "📊 Utilization: ${{ steps.determine_action.outputs.utilization }}"
           echo "📝 Reason: ${{ steps.determine_action.outputs.reason }}"
 
-          # Create backup of original workflows (outside workflows dir to avoid restricted pushes)
-          mkdir -p .github/workflow_backups
-
           WORKFLOWS=(
             "run_bot_on_tournament.yaml"
             "tournament_deadline_aware.yaml"
@@ -124,45 +127,22 @@ jobs:
           )
 
           for workflow in "${WORKFLOWS[@]}"; do
-            if [ -f ".github/workflows/$workflow" ]; then
-              echo "🔄 Processing $workflow..."
-
-              # Backup original
-              cp ".github/workflows/$workflow" ".github/workflow_backups/${workflow}.backup"
-
-              # Comment out cron schedules
-              sed -i 's/^[[:space:]]*- cron:/    # SUSPENDED - cron:/' ".github/workflows/$workflow"
-              sed -i 's/^[[:space:]]*cron:/  # SUSPENDED - cron:/' ".github/workflows/$workflow"
-
-              # Add suspension notice at the top
-              cat > temp_header << 'EOF'
-          # 🚨 WORKFLOW SUSPENDED DUE TO BUDGET CONSTRAINTS
-          # Suspension Date: $(date -u)
-          # Budget Status: OVER_BUDGET
-          # Utilization: HIGH
-          # Reason: Budget constraints exceeded
-          #
-          # To resume: Run workflow_management.yaml with action 'resume_all'
-          # Or manually uncomment the cron schedules below
-          #
-          EOF
-              cat temp_header ".github/workflows/$workflow" > temp_workflow
-              mv temp_workflow ".github/workflows/$workflow"
-              rm temp_header
-
-              echo "  ✅ $workflow suspended"
-            else
-              echo "  ❓ $workflow not found"
-            fi
+            echo "� Disabling $workflow..."
+            curl -s -X PUT \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/disable" \
+              | jq -r '.state? // "ok"' || true
           done
 
-          echo "🛑 All tournament workflows have been suspended"
-          echo "💾 Backups saved to .github/workflow_backups/"
+          echo "🛑 All managed workflows have been disabled"
 
       - name: Resume workflows
         if: steps.determine_action.outputs.action == 'resume_all'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "▶️ Resuming tournament workflows..."
+          echo "▶️ Enabling tournament workflows via GitHub API..."
           echo "📝 Reason: ${{ steps.determine_action.outputs.reason }}"
 
           WORKFLOWS=(
@@ -172,30 +152,15 @@ jobs:
           )
 
           for workflow in "${WORKFLOWS[@]}"; do
-            if [ -f ".github/workflow_backups/${workflow}.backup" ]; then
-              echo "🔄 Restoring $workflow from backup..."
-              cp ".github/workflow_backups/${workflow}.backup" ".github/workflows/$workflow"
-              echo "  ✅ $workflow restored"
-            else
-              echo "  ❓ No backup found for $workflow"
-
-              # Try to uncomment suspended schedules
-              if [ -f ".github/workflows/$workflow" ]; then
-                sed -i 's/^[[:space:]]*# SUSPENDED - cron:/    - cron:/' ".github/workflows/$workflow"
-                sed -i 's/^[[:space:]]*# SUSPENDED - cron:/  cron:/' ".github/workflows/$workflow"
-
-                # Remove suspension header (first 10 lines if they contain suspension notice)
-                if head -n 1 ".github/workflows/$workflow" | grep -q "WORKFLOW SUSPENDED"; then
-                  tail -n +11 ".github/workflows/$workflow" > temp_workflow
-                  mv temp_workflow ".github/workflows/$workflow"
-                fi
-
-                echo "  ✅ $workflow uncommented"
-              fi
-            fi
+            echo "� Enabling $workflow..."
+            curl -s -X PUT \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable" \
+              | jq -r '.state? // "ok"' || true
           done
 
-          echo "▶️ All tournament workflows have been resumed"
+          echo "▶️ All managed workflows have been enabled"
 
       - name: Generate status report
         if: steps.determine_action.outputs.action == 'check_status'
@@ -234,27 +199,10 @@ jobs:
           echo "  • resume_all - Resume all tournament workflows"
           echo "  • check_status - Show current status (this report)"
 
-      - name: Commit workflow changes
+      - name: Note
         if: steps.determine_action.outputs.action != 'check_status'
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-
-          if git diff --quiet; then
-            echo "📝 No changes to commit"
-          else
-            git add .github/workflows/
-            git commit -m "🤖 Workflow Management: ${{ steps.determine_action.outputs.action }}
-
-            Action: ${{ steps.determine_action.outputs.action }}
-            Budget Status: ${{ steps.determine_action.outputs.budget_status }}
-            Utilization: ${{ steps.determine_action.outputs.utilization }}
-            Reason: ${{ steps.determine_action.outputs.reason }}
-            Timestamp: $(date -u)"
-
-            git push
-            echo "✅ Workflow changes committed and pushed"
-          fi
+          echo "ℹ️ Workflows were enabled/disabled via API; no file changes were committed."
 
       - name: Action summary
         if: always()

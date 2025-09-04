@@ -140,7 +140,7 @@ jobs:
           echo "🔍 Checking if workflows should be suspended..."
 
           # Use the monitoring script to check suspension requirements
-          if "$PY_RUN" scripts/deployment_cost_monitor.py --check-suspension --json-output; then
+          if $PY_RUN scripts/deployment_cost_monitor.py --check-suspension --json-output; then
             SHOULD_SUSPEND="false"
             echo "✅ Budget allows continued operation"
           else
