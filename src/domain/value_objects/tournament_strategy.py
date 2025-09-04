@@ -1,7 +1,7 @@
 """Tournament strategy value objects for competitive forecasting."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -158,7 +158,7 @@ class TournamentStrategy:
             },
             submission_timing_strategy="optimal_window",
             competitive_positioning="balanced",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
     @classmethod
@@ -194,7 +194,7 @@ class TournamentStrategy:
             },
             submission_timing_strategy="early_advantage",
             competitive_positioning="aggressive",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
     @classmethod
@@ -230,7 +230,7 @@ class TournamentStrategy:
             },
             submission_timing_strategy="late_validation",
             competitive_positioning="conservative",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
     def get_category_confidence_threshold(self, category: QuestionCategory) -> float:
@@ -282,7 +282,7 @@ class CompetitiveIntelligence:
             competitor_patterns={},
             scoring_trends={},
             question_difficulty_distribution={},
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
 
     def get_competitive_advantage_score(self, category: QuestionCategory) -> float:

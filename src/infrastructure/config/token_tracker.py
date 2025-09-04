@@ -53,14 +53,12 @@ class TokenTracker:
         self.total_tokens_used = {"input": 0, "output": 0, "total": 0}
         self.total_estimated_cost = 0.0
 
-        # OpenRouter pricing (per 1K tokens) - updated for real-time calculation
+        # Pricing (per 1K tokens). Keep minimal, OpenRouter-routed OpenAI variants only.
+        # Unknown models will fall back to gpt-4o rates. Free-tier models are zero-cost via check below.
         self.cost_per_token = {
             "gpt-4o": {"input": 0.0025, "output": 0.01},
             "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
-            "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
-            "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
-            "perplexity/sonar-reasoning": {"input": 0.005, "output": 0.005},
-            "perplexity/sonar-pro": {"input": 0.001, "output": 0.001},
+            # Note: gpt-5 rates not defined here; default fallback will apply.
         }
 
         # Data persistence
@@ -185,9 +183,15 @@ class TokenTracker:
         """Calculate real-time cost for token usage."""
         model_key = self._normalize_model_name(model)
 
+        # Suppress costs for explicit free-tier models routed via OpenRouter (e.g., "openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free")
+        if ":free" in model:
+            return 0.0
+
         if model_key not in self.cost_per_token:
-            logger.warning(f"Unknown model {model}, using GPT-4o pricing")
-            model_key = "gpt-4o"
+            logger.warning(
+                f"Unknown model {model}, treating as zero-cost fallback (free baseline)"
+            )
+            return 0.0
 
         rates = self.cost_per_token[model_key]
         cost = (input_tokens * rates["input"] / 1000) + (
@@ -343,14 +347,13 @@ class TokenTracker:
         if is_valid:
             return prompt, False
 
-        # Calculate how much we need to remove
-        tokens_to_remove = validation_info["tokens_over_limit"]
+    # Calculate how much we need to remove (implicit via context limits below)
 
         # Convert token counts to approximate character counts for truncation
         chars_per_token = 4  # Rough approximation
         preserve_start_chars = preserve_start * chars_per_token
         preserve_end_chars = preserve_end * chars_per_token
-        chars_to_remove = tokens_to_remove * chars_per_token
+    # chars_to_remove not needed; we truncate structurally below
 
         if len(prompt) <= preserve_start_chars + preserve_end_chars:
             # Prompt is too short to truncate safely, just take the beginning

@@ -25,11 +25,33 @@ class SearchClient(ABC):
     async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """Search for information and return results."""
         pass
-
     @abstractmethod
     async def health_check(self) -> bool:
         """Check if the search service is available."""
         pass
+
+
+class NoOpSearchClient(SearchClient):
+    """No-op search client: external web search disabled per provider policy.
+
+    Research is handled by AskNews-first and free-model synthesis in the domain pipeline.
+    """
+
+    def __init__(self, settings: Optional[Settings] = None):
+        self.settings = settings or Settings()
+
+    async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+        logger.info(
+            "External search disabled; returning no results (AskNews-first via pipeline)",
+            query=query,
+            max_results=max_results,
+        )
+        return []
+
+    async def health_check(self) -> bool:
+        # Yield control to satisfy async linters
+        await asyncio.sleep(0)
+        return True
 
 
 class DuckDuckGoSearchClient(SearchClient):
@@ -293,43 +315,37 @@ class MultiSourceSearchClient(SearchClient):
             "Performing multi-source search", query=query, max_results=max_results
         )
 
-        # Calculate results per source
         results_per_source = max(1, max_results // len(self.clients))
-
-        # Search all sources concurrently
         search_tasks = [
             client.search(query, results_per_source) for client in self.clients
         ]
-
         all_results = await asyncio.gather(*search_tasks, return_exceptions=True)
 
-        # Combine and deduplicate results
-        combined_results = []
-        seen_urls = set()
-
-        for source_results in all_results:
-            if isinstance(source_results, Exception):
-                logger.warning("Search source failed", error=str(source_results))
-                continue
-
-            for result in source_results:
-                url = result.get("url", "")
-                if url and url not in seen_urls:
-                    seen_urls.add(url)
-                    combined_results.append(result)
-
-                    if len(combined_results) >= max_results:
-                        break
-
-            if len(combined_results) >= max_results:
-                break
-
+        combined_results = self._merge_results(all_results, max_results)
         logger.info(
             "Multi-source search completed",
             total_results=len(combined_results),
             sources_used=len([r for r in all_results if not isinstance(r, Exception)]),
         )
+        return combined_results
 
+    def _merge_results(
+        self, all_results: List[Any], max_results: int
+    ) -> List[Dict[str, Any]]:
+        combined_results: List[Dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for source_results in all_results:
+            if isinstance(source_results, Exception) or not isinstance(
+                source_results, list
+            ):
+                continue
+            for result in source_results:
+                url = result.get("url", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    combined_results.append(result)
+                    if len(combined_results) >= max_results:
+                        return combined_results[:max_results]
         return combined_results[:max_results]
 
     async def health_check(self) -> bool:
@@ -350,9 +366,8 @@ class MultiSourceSearchClient(SearchClient):
 
 def create_search_client(settings: Settings) -> SearchClient:
     """Factory function to create appropriate search client based on settings."""
-    if settings.search.serpapi_key:
-        logger.info("Creating multi-source search client with SerpAPI")
-        return MultiSourceSearchClient(settings)
-    else:
-        logger.info("Creating DuckDuckGo search client (no API keys configured)")
-        return DuckDuckGoSearchClient(settings)
+    # Per provider policy, disable external web search; research handled elsewhere
+    logger.info(
+        "Creating NoOpSearchClient — external search disabled; AskNews-first via pipeline"
+    )
+    return NoOpSearchClient(settings)

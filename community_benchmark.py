@@ -61,18 +61,16 @@ async def benchmark_forecast_bot(mode: str) -> None:
             TemplateForecaster(
                 predictions_per_research_report=5,
                 llms={
-                    "default": GeneralLlm(
-                        model="gpt-4o-mini",
-                        temperature=0.3,
+                    "default": __import__("src.infrastructure.config.llm_factory", fromlist=["create_llm"]).create_llm(
+                        "openai/gpt-4o-mini", temperature=0.3
                     ),
                 },
             ),
             TemplateForecaster(
                 predictions_per_research_report=1,
                 llms={
-                    "default": GeneralLlm(
-                        model="gpt-4o-mini",
-                        temperature=0.3,
+                    "default": __import__("src.infrastructure.config.llm_factory", fromlist=["create_llm"]).create_llm(
+                        "openai/gpt-4o-mini", temperature=0.3
                     ),
                 },
             ),
@@ -128,5 +126,3 @@ if __name__ == "__main__":
         args.mode
     )
     asyncio.run(benchmark_forecast_bot(mode))
-
-

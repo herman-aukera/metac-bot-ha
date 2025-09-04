@@ -7,7 +7,7 @@ to markdown files in the logs/reasoning/ directory structure.
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -106,7 +106,7 @@ class ReasoningLogger:
         Returns:
             Formatted markdown content
         """
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat()
 
         lines = [
             f"# Reasoning Trace: {agent_name}",
@@ -365,16 +365,19 @@ class ReasoningLogger:
         if not individual_agents:
             return {}
 
-        predictions = [
-            agent.get("prediction")
-            for agent in individual_agents
-            if agent.get("prediction") is not None
-        ]
-        confidences = [
-            agent.get("confidence")
-            for agent in individual_agents
-            if agent.get("confidence") is not None
-        ]
+        def _to_float_list(items: List[Dict[str, Any]], key: str) -> List[float]:
+            values: List[float] = []
+            for it in items:
+                raw = it.get(key)
+                try:
+                    if raw is not None:
+                        values.append(float(raw))
+                except (TypeError, ValueError):
+                    continue
+            return values
+
+        predictions = _to_float_list(individual_agents, "prediction")
+        confidences = _to_float_list(individual_agents, "confidence")
 
         if not predictions:
             return {}
@@ -406,11 +409,14 @@ class ReasoningLogger:
         self, individual_agents: List[Dict[str, Any]]
     ) -> float:
         """Calculate consensus strength based on prediction variance."""
-        predictions = [
-            agent.get("prediction")
-            for agent in individual_agents
-            if agent.get("prediction") is not None
-        ]
+        predictions: List[float] = []
+        for agent in individual_agents:
+            raw = agent.get("prediction")
+            try:
+                if raw is not None:
+                    predictions.append(float(raw))
+            except (TypeError, ValueError):
+                continue
 
         if len(predictions) < 2:
             return 1.0

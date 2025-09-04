@@ -1,0 +1,43 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run quick OpenRouter config check",
+			"type": "shell",
+			"command": "/opt/homebrew/bin/python3",
+			"args": [
+				"-m",
+				"scripts.test_openrouter_simple"
+			],
+			"problemMatcher": [
+				"$pytest-python"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run extended OpenRouter config check",
+			"type": "shell",
+			"command": "/opt/homebrew/bin/python3",
+			"args": [
+				"-m",
+				"scripts.test_openrouter_corrected"
+			],
+			"problemMatcher": [
+				"$pytest-python"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run local_minibench_ci",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /Users/herman/Documents/Code/l1dr/metac-bot-ha; LOCAL_CI_NETWORK=1 DRY_RUN=false bash scripts/local_minibench_ci.sh"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

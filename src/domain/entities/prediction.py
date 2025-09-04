@@ -1,7 +1,7 @@
 """Prediction domain entity."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -129,7 +129,7 @@ class Prediction:
             method=method,
             reasoning=reasoning,
             reasoning_steps=kwargs.get("reasoning_steps", []),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             created_by=created_by,
             lower_bound=kwargs.get("lower_bound"),
             upper_bound=kwargs.get("upper_bound"),
@@ -166,7 +166,7 @@ class Prediction:
             method=method,
             reasoning=reasoning,
             reasoning_steps=kwargs.get("reasoning_steps", []),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             created_by=created_by,
             lower_bound=kwargs.get("lower_bound"),
             upper_bound=kwargs.get("upper_bound"),
@@ -200,7 +200,7 @@ class Prediction:
             method=method,
             reasoning=reasoning,
             reasoning_steps=kwargs.get("reasoning_steps", []),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             created_by=created_by,
             lower_bound=kwargs.get("lower_bound"),
             upper_bound=kwargs.get("upper_bound"),
@@ -239,7 +239,7 @@ class Prediction:
             method=method,
             reasoning=reasoning,
             reasoning_steps=kwargs.get("reasoning_steps", []),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             created_by=created_by,
             method_metadata=kwargs.get("method_metadata", {}),
             internal_consistency_score=kwargs.get("internal_consistency_score"),
@@ -273,7 +273,7 @@ class Prediction:
             method=method,
             reasoning=reasoning,
             reasoning_steps=kwargs.get("reasoning_steps", []),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             created_by=created_by,
             method_metadata=kwargs.get("method_metadata", {}),
             internal_consistency_score=kwargs.get("internal_consistency_score"),

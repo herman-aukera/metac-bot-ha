@@ -92,9 +92,9 @@ class MetaculusProxyClient:
 
         # Fallback model configuration
         self.fallback_models = {
-            "default": "openrouter/anthropic/claude-3-5-sonnet",
+            "default": "anthropic/claude-3-5-sonnet",
             "summarizer": "openai/gpt-4o-mini",
-            "research": "openrouter/openai/gpt-4o",
+            "research": "openai/gpt-4o",
         }
 
         # Credit management
@@ -167,7 +167,7 @@ class MetaculusProxyClient:
             # Return a basic fallback client
             basic_config = LLMConfig(
                 provider="openrouter",
-                model="openrouter/anthropic/claude-3-5-sonnet",
+                model="anthropic/claude-3-5-sonnet",
                 api_key=self.config.llm.openrouter_api_key,
                 temperature=0.3,
                 max_retries=2,
@@ -208,20 +208,13 @@ class MetaculusProxyClient:
         )
 
     def _create_fallback_config(self, model: str, purpose: str) -> LLMConfig:
-        """Create LLM configuration for fallback model."""
-        # Determine provider from model name
-        if model.startswith("openrouter/"):
-            provider = "openrouter"
-            api_key = self.config.llm.openrouter_api_key
-        elif model.startswith("openai/"):
-            provider = "openai"
-            api_key = self.config.llm.openai_api_key
-        elif model.startswith("anthropic/"):
-            provider = "anthropic"
-            api_key = self.config.llm.anthropic_api_key
-        else:
-            provider = "openrouter"
-            api_key = self.config.llm.openrouter_api_key
+        """Create LLM configuration for fallback model.
+
+        We route all fallback calls through OpenRouter using provider-prefixed
+        model IDs (e.g., "openai/gpt-4o", "anthropic/claude-3-5-sonnet").
+        """
+        provider = "openrouter"
+        api_key = self.config.llm.openrouter_api_key
 
         return LLMConfig(
             provider=provider,
@@ -235,25 +228,28 @@ class MetaculusProxyClient:
 
     def _test_proxy_client(self, client: LLMClient) -> bool:
         """Test if proxy client is working with a simple request."""
+        import asyncio
+
         try:
-            # Simple test prompt
-            test_response = client.generate_text(
-                "Say 'OK' if you can respond.", max_tokens=10
-            )
-            return test_response and len(test_response.strip()) > 0
+            # Use a dedicated event loop to avoid interfering with any running loop
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(client.health_check())
+            finally:
+                loop.close()
         except Exception as e:
             self.logger.debug(f"Proxy client test failed: {e}")
             return False
 
-    def _wrap_proxy_client(self, client: LLMClient, model_type: str) -> LLMClient:
-        """Wrap proxy client to track usage statistics."""
-        original_generate = client.generate_text
+    def _wrap_proxy_client(self, client: LLMClient, _model_type: str) -> LLMClient:
+        """Wrap proxy client to track usage statistics by intercepting async generate."""
+        original_generate = client.generate
 
-        def tracked_generate(*args, **kwargs):
+        async def tracked_generate(*args, **kwargs):
             try:
-                result = original_generate(*args, **kwargs)
+                result = await original_generate(*args, **kwargs)
                 # Estimate credits used (rough approximation)
-                credits_used = self._estimate_credits_used(args, kwargs, result)
+                credits_used = self._estimate_credits_used(args, result)
                 self.usage_stats.add_request(success=True, credits_used=credits_used)
                 return result
             except Exception as e:
@@ -261,26 +257,27 @@ class MetaculusProxyClient:
                 self.logger.warning(f"Proxy request failed: {e}")
                 raise
 
-        client.generate_text = tracked_generate
+        # Monkey-patch the async method on this instance
+        client.generate = tracked_generate  # type: ignore[assignment]
         return client
 
-    def _wrap_fallback_client(self, client: LLMClient, model_type: str) -> LLMClient:
-        """Wrap fallback client to track usage statistics."""
-        original_generate = client.generate_text
+    def _wrap_fallback_client(self, client: LLMClient, _model_type: str) -> LLMClient:
+        """Wrap fallback client to track usage statistics by intercepting async generate."""
+        original_generate = client.generate
 
-        def tracked_generate(*args, **kwargs):
+        async def tracked_generate(*args, **kwargs):
             try:
-                result = original_generate(*args, **kwargs)
+                result = await original_generate(*args, **kwargs)
                 self.usage_stats.add_request(success=True, used_fallback=True)
                 return result
-            except Exception as e:
+            except Exception:
                 self.usage_stats.add_request(success=False, used_fallback=True)
                 raise
 
-        client.generate_text = tracked_generate
+        client.generate = tracked_generate  # type: ignore[assignment]
         return client
 
-    def _estimate_credits_used(self, args: tuple, kwargs: dict, result: str) -> float:
+    def _estimate_credits_used(self, args: tuple, result: str) -> float:
         """Estimate credits used for a request (rough approximation)."""
         # This is a rough estimation - actual credit usage depends on Metaculus pricing
         prompt_length = len(str(args[0]) if args else "")
@@ -291,8 +288,8 @@ class MetaculusProxyClient:
         output_tokens = response_length / 4
 
         # Rough credit estimation (this would need to be calibrated with actual usage)
-        credits = (input_tokens * 0.001) + (output_tokens * 0.002)
-        return credits
+        credit_estimate = (input_tokens * 0.001) + (output_tokens * 0.002)
+        return credit_estimate
 
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get current usage statistics."""
@@ -319,7 +316,7 @@ class MetaculusProxyClient:
         self.proxy_exhausted = True
         self.logger.info("Proxy manually disabled")
 
-    def get_available_models(self) -> Dict[str, Dict[str, str]]:
+    def get_available_models(self) -> Dict[str, Any]:
         """Get available proxy and fallback models."""
         return {
             "proxy_models": self.proxy_models.copy(),

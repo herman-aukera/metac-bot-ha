@@ -413,6 +413,16 @@ class OpenRouterTriModelRouter:
                 model_name, operation_mode or "normal"
             )
 
+            # Defensive: ensure provider prefix remains after shortcut application
+            if (
+                optimized_model_name
+                and "/" not in optimized_model_name
+                and not optimized_model_name.startswith("metaculus/")
+            ):
+                optimized_model_name = self._normalize_model_id(
+                    optimized_model_name
+                )
+
             # Add provider preferences based on operation mode
             provider_preferences = self._get_provider_preferences_for_operation_mode(
                 operation_mode or "normal"
@@ -540,8 +550,16 @@ class OpenRouterTriModelRouter:
             if not model_name.endswith(":floor") and not model_name.endswith(":free"):
                 return f"{model_name}:floor"
         elif operation_mode == "normal":
-            # Use :nitro shortcut for throughput optimization when budget allows
-            if not model_name.endswith(":nitro") and not model_name.endswith(":free"):
+            # Do NOT auto-append :nitro. Many provider/model combos don't support it and it
+            # has produced malformed IDs (e.g., gpt-5-nano:nitro) leading to provider errors.
+            # If explicitly requested via env, allow opting in.
+            try:
+                import os  # local import to avoid top-level cycles
+                enable_nitro = os.getenv("OPENROUTER_ENABLE_NITRO", "0") == "1"
+            except Exception:
+                enable_nitro = False
+
+            if enable_nitro and (not model_name.endswith(":nitro")) and (not model_name.endswith(":free")):
                 return f"{model_name}:nitro"
 
         return model_name

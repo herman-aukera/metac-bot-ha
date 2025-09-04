@@ -3,10 +3,10 @@ set -Eeuo pipefail
 
 echo "[local-ci] Starting MiniBench local CI simulation..."
 
-# Safe local overrides to avoid side effects
-export TOURNAMENT_MODE=true
-export DRY_RUN=true
-export PUBLISH_REPORTS=false
+# Safe local overrides to avoid side effects (can be overridden by env)
+export TOURNAMENT_MODE=${TOURNAMENT_MODE:-true}
+export DRY_RUN=${DRY_RUN:-false}
+export PUBLISH_REPORTS=${PUBLISH_REPORTS:-false}
 # Avoid setting PYTHONPATH=src to prevent module name collisions with forecasting_tools
 
 # Offline by default to avoid accidental spend; set LOCAL_CI_NETWORK=1 to enable networked run
@@ -15,9 +15,39 @@ if [[ "$LOCAL_CI_NETWORK" != "1" ]]; then
   export OPENROUTER_API_KEY="dummy_local"
   export ENABLE_PROXY_CREDITS=false
   export ENABLE_ASKNEWS_RESEARCH=false
+  export DRY_RUN=true
   echo "[local-ci] Network disabled (LOCAL_CI_NETWORK=0): OpenRouter/Proxy/AskNews disabled"
 else
-  echo "[local-ci] Network enabled (LOCAL_CI_NETWORK=1): using .env values via python-dotenv"
+  echo "[local-ci] Network enabled (LOCAL_CI_NETWORK=1)"
+  # Do not source .env directly to avoid parsing issues; python-dotenv will load it where needed
+  if [[ ! -f .env ]]; then
+    echo "[local-ci] WARNING: .env not found; relying on current environment"
+  else
+    # Export only required keys from .env into current shell without printing values
+    python3 - <<'PY'
+import os, shlex
+from dotenv import dotenv_values
+vals = dotenv_values('.env')
+allowlist = [
+    'OPENROUTER_API_KEY','OPENROUTER_BASE_URL','OPENROUTER_HTTP_REFERER','OPENROUTER_APP_TITLE',
+    'METACULUS_TOKEN','ASKNEWS_CLIENT_ID','ASKNEWS_SECRET',
+    'DEFAULT_MODEL','MINI_MODEL','NANO_MODEL',
+    'ENABLE_PROXY_CREDITS','ENABLE_ASKNEWS_RESEARCH',
+    'PRIMARY_RESEARCH_MODEL','PRIMARY_FORECAST_MODEL','SIMPLE_TASK_MODEL',
+    'AIB_TOURNAMENT_SLUG','TOURNAMENT_SLUG','AIB_TOURNAMENT_ID'
+]
+with open('.local_env_export.sh','w') as f:
+    f.write('set -a\n')
+    for k in allowlist:
+        v = vals.get(k)
+        if v is not None:
+            f.write(f"export {k}={shlex.quote(v)}\n")
+    f.write('set +a\n')
+PY
+    # shellcheck disable=SC1091
+    . ./.local_env_export.sh
+    rm -f .local_env_export.sh
+  fi
 fi
 
 python3 --version || true
@@ -65,13 +95,27 @@ with open('.local_target.tmp','w') as f:
 PY
 TARGET=$(cat .local_target.tmp); rm -f .local_target.tmp
 
+# Optional: quick connectivity check (HTTP codes only)
+if [[ "$LOCAL_CI_NETWORK" == "1" ]]; then
+  echo "[local-ci] Connectivity check (OpenRouter/Metaculus)"
+  python3 - <<'PY'
+import os, subprocess
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path='.env', override=True)
+except Exception:
+    pass
+subprocess.run(['bash', 'scripts/check_connectivity.sh'], check=False)
+PY
+fi
+
 echo "[local-ci] Running bot (dry-run: $DRY_RUN, publish: $PUBLISH_REPORTS)"
 set +e
 if AIB_TOURNAMENT_SLUG="$TARGET" \
    AIB_TOURNAMENT_ID="$TARGET" \
    TOURNAMENT_MODE=true \
    PUBLISH_REPORTS=false \
-  DRY_RUN=true \
+  DRY_RUN="$DRY_RUN" \
   SKIP_PREVIOUSLY_FORECASTED=false \
    python3 main.py --mode tournament; then
   echo "[local-ci] Bot run completed"

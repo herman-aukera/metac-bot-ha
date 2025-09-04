@@ -657,13 +657,13 @@ Be very clear about what information may be outdated or incomplete.
                     fallback_model_name = self._handle_api_failure(e, llm.model, task_type)
 
                     try:
-                        # Create fallback LLM
-                        fallback_llm = GeneralLlm(
-                            model=fallback_model_name,
-                            api_key=self.openrouter_api_key if "openrouter" in fallback_model_name else None,
-                            temperature=llm.temperature if hasattr(llm, 'temperature') else 0.1,
-                            timeout=30,  # Shorter timeout for fallbacks
-                            allowed_tries=1
+                        # Create fallback LLM via centralized factory
+                        from src.infrastructure.config.llm_factory import create_llm
+                        fallback_llm = create_llm(
+                            fallback_model_name,
+                            temperature=getattr(llm, 'temperature', 0.1),
+                            timeout=30,
+                            allowed_tries=1,
                         )
                         llm = fallback_llm
                         logger.info(f"Retrying with fallback model: {fallback_model_name}")
@@ -918,14 +918,15 @@ Be very clear about what information may be outdated or incomplete.
             {question}
             """
         )  # NOTE: The metac bot in Q1 put everything but the question in the system prompt.
-        if use_open_router:
-            model_name = "openrouter/perplexity/sonar-reasoning"
-        else:
-            model_name = "perplexity/sonar-pro"  # perplexity/sonar-reasoning and perplexity/sonar are cheaper, but do only 1 search
-        model = GeneralLlm(
-            model=model_name,
-            temperature=0.1,
-        )
+        # Create Perplexity LLM via centralized factory to ensure correct base_url/headers
+        try:
+            from src.infrastructure.config.llm_factory import create_perplexity_llm, create_llm
+            model = create_perplexity_llm(use_open_router)
+        except Exception:
+            # Best-effort fallback
+            from src.infrastructure.config.llm_factory import create_llm
+            model_name = "perplexity/sonar-reasoning" if use_open_router else "perplexity/sonar-pro"
+            model = create_llm(model_name, temperature=0.1)
         # Use safe invoke for Perplexity calls
         response = await self._safe_llm_invoke(model, prompt, "research")
         return response
@@ -1987,165 +1988,27 @@ if __name__ == "__main__":
     # Create enhanced LLM configuration with tri-model GPT-5 routing
     def create_enhanced_llms():
         """Create LLM configuration with tri-model GPT-5 routing and budget-aware selection."""
-        llms = {}
+        llms: Dict[str, Any] = {}
 
-        # Try to use tri-model router first
+        # Prefer tri-model router models if available
         try:
             from src.infrastructure.config.tri_model_router import tri_model_router
-
-            # Get models from tri-model router
             router_models = tri_model_router.models
-
-            # Map router models to expected LLM names
-            llms["default"] = router_models["full"]      # GPT-5 full for main forecasting
-            llms["summarizer"] = router_models["nano"]   # GPT-5 nano for simple tasks
-            llms["researcher"] = router_models["mini"]   # GPT-5 mini for research
-
-            logger.info("Using tri-model GPT-5 configuration:")
-            for name, model in llms.items():
-                logger.info(f"  {name}: {model.model}")
-
+            llms["default"] = router_models["full"]
+            llms["summarizer"] = router_models["nano"]
+            llms["researcher"] = router_models["mini"]
+            logger.info("Using tri-model GPT-5 configuration for LLMs")
             return llms
+        except Exception as e:
+            logger.warning(f"Tri-model router unavailable, using env-configured models: {e}")
 
-        except ImportError as e:
-            logger.warning(f"Tri-model router not available, falling back to legacy models: {e}")
-            # Continue to legacy configuration below
-
-        # Get OpenRouter API key
-        openrouter_key = os.getenv("OPENROUTER_API_KEY")
-
-        if not openrouter_key or openrouter_key.startswith("dummy_"):
-            logger.error("OpenRouter API key not configured! Using fallback configuration.")
-            openrouter_key = None
-
-        # Try to use tournament-optimized models with proxy support
-        if TOURNAMENT_COMPONENTS_AVAILABLE:
-            try:
-                tournament_config = get_tournament_config()
-
-                # Default model with OpenRouter primary, proxy fallback
-                try:
-                    if openrouter_key:
-                        default_model = os.getenv("PRIMARY_FORECAST_MODEL", "openai/gpt-4o")
-                        llms["default"] = GeneralLlm(
-                            model=default_model,
-                            api_key=openrouter_key,
-                            temperature=0.3,
-                            timeout=60,
-                            allowed_tries=3,
-                        )
-                        logger.info(f"Using OpenRouter model for default: {default_model}")
-                    else:
-                        default_model = os.getenv("METACULUS_DEFAULT_MODEL", "metaculus/claude-3-5-sonnet")
-                        llms["default"] = GeneralLlm(
-                            model=default_model,
-                            temperature=0.3,
-                            timeout=60,
-                            allowed_tries=3,
-                        )
-                        logger.info(f"Using proxy model for default: {default_model}")
-                except Exception as e:
-                    logger.warning(f"Failed to create default model: {e}")
-                    llms["default"] = GeneralLlm(
-                        model="openrouter/anthropic/claude-3-5-sonnet",
-                        api_key=openrouter_key,
-                        temperature=0.3,
-                        timeout=60,
-                        allowed_tries=3,
-                    )
-
-                # Summarizer model with OpenRouter primary
-                try:
-                    if openrouter_key:
-                        summarizer_model = os.getenv("SIMPLE_TASK_MODEL", "openai/gpt-4o-mini")
-                        llms["summarizer"] = GeneralLlm(
-                            model=summarizer_model,
-                            api_key=openrouter_key,
-                            temperature=0.0,
-                            timeout=45,
-                            allowed_tries=3,
-                        )
-                        logger.info(f"Using OpenRouter model for summarizer: {summarizer_model}")
-                    else:
-                        summarizer_model = os.getenv("METACULUS_SUMMARIZER_MODEL", "metaculus/gpt-4o-mini")
-                        llms["summarizer"] = GeneralLlm(
-                            model=summarizer_model,
-                            temperature=0.0,
-                            timeout=45,
-                            allowed_tries=3,
-                        )
-                        logger.info(f"Using proxy model for summarizer: {summarizer_model}")
-                except Exception as e:
-                    logger.warning(f"Failed to create summarizer model: {e}")
-                    llms["summarizer"] = GeneralLlm(
-                        model="openai/gpt-4o-mini",
-                        api_key=openrouter_key,
-                        temperature=0.0,
-                        timeout=45,
-                        allowed_tries=3,
-                    )
-
-                # Research model with OpenRouter primary
-                try:
-                    if openrouter_key:
-                        research_model = os.getenv("PRIMARY_RESEARCH_MODEL", "openai/gpt-4o-mini")
-                        llms["researcher"] = GeneralLlm(
-                            model=research_model,
-                            api_key=openrouter_key,
-                            temperature=0.1,
-                            timeout=90,
-                            allowed_tries=2,
-                        )
-                        logger.info(f"Using OpenRouter model for researcher: {research_model}")
-                    else:
-                        research_model = os.getenv("METACULUS_RESEARCH_MODEL", "metaculus/gpt-4o")
-                        llms["researcher"] = GeneralLlm(
-                            model=research_model,
-                            temperature=0.1,
-                            timeout=90,
-                            allowed_tries=2,
-                        )
-                        logger.info(f"Using proxy model for researcher: {research_model}")
-                except Exception as e:
-                    logger.warning(f"Failed to create research model: {e}")
-                    llms["researcher"] = GeneralLlm(
-                        model="openrouter/openai/gpt-4o",
-                        api_key=openrouter_key,
-                        temperature=0.1,
-                        timeout=90,
-                        allowed_tries=2,
-                    )
-
-            except Exception as e:
-                logger.warning(f"Failed to initialize tournament LLMs: {e}")
-
-        # Fallback to OpenRouter-based models if tournament components failed
-        if not llms:
-            logger.info("Using OpenRouter-based fallback LLM configuration")
-            llms = {
-                "default": GeneralLlm(
-                    model=os.getenv("PRIMARY_FORECAST_MODEL", "openai/gpt-4o"),
-                    api_key=openrouter_key,
-                    temperature=0.3,
-                    timeout=60,
-                    allowed_tries=3,
-                ),
-                "summarizer": GeneralLlm(
-                    model=os.getenv("SIMPLE_TASK_MODEL", "openai/gpt-4o-mini"),
-                    api_key=openrouter_key,
-                    temperature=0.0,
-                    timeout=45,
-                    allowed_tries=3,
-                ),
-                "researcher": GeneralLlm(
-                    model=os.getenv("PRIMARY_RESEARCH_MODEL", "openai/gpt-4o-mini"),
-                    api_key=openrouter_key,
-                    temperature=0.1,
-                    timeout=90,
-                    allowed_tries=2,
-                ),
-            }
-
+        # Fall back to env-configured models through OpenRouter factory
+        from src.infrastructure.config.llm_factory import create_llm
+        llms = {
+            "default": create_llm(os.getenv("PRIMARY_FORECAST_MODEL", "openai/gpt-4o"), temperature=0.3, timeout=60, allowed_tries=3),
+            "summarizer": create_llm(os.getenv("SIMPLE_TASK_MODEL", "openai/gpt-4o-mini"), temperature=0.0, timeout=45, allowed_tries=3),
+            "researcher": create_llm(os.getenv("PRIMARY_RESEARCH_MODEL", "openai/gpt-4o-mini"), temperature=0.1, timeout=90, allowed_tries=2),
+        }
         return llms
 
     # Initialize bot with enhanced configuration

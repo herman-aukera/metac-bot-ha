@@ -10,7 +10,32 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
-import structlog
+try:
+    import structlog  # type: ignore[import]
+    logger = structlog.get_logger(__name__)
+except Exception:  # pragma: no cover - fallback if structlog isn't available during analysis
+    import logging as _logging
+
+    class _KwLogger:
+        def __init__(self, name: str):
+            self._logger = _logging.getLogger(name)
+
+        def debug(self, msg: str, **kwargs):
+            self._logger.debug(self._fmt(msg, kwargs))
+
+        def info(self, msg: str, **kwargs):
+            self._logger.info(self._fmt(msg, kwargs))
+
+        def warning(self, msg: str, **kwargs):
+            self._logger.warning(self._fmt(msg, kwargs))
+
+        def error(self, msg: str, **kwargs):
+            self._logger.error(self._fmt(msg, kwargs))
+
+        def _fmt(self, msg: str, kv: dict) -> str:
+            return f"{msg} | {kv}" if kv else msg
+
+    logger = _KwLogger(__name__)
 
 from ..application.dispatcher import Dispatcher
 from ..application.forecast_service import ForecastService
@@ -47,8 +72,8 @@ from ..infrastructure.config.settings import Config, Settings
 from ..infrastructure.external_apis.llm_client import LLMClient
 from ..infrastructure.external_apis.metaculus_client import MetaculusClient
 from ..infrastructure.external_apis.search_client import (
-    DuckDuckGoSearchClient,
     SearchClient,
+    create_search_client,
 )
 from ..infrastructure.logging.reasoning_logger import ReasoningLogger
 from ..infrastructure.reliability.circuit_breaker import CircuitBreaker
@@ -57,7 +82,7 @@ from ..infrastructure.reliability.rate_limiter import TokenBucketRateLimiter
 from ..infrastructure.reliability.retry_manager import RetryManager
 from ..pipelines.forecasting_pipeline import ForecastingPipeline
 
-logger = structlog.get_logger(__name__)
+"""Logger initialized above (structlog preferred, fallback to stdlib logging)."""
 
 
 @dataclass
@@ -364,8 +389,8 @@ class TournamentOrchestrator:
 
     async def _create_search_client(self, settings: Settings) -> SearchClient:
         """Create and configure search client."""
-        # Use DuckDuckGo as default implementation
-        search_client = DuckDuckGoSearchClient(settings)
+        # Use factory; policy enforces NoOp (AskNews-first handled in pipeline)
+        search_client = create_search_client(settings)
         # Initialize if method exists
         if hasattr(search_client, "initialize"):
             await search_client.initialize()

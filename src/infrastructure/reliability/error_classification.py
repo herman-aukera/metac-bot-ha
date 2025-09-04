@@ -62,6 +62,7 @@ class ErrorContext:
     budget_remaining: float
     attempt_number: int
     original_prompt: Optional[str] = None
+    question_id: Optional[str] = None
     model_name: Optional[str] = None
     provider: Optional[str] = None
     timestamp: datetime = None

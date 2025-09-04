@@ -46,18 +46,38 @@ class OpenRouterStartupValidator:
             "DEFAULT_MODEL": "openai/gpt-5",
             "MINI_MODEL": "openai/gpt-5-mini",
             "NANO_MODEL": "openai/gpt-5-nano",
+            "FREE_FALLBACK_MODELS": "openai/gpt-oss-20b:free,moonshotai/kimi-k2:free",
         }
 
-    async def validate_configuration(self) -> ValidationResult:
+    async def validate_configuration(self) -> ValidationResult:  # noqa: C901  # pylint: disable=too-many-branches,too-many-statements
         """Perform comprehensive OpenRouter configuration validation."""
         logger.info("Starting OpenRouter configuration validation...")
 
-        errors = []
-        warnings = []
-        recommendations = []
+        errors: List[str] = []
+        warnings: List[str] = []
+        recommendations: List[str] = []
 
-        # Check required environment variables
-        missing_required = []
+        missing_required = self._check_required_env(errors, warnings, recommendations)
+        self._check_recommended_env(warnings, recommendations)
+        self._validate_base_url(warnings, recommendations)
+
+        model_config_status = self._validate_model_configurations()
+        errors.extend(model_config_status["errors"])
+        warnings.extend(model_config_status["warnings"])
+        recommendations.extend(model_config_status["recommendations"])
+
+        connectivity_status = await self._maybe_test_connectivity(
+            missing_required, errors, warnings, recommendations
+        )
+
+        return self._compose_validation_result(
+            model_config_status, connectivity_status, errors, warnings, recommendations
+        )
+
+    def _check_required_env(
+        self, errors: List[str], warnings: List[str], recommendations: List[str]
+    ) -> List[str]:
+        missing_required: List[str] = []
         for var in self.required_env_vars:
             value = os.getenv(var)
             if not value:
@@ -70,30 +90,27 @@ class OpenRouterStartupValidator:
 
         if missing_required:
             errors.extend(
-                [
-                    f"Missing required environment variable: {var}"
-                    for var in missing_required
-                ]
+                [f"Missing required environment variable: {var}" for var in missing_required]
             )
+        return missing_required
 
-        # Check recommended environment variables
-        missing_recommended = []
+    def _check_recommended_env(
+        self, warnings: List[str], recommendations: List[str]
+    ) -> List[str]:
+        missing_recommended: List[str] = []
         for var in self.recommended_env_vars:
             if not os.getenv(var):
                 missing_recommended.append(var)
-
         if missing_recommended:
             warnings.extend(
-                [
-                    f"Recommended environment variable not set: {var}"
-                    for var in missing_recommended
-                ]
+                [f"Recommended environment variable not set: {var}" for var in missing_recommended]
             )
             recommendations.append(
                 "Set recommended environment variables for optimal configuration"
             )
+        return missing_recommended
 
-        # Validate base URL
+    def _validate_base_url(self, warnings: List[str], recommendations: List[str]) -> None:
         base_url = os.getenv(
             "OPENROUTER_BASE_URL", self.default_values["OPENROUTER_BASE_URL"]
         )
@@ -103,48 +120,54 @@ class OpenRouterStartupValidator:
                 "Use standard OpenRouter base URL: https://openrouter.ai/api/v1"
             )
 
-        # Check model configurations
-        model_config_status = self._validate_model_configurations()
-        if model_config_status["errors"]:
-            errors.extend(model_config_status["errors"])
-        if model_config_status["warnings"]:
-            warnings.extend(model_config_status["warnings"])
-        if model_config_status["recommendations"]:
-            recommendations.extend(model_config_status["recommendations"])
-
-        # Test OpenRouter connectivity if API key is available
-        connectivity_status = {"available": False, "tested_models": {}}
+    async def _maybe_test_connectivity(
+        self,
+        missing_required: List[str],
+        errors: List[str],
+        warnings: List[str],
+        recommendations: List[str],
+    ) -> Dict[str, Any]:
+        connectivity_status: Dict[str, Any] = {
+            "available": False,
+            "tested_models": {},
+            "attempts": 0,
+        }
         if not missing_required and not any(
             os.getenv(var, "").startswith("dummy_") for var in self.required_env_vars
         ):
             try:
                 connectivity_status = await self._test_openrouter_connectivity()
-                if not connectivity_status["available"]:
+                if not connectivity_status.get("available"):
                     errors.append("OpenRouter API connectivity test failed")
                     recommendations.append(
                         "Check OpenRouter API key validity and network connectivity"
                     )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 warnings.append(f"OpenRouter connectivity test failed: {e}")
                 recommendations.append(
                     "Verify OpenRouter API key and network connectivity"
                 )
+        return connectivity_status
 
-        # Determine overall validation status
+    def _compose_validation_result(
+        self,
+        model_config_status: Dict[str, Any],
+        connectivity_status: Dict[str, Any],
+        errors: List[str],
+        warnings: List[str],
+        recommendations: List[str],
+    ) -> ValidationResult:
         is_valid = len(errors) == 0
-
         configuration_status = {
             "environment_variables": self._get_env_var_status(),
             "model_configurations": model_config_status,
             "connectivity": connectivity_status,
             "validation_timestamp": asyncio.get_event_loop().time(),
         }
-
         logger.info(
             f"Configuration validation complete: {'VALID' if is_valid else 'INVALID'} "
             f"({len(errors)} errors, {len(warnings)} warnings)"
         )
-
         return ValidationResult(
             is_valid=is_valid,
             errors=errors,
@@ -216,35 +239,40 @@ class OpenRouterStartupValidator:
         }
 
     async def _test_openrouter_connectivity(self) -> Dict[str, Any]:
-        """Test OpenRouter API connectivity and model availability."""
-        try:
-            # Create a temporary router instance for testing
-            router = OpenRouterTriModelRouter()
-
-            # Test model availability
-            availability = await router.detect_model_availability()
-
-            # Check if any models are available
-            available_models = [
-                model for model, available in availability.items() if available
-            ]
-
-            return {
-                "available": len(available_models) > 0,
-                "tested_models": availability,
-                "available_count": len(available_models),
-                "total_tested": len(availability),
-            }
-
-        except Exception as e:
-            logger.error(f"OpenRouter connectivity test failed: {e}")
-            return {
-                "available": False,
-                "error": str(e),
-                "tested_models": {},
-                "available_count": 0,
-                "total_tested": 0,
-            }
+        """Test OpenRouter API connectivity and model availability with retries."""
+        attempts = 0
+        last_error: Optional[str] = None
+        # Exponential backoff: 0.5s, 1s, 2s
+        for delay in (0.5, 1.0, 2.0):
+            attempts += 1
+            try:
+                router = OpenRouterTriModelRouter()
+                availability = await router.detect_model_availability()
+                available_models = [
+                    model for model, available in availability.items() if available
+                ]
+                return {
+                    "available": len(available_models) > 0,
+                    "tested_models": availability,
+                    "available_count": len(available_models),
+                    "total_tested": len(availability),
+                    "attempts": attempts,
+                }
+            except Exception as e:
+                last_error = str(e)
+                try:
+                    await asyncio.sleep(delay)
+                except Exception:
+                    pass
+        logger.error(f"OpenRouter connectivity test failed after {attempts} attempts: {last_error}")
+        return {
+            "available": False,
+            "error": last_error,
+            "tested_models": {},
+            "available_count": 0,
+            "total_tested": 0,
+            "attempts": attempts,
+        }
 
     def _get_env_var_status(self) -> Dict[str, Any]:
         """Get status of all relevant environment variables."""
@@ -337,54 +365,15 @@ class OpenRouterStartupValidator:
 
         return "\n".join(guide_lines)
 
-    async def run_startup_validation(self, exit_on_failure: bool = False) -> bool:
+    async def run_startup_validation(self, exit_on_failure: bool = False) -> bool:  # noqa: C901  # pylint: disable=too-many-branches,too-many-statements
         """Run startup validation and optionally exit on failure."""
         try:
             validation_result = await self.validate_configuration()
 
-            # Print results
-            print("\n" + "=" * 60)
-            print("OpenRouter Configuration Validation")
-            print("=" * 60)
+            self._print_validation_summary(validation_result)
 
-            if validation_result.is_valid:
-                print("✅ Configuration is VALID")
-            else:
-                print("❌ Configuration is INVALID")
-
-            if validation_result.errors:
-                print(f"\n❌ Errors ({len(validation_result.errors)}):")
-                for error in validation_result.errors:
-                    print(f"  • {error}")
-
-            if validation_result.warnings:
-                print(f"\n⚠️  Warnings ({len(validation_result.warnings)}):")
-                for warning in validation_result.warnings:
-                    print(f"  • {warning}")
-
-            if validation_result.recommendations:
-                print(
-                    f"\n💡 Recommendations ({len(validation_result.recommendations)}):"
-                )
-                for rec in validation_result.recommendations:
-                    print(f"  • {rec}")
-
-            print("\n" + "=" * 60)
-
-            # Generate and save setup guide if there are issues
             if not validation_result.is_valid or validation_result.warnings:
-                setup_guide = self.generate_setup_guide(validation_result)
-
-                # Try to save setup guide
-                try:
-                    with open("openrouter_setup_guide.md", "w") as f:
-                        f.write(setup_guide)
-                    print("📝 Setup guide saved to: openrouter_setup_guide.md")
-                except Exception as e:
-                    print(f"⚠️  Could not save setup guide: {e}")
-                    print("\nSetup Guide:")
-                    print("-" * 40)
-                    print(setup_guide)
+                await self._persist_or_print_setup_guide(validation_result)
 
             # Exit on failure if requested
             if not validation_result.is_valid and exit_on_failure:
@@ -398,6 +387,39 @@ class OpenRouterStartupValidator:
             if exit_on_failure:
                 sys.exit(1)
             return False
+
+    def _print_validation_summary(self, validation_result: ValidationResult) -> None:
+        print("\n" + "=" * 60)
+        print("OpenRouter Configuration Validation")
+        print("=" * 60)
+        print("✅ Configuration is VALID" if validation_result.is_valid else "❌ Configuration is INVALID")
+        if validation_result.errors:
+            print(f"\n❌ Errors ({len(validation_result.errors)}):")
+            for error in validation_result.errors:
+                print(f"  • {error}")
+        if validation_result.warnings:
+            print(f"\n⚠️  Warnings ({len(validation_result.warnings)}):")
+            for warning in validation_result.warnings:
+                print(f"  • {warning}")
+        if validation_result.recommendations:
+            print(f"\n💡 Recommendations ({len(validation_result.recommendations)}):")
+            for rec in validation_result.recommendations:
+                print(f"  • {rec}")
+        print("\n" + "=" * 60)
+
+    async def _persist_or_print_setup_guide(self, validation_result: ValidationResult) -> None:
+        setup_guide = self.generate_setup_guide(validation_result)
+        try:
+            def _write_guide(path: str, content: str) -> None:
+                with open(path, "w") as f:
+                    f.write(content)
+            await asyncio.to_thread(_write_guide, "openrouter_setup_guide.md", setup_guide)
+            print("📝 Setup guide saved to: openrouter_setup_guide.md")
+        except Exception as e:  # noqa: BLE001
+            print(f"⚠️  Could not save setup guide: {e}")
+            print("\nSetup Guide:")
+            print("-" * 40)
+            print(setup_guide)
 
 
 async def main():

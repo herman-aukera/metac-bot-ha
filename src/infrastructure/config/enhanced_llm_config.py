@@ -150,19 +150,22 @@ class EnhancedLLMConfig:
             f"{recommended_model} for {task_type}"
         )
 
-        # Create LLM with OpenRouter API key
-        model_config["api_key"] = self.openrouter_key
-
-        # Remove non-LLM config keys
-        llm_config = {k: v for k, v in model_config.items() if k not in ["cost_tier"]}
-
-        # Import GeneralLlm here to avoid import conflicts
+        # Create LLM via centralized factory to ensure normalization and OpenRouter routing
         try:
-            from forecasting_tools import GeneralLlm
+            from .llm_factory import create_llm
 
-            return GeneralLlm(**llm_config)
-        except ImportError as e:
-            logger.error(f"Failed to import GeneralLlm: {e}")
+            model_name = model_config.get("model")
+            if not isinstance(model_name, str) or not model_name:
+                raise ValueError("Model name missing from configuration")
+
+            return create_llm(
+                model=model_name,
+                temperature=model_config.get("temperature", 0.1),
+                timeout=model_config.get("timeout", 60),
+                allowed_tries=model_config.get("allowed_tries", 2),
+            )
+        except Exception as e:
+            logger.error(f"Failed to create LLM via factory: {e}")
 
             # Return an async mock for testing to match call sites (await llm.invoke)
             class AsyncMockLLMImportFallback:
@@ -174,11 +177,11 @@ class EnhancedLLMConfig:
                 async def invoke(self, prompt: str) -> str:
                     await asyncio.sleep(0)
                     return (
-                        "[MOCK-LLM] Deterministic response (import fallback)\n"
+                        "[MOCK-LLM] Deterministic response (factory fallback)\n"
                         + (prompt[:300] if isinstance(prompt, str) else "")
                     )
 
-            return AsyncMockLLMImportFallback(**llm_config)
+            return AsyncMockLLMImportFallback(**model_config)
 
     def estimate_task_cost(
         self,

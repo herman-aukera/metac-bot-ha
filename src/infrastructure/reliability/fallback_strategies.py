@@ -381,20 +381,24 @@ class ModelTierFallbackManager:
         """Test if a fallback option is working."""
         try:
             if self.tri_model_router:
-                # Create a test model instance
-                from forecasting_tools import GeneralLlm
-
-                if option.name.startswith("metaculus/"):
-                    test_model = GeneralLlm(
-                        model=option.name, api_key=None, **option.configuration
-                    )
-                else:
-                    test_model = GeneralLlm(
-                        model=option.name,
-                        api_key=os.getenv("OPENROUTER_API_KEY"),
-                        base_url="https://openrouter.ai/api/v1",
-                        **option.configuration,
-                    )
+                # Create a test model instance via centralized factory
+                try:
+                    from src.infrastructure.config.llm_factory import create_llm
+                    test_model = create_llm(option.name, extra_kwargs=option.configuration)
+                except Exception:
+                    # Fallback to direct instantiation if factory import fails
+                    from forecasting_tools import GeneralLlm
+                    if option.name.startswith("metaculus/"):
+                        test_model = GeneralLlm(
+                            model=option.name, api_key=None, **option.configuration
+                        )
+                    else:
+                        test_model = GeneralLlm(
+                            model=option.name,
+                            api_key=os.getenv("OPENROUTER_API_KEY"),
+                            base_url="https://openrouter.ai/api/v1",
+                            **option.configuration,
+                        )
 
                 # Quick test with timeout
                 test_response = await asyncio.wait_for(

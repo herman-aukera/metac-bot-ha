@@ -1,7 +1,7 @@
 """Research report domain entity."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -80,7 +80,7 @@ class ResearchReport:
             quality=kwargs.get("quality", ResearchQuality.MEDIUM),
             confidence_level=kwargs.get("confidence_level", 0.5),
             research_methodology=kwargs.get("research_methodology", ""),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             created_by=created_by,
             reasoning_steps=kwargs.get("reasoning_steps", []),
             evidence_for=kwargs.get("evidence_for", []),
@@ -102,7 +102,7 @@ class ResearchReport:
 
     def get_recent_sources(self, days: int = 30) -> List[ResearchSource]:
         """Get sources published within the last N days."""
-        cutoff_date = datetime.utcnow() - datetime.timedelta(days=days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         return [
             source
             for source in self.sources

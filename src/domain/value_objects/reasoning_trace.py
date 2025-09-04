@@ -1,7 +1,7 @@
 """Reasoning trace value objects for transparent decision-making."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -51,7 +51,7 @@ class ReasoningStep:
             step_type=step_type,
             content=content,
             confidence=confidence,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             metadata=metadata or {},
         )
 
@@ -103,7 +103,7 @@ class ReasoningTrace:
             overall_confidence=overall_confidence,
             bias_checks=bias_checks or [],
             uncertainty_sources=uncertainty_sources or [],
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
     def get_step_by_type(self, step_type: ReasoningStepType) -> List[ReasoningStep]:
