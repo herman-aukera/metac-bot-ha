@@ -33,6 +33,7 @@ def test_api_key_availability():
         "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY"),
         "ASKNEWS_CLIENT_ID": os.getenv("ASKNEWS_CLIENT_ID"),
         "ASKNEWS_SECRET": os.getenv("ASKNEWS_SECRET"),
+        # Optional providers (not required in our OpenRouter-first strategy)
         "PERPLEXITY_API_KEY": os.getenv("PERPLEXITY_API_KEY"),
         "EXA_API_KEY": os.getenv("EXA_API_KEY"),
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
@@ -45,13 +46,13 @@ def test_api_key_availability():
     print("\nAPI Key Status:")
     for key_name, key_value in api_keys.items():
         if key_value and not key_value.startswith("dummy_") and key_value.strip():
-            print(f"  ✓ {key_name}: Available ({key_value[:20]}...)")
+            print(f"  ✓ {key_name}: Available")
             available_keys.append(key_name)
         else:
             print(f"  ✗ {key_name}: Not available")
             unavailable_keys.append(key_name)
 
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Available: {len(available_keys)} keys")
     print(f"  Unavailable: {len(unavailable_keys)} keys")
 
@@ -68,17 +69,15 @@ def test_research_capabilities():
     research_methods = []
 
     # AskNews
-    if os.getenv("ASKNEWS_CLIENT_ID") and os.getenv("ASKNEWS_SECRET"):
-        if not (
-            os.getenv("ASKNEWS_CLIENT_ID").startswith("dummy_")
-            or os.getenv("ASKNEWS_SECRET").startswith("dummy_")
-        ):
-            research_methods.append("AskNews (Primary)")
+    cid = os.getenv("ASKNEWS_CLIENT_ID")
+    sec = os.getenv("ASKNEWS_SECRET")
+    if cid and sec and not (cid.startswith("dummy_") or sec.startswith("dummy_")):
+        research_methods.append("AskNews (Primary)")
 
-    # OpenRouter Perplexity
+    # OpenRouter LLMs (provider-prefixed models via unified gateway)
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
     if openrouter_key and not openrouter_key.startswith("dummy_"):
-        research_methods.append("OpenRouter Perplexity")
+        research_methods.append("OpenRouter LLMs (provider-prefixed)")
 
     # Perplexity Direct
     perplexity_key = os.getenv("PERPLEXITY_API_KEY")
@@ -112,9 +111,9 @@ def test_model_configuration():
 
     # Check model configuration
     models = {
-        "GPT-5 Full": os.getenv("DEFAULT_MODEL", "gpt-5"),
-        "GPT-5 Mini": os.getenv("MINI_MODEL", "gpt-5-mini"),
-        "GPT-5 Nano": os.getenv("NANO_MODEL", "gpt-5-nano"),
+        "GPT-5 Full": os.getenv("DEFAULT_MODEL", "openai/gpt-5"),
+        "GPT-5 Mini": os.getenv("MINI_MODEL", "openai/gpt-5-mini"),
+        "GPT-5 Nano": os.getenv("NANO_MODEL", "openai/gpt-5-nano"),
     }
 
     print("\nConfigured Models:")
@@ -123,10 +122,10 @@ def test_model_configuration():
 
     # Check fallback models
     fallback_models = {
-        "Research": os.getenv("PRIMARY_RESEARCH_MODEL", "openai/gpt-4o-mini"),
-        "Forecast": os.getenv("PRIMARY_FORECAST_MODEL", "openai/gpt-4o"),
-        "Simple": os.getenv("SIMPLE_TASK_MODEL", "openai/gpt-4o-mini"),
-        "Emergency": os.getenv("EMERGENCY_FALLBACK_MODEL", "openai/gpt-4o-mini"),
+        "Research": os.getenv("PRIMARY_RESEARCH_MODEL", "openai/gpt-oss-20b:free"),
+        "Forecast": os.getenv("PRIMARY_FORECAST_MODEL", "moonshotai/kimi-k2:free"),
+        "Simple": os.getenv("SIMPLE_TASK_MODEL", "openai/gpt-oss-20b:free"),
+        "Emergency": os.getenv("EMERGENCY_FALLBACK_MODEL", "moonshotai/kimi-k2:free"),
     }
 
     print("\nFallback Models:")
@@ -136,9 +135,9 @@ def test_model_configuration():
     # Check if OpenRouter key is available for models
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
     if openrouter_key and not openrouter_key.startswith("dummy_"):
-        print("\n✓ OpenRouter API key available for model access")
+        print("\n✓ OpenRouter API key available for unified model access")
     else:
-        print("\n⚠ OpenRouter API key not available - will use Metaculus proxy only")
+        print("\n⚠ OpenRouter API key not available - will rely on Metaculus proxy only")
 
     return models, fallback_models
 
@@ -254,11 +253,11 @@ def main():
 
     try:
         # Run all tests
-        available_keys, unavailable_keys = test_api_key_availability()
+        available_keys, _ = test_api_key_availability()
         research_methods = test_research_capabilities()
-        models, fallbacks = test_model_configuration()
-        budget_config = test_budget_configuration()
-        tournament_config = test_tournament_configuration()
+        _ , _ = test_model_configuration()
+        test_budget_configuration()
+        test_tournament_configuration()
 
         # Generate recommendations
         generate_recommendations()
@@ -267,7 +266,7 @@ def main():
         print("✅ CONFIGURATION VALIDATION COMPLETED")
         print("=" * 50)
 
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"  • Available API keys: {len(available_keys)}/8")
         print(f"  • Research methods: {len(research_methods)}")
         print(
@@ -275,11 +274,9 @@ def main():
         )
 
         if len(available_keys) >= 3:
-            print(
-                f"\n🎯 Your system is optimized and ready for tournament competition!"
-            )
+            print("\n🎯 Your system is optimized and ready for tournament competition!")
         else:
-            print(f"\n⚠ System will work but some features may be limited")
+            print("\n⚠ System will work but some features may be limited")
 
         return 0
 

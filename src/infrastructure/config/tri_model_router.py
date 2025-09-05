@@ -679,8 +679,9 @@ class OpenRouterTriModelRouter:
                     continue
 
                 # Try a simple test call with very short timeout
+                # Short timeout to avoid blocking startup; health monitor will refine later
                 test_response = await asyncio.wait_for(
-                    test_model.invoke("Test"), timeout=10.0
+                    test_model.invoke("Test"), timeout=3.0
                 )
                 availability[model_name] = True
                 logger.info(f"✓ {model_name} is available via OpenRouter")

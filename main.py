@@ -1961,8 +1961,29 @@ if __name__ == "__main__":
             logger.error(f"OpenRouter startup validation failed: {e}")
             return None
 
-    # Run OpenRouter validation
-    openrouter_router = asyncio.run(validate_openrouter_startup())
+    # Run OpenRouter validation (bounded + skippable to avoid startup hangs)
+    def _run_openrouter_validation_safely():
+        try:
+            import os
+            timeout_s = float(os.getenv("OPENROUTER_STARTUP_TIMEOUT", "12"))
+            skip_flag = os.getenv("SKIP_OPENROUTER_STARTUP", "").lower() in ("1", "true", "yes")
+
+            if skip_flag:
+                logger.info("Skipping OpenRouter startup validation (SKIP_OPENROUTER_STARTUP set)")
+                return None
+
+            api_key = os.getenv("OPENROUTER_API_KEY", "")
+            if not api_key or api_key.startswith("dummy_"):
+                logger.info("Skipping OpenRouter startup validation (no valid OPENROUTER_API_KEY)")
+                return None
+
+            # Bound the async validation to avoid indefinite waits
+            return asyncio.run(asyncio.wait_for(validate_openrouter_startup(), timeout=timeout_s))
+        except Exception as e:
+            logger.warning(f"OpenRouter startup validation bypassed due to: {e}")
+            return None
+
+    openrouter_router = _run_openrouter_validation_safely()
 
     parser = argparse.ArgumentParser(
         description="Run the Q1TemplateBot forecasting system"
@@ -1975,7 +1996,7 @@ if __name__ == "__main__":
         help="Specify the run mode (default: tournament)",
     )
     args = parser.parse_args()
-    run_started_at = datetime.utcnow().isoformat()
+    run_started_at = datetime.now(timezone.utc).isoformat()
     run_mode: Literal["tournament", "quarterly_cup", "test_questions"] = (
         args.mode
     )
@@ -2027,17 +2048,17 @@ if __name__ == "__main__":
             # Fallback to environment variables
             research_reports = int(os.getenv("MAX_RESEARCH_REPORTS_PER_QUESTION", "1"))
             predictions_per_report = int(os.getenv("MAX_PREDICTIONS_PER_REPORT", "5"))
-            publish_reports = os.getenv("PUBLISH_REPORTS", "true").lower() == "true" and not os.getenv("DRY_RUN", "false").lower() == "true"
+            publish_reports = os.getenv("PUBLISH_REPORTS", "true").lower() == "true" and os.getenv("DRY_RUN", "false").lower() != "true"
             skip_previously_forecasted = os.getenv("SKIP_PREVIOUSLY_FORECASTED", "true").lower() == "true"
     else:
         # Use environment variables for configuration
         research_reports = int(os.getenv("MAX_RESEARCH_REPORTS_PER_QUESTION", "1"))
         predictions_per_report = int(os.getenv("MAX_PREDICTIONS_PER_REPORT", "5"))
-        publish_reports = os.getenv("PUBLISH_REPORTS", "true").lower() == "true" and not os.getenv("DRY_RUN", "false").lower() == "true"
-        skip_previously_forecasted = os.getenv("SKIP_PREVIOUSLY_FORECASTED", "true").lower() == "true"
+    publish_reports = os.getenv("PUBLISH_REPORTS", "true").lower() == "true" and os.getenv("DRY_RUN", "false").lower() != "true"
+    skip_previously_forecasted = os.getenv("SKIP_PREVIOUSLY_FORECASTED", "true").lower() == "true"
 
     # Log configuration
-    logger.info(f"Bot Configuration:")
+    logger.info("Bot Configuration:")
     logger.info(f"  Research reports per question: {research_reports}")
     logger.info(f"  Predictions per research report: {predictions_per_report}")
     logger.info(f"  Publish reports to Metaculus: {publish_reports}")

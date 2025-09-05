@@ -2,10 +2,10 @@
   "run_mode": "tournament",
   "tournament_mode": "true",
   "tournament_target": "32813",
-  "publish_reports": "false",
-  "successful_forecasts": 1,
+  "publish_reports": "true",
+  "successful_forecasts": 4,
   "failed_forecasts": 0,
-  "total_processed": 1,
-  "started_at": "2025-09-04T16:10:42.322000",
-  "finished_at": "2025-09-04T16:23:57.759282+00:00"
+  "total_processed": 4,
+  "started_at": "2025-09-05T06:23:00.192673+00:00",
+  "finished_at": "2025-09-05T06:41:40.824351+00:00"
 }

@@ -102,7 +102,7 @@ class ResearchReport:
 
     def get_recent_sources(self, days: int = 30) -> List[ResearchSource]:
         """Get sources published within the last N days."""
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         return [
             source
             for source in self.sources
