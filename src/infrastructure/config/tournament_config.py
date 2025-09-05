@@ -29,7 +29,7 @@ class TournamentConfig:
     mode: TournamentMode = TournamentMode.DEVELOPMENT
 
     # Scheduling and resource management
-    scheduling_interval_hours: int = 4  # Updated default to 4 hours
+    scheduling_interval_hours: int = 6  # Default to 6 hours to reduce cadence
     deadline_aware_scheduling: bool = True
     critical_period_frequency_hours: int = 2
     final_24h_frequency_hours: int = 1
@@ -94,7 +94,7 @@ class TournamentConfig:
                 "TOURNAMENT_NAME", "Fall 2025 AI Forecasting Benchmark"
             ),
             mode=mode,
-            scheduling_interval_hours=int(os.getenv("SCHEDULING_FREQUENCY_HOURS", "4")),
+            scheduling_interval_hours=int(os.getenv("SCHEDULING_FREQUENCY_HOURS", "6")),
             deadline_aware_scheduling=os.getenv(
                 "DEADLINE_AWARE_SCHEDULING", "true"
             ).lower()
@@ -153,7 +153,7 @@ class TournamentConfig:
         if self.mode == TournamentMode.TOURNAMENT:
             return f"0 */{self.scheduling_interval_hours} * * *"
         elif self.mode == TournamentMode.QUARTERLY_CUP:
-            return "0 0 */2 * *"  # Every 2 days at midnight
+            return "0 0 */3 * *"  # Every 3 days at midnight to avoid over-publishing
         else:
             return "0 */6 * * *"  # Every 6 hours for development
 

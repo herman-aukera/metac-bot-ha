@@ -827,8 +827,8 @@ Be very clear about what information may be outdated or incomplete.
 
         candidates = [
             MODEL_OPENROUTER_FREE_OSS,
-            MODEL_KIMI_FREE,
             MODEL_PERPLEXITY_REASONING,
+            MODEL_KIMI_FREE,
         ]
 
         from src.infrastructure.config.llm_factory import create_llm
@@ -884,8 +884,8 @@ Be very clear about what information may be outdated or incomplete.
 
         candidates = [
             MODEL_OPENROUTER_FREE_OSS,
-            MODEL_KIMI_FREE,
             MODEL_PERPLEXITY_REASONING,
+            MODEL_KIMI_FREE,
         ]
 
         from src.infrastructure.config.llm_factory import create_llm
@@ -950,8 +950,8 @@ Be very clear about what information may be outdated or incomplete.
 
         candidates = [
             MODEL_OPENROUTER_FREE_OSS,
-            MODEL_KIMI_FREE,
             MODEL_PERPLEXITY_REASONING,
+            MODEL_KIMI_FREE,
         ]
 
         from src.infrastructure.config.llm_factory import create_llm
@@ -976,6 +976,22 @@ Be very clear about what information may be outdated or incomplete.
     async def run_research(self, question: MetaculusQuestion) -> str:
         """Enhanced research with multi-stage validation pipeline, tri-model routing, and comprehensive error handling."""
         async with self._concurrency_limiter:
+            # Early: try the dedicated multi-stage research pipeline (AskNews-first) if available
+            if getattr(self, "_multi_stage_pipeline", None):
+                try:
+                    early_result = await self._multi_stage_pipeline.execute_research_pipeline(
+                        question.question_text,
+                        context={
+                            "question_url": question.page_url,
+                            "background_info": getattr(question, 'background_info', ''),
+                            "resolution_criteria": getattr(question, 'resolution_criteria', ''),
+                            "fine_print": getattr(question, 'fine_print', ''),
+                        }
+                    )
+                    if early_result and early_result.get("success") and early_result.get("final_research"):
+                        return early_result["final_research"]
+                except Exception as e:
+                    logger.warning(f"Early dedicated research pipeline failed: {e}")
             # Get budget status and operation mode for intelligent routing
             budget_remaining = 100.0
             operation_mode = "normal"
@@ -1075,8 +1091,34 @@ Be very clear about what information may be outdated or incomplete.
 
                     # Continue to fallback methods
 
+            # Try tournament-optimized AskNews client first
+            if self.tournament_asknews:
+                try:
+                    research = await self.tournament_asknews.get_news_research(question.question_text)
+
+                    if research and len(research.strip()) > 0:
+                        # Log usage stats periodically
+                        stats = self.tournament_asknews.get_usage_stats()
+                        if stats["total_requests"] % 10 == 0:  # Log every 10 requests
+                            logger.info(f"AskNews usage: {stats['estimated_quota_used']}/{stats['quota_limit']} "
+                                      f"({stats['quota_usage_percentage']:.1f}%), "
+                                      f"Success rate: {stats['success_rate']:.1f}%")
+
+                        # Alert on high quota usage
+                        if self.tournament_asknews.should_alert_quota_usage():
+                            alert_level = self.tournament_asknews.get_quota_alert_level()
+                            logger.warning(f"AskNews quota usage {alert_level}: "
+                                         f"{stats['quota_usage_percentage']:.1f}% used")
+
+                        logger.info(f"Tournament AskNews research successful for URL {question.page_url}")
+                        return research
+
+                except Exception as e:
+                    logger.warning(f"Tournament AskNews client failed: {e}")
+                    # Continue to other research methods
+
             # FALLBACK: Try tri-model router for intelligent research
-            if self.tri_model_router and self.anti_slop_prompts:
+            if not research and self.tri_model_router and self.anti_slop_prompts:
                 try:
                     # Create anti-slop research prompt
                     research_prompt = self.anti_slop_prompts.get_research_prompt(
@@ -1105,32 +1147,6 @@ Be very clear about what information may be outdated or incomplete.
                     # Continue to fallback methods
 
             research = ""
-
-            # Try tournament-optimized AskNews client first
-            if self.tournament_asknews:
-                try:
-                    research = await self.tournament_asknews.get_news_research(question.question_text)
-
-                    if research and len(research.strip()) > 0:
-                        # Log usage stats periodically
-                        stats = self.tournament_asknews.get_usage_stats()
-                        if stats["total_requests"] % 10 == 0:  # Log every 10 requests
-                            logger.info(f"AskNews usage: {stats['estimated_quota_used']}/{stats['quota_limit']} "
-                                      f"({stats['quota_usage_percentage']:.1f}%), "
-                                      f"Success rate: {stats['success_rate']:.1f}%")
-
-                        # Alert on high quota usage
-                        if self.tournament_asknews.should_alert_quota_usage():
-                            alert_level = self.tournament_asknews.get_quota_alert_level()
-                            logger.warning(f"AskNews quota usage {alert_level}: "
-                                         f"{stats['quota_usage_percentage']:.1f}% used")
-
-                        logger.info(f"Tournament AskNews research successful for URL {question.page_url}")
-                        return research
-
-                except Exception as e:
-                    logger.warning(f"Tournament AskNews client failed: {e}")
-                    # Continue to other research methods
 
             # Fallback to original AskNews if available
             if not research and os.getenv("ASKNEWS_CLIENT_ID") and os.getenv("ASKNEWS_SECRET"):

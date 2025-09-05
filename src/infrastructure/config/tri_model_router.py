@@ -8,7 +8,7 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast
 
 from forecasting_tools import GeneralLlm
 
@@ -236,9 +236,10 @@ class OpenRouterTriModelRouter:
         )
 
         # Free models for budget-conscious operation
+        # Prefer OSS-20B over Kimi due to availability issues observed via OpenRouter (404 NotFound)
         free_models = [
-            "moonshotai/kimi-k2:free",  # Free Kimi - good reasoning
             "openai/gpt-oss-20b:free",  # Free OSS - reliable fallback
+            "moonshotai/kimi-k2:free",  # Free Kimi - alternate
         ]
 
         if has_openrouter and has_metaculus_proxy:
@@ -253,16 +254,16 @@ class OpenRouterTriModelRouter:
                 "mini": [
                     "openai/gpt-5-mini",  # Primary: GPT-5 Mini ($0.25)
                     "openai/gpt-5-nano",  # Downgrade to nano first
-                    "moonshotai/kimi-k2:free",  # Free reasoning model
-                    "openai/gpt-oss-20b:free",  # Free research model
+                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
+                    "moonshotai/kimi-k2:free",  # Free alternative
                     "metaculus/gpt-4o-mini",  # Metaculus proxy as last resort
                 ],
                 "full": [
                     "openai/gpt-5",  # Primary: GPT-5 Full ($1.50)
                     "openai/gpt-5-mini",  # Downgrade to mini first
-                    "moonshotai/kimi-k2:free",  # Free reasoning (skip GPT-4o)
+                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
                     "openai/gpt-5-nano",  # Further downgrade
-                    "openai/gpt-oss-20b:free",  # Final free fallback
+                    "moonshotai/kimi-k2:free",  # Final free fallback
                     "metaculus/gpt-4o",  # Metaculus proxy as last resort
                 ],
             }
@@ -280,15 +281,15 @@ class OpenRouterTriModelRouter:
                 "mini": [
                     "openai/gpt-5-mini",  # Primary: GPT-5 Mini ($0.25)
                     "openai/gpt-5-nano",  # Downgrade to nano first
-                    "moonshotai/kimi-k2:free",  # Free reasoning model
-                    "openai/gpt-oss-20b:free",  # Free research model
+                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
+                    "moonshotai/kimi-k2:free",  # Free alternative
                 ],
                 "full": [
                     "openai/gpt-5",  # Primary: GPT-5 Full ($1.50)
                     "openai/gpt-5-mini",  # Downgrade to mini first
-                    "moonshotai/kimi-k2:free",  # Free reasoning (skip GPT-4o)
+                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
                     "openai/gpt-5-nano",  # Further downgrade
-                    "openai/gpt-oss-20b:free",  # Final free fallback
+                    "moonshotai/kimi-k2:free",  # Final free fallback
                 ],
             }
         elif has_metaculus_proxy:
@@ -339,6 +340,9 @@ class OpenRouterTriModelRouter:
         """Initialize a model with OpenRouter fallback chain."""
         fallback_chain = self.fallback_chains[tier]
 
+        # Optional: validate models on init to avoid selecting unavailable free models
+        validate_on_init = os.getenv("OPENROUTER_VALIDATE_MODELS_ON_INIT", "0") == "1"
+
         for model_name in fallback_chain:
             try:
                 # Create model with OpenRouter configuration (normal mode for initialization)
@@ -348,15 +352,20 @@ class OpenRouterTriModelRouter:
                     logger.debug(f"Could not create model for {model_name}, skipping")
                     continue
 
+                # If enabled, perform a quick self-check flag; actual async check will be done
+                # by health_monitor_startup to avoid sync/async loop issues here.
+                ok = True
+
                 status = ModelStatus(
                     tier=tier,
                     model_name=model_name,
-                    is_available=True,
+                    is_available=bool(ok),
                     last_check=(
                         asyncio.get_event_loop().time()
                         if asyncio.get_event_loop().is_running()
                         else 0
                     ),
+                    error_message=None if ok else "Initial validation failed",
                 )
 
                 logger.debug(
@@ -724,7 +733,7 @@ class OpenRouterTriModelRouter:
 
         for tier in ["nano", "mini", "full"]:
             chain = []
-            primary_model = self.model_configs[tier].model_name
+            primary_model = self.model_configs[cast(ModelTier, tier)].model_name
 
             # Add primary model if available
             if availability.get(primary_model, False):
@@ -742,20 +751,20 @@ class OpenRouterTriModelRouter:
                 # Full tier: try mini, then free models
                 if availability.get("openai/gpt-5-mini", False):
                     chain.append("openai/gpt-5-mini")
-                if availability.get("moonshotai/kimi-k2:free", False):
-                    chain.append("moonshotai/kimi-k2:free")
-                if availability.get("openai/gpt-5-nano", False):
-                    chain.append("openai/gpt-5-nano")
                 if availability.get("openai/gpt-oss-20b:free", False):
                     chain.append("openai/gpt-oss-20b:free")
+                if availability.get("openai/gpt-5-nano", False):
+                    chain.append("openai/gpt-5-nano")
+                if availability.get("moonshotai/kimi-k2:free", False):
+                    chain.append("moonshotai/kimi-k2:free")
             elif tier == "mini":
                 # Mini tier: try nano, then free models
                 if availability.get("openai/gpt-5-nano", False):
                     chain.append("openai/gpt-5-nano")
-                if availability.get("moonshotai/kimi-k2:free", False):
-                    chain.append("moonshotai/kimi-k2:free")
                 if availability.get("openai/gpt-oss-20b:free", False):
                     chain.append("openai/gpt-oss-20b:free")
+                if availability.get("moonshotai/kimi-k2:free", False):
+                    chain.append("moonshotai/kimi-k2:free")
             else:  # nano tier
                 # Nano tier: free models only
                 if availability.get("openai/gpt-oss-20b:free", False):
@@ -948,7 +957,7 @@ class OpenRouterTriModelRouter:
 
             # Test each tier's health
             for tier in ["nano", "mini", "full"]:
-                health_status = await self.check_model_health(tier)
+                health_status = await self.check_model_health(cast(ModelTier, tier))
                 if health_status.is_available:
                     logger.info(
                         f"✓ {tier.upper()} tier healthy: {health_status.model_name} ({health_status.response_time:.2f}s)"
@@ -984,13 +993,13 @@ class OpenRouterTriModelRouter:
             "cost_optimized_fallbacks": {
                 "full_fallbacks": [
                     "openai/gpt-5-mini",
-                    "moonshotai/kimi-k2:free",
                     "openai/gpt-oss-20b:free",
+                    "moonshotai/kimi-k2:free",
                 ],
                 "mini_fallbacks": [
                     "openai/gpt-5-nano",
-                    "moonshotai/kimi-k2:free",
                     "openai/gpt-oss-20b:free",
+                    "moonshotai/kimi-k2:free",
                 ],
                 "nano_fallbacks": [
                     "openai/gpt-oss-20b:free",
@@ -1021,7 +1030,7 @@ class OpenRouterTriModelRouter:
                 # Check health of all tiers
                 unhealthy_tiers = []
                 for tier in ["nano", "mini", "full"]:
-                    health_status = await self.check_model_health(tier)
+                    health_status = await self.check_model_health(cast(ModelTier, tier))
                     if not health_status.is_available:
                         unhealthy_tiers.append(tier)
                         logger.warning(
@@ -1122,12 +1131,12 @@ class OpenRouterTriModelRouter:
 
         for mode, (min_used, max_used) in self.operation_thresholds.items():
             if min_used <= budget_used < max_used:
-                return mode
+                return cast(OperationMode, mode)
 
         # Default to critical if over 100%
-        return "critical"
+        return cast(OperationMode, "critical")
 
-    def get_model_costs(self) -> Dict[ModelTier, Dict[str, float]]:
+    def get_model_costs(self) -> Dict[ModelTier, Dict[str, Union[float, str]]]:
         """Get OpenRouter pricing for each model tier (separate input/output costs)."""
         return {
             tier: {
@@ -1346,11 +1355,12 @@ class OpenRouterTriModelRouter:
                 logger.debug(
                     f"High priority task (score: {priority_score:.2f}), considering model upgrade"
                 )
+
         # Determine operation mode based on budget
         operation_mode = self.get_operation_mode(budget_remaining)
 
         # Base model selection from routing strategy
-        base_tier = self.routing_strategy.get(task_type, "mini")
+        base_tier = cast(ModelTier, self.routing_strategy.get(task_type, "mini"))
 
         # Operation mode adjustments
         selected_tier = self._adjust_for_operation_mode(
@@ -1664,8 +1674,8 @@ Quality Note: This response lacks the usual research depth due to technical cons
                 base_response
                 + """
 Forecast Status: Unable to generate detailed prediction due to system failures.
-Fallback Strategy: Assigning neutral/uncertain probability due to insufficient analysis capability.
-Quality Note: This forecast has high uncertainty due to technical limitations.
+Fallback Strategy: Publishing withheld due to insufficient analysis capability.
+Quality Note: Forecasting paused to avoid low-confidence neutral outputs.
 Recommendation: Manual review recommended when systems are restored.
 """
             )
@@ -1848,7 +1858,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
     def _find_available_fallback(self, preferred_tier: ModelTier) -> ModelTier:
         """Find an available model tier as fallback."""
         # Try tiers in order of preference: preferred -> lower cost -> any available
-        tier_order = ["nano", "mini", "full"]
+        tier_order: List[ModelTier] = ["nano", "mini", "full"]
         preferred_index = tier_order.index(preferred_tier)
 
         # First try the preferred tier and lower cost options
@@ -1871,7 +1881,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
                 return tier
 
         # If nothing is available, return nano (should have emergency fallback)
-        logger.error(f"No models available, using nano emergency fallback")
+        logger.error("No models available, using nano emergency fallback")
         return "nano"
 
     async def route_query(
@@ -2092,7 +2102,8 @@ Recommendation: Retry when systems are restored or use alternative approach.
             detailed_status[tier] = {
                 "model_name": status.model_name,
                 "is_available": status.is_available,
-                "cost_per_million_tokens": config.cost_per_million_tokens,
+                "cost_per_million_input": config.cost_per_million_input,
+                "cost_per_million_output": config.cost_per_million_output,
                 "description": config.description,
                 "last_check": status.last_check,
                 "response_time": status.response_time,
@@ -2313,7 +2324,8 @@ Recommendation: Retry when systems are restored or use alternative approach.
                 domain_scores[domain] = score
 
         if domain_scores:
-            return max(domain_scores, key=domain_scores.get)
+            # Select the domain with the highest score deterministically
+            return max(domain_scores.items(), key=lambda kv: kv[1])[0]
         return "general"
 
     def choose_optimal_model(
@@ -2550,7 +2562,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
             # Return error result
             return RoutingResult(
                 response=f"ERROR: Unable to process request - {str(e)}",
-                model_used="none",
+                model_used="nano",
                 actual_model_name="error",
                 actual_cost=0.0,
                 performance_metrics={
