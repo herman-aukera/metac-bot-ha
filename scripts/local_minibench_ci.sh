@@ -78,8 +78,9 @@ python3 - <<'PY'
 import os, sys
 from dotenv import load_dotenv
 load_dotenv(dotenv_path='.env', override=True)
-if not os.getenv('METACULUS_TOKEN'):
-  print('[local-ci] ERROR: METACULUS_TOKEN missing (.env or env)')
+DRY_RUN = os.getenv('DRY_RUN', 'false').lower() in ('1','true','yes')
+if not DRY_RUN and not os.getenv('METACULUS_TOKEN'):
+  print('[local-ci] ERROR: METACULUS_TOKEN missing (.env or env) and DRY_RUN is false')
   sys.exit(2)
 if not os.getenv('OPENROUTER_API_KEY'):
   print('[local-ci] WARN: OPENROUTER_API_KEY not set; will rely on fallbacks')

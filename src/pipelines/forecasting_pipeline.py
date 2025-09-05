@@ -3,7 +3,7 @@ Forecasting pipeline that orchestrates the end-to-end forecasting process.
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -214,7 +214,7 @@ class ForecastingPipeline:
                     metadata={
                         "agent_used": agent_names[0],
                         "pipeline_version": "1.0",
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     },
                 )
             else:
@@ -231,7 +231,7 @@ class ForecastingPipeline:
                     metadata={
                         "agents_used": agent_names,
                         "pipeline_version": "1.0",
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                         "prediction_count": len(predictions),
                     },
                 )
@@ -324,7 +324,8 @@ class ForecastingPipeline:
 
             # Add delay between batches to respect rate limits
             if i + batch_size < len(questions):
-                await asyncio.sleep(self.settings.batch_delay_seconds)
+                # Pipeline delay is configured under settings.pipeline
+                await asyncio.sleep(self.settings.pipeline.batch_delay_seconds)
 
         logger.info(
             "Completed batch forecast",
@@ -454,7 +455,7 @@ class ForecastingPipeline:
             agent_type=agent_type,
         )
 
-        start_time = datetime.utcnow() if collect_metrics else None
+        start_time = datetime.now(timezone.utc) if collect_metrics else None
         metrics = {"api_calls": 0} if collect_metrics else None
 
         try:
@@ -464,11 +465,16 @@ class ForecastingPipeline:
 
             question_data = await self.metaculus_client.get_question(question_id)
 
-            # Convert to Question entity
-            from ..application.ingestion_service import IngestionService
+            # Convert to Question entity if needed
+            if isinstance(question_data, Question):
+                question = question_data
+            else:
+                from ..application.ingestion_service import IngestionService
 
-            ingestion_service = IngestionService()
-            question = await ingestion_service.convert_question_data(question_data)
+                ingestion_service = IngestionService()
+                if question_data is None:
+                    raise ValueError("Question not found from Metaculus")
+                question = await ingestion_service.convert_question_data(question_data)  # type: ignore[arg-type]
 
             # Generate forecast using specified agent
             forecast = await self.generate_forecast(
@@ -519,7 +525,7 @@ class ForecastingPipeline:
 
     async def run_batch_forecast(
         self,
-        question_ids: List[int],
+    question_ids: List[int],
         agent_type: str = "chain_of_thought",
         include_research: bool = True,
         batch_size: int = 5,
@@ -551,11 +557,16 @@ class ForecastingPipeline:
             for question_id in question_ids:
                 question_data = await self.metaculus_client.get_question(question_id)
 
-                # Convert to Question entity
-                from ..application.ingestion_service import IngestionService
+                # Convert to Question entity if needed
+                if isinstance(question_data, Question):
+                    question = question_data
+                else:
+                    from ..application.ingestion_service import IngestionService
 
-                ingestion_service = IngestionService()
-                question = await ingestion_service.convert_question_data(question_data)
+                    ingestion_service = IngestionService()
+                    if question_data is None:
+                        raise ValueError("Question not found from Metaculus")
+                    question = await ingestion_service.convert_question_data(question_data)  # type: ignore[arg-type]
                 questions.append(question)
 
             # Generate forecasts using batch processing
@@ -611,10 +622,10 @@ class ForecastingPipeline:
             raise
 
     async def run_ensemble_forecast(
-        self,
-        question_id: int,
-        agent_types: List[str] = None,
-        include_research: bool = True,
+    self,
+    question_id: int,
+    agent_types: Optional[List[str]] = None,
+    include_research: bool = True,
     ) -> Dict[str, Any]:
         """
         Run ensemble forecasting using multiple agents for a single question.
@@ -643,11 +654,16 @@ class ForecastingPipeline:
 
             question_data = await self.metaculus_client.get_question(question_id)
 
-            # Convert to Question entity
-            from ..application.ingestion_service import IngestionService
+            # Convert to Question entity if needed
+            if isinstance(question_data, Question):
+                question = question_data
+            else:
+                from ..application.ingestion_service import IngestionService
 
-            ingestion_service = IngestionService()
-            question = await ingestion_service.convert_question_data(question_data)
+                ingestion_service = IngestionService()
+                if question_data is None:
+                    raise ValueError("Question not found from Metaculus")
+                question = await ingestion_service.convert_question_data(question_data)  # type: ignore[arg-type]
 
             # Generate individual forecasts from each agent
             individual_forecasts = []

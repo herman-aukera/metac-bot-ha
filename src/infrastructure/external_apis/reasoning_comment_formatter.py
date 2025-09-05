@@ -2,8 +2,8 @@
 
 import logging
 import re
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from ...domain.entities.forecast import Forecast
 from ...domain.entities.prediction import Prediction
@@ -99,7 +99,7 @@ class ReasoningCommentFormatter:
 
     def validate_comment_before_submission(
         self, comment: str, prediction: Prediction
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """Validate comment meets all tournament requirements before submission."""
         validation_result = {
             "is_valid": True,
@@ -155,7 +155,7 @@ class ReasoningCommentFormatter:
 
         # Add confidence and method transparency if not already present
         if "confidence:" not in enhanced.lower() and "method:" not in enhanced.lower():
-            transparency_section = f"\n\nForecast Details:\n"
+            transparency_section = "\n\nForecast Details:\n"
             transparency_section += (
                 f"• Method: {prediction.method.value.replace('_', ' ').title()}\n"
             )
@@ -177,8 +177,13 @@ class ReasoningCommentFormatter:
 
             enhanced += transparency_section
 
+        # Add optional question title header if provided
+        qt = (question_title or "").strip()
+        if qt and qt.lower() not in enhanced.lower():
+            enhanced = f"Question: {qt}\n\n" + enhanced
+
         # Add timestamp for transparency
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         if "generated:" not in enhanced.lower():
             enhanced += f"\n\nGenerated: {timestamp}"
 
@@ -186,7 +191,7 @@ class ReasoningCommentFormatter:
 
     def _format_ensemble_information(self, forecast: Forecast) -> str:
         """Format ensemble information for transparency."""
-        ensemble_info = f"Ensemble Analysis:\n"
+        ensemble_info = "Ensemble Analysis:\n"
         ensemble_info += f"• Combined {len(forecast.predictions)} predictions\n"
 
         if forecast.ensemble_method:
@@ -307,34 +312,48 @@ class ReasoningCommentFormatter:
 
     def _generate_fallback_comment(self, prediction: Prediction) -> str:
         """Generate a minimal compliant comment when formatting fails."""
-        fallback = f"Forecast Analysis:\n\n"
-        fallback += f"This prediction was generated using {prediction.method.value.replace('_', ' ')} methodology "
+        fallback = "Forecast Analysis:\n\n"
+        fallback += (
+            f"This prediction was generated using {prediction.method.value.replace('_', ' ')} methodology "
+        )
         fallback += f"with {prediction.confidence.value} confidence level.\n\n"
 
         if prediction.result.binary_probability is not None:
-            fallback += f"The assessed probability reflects analysis of available information and uncertainty factors. "
+            fallback += (
+                "The assessed probability reflects analysis of available information and uncertainty factors. "
+            )
         elif prediction.result.numeric_value is not None:
-            fallback += f"The predicted value is based on quantitative analysis and trend assessment. "
+            fallback += (
+                "The predicted value is based on quantitative analysis and trend assessment. "
+            )
 
-        fallback += f"Confidence level indicates the degree of certainty in this assessment.\n\n"
-        fallback += f"Method: {prediction.method.value} | Confidence: {prediction.confidence.value}\n"
-        fallback += f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+        fallback += (
+            "Confidence level indicates the degree of certainty in this assessment.\n\n"
+        )
+        fallback += (
+            f"Method: {prediction.method.value} | Confidence: {prediction.confidence.value}\n"
+        )
+        fallback += (
+            f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+        )
 
         return fallback
 
     def _generate_fallback_comment_for_forecast(self, forecast: Forecast) -> str:
         """Generate fallback comment for forecast when no predictions available."""
-        fallback = f"Forecast Summary:\n\n"
-        fallback += f"This forecast represents an ensemble analysis "
+        fallback = "Forecast Summary:\n\n"
+        fallback += "This forecast represents an ensemble analysis "
 
         if forecast.ensemble_method:
             fallback += f"using {forecast.ensemble_method} methodology. "
         else:
-            fallback += f"combining multiple prediction approaches. "
+            fallback += "combining multiple prediction approaches. "
 
         if forecast.reasoning_summary:
             fallback += f"\n\nReasoning: {forecast.reasoning_summary}\n\n"
 
-        fallback += f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+        fallback += (
+            f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+        )
 
         return fallback
