@@ -1,11 +1,11 @@
 {
   "run_mode": "tournament",
   "tournament_mode": "true",
-  "tournament_target": "32813",
+  "tournament_target": "minibench",
   "publish_reports": "true",
   "successful_forecasts": 4,
   "failed_forecasts": 0,
   "total_processed": 4,
-  "started_at": "2025-09-05T06:23:00.192673+00:00",
-  "finished_at": "2025-09-05T06:41:40.824351+00:00"
+  "started_at": "2025-09-05T12:16:34.855552+00:00",
+  "finished_at": "2025-09-05T12:30:30.327658+00:00"
 }

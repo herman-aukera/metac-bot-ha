@@ -122,13 +122,31 @@ class MultiStageValidationPipeline:
             )
 
             # Stage 3: Forecasting with GPT-5 and calibration
-            self.logger.info("Executing Stage 3: GPT-5 forecasting with calibration...")
-            forecast_result = await self.forecasting_service.generate_forecast(
-                question=question,
-                question_type=question_type,
-                research_data=research_content,
-                context=context,
-            )
+            # If this pipeline is invoked for research-only processing, skip forecasting gracefully.
+            if question_type == "research":
+                self.logger.info("Skipping forecasting stage (research-only mode)")
+                forecast_result = ForecastResult(
+                    forecast_type="binary",
+                    prediction=0.5,
+                    confidence_score=0.0,
+                    uncertainty_bounds=None,
+                    calibration_score=0.0,
+                    overconfidence_detected=False,
+                    quality_validation_passed=True,
+                    tournament_compliant=True,
+                    reasoning="Forecasting skipped in research-only mode.",
+                    execution_time=0.0,
+                    cost_estimate=0.0,
+                    model_used="none",
+                )
+            else:
+                self.logger.info("Executing Stage 3: GPT-5 forecasting with calibration...")
+                forecast_result = await self.forecasting_service.generate_forecast(
+                    question=question,
+                    question_type=question_type,
+                    research_data=research_content,
+                    context=context,
+                )
 
             # Calculate overall metrics
             total_execution_time = (datetime.now() - pipeline_start).total_seconds()

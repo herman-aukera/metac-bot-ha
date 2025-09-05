@@ -1,3 +1,10 @@
+from typing import Any, Dict, List, Optional, Tuple
+
+# Default model constants to avoid duplicated literals
+DEFAULT_GPT5 = "openai/gpt-5"
+DEFAULT_GPT5_MINI = "openai/gpt-5-mini"
+DEFAULT_GPT5_NANO = "openai/gpt-5-nano"
+
 """
 Enhanced LLM configuration with budget management and smart model selection.
 """
@@ -5,7 +12,6 @@ Enhanced LLM configuration with budget management and smart model selection.
 import logging
 import asyncio
 import os
-from typing import Any, Dict, Optional, Tuple
 
 from .api_keys import api_key_manager
 from .budget_manager import budget_manager
@@ -59,7 +65,7 @@ class EnhancedLLMConfig:
         """Setup model configurations with cost optimization."""
         return {
             "research": {
-                "model": os.getenv("PRIMARY_RESEARCH_MODEL", "openai/gpt-4o-mini"),
+                "model": os.getenv("PRIMARY_RESEARCH_MODEL", DEFAULT_GPT5_MINI),
                 "temperature": 0.3,
                 "max_tokens": 1500,
                 "timeout": 60,
@@ -67,23 +73,21 @@ class EnhancedLLMConfig:
                 "cost_tier": "low",
             },
             "forecast": {
-                "model": os.getenv("PRIMARY_FORECAST_MODEL", "openai/gpt-4o"),
-                "temperature": 0.1,
+                "model": os.getenv("PRIMARY_FORECAST_MODEL", DEFAULT_GPT5),
                 "max_tokens": 2000,
                 "timeout": 90,
                 "allowed_tries": 2,
                 "cost_tier": "high",
             },
             "simple": {
-                "model": os.getenv("SIMPLE_TASK_MODEL", "openai/gpt-4o-mini"),
+                "model": os.getenv("SIMPLE_TASK_MODEL", DEFAULT_GPT5_NANO),
                 "temperature": 0.1,
                 "max_tokens": 1000,
                 "timeout": 45,
-                "allowed_tries": 3,
                 "cost_tier": "low",
             },
             "summarizer": {
-                "model": "openai/gpt-4o-mini",
+                "model": DEFAULT_GPT5_NANO,
                 "temperature": 0.0,
                 "max_tokens": 800,
                 "timeout": 45,
@@ -217,7 +221,7 @@ class EnhancedLLMConfig:
         else:
             # Fallback to original logic
             if budget_status.status_level == "emergency":
-                model_name = self.model_configs["simple"]["model"]
+                model_name = DEFAULT_GPT5_NANO
             elif budget_status.status_level == "conservative":
                 if task_type == "forecast" and question_complexity == "complex":
                     model_name = self.model_configs["forecast"]["model"]
@@ -295,10 +299,11 @@ class EnhancedLLMConfig:
     def get_fallback_models(self) -> Dict[str, str]:
         """Get fallback models for different scenarios."""
         return {
-            "emergency": "openai/gpt-4o-mini",
-            "conservative": "openai/gpt-4o-mini",
-            "proxy_fallback": "metaculus/gpt-4o-mini",
-            "last_resort": "openai/gpt-3.5-turbo",
+            # Prefer GPT-5 tiers + free fallbacks; avoid GPT-4o per policy
+            "emergency": DEFAULT_GPT5_NANO,
+            "conservative": DEFAULT_GPT5_NANO,
+            "proxy_fallback": "metaculus/gpt-4o-mini",  # proxy-supported fallback
+            "last_resort": "openai/gpt-5-mini",
         }
 
     def _get_model_config_for_model(self, model_name: str) -> Dict[str, Any]:

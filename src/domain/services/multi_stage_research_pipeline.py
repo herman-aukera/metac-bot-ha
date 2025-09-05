@@ -183,10 +183,46 @@ class MultiStageResearchPipeline:
                 except Exception as e:
                     self.logger.warning(f"Tournament AskNews failed: {e}")
 
-            # Fallback to free models when AskNews quota is tight
-            return await self._execute_free_model_research_fallback(
+            # Fallback to free models; if they fail, try Perplexity as last resort
+            free_result = await self._execute_free_model_research_fallback(
                 question, context, stage_start
             )
+            if free_result.success:
+                return free_result
+
+            # Perplexity last-resort (enabled if keys available)
+            try:
+                if self.tri_model_router:
+                    # Use mini config for reasonable limits
+                    cfg = self.tri_model_router.model_configs.get("mini")
+                    px_model = self.tri_model_router._create_openrouter_model(
+                        "perplexity/sonar-reasoning", cfg, "emergency"
+                    )
+                    if px_model:
+                        px_prompt = (
+                            f"Research the following question focusing on last 48 hours:\n\n"
+                            f"Question: {question}\n\nProvide 3-6 bullet points with citations when possible."
+                        )
+                        px_content = await px_model.invoke(px_prompt)
+                        if px_content and len(px_content.strip()) > 0:
+                            execution_time = (
+                                datetime.now() - stage_start
+                            ).total_seconds()
+                            return ResearchStageResult(
+                                content=px_content,
+                                sources_used=["Perplexity"],
+                                model_used="perplexity/sonar-reasoning",
+                                cost_estimate=0.0,
+                                quality_score=0.6,
+                                stage_name="asknews_research",
+                                execution_time=execution_time,
+                                success=True,
+                            )
+            except Exception as e:
+                self.logger.warning(f"Perplexity fallback failed: {e}")
+
+            # If all fail, return the free_result (failed) to propagate error
+            return free_result
 
         except Exception as e:
             execution_time = (datetime.now() - stage_start).total_seconds()

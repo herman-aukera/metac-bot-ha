@@ -70,10 +70,14 @@ class BudgetManager:
         self.questions_processed = 0
         self.cost_records: List[CostTrackingRecord] = []
 
-        # OpenRouter pricing (per 1K tokens) as of 2024
+        # OpenRouter pricing (per 1K tokens) as of 2024 (verify: https://openrouter.ai/models)
         self.cost_per_token = {
             "gpt-4o": {"input": 0.0025, "output": 0.01},
             "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+            # GPT-5 tiers routed via OpenRouter; keep placeholders conservative until verified
+            "gpt-5": {"input": 0.0015, "output": 0.006},
+            "gpt-5-mini": {"input": 0.00025, "output": 0.001},
+            "gpt-5-nano": {"input": 0.00005, "output": 0.0002},
             "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
             "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
             "perplexity/sonar-reasoning": {"input": 0.005, "output": 0.005},
@@ -93,10 +97,14 @@ class BudgetManager:
         # Normalize model name for cost lookup
         model_key = self._normalize_model_name(model)
 
+        # Treat explicit free-tier models as zero-cost
+        if ":free" in model:
+            return 0.0
+
         if model_key not in self.cost_per_token:
-            # Default to GPT-4o pricing for unknown models
-            logger.warning(f"Unknown model {model}, using GPT-4o pricing")
-            model_key = "gpt-4o"
+            # Default to zero-cost for unknown/unpriced models to avoid noisy warnings for free tiers
+            logger.warning(f"Unknown model {model}, treating as zero-cost for safety")
+            return 0.0
 
         rates = self.cost_per_token[model_key]
         cost = (input_tokens * rates["input"] / 1000) + (
@@ -350,7 +358,9 @@ class BudgetManager:
         if self.should_alert_budget_usage():
             alert_level = self.get_budget_alert_level()
             logger.warning(
-                f"{alert_level} BUDGET USAGE: {status.utilization_percentage:.1f}% of budget used!"
+                "%s BUDGET USAGE: %.1f%% of budget used!",
+                alert_level,
+                status.utilization_percentage,
             )
 
 

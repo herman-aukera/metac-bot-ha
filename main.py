@@ -12,6 +12,14 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# TLS trust store hardening for macOS Python (fix SSL: CERTIFICATE_VERIFY_FAILED)
+try:  # pragma: no cover - environment bootstrap
+    import certifi  # type: ignore
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+except Exception:
+    pass
+
 from forecasting_tools import (
     AskNewsSearcher,
     BinaryQuestion,
@@ -32,6 +40,12 @@ from forecasting_tools import (
 
 logger = logging.getLogger(__name__)
 SAFE_REASONING_FALLBACK = "Forecast generated without detailed reasoning due to fallback."
+# Shared model and text constants to avoid duplication
+MODEL_OPENROUTER_FREE_OSS = "openai/gpt-oss-20b:free"
+MODEL_KIMI_FREE = "moonshotai/kimi-k2:free"
+MODEL_PERPLEXITY_REASONING = "perplexity/sonar-reasoning"
+NEUTRAL_TEXT_UNABLE = "unable to generate detailed forecast"
+NEUTRAL_TEXT_ASSIGNING = "assigning neutral probability"
 
 # Tournament components - import after forecasting_tools to avoid conflicts
 try:
@@ -181,9 +195,12 @@ class TemplateForecaster(ForecastBot):
         self.api_failure_count = 0
         self.max_api_failures = int(os.getenv("MAX_API_FAILURES", "5"))
         self.fallback_models = {
-            "emergency": os.getenv("EMERGENCY_FALLBACK_MODEL", "openai/gpt-4o-mini"),
+            # Prefer robust free models via OpenRouter when paid models fail/unavailable
+            "emergency": os.getenv("EMERGENCY_FALLBACK_MODEL", "openai/gpt-oss-20b:free"),
+            # Keep Metaculus proxy for platform-provided credits if enabled
             "proxy": "metaculus/gpt-4o-mini",
-            "last_resort": "openai/gpt-3.5-turbo"
+            # Last resort: another free-capable provider (Perplexity reasoning model via OpenRouter)
+            "last_resort": os.getenv("LAST_RESORT_MODEL", "perplexity/sonar-reasoning")
         }
 
         # Initialize tournament components if available
@@ -577,36 +594,35 @@ Be very clear about what information may be outdated or incomplete.
             logger.error(f"Too many API failures ({self.api_failure_count}), activating emergency protocols")
             self.emergency_mode_active = True
 
-        # Determine fallback strategy
-        if "openrouter" in model.lower():
-            # OpenRouter failed, try Metaculus proxy
+        # Determine fallback strategy based on provider prefix (e.g., "openai/..", "perplexity/..", "metaculus/..")
+        provider_prefix = model.split("/", 1)[0].lower() if "/" in model else model.lower()
+
+        if provider_prefix in {"openai", "anthropic", "perplexity", "mistral", "meta", "moonshotai"}:
+            # OpenRouter family provider failed, try Metaculus proxy first
             if os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true":
                 fallback_model = self.fallback_models["proxy"]
                 logger.info(f"Falling back to Metaculus proxy: {fallback_model}")
                 return fallback_model
-            else:
-                # No proxy available, use emergency model
-                fallback_model = self.fallback_models["emergency"]
-                logger.info(f"Using emergency fallback model: {fallback_model}")
-                return fallback_model
+            # No proxy available, use emergency free model
+            fallback_model = self.fallback_models["emergency"]
+            logger.info(f"Using emergency fallback model: {fallback_model}")
+            return fallback_model
 
-        elif "metaculus" in model.lower():
-            # Proxy failed, try OpenRouter
+        if provider_prefix == "metaculus":
+            # Proxy failed, try OpenRouter free model if key exists
             if self.openrouter_api_key and not self.openrouter_api_key.startswith("dummy_"):
                 fallback_model = self.fallback_models["emergency"]
-                logger.info(f"Proxy failed, falling back to OpenRouter: {fallback_model}")
+                logger.info(f"Proxy failed, falling back to OpenRouter free model: {fallback_model}")
                 return fallback_model
-            else:
-                # No OpenRouter key, use last resort
-                fallback_model = self.fallback_models["last_resort"]
-                logger.warning(f"Using last resort model: {fallback_model}")
-                return fallback_model
-
-        else:
-            # Unknown provider failed, use emergency model
-            fallback_model = self.fallback_models["emergency"]
-            logger.info(f"Unknown provider failed, using emergency model: {fallback_model}")
+            # No OpenRouter key, use last resort
+            fallback_model = self.fallback_models["last_resort"]
+            logger.warning(f"Using last resort model: {fallback_model}")
             return fallback_model
+
+        # Unknown provider failed, use emergency model
+        fallback_model = self.fallback_models["emergency"]
+        logger.info(f"Unknown provider failed, using emergency model: {fallback_model}")
+        return fallback_model
 
     def _create_emergency_response(self, task_type: str, question_text: str = "") -> str:
         """Create emergency response when all APIs fail."""
@@ -681,6 +697,281 @@ Be very clear about what information may be outdated or incomplete.
         # All attempts failed
         logger.error(f"All LLM attempts failed for {task_type}. Last error: {last_error}")
         return self._create_emergency_response(task_type, prompt[:200])
+
+    def _is_unacceptable_forecast(self, prediction: float, reasoning: str) -> bool:
+        """Gatekeeper for forecasts we should not publish.
+
+        Criteria:
+        - Emergency/neutral messages
+        - Exactly neutral 0.5 probability (likely extraction fallback)
+        """
+        if prediction is None:
+            return True
+        if abs(prediction - 0.5) < 1e-6:
+            return True
+        text = (reasoning or "").lower()
+        if NEUTRAL_TEXT_UNABLE in text:
+            return True
+        if NEUTRAL_TEXT_ASSIGNING in text:
+            return True
+        return False
+
+    def _is_unacceptable_mc_forecast(self, prediction: "PredictedOptionList", reasoning: str, options: list[str]) -> bool:
+        """Gatekeeper for multiple-choice forecasts we should not publish.
+
+        Heuristics:
+        - Missing or empty prediction
+        - Near-uniform distribution across options
+        - Maximum probability too low (< 0.4)
+        - Emergency/neutral messages
+        """
+        if prediction is None or not getattr(prediction, 'predicted_options', None):
+            return True
+
+        probs = []
+        try:
+            for p in prediction.predicted_options:
+                # Ensure option is among provided options and probability is valid
+                if options and getattr(p, 'option_name', None) not in options:
+                    continue
+                if hasattr(p, 'probability') and p.probability is not None:
+                    probs.append(float(p.probability))
+        except Exception:
+            return True
+
+        if not probs:
+            return True
+
+        max_p = max(probs)
+        min_p = min(probs)
+
+        # Near-uniform or overly uncertain distributions are unacceptable
+        if (max_p - min_p) < 0.10:
+            return True
+        if max_p < 0.40:
+            return True
+
+        text = (reasoning or "").lower()
+        if NEUTRAL_TEXT_UNABLE in text:
+            return True
+        if NEUTRAL_TEXT_ASSIGNING in text:
+            return True
+
+        return False
+
+    def _is_unacceptable_numeric_forecast(self, prediction: "NumericDistribution", reasoning: str) -> bool:
+        """Gatekeeper for numeric forecasts we should not publish.
+
+        Heuristics:
+        - Missing/empty distribution or < 3 declared percentiles
+        - Collapsed distribution (p90 <= p10)
+        - Emergency/neutral messages
+        """
+        if prediction is None:
+            return True
+
+        declared = getattr(prediction, 'declared_percentiles', None)
+        if not declared or len(declared) < 3:
+            return True
+
+        # Try to find p10 and p90
+        try:
+            p10_vals = [pp.value for pp in declared if abs(float(pp.percentile) - 0.10) < 1e-6]
+            p90_vals = [pp.value for pp in declared if abs(float(pp.percentile) - 0.90) < 1e-6]
+            if p10_vals and p90_vals:
+                if float(p90_vals[0]) <= float(p10_vals[0]):
+                    return True
+        except Exception:
+            # If parsing fails, be conservative
+            return True
+
+        text = (reasoning or "").lower()
+        if NEUTRAL_TEXT_UNABLE in text:
+            return True
+        if NEUTRAL_TEXT_ASSIGNING in text:
+            return True
+
+        return False
+
+    async def _retry_forecast_with_alternatives(self, question: "BinaryQuestion", research: str) -> "ReasonedPrediction":
+        """Try multiple alternative models/prompts to reach at least a non-neutral forecast.
+
+        Order:
+        1) Free OpenRouter OSS 20B
+        2) Kimi K2 free
+        3) Perplexity reasoning model (prompt forces probability output)
+        """
+        prompt = clean_indents(
+            f"""
+            You are a professional forecaster interviewing for a job.
+
+            Your interview question is:
+            {question.question_text}
+
+            Question background:
+            {question.background_info}
+
+            This question's outcome will be determined by the specific criteria below. These criteria have not yet been satisfied:
+            {getattr(question, 'resolution_criteria', '')}
+
+            {getattr(question, 'fine_print', '')}
+
+            Your research assistant says:
+            {research}
+
+            Today is {datetime.now().strftime("%Y-%m-%d")}.
+
+            Provide a concise rationale and finish with: "Probability: ZZ%" (0-100).
+            """
+        )
+
+        candidates = [
+            MODEL_OPENROUTER_FREE_OSS,
+            MODEL_KIMI_FREE,
+            MODEL_PERPLEXITY_REASONING,
+        ]
+
+        from src.infrastructure.config.llm_factory import create_llm
+        last_reason = ""
+        for model_name in candidates:
+            try:
+                llm = create_llm(model_name, temperature=0.1, timeout=45, allowed_tries=1)
+                resp = await self._safe_llm_invoke(llm, prompt, "forecast", question_id=str(getattr(question, 'id', 'unknown')))
+                last_reason = resp or ""
+                try:
+                    value = PredictionExtractor.extract_last_percentage_value(last_reason, max_prediction=1, min_prediction=0)
+                except Exception:
+                    value = 0.5
+
+                if not self._is_unacceptable_forecast(value, last_reason):
+                    return ReasonedPrediction(prediction_value=value, reasoning=last_reason)
+            except Exception as e:
+                logger.warning(f"Alternative forecast attempt with {model_name} failed: {e}")
+
+        # Still unacceptable, return best-effort last reasoning with neutral 0.5 (but caller will gate again)
+        return ReasonedPrediction(prediction_value=0.5, reasoning=last_reason or SAFE_REASONING_FALLBACK)
+
+    async def _retry_mc_with_alternatives(self, question: "MultipleChoiceQuestion", research: str) -> "ReasonedPrediction":
+        """Try alternative models for multiple-choice to avoid near-uniform, low-confidence outputs."""
+        prompt = clean_indents(
+            f"""
+            You are a professional forecaster interviewing for a job.
+
+            Your interview question is:
+            {question.question_text}
+
+            The options are: {question.options}
+
+            Background:
+            {question.background_info}
+
+            {getattr(question, 'resolution_criteria', '')}
+
+            {getattr(question, 'fine_print', '')}
+
+            Your research assistant says:
+            {research}
+
+            Today is {datetime.now().strftime("%Y-%m-%d")}.
+
+            Provide a concise rationale and finish with this exact format, one per line, matching the given order of options:
+            Option_A: XX%
+            Option_B: XX%
+            ...
+            Option_N: XX%
+            """
+        )
+
+        candidates = [
+            MODEL_OPENROUTER_FREE_OSS,
+            MODEL_KIMI_FREE,
+            MODEL_PERPLEXITY_REASONING,
+        ]
+
+        from src.infrastructure.config.llm_factory import create_llm
+        last_reason = ""
+        for model_name in candidates:
+            try:
+                llm = create_llm(model_name, temperature=0.1, timeout=45, allowed_tries=1)
+                resp = await self._safe_llm_invoke(llm, prompt, "forecast", question_id=str(getattr(question, 'id', 'unknown')))
+                last_reason = resp or ""
+                try:
+                    pred = PredictionExtractor.extract_option_list_with_percentage_afterwards(last_reason, question.options)
+                except Exception:
+                    pred = None
+
+                if pred and not self._is_unacceptable_mc_forecast(pred, last_reason, question.options):
+                    return ReasonedPrediction(prediction_value=pred, reasoning=last_reason)
+            except Exception as e:
+                logger.warning(f"Alternative MC forecast attempt with {model_name} failed: {e}")
+
+        # Still unacceptable
+        from forecasting_tools import PredictedOptionList, PredictedOption
+        try:
+            equal_prob = 1.0 / max(len(question.options), 1)
+            predicted_options = [PredictedOption(option_name=o, probability=equal_prob) for o in question.options]
+            fallback_pred = PredictedOptionList(predicted_options=predicted_options)
+        except Exception:
+            fallback_pred = None
+        return ReasonedPrediction(prediction_value=fallback_pred, reasoning=last_reason or SAFE_REASONING_FALLBACK)
+
+    async def _retry_numeric_with_alternatives(self, question: "NumericQuestion", research: str) -> "ReasonedPrediction":
+        """Try alternative models for numeric to obtain a reasonable percentile distribution."""
+        prompt = clean_indents(
+            f"""
+            You are a professional forecaster interviewing for a job.
+
+            Your interview question is:
+            {question.question_text}
+
+            Background:
+            {question.background_info}
+
+            {getattr(question, 'resolution_criteria', '')}
+
+            {getattr(question, 'fine_print', '')}
+
+            Units for answer: {question.unit_of_measure if question.unit_of_measure else "Not stated (please infer this)"}
+
+            Your research assistant says:
+            {research}
+
+            Today is {datetime.now().strftime("%Y-%m-%d")}.
+
+            Provide a concise rationale and end with these lines exactly:
+            Percentile 10: XX
+            Percentile 20: XX
+            Percentile 40: XX
+            Percentile 60: XX
+            Percentile 80: XX
+            Percentile 90: XX
+            """
+        )
+
+        candidates = [
+            MODEL_OPENROUTER_FREE_OSS,
+            MODEL_KIMI_FREE,
+            MODEL_PERPLEXITY_REASONING,
+        ]
+
+        from src.infrastructure.config.llm_factory import create_llm
+        last_reason = ""
+        for model_name in candidates:
+            try:
+                llm = create_llm(model_name, temperature=0.1, timeout=60, allowed_tries=1)
+                resp = await self._safe_llm_invoke(llm, prompt, "forecast", question_id=str(getattr(question, 'id', 'unknown')))
+                last_reason = resp or ""
+                try:
+                    pred = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(last_reason, question)
+                except Exception:
+                    pred = None
+
+                if pred and not self._is_unacceptable_numeric_forecast(pred, last_reason):
+                    return ReasonedPrediction(prediction_value=pred, reasoning=last_reason)
+            except Exception as e:
+                logger.warning(f"Alternative numeric forecast attempt with {model_name} failed: {e}")
+
+        return ReasonedPrediction(prediction_value=None, reasoning=last_reason or SAFE_REASONING_FALLBACK)
 
     async def run_research(self, question: MetaculusQuestion) -> str:
         """Enhanced research with multi-stage validation pipeline, tri-model routing, and comprehensive error handling."""
@@ -1147,13 +1438,24 @@ Be very clear about what information may be outdated or incomplete.
                     # Check and update operation modes based on budget utilization
                     self._integrate_budget_manager_with_operation_modes()
 
-                    # Extract prediction and reasoning from pipeline result
-                    prediction = pipeline_result.final_forecast
-                    reasoning = pipeline_result.reasoning
+                    # Extract prediction and reasoning from pipeline result with gating
+                    try:
+                        pipeline_prediction = float(pipeline_result.final_forecast)  # type: ignore
+                    except Exception:
+                        pipeline_prediction = pipeline_result.final_forecast  # type: ignore
+                    pipeline_reasoning = pipeline_result.reasoning or ""
 
-                    return ReasonedPrediction(
-                        prediction_value=prediction, reasoning=reasoning
-                    )
+                    # Confidence gate on pipeline output; if unacceptable, try alternatives and otherwise fall through
+                    if not self._is_unacceptable_forecast(pipeline_prediction, pipeline_reasoning):
+                        return ReasonedPrediction(
+                            prediction_value=pipeline_prediction, reasoning=pipeline_reasoning
+                        )
+                    else:
+                        logger.warning("Pipeline binary forecast deemed low-confidence/neutral. Retrying with alternatives...")
+                        alt = await self._retry_forecast_with_alternatives(question, research)
+                        if not self._is_unacceptable_forecast(alt.prediction_value, alt.reasoning):
+                            return alt
+                        # Fall through to tri-model/legacy paths below
 
                 else:
                     logger.warning(f"Multi-stage binary forecast quality issues for {question_id}: "
@@ -1209,7 +1511,7 @@ Be very clear about what information may be outdated or incomplete.
                 # Create tier-optimized anti-slop binary forecast prompt (Task 8.1)
                 prompt = self.anti_slop_prompts.get_binary_forecast_prompt(
                     question_text=question.question_text,
-                    background_info=question.background_info,
+                    background_info=question.background_info or "",
                     resolution_criteria=getattr(question, 'resolution_criteria', ''),
                     fine_print=getattr(question, 'fine_print', ''),
                     research=research,
@@ -1277,6 +1579,18 @@ Be very clear about what information may be outdated or incomplete.
             f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
 
+        # Confidence gate: avoid publishing neutral/emergency outputs; try alternatives first
+        if self._is_unacceptable_forecast(prediction, reasoning):
+            logger.warning("Low-confidence/neutral forecast detected. Retrying with alternative free/perplexity models...")
+            alt = await self._retry_forecast_with_alternatives(question, research)
+            if not self._is_unacceptable_forecast(alt.prediction_value, alt.reasoning):
+                return alt
+            else:
+                logger.warning("Alternatives did not yield acceptable forecast. Returning best-effort result with explicit caution.")
+                # Append an explicit caution to avoid accidental publication misinterpretation
+                reasoning = (alt.reasoning or SAFE_REASONING_FALLBACK) + "\n\n[Note: Low confidence due to upstream API limitations.]"
+                prediction = alt.prediction_value
+
         safe_reasoning = reasoning or SAFE_REASONING_FALLBACK
 
         return ReasonedPrediction(
@@ -1321,7 +1635,7 @@ Be very clear about what information may be outdated or incomplete.
         if self.enhanced_llm_config:
             complexity_assessment = self.enhanced_llm_config.assess_question_complexity(
                 question.question_text,
-                question.background_info,
+                question.background_info or "",
                 getattr(question, 'resolution_criteria', ''),
                 getattr(question, 'fine_print', '')
             )
@@ -1399,18 +1713,28 @@ Be very clear about what information may be outdated or incomplete.
                             option_predictions.append(f"{option}: {probability:.1%}")
 
                         # Create PredictedOptionList from the predictions
-                        prediction = PredictionExtractor.extract_option_list_with_percentage_afterwards(
+                        pipeline_prediction = PredictionExtractor.extract_option_list_with_percentage_afterwards(
                             "\n".join(option_predictions), question.options
                         )
                     else:
                         # Fallback extraction from reasoning
-                        prediction = PredictionExtractor.extract_option_list_with_percentage_afterwards(
+                        pipeline_prediction = PredictionExtractor.extract_option_list_with_percentage_afterwards(
                             pipeline_result.reasoning, question.options
                         )
 
-                    return ReasonedPrediction(
-                        prediction_value=prediction, reasoning=pipeline_result.reasoning
-                    )
+                    pipeline_reasoning = pipeline_result.reasoning or ""
+
+                    # Confidence gate: only return if acceptable; otherwise try alternatives and fall through
+                    if not self._is_unacceptable_mc_forecast(pipeline_prediction, pipeline_reasoning, question.options):
+                        return ReasonedPrediction(
+                            prediction_value=pipeline_prediction, reasoning=pipeline_reasoning
+                        )
+                    else:
+                        logger.warning("Pipeline MC forecast deemed low-confidence/neutral. Retrying with alternatives...")
+                        alt = await self._retry_mc_with_alternatives(question, research)
+                        if alt.prediction_value and not self._is_unacceptable_mc_forecast(alt.prediction_value, alt.reasoning, question.options):
+                            return alt
+                        # Fall through to tri-model/legacy paths below
 
                 else:
                     logger.warning(f"Multi-stage multiple choice forecast quality issues for {question_id}")
@@ -1461,7 +1785,7 @@ Be very clear about what information may be outdated or incomplete.
                 prompt = self.anti_slop_prompts.get_multiple_choice_prompt(
                     question_text=question.question_text,
                     options=question.options,
-                    background_info=question.background_info,
+                    background_info=question.background_info or "",
                     resolution_criteria=getattr(question, 'resolution_criteria', ''),
                     fine_print=getattr(question, 'fine_print', ''),
                     research=research,
@@ -1532,6 +1856,18 @@ Be very clear about what information may be outdated or incomplete.
             ]
             prediction = PredictedOptionList(predicted_options=predicted_options)
 
+        # Confidence gate for MC: avoid near-uniform/low-peak outputs
+        if self._is_unacceptable_mc_forecast(prediction, reasoning, question.options):
+            logger.warning("Low-confidence/uncertain MC forecast detected. Retrying with alternative models...")
+            alt = await self._retry_mc_with_alternatives(question, research)
+            if alt.prediction_value and not self._is_unacceptable_mc_forecast(alt.prediction_value, alt.reasoning, question.options):
+                return alt
+            else:
+                logger.warning("Alternatives did not yield acceptable MC forecast. Returning best-effort with caution.")
+                reasoning = (alt.reasoning or SAFE_REASONING_FALLBACK) + "\n\n[Note: Low confidence due to upstream API limitations.]"
+                if alt.prediction_value:
+                    prediction = alt.prediction_value
+
         logger.info(
             f"Multiple choice forecast completed for URL {question.page_url} "
             f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
@@ -1584,7 +1920,7 @@ Be very clear about what information may be outdated or incomplete.
         # Get appropriate LLM and use safe invoke
         if self.enhanced_llm_config:
             complexity_assessment = self.enhanced_llm_config.assess_question_complexity(
-                question.question_text, question.background_info
+                question.question_text, question.background_info or ""
             )
             llm = self.enhanced_llm_config.get_llm_for_task("forecast", complexity_assessment=complexity_assessment)
         else:
@@ -1670,7 +2006,7 @@ Be very clear about what information may be outdated or incomplete.
                                     Percentile(percentile=float(p)/100.0, value=float(v))
                                     for p, v in percentiles.items()
                                 ]
-                                prediction = NumericDistribution(
+                                pipeline_prediction = NumericDistribution(
                                     declared_percentiles=percentile_list,
                                     open_upper_bound=question.open_upper_bound,
                                     open_lower_bound=question.open_lower_bound,
@@ -1680,24 +2016,34 @@ Be very clear about what information may be outdated or incomplete.
                                 )
                             else:
                                 # Fallback extraction from reasoning
-                                prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
+                                pipeline_prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
                                     pipeline_result.reasoning, question
                                 )
                         except Exception as conversion_error:
                             logger.warning(f"Numeric prediction conversion failed: {conversion_error}")
                             # Fallback extraction from reasoning
-                            prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
+                            pipeline_prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
                                 pipeline_result.reasoning, question
                             )
                     else:
                         # Fallback extraction from reasoning
-                        prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
+                        pipeline_prediction = PredictionExtractor.extract_numeric_distribution_from_list_of_percentile_number_and_probability(
                             pipeline_result.reasoning, question
                         )
 
-                    return ReasonedPrediction(
-                        prediction_value=prediction, reasoning=pipeline_result.reasoning
-                    )
+                    pipeline_reasoning = pipeline_result.reasoning or ""
+
+                    # Confidence gate: only return if acceptable; otherwise try alternatives and fall through
+                    if pipeline_prediction and not self._is_unacceptable_numeric_forecast(pipeline_prediction, pipeline_reasoning):
+                        return ReasonedPrediction(
+                            prediction_value=pipeline_prediction, reasoning=pipeline_reasoning
+                        )
+                    else:
+                        logger.warning("Pipeline numeric forecast deemed low-confidence/neutral. Retrying with alternatives...")
+                        alt = await self._retry_numeric_with_alternatives(question, research)
+                        if alt.prediction_value and not self._is_unacceptable_numeric_forecast(alt.prediction_value, alt.reasoning):
+                            return alt
+                        # Fall through to tri-model/legacy paths below
 
                 else:
                     logger.warning(f"Multi-stage numeric forecast quality issues for {question_id}")
@@ -1747,7 +2093,7 @@ Be very clear about what information may be outdated or incomplete.
                 # Create tier-optimized anti-slop numeric forecast prompt (Task 8.1)
                 prompt = self.anti_slop_prompts.get_numeric_forecast_prompt(
                     question_text=question.question_text,
-                    background_info=question.background_info,
+                    background_info=question.background_info or "",
                     resolution_criteria=getattr(question, 'resolution_criteria', ''),
                     fine_print=getattr(question, 'fine_print', ''),
                     research=research,
@@ -1837,6 +2183,18 @@ Be very clear about what information may be outdated or incomplete.
             f"(mode: {operation_mode}, budget: {budget_remaining:.1f}%)"
         )
 
+        # Confidence gate for Numeric: ensure sensible distribution
+        if self._is_unacceptable_numeric_forecast(prediction, reasoning):
+            logger.warning("Low-confidence/uncertain numeric forecast detected. Retrying with alternative models...")
+            alt = await self._retry_numeric_with_alternatives(question, research)
+            if alt.prediction_value and not self._is_unacceptable_numeric_forecast(alt.prediction_value, alt.reasoning):
+                return alt
+            else:
+                logger.warning("Alternatives did not yield acceptable numeric forecast. Returning best-effort with caution.")
+                reasoning = (alt.reasoning or SAFE_REASONING_FALLBACK) + "\n\n[Note: Low confidence due to upstream API limitations.]"
+                if alt.prediction_value:
+                    prediction = alt.prediction_value
+
         safe_reasoning = reasoning or SAFE_REASONING_FALLBACK
 
         return ReasonedPrediction(
@@ -1898,6 +2256,24 @@ Be very clear about what information may be outdated or incomplete.
             Percentile 90: XX
             "
             """
+        )
+
+        # Get appropriate LLM based on complexity analysis and budget status
+        if self.enhanced_llm_config:
+            try:
+                complexity_assessment = self.enhanced_llm_config.assess_question_complexity(
+                    question.question_text, question.background_info or ""
+                )
+                llm = self.enhanced_llm_config.get_llm_for_task("forecast", complexity_assessment=complexity_assessment)
+            except Exception:
+                llm = self.get_llm("default", "llm")
+        else:
+            llm = self.get_llm("default", "llm")
+
+        # Use safe LLM invoke and return the reasoning string
+        return await self._safe_llm_invoke(
+            llm, prompt, "forecast",
+            question_id=str(getattr(question, 'id', 'unknown'))
         )
 
     def _create_upper_and_lower_bound_messages(

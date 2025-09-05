@@ -12,9 +12,12 @@ Usage: prefer create_llm(...) instead of instantiating GeneralLlm directly.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
-from forecasting_tools import GeneralLlm
+# Avoid importing forecasting_tools at module import time to prevent heavy transitive
+# imports (e.g., streamlit) during pytest collection. Import inside functions.
+if TYPE_CHECKING:  # pragma: no cover - type checking only
+    from forecasting_tools import GeneralLlm  # noqa: F401
 
 
 _OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
@@ -38,7 +41,7 @@ def normalize_model_id(model_name: str) -> str:
     - claude-3-5-sonnet -> anthropic/claude-3-5-sonnet
     - kimi-k2:free -> moonshotai/kimi-k2:free
     - perplexity/sonar-pro -> perplexity/sonar-pro (unchanged)
-    - metaculus/gpt-4o-mini -> metaculus/gpt-4o-mini (unchanged)
+    - metaculus/* -> keep as-is (proxy decides concrete model)
     """
     if not model_name:
         return model_name
@@ -48,7 +51,7 @@ def normalize_model_id(model_name: str) -> str:
     base, suffix = (model_name.split(":", 1) + [""])[:2]
     lower = base.lower()
 
-    if lower.startswith("gpt-5") or lower.startswith("gpt-4o") or lower.startswith("gpt-oss"):
+    if lower.startswith("gpt-5") or lower.startswith("gpt-oss") or lower.startswith("gpt-4o"):
         base = f"openai/{base}"
     elif lower.startswith("claude"):
         base = f"anthropic/{base}"
@@ -65,15 +68,25 @@ def create_llm(
     timeout: int | float = 60,
     allowed_tries: int = 2,
     extra_kwargs: Optional[Dict[str, Any]] = None,
-) -> GeneralLlm:
+) -> Any:
     """Create a GeneralLlm with correct OpenRouter wiring and normalization.
 
     - metaculus/* models: no API key, no base_url
     - all other provider-prefixed models (openai/*, anthropic/*, moonshotai/*, perplexity/*):
-      route via OpenRouter with base_url and attribution headers using OPENROUTER_API_KEY.
+            route via OpenRouter with base_url and attribution headers using OPENROUTER_API_KEY.
+
+        Notes / rationale:
+        - LiteLLM + OpenRouter: prefer setting custom_llm_provider='openrouter' so models like
+            'moonshotai/kimi-k2:free' or 'openai/gpt-oss-120b:free' don’t trigger
+            "LLM Provider NOT provided" (see LiteLLM OpenRouter docs: https://docs.litellm.ai/docs/providers/openrouter).
+        - OpenRouter attribution headers per Quickstart/API docs: HTTP-Referer and X-Title
+            (https://openrouter.ai/docs/quickstart, https://openrouter.ai/docs/app-attribution).
     """
     model = normalize_model_id(model)
     extra_kwargs = extra_kwargs or {}
+
+    # Import here to avoid heavy import cost at module import time
+    from forecasting_tools import GeneralLlm  # type: ignore
 
     if model.startswith("metaculus/"):
         return GeneralLlm(
@@ -97,6 +110,12 @@ def create_llm(
             **extra_kwargs,
         )
 
+    # Ensure LiteLLM treats this as an OpenRouter call path; avoid provider ambiguity.
+    # We keep the provider-aware model name (e.g., openai/gpt-oss-120b:free) and set
+    # custom_llm_provider to 'openrouter' so routing + auth + headers are correct.
+    openrouter_kwargs = {**extra_kwargs}
+    openrouter_kwargs.setdefault("custom_llm_provider", "openrouter")
+
     return GeneralLlm(
         model=model,
         api_key=openrouter_key,
@@ -105,11 +124,11 @@ def create_llm(
         temperature=temperature,
         timeout=timeout,
         allowed_tries=allowed_tries,
-        **extra_kwargs,
+        **openrouter_kwargs,
     )
 
 
-def create_perplexity_llm(use_openrouter: bool = True) -> GeneralLlm:
+def create_perplexity_llm(use_openrouter: bool = True) -> Any:
     """Create a Perplexity LLM, preferring OpenRouter routing for consistency.
 
     If use_openrouter is False, this will still return a Perplexity model but without

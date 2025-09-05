@@ -1,6 +1,7 @@
 """LLM client for communicating with language models."""
 
 import asyncio
+import os
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -10,6 +11,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from ..config.settings import LLMConfig
 
 logger = structlog.get_logger(__name__)
+
+# Avoid duplicating common header values across methods
+CONTENT_TYPE_JSON = "application/json"
 
 
 class LLMClient:
@@ -116,7 +120,7 @@ class LLMClient:
         """Call OpenAI API."""
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
-            "Content-Type": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
         }
 
         data = {
@@ -151,7 +155,7 @@ class LLMClient:
         """Call Anthropic API."""
         headers = {
             "x-api-key": self.config.api_key,
-            "Content-Type": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
             "anthropic-version": "2023-06-01",
         }
 
@@ -183,11 +187,12 @@ class LLMClient:
         **kwargs,
     ) -> str:
         """Call OpenRouter API."""
+        # OpenRouter attribution headers per docs: https://openrouter.ai/docs/quickstart
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/metaculus-bot-ha",
-            "X-Title": "Metaculus Forecasting Bot HA",
+            "Content-Type": CONTENT_TYPE_JSON,
+            "HTTP-Referer": os.getenv("OPENROUTER_HTTP_REFERER", "https://github.com/metaculus-bot-ha"),
+            "X-Title": os.getenv("OPENROUTER_APP_TITLE", "Metaculus Forecasting Bot HA"),
         }
 
         data = {
@@ -331,7 +336,7 @@ class LLMClient:
         """
         return {
             "Authorization": f"Bearer {self.config.api_key}",
-            "Content-Type": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
         }
 
     def _format_prompt(self, prompt) -> str:

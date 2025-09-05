@@ -393,10 +393,21 @@ class ModelTierFallbackManager:
                             model=option.name, api_key=None, **option.configuration
                         )
                     else:
+                        # Route via OpenRouter explicitly to avoid LiteLLM provider ambiguity
+                        extra_headers = {}
+                        referer = os.getenv("OPENROUTER_HTTP_REFERER")
+                        title = os.getenv("OPENROUTER_APP_TITLE")
+                        if referer:
+                            extra_headers["HTTP-Referer"] = referer
+                        if title:
+                            extra_headers["X-Title"] = title
+
                         test_model = GeneralLlm(
                             model=option.name,
                             api_key=os.getenv("OPENROUTER_API_KEY"),
                             base_url="https://openrouter.ai/api/v1",
+                            extra_headers=extra_headers,
+                            custom_llm_provider="openrouter",
                             **option.configuration,
                         )
 

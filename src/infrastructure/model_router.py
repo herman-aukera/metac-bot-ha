@@ -20,11 +20,11 @@ class BudgetAwareModelRouter:
 
     Budget Thresholds:
     - >95%: Free models only
-    - >80%: Budget-conscious models (gpt-4o-mini)
-    - <50%: Premium models allowed (gpt-4o)
+    - >80%: Budget-conscious models (gpt-5-nano/mini)
+    - <50%: Premium models allowed (gpt-5)
 
-    Free Models:
-    - "openai/gpt-oss-120b:free" (supports tools)
+    Free Models (OpenRouter-routed):
+    - "openai/gpt-oss-120b:free" (tools support varies; verify per model meta)
     - "moonshotai/kimi-k2:free" (no tools)
     """
 
@@ -60,7 +60,7 @@ class BudgetAwareModelRouter:
         )
 
     def select_model(
-        self, task_type: str, requires_tools: bool = False, is_test: bool = None
+        self, task_type: str, requires_tools: bool = False, is_test: Optional[bool] = None
     ) -> str:
         """
         Select appropriate model based on budget and requirements.
@@ -101,7 +101,7 @@ class BudgetAwareModelRouter:
             logger.info(
                 f"High budget utilization ({utilization:.1f}%), using budget-conscious models"
             )
-            return "gpt-4o-mini"
+            return "openai/gpt-5-nano"
 
         # Medium budget utilization (>50%) - balanced approach
         elif utilization > 50:
@@ -109,9 +109,9 @@ class BudgetAwareModelRouter:
                 f"Medium budget utilization ({utilization:.1f}%), using balanced model selection"
             )
             if task_type in ["research", "validation"]:
-                return "gpt-4o-mini"  # Use cheaper model for non-critical tasks
+                return "openai/gpt-5-nano"  # Use cheaper model for non-critical tasks
             else:
-                return "gpt-4o"  # Use premium for forecasting
+                return "openai/gpt-5"  # Use premium for forecasting
 
         # Low budget utilization (<50%) - premium models allowed
         else:
@@ -119,28 +119,36 @@ class BudgetAwareModelRouter:
                 f"Low budget utilization ({utilization:.1f}%), using premium models"
             )
             if task_type == "forecasting":
-                return "gpt-4o"  # Best model for critical forecasting
+                return "openai/gpt-5"  # Best model for critical forecasting
             else:
-                return "gpt-4o-mini"  # Still efficient for other tasks
+                return "openai/gpt-5-mini"  # Still efficient for other tasks
 
     def get_model_config(self, model_name: str) -> Dict[str, Any]:
         """Get configuration for selected model."""
         model_configs = {
-            "gpt-4o": {
+            "openai/gpt-5": {
                 "provider": "openrouter",
-                "model": "openai/gpt-4o",
-                "max_tokens": 4000,
+                "model": "openai/gpt-5",
+                "max_tokens": 6000,
                 "temperature": 0.1,
                 "supports_tools": True,
-                "cost_per_1k_tokens": 0.015,  # Approximate
+                "cost_per_1k_tokens": 0.0015,  # See tri-model guidance (verify: PRICES)
             },
-            "gpt-4o-mini": {
+            "openai/gpt-5-mini": {
                 "provider": "openrouter",
-                "model": "openai/gpt-4o-mini",
+                "model": "openai/gpt-5-mini",
                 "max_tokens": 4000,
                 "temperature": 0.1,
                 "supports_tools": True,
-                "cost_per_1k_tokens": 0.0015,  # Much cheaper
+                "cost_per_1k_tokens": 0.00025,
+            },
+            "openai/gpt-5-nano": {
+                "provider": "openrouter",
+                "model": "openai/gpt-5-nano",
+                "max_tokens": 4000,
+                "temperature": 0.1,
+                "supports_tools": True,
+                "cost_per_1k_tokens": 0.00005,
             },
             "openai/gpt-oss-120b:free": {
                 "provider": "openrouter",
@@ -160,7 +168,7 @@ class BudgetAwareModelRouter:
             },
         }
 
-        return model_configs.get(model_name, model_configs["gpt-4o-mini"])
+        return model_configs.get(model_name, model_configs["openai/gpt-5-mini"])
 
     def estimate_cost(self, model_name: str, estimated_tokens: int) -> float:
         """Estimate cost for using a model with given token count."""
@@ -188,7 +196,7 @@ class BudgetAwareModelRouter:
         task_type: str,
         requires_tools: bool = False,
         estimated_tokens: int = 1000,
-        is_test: bool = None,
+        is_test: Optional[bool] = None,
     ) -> str:
         """
         Select model with automatic fallback if budget insufficient.
@@ -218,7 +226,7 @@ class BudgetAwareModelRouter:
         return fallback_model
 
     def log_model_usage(
-        self, model_name: str, tokens_used: int, actual_cost: float = None
+        self, model_name: str, tokens_used: int, actual_cost: Optional[float] = None
     ) -> None:
         """Log model usage for budget tracking."""
         if actual_cost is None:
@@ -270,15 +278,15 @@ class BudgetAwareModelRouter:
             }
         elif utilization > 80:
             return {
-                "research": "gpt-4o-mini",
-                "forecasting": "gpt-4o-mini",
-                "validation": "gpt-4o-mini",
+                "research": "openai/gpt-5-nano",
+                "forecasting": "openai/gpt-5-nano",
+                "validation": "openai/gpt-5-nano",
             }
         else:
             return {
-                "research": "gpt-4o-mini",
-                "forecasting": "gpt-4o",
-                "validation": "gpt-4o-mini",
+                "research": "openai/gpt-5-mini",
+                "forecasting": "openai/gpt-5",
+                "validation": "openai/gpt-5-nano",
             }
 
 

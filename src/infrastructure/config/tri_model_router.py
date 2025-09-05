@@ -79,9 +79,9 @@ class OpenRouterModelSelection:
     rationale: str
     estimated_cost: float
     confidence_score: float
-    provider_preferences: Dict[str, Any]
     fallback_models: List[str]
     operation_mode: OperationMode
+    provider_preferences: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -387,6 +387,9 @@ class OpenRouterTriModelRouter:
         operation_mode: Optional[OperationMode] = None,
     ) -> Optional[GeneralLlm]:
         """Create a model configured for OpenRouter with proper headers and provider routing."""
+        # Defensive normalization to ensure provider prefix before any routing logic
+        model_name = self._normalize_model_id(model_name)
+
         # Determine API key and base URL based on model
         if model_name.startswith("metaculus/"):
             # Metaculus proxy models don't use OpenRouter
@@ -399,45 +402,39 @@ class OpenRouterTriModelRouter:
                 timeout=config.timeout,
                 allowed_tries=config.allowed_tries,
             )
-        else:
-            # OpenRouter models
-            if not self.openrouter_key or self.openrouter_key.startswith("dummy_"):
-                logger.debug(f"OpenRouter API key not available for {model_name}")
-                return None
 
-            # Create model with OpenRouter configuration and provider preferences
-            extra_headers = self.openrouter_headers.copy()
+        # OpenRouter models
+        if not self.openrouter_key or self.openrouter_key.startswith("dummy_"):
+            logger.debug(f"OpenRouter API key not available for {model_name}")
+            return None
 
-            # Apply model shortcuts for optimization
-            optimized_model_name = self._apply_model_shortcuts(
-                model_name, operation_mode or "normal"
-            )
+        # Create model with OpenRouter configuration and provider preferences
+        extra_headers = self.openrouter_headers.copy()
 
-            # Defensive: ensure provider prefix remains after shortcut application
-            if (
-                optimized_model_name
-                and "/" not in optimized_model_name
-                and not optimized_model_name.startswith("metaculus/")
-            ):
-                optimized_model_name = self._normalize_model_id(
-                    optimized_model_name
-                )
+        # Apply model shortcuts for optimization
+        optimized_model_name = self._apply_model_shortcuts(
+            model_name, operation_mode or "normal"
+        )
 
-            # Add provider preferences based on operation mode
-            provider_preferences = self._get_provider_preferences_for_operation_mode(
-                operation_mode or "normal"
-            )
+        # Defensive: ensure provider prefix remains after shortcut application
+        if (
+            optimized_model_name
+            and "/" not in optimized_model_name
+            and not optimized_model_name.startswith("metaculus/")
+        ):
+            optimized_model_name = self._normalize_model_id(optimized_model_name)
 
-            return GeneralLlm(
-                model=optimized_model_name,
-                api_key=self.openrouter_key,
-                base_url=self.openrouter_base_url,
-                extra_headers=extra_headers,
-                temperature=config.temperature,
-                timeout=config.timeout,
-                allowed_tries=config.allowed_tries,
-                provider_preferences=provider_preferences,
-            )
+        return GeneralLlm(
+            model=optimized_model_name,
+            api_key=self.openrouter_key,
+            base_url=self.openrouter_base_url,
+            extra_headers=extra_headers,
+            temperature=config.temperature,
+            timeout=config.timeout,
+            allowed_tries=config.allowed_tries,
+            # Critical: mark provider explicitly to route via OpenRouter in LiteLLM
+            custom_llm_provider="openrouter",
+        )
 
     def _get_provider_preferences_for_operation_mode(
         self, operation_mode: OperationMode
@@ -631,6 +628,8 @@ class OpenRouterTriModelRouter:
                 temperature=config.temperature,
                 timeout=config.timeout,
                 allowed_tries=1,
+                # Ensure LiteLLM routes via OpenRouter; prevents provider ambiguity
+                custom_llm_provider="openrouter",
             )
         elif os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true":
             # Use Metaculus proxy as emergency
@@ -2369,8 +2368,8 @@ Recommendation: Retry when systems are restored or use alternative approach.
             content=content,
         )
 
-        # Get provider preferences for current operation mode
-        provider_preferences = self._get_provider_preferences_for_operation_mode(
+        # Compute provider preferences for internal decision-making (not passed to LLM)
+        _provider_preferences = self._get_provider_preferences_for_operation_mode(
             budget_context.operation_mode
         )
 
@@ -2466,7 +2465,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
             rationale=" | ".join(rationale_parts),
             estimated_cost=estimated_cost,
             confidence_score=confidence_score,
-            provider_preferences=provider_preferences,
+            # Note: provider preferences are used internally, not passed to LLM
             fallback_models=fallback_models,
             operation_mode=budget_context.operation_mode,
         )
@@ -2727,9 +2726,6 @@ Recommendation: Retry when systems are restored or use alternative approach.
                     ),  # Rough estimate
                     confidence_score=base_selection.confidence_score
                     * 0.9,  # Slightly lower confidence for adjustments
-                    provider_preferences=self._get_provider_preferences_for_operation_mode(
-                        current_mode.value
-                    ),
                     fallback_models=base_selection.fallback_models,
                     operation_mode=current_mode.value,
                 )

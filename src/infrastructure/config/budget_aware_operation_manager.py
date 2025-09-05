@@ -775,6 +775,59 @@ class BudgetAwareOperationManager:
         # Default to normal if below all thresholds
         return "normal"
 
+    def get_operation_mode_details(self, utilization_percentage: float) -> Dict[str, Any]:
+        """Return a structured snapshot of the current/expected operation mode.
+
+        Args:
+            utilization_percentage: Current budget utilization percentage (0-100).
+
+        Returns:
+            Dict containing the resolved mode, emergency protocol, strategy highlights,
+            and suggested actions based on thresholds.
+        """
+        try:
+            # Resolve expected mode from utilization and get live mode too
+            expected_mode_value = self.get_operation_mode_for_budget(utilization_percentage)
+            current_mode = self.operation_mode_manager.get_current_mode()
+            expected_mode = OperationMode(expected_mode_value)
+
+            # Strategy associated with the expected mode
+            strategy = self.get_cost_optimization_strategy(expected_mode)
+
+            # Find the threshold we matched (if any) to surface recommended actions
+            matched_threshold = None
+            for threshold in sorted(self.budget_thresholds, key=lambda x: x.percentage, reverse=True):
+                if utilization_percentage >= threshold.percentage:
+                    matched_threshold = threshold
+                    break
+
+            details: Dict[str, Any] = {
+                "mode": expected_mode.value,
+                "current_mode": current_mode.value,
+                "budget_utilization": float(utilization_percentage),
+                "emergency_protocol": self.current_emergency_protocol.value,
+                "model_selection": strategy.model_selection_adjustments,
+                "feature_degradation": strategy.feature_degradation_config,
+                "research_depth_limits": strategy.research_depth_limits,
+                "estimated_cost_reduction": strategy.estimated_cost_reduction,
+                "performance_impact_score": strategy.performance_impact_score,
+                "recommended_actions": matched_threshold.actions if matched_threshold else [],
+                "threshold": matched_threshold.name if matched_threshold else "normal_operation",
+            }
+
+            return details
+        except Exception as e:
+            # Fail-safe minimal payload to avoid breaking status dashboards
+            logger.error(f"Failed to build operation mode details: {e}")
+            return {
+                "mode": "normal",
+                "current_mode": self.operation_mode_manager.get_current_mode().value,
+                "budget_utilization": float(utilization_percentage),
+                "emergency_protocol": self.current_emergency_protocol.value,
+                "recommended_actions": [],
+                "threshold": "normal_operation",
+            }
+
 
 # Global instance
 budget_aware_operation_manager = BudgetAwareOperationManager()
