@@ -525,7 +525,7 @@ class ForecastingPipeline:
 
     async def run_batch_forecast(
         self,
-    question_ids: List[int],
+        question_ids: List[int],
         agent_type: str = "chain_of_thought",
         include_research: bool = True,
         batch_size: int = 5,
@@ -622,10 +622,10 @@ class ForecastingPipeline:
             raise
 
     async def run_ensemble_forecast(
-    self,
-    question_id: int,
-    agent_types: Optional[List[str]] = None,
-    include_research: bool = True,
+        self,
+        question_id: int,
+        agent_types: Optional[List[str]] = None,
+        include_research: bool = True,
     ) -> Dict[str, Any]:
         """
         Run ensemble forecasting using multiple agents for a single question.

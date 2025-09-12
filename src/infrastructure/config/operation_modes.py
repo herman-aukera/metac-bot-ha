@@ -77,8 +77,9 @@ class OperationModeManager:
                 mode=OperationMode.NORMAL,
                 budget_threshold=0.0,  # No threshold - default mode
                 max_questions_per_batch=10,
-                research_model="openai/gpt-4o-mini",
-                forecast_model="openai/gpt-4o",
+                # Cost policy: GPT-5 tiers only (simple→nano, research→mini, complex→full)
+                research_model="openai/gpt-5-mini",
+                forecast_model="openai/gpt-5",
                 max_retries=3,
                 timeout_seconds=90,
                 enable_complexity_analysis=True,
@@ -89,8 +90,8 @@ class OperationModeManager:
                 mode=OperationMode.CONSERVATIVE,
                 budget_threshold=0.80,  # Trigger at 80% budget utilization
                 max_questions_per_batch=5,
-                research_model="openai/gpt-4o-mini",
-                forecast_model="openai/gpt-4o-mini",  # Downgrade forecast model
+                research_model="openai/gpt-5-mini",
+                forecast_model="openai/gpt-5-nano",  # Downgrade forecast model (nano)
                 max_retries=2,
                 timeout_seconds=60,
                 enable_complexity_analysis=True,
@@ -101,8 +102,8 @@ class OperationModeManager:
                 mode=OperationMode.EMERGENCY,
                 budget_threshold=0.95,  # Trigger at 95% budget utilization
                 max_questions_per_batch=2,
-                research_model="openai/gpt-4o-mini",
-                forecast_model="openai/gpt-4o-mini",
+                research_model="openai/gpt-5-nano",
+                forecast_model="openai/gpt-5-nano",
                 max_retries=1,
                 timeout_seconds=45,
                 enable_complexity_analysis=False,  # Disable to save processing
@@ -244,12 +245,12 @@ class OperationModeManager:
 
         # Override with mode constraints if needed
         if self.current_mode == OperationMode.EMERGENCY:
-            # Always use cheapest model in emergency
-            return "openai/gpt-4o-mini"
+            # Always use cheapest model in emergency per new GPT-5 policy
+            return "openai/gpt-5-nano"
         elif self.current_mode == OperationMode.CONSERVATIVE:
-            # Limit expensive models in conservative mode
-            if recommended_model == "openai/gpt-4o" and task_type == "research":
-                return "openai/gpt-4o-mini"
+            # Limit expensive models in conservative mode – downgrade GPT-5 full to mini
+            if recommended_model == "openai/gpt-5" and task_type == "research":
+                return "openai/gpt-5-mini"
 
         return recommended_model
 
@@ -322,7 +323,7 @@ class OperationModeManager:
             strategy["actions"].extend(
                 [
                     "Process only critical priority questions",
-                    "Use minimal model (gpt-4o-mini) for all tasks",
+                    "Use minimal model (gpt-5-nano) for all tasks",
                     "Disable complexity analysis",
                     "Reduce batch size to 2 questions",
                     "Single retry attempt only",

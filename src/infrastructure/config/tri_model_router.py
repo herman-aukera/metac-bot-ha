@@ -11,6 +11,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast
 
 from forecasting_tools import GeneralLlm
+from ..external_apis.llm_client import LLMClient
+from ..external_apis.llm_client_adapter import HardenedOpenRouterModel
+from .settings import LLMConfig
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +121,7 @@ class OpenRouterTriModelRouter:
     - Price-based model selection with :floor shortcuts
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize OpenRouter tri-model configuration with strategic routing."""
         self.openrouter_key = os.getenv("OPENROUTER_API_KEY")
         # Allow overriding base URL via env; default to official OpenRouter API
@@ -126,21 +129,19 @@ class OpenRouterTriModelRouter:
             "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
         )
         self.openrouter_headers = self._get_attribution_headers()
-
         # OpenRouter model configurations with actual pricing
         self.model_configs = self._get_openrouter_model_configurations()
-
-        # Initialize models with OpenRouter availability detection
-        self.models = {}
-        self.model_status = {}
-        self.fallback_chains = self._define_openrouter_fallback_chains()
+        # Initialize containers for models & status (after configs defined)
+        self.models: Dict[ModelTier, GeneralLlm] = {}
+        self.model_status: Dict[ModelTier, ModelStatus] = {}
+        self.fallback_chains: Dict[ModelTier, List[str]] = self._define_openrouter_fallback_chains()
 
         # Routing strategy based on task complexity and budget constraints
         self.routing_strategy = {
-            "validation": "nano",  # Ultra-fast validation, parsing
-            "simple": "nano",  # Simple summaries, basic tasks
-            "research": "mini",  # Research synthesis, intermediate reasoning
-            "forecast": "full",  # Final forecasting decisions, complex analysis
+            "validation": "nano",
+            "simple": "nano",
+            "research": "mini",
+            "forecast": "full",
         }
 
         # Operation mode thresholds (budget utilization percentages) - optimized for free fallbacks
@@ -157,6 +158,21 @@ class OpenRouterTriModelRouter:
         logger.info(
             "OpenRouter tri-model router initialized with actual available models and pricing"
         )
+        # Expose underlying hardened client for metrics (optional use by main run summary)
+        try:
+            self.llm_client = LLMClient(
+                LLMConfig(
+                    provider="openrouter",
+                    model="openai/gpt-5-mini",
+                    temperature=0.1,
+                    max_tokens=None,
+                    api_key=self.openrouter_key or "",
+                    openrouter_api_key=self.openrouter_key or "",
+                    timeout=60.0,
+                )
+            )
+        except Exception:
+            self.llm_client = None  # type: ignore[attr-defined]
 
     @classmethod
     async def create_with_auto_configuration(cls) -> "OpenRouterTriModelRouter":
@@ -243,28 +259,25 @@ class OpenRouterTriModelRouter:
         ]
 
         if has_openrouter and has_metaculus_proxy:
-            # Cost-optimized configuration: GPT-5 → Free models (skip expensive GPT-4o)
+            # Metaculus proxy present but GPT-4o family purged; keep free models only
             return {
                 "nano": [
-                    "openai/gpt-5-nano",  # Primary: GPT-5 Nano ($0.05)
-                    "openai/gpt-oss-20b:free",  # Free fallback (skip expensive models)
-                    "moonshotai/kimi-k2:free",  # Free alternative
-                    "metaculus/gpt-4o-mini",  # Metaculus proxy as last resort
+                    "openai/gpt-5-nano",
+                    "openai/gpt-oss-20b:free",
+                    "moonshotai/kimi-k2:free",
                 ],
                 "mini": [
-                    "openai/gpt-5-mini",  # Primary: GPT-5 Mini ($0.25)
-                    "openai/gpt-5-nano",  # Downgrade to nano first
-                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
-                    "moonshotai/kimi-k2:free",  # Free alternative
-                    "metaculus/gpt-4o-mini",  # Metaculus proxy as last resort
+                    "openai/gpt-5-mini",
+                    "openai/gpt-5-nano",
+                    "openai/gpt-oss-20b:free",
+                    "moonshotai/kimi-k2:free",
                 ],
                 "full": [
-                    "openai/gpt-5",  # Primary: GPT-5 Full ($1.50)
-                    "openai/gpt-5-mini",  # Downgrade to mini first
-                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
-                    "openai/gpt-5-nano",  # Further downgrade
-                    "moonshotai/kimi-k2:free",  # Final free fallback
-                    "metaculus/gpt-4o",  # Metaculus proxy as last resort
+                    "openai/gpt-5",
+                    "openai/gpt-5-mini",
+                    "openai/gpt-oss-20b:free",
+                    "openai/gpt-5-nano",
+                    "moonshotai/kimi-k2:free",
                 ],
             }
         elif has_openrouter:
@@ -293,19 +306,19 @@ class OpenRouterTriModelRouter:
                 ],
             }
         elif has_metaculus_proxy:
-            # Metaculus proxy only configuration (fallback path)
-            logger.info("Using Metaculus proxy-only fallback chains")
+            # Metaculus proxy present; GPT-4o banned → rely on free chains
+            logger.info("Metaculus proxy detected; using free model chains (GPT-4o removed)")
             return {
-                "nano": ["metaculus/gpt-4o-mini", "metaculus/gpt-4o"],
-                "mini": ["metaculus/gpt-4o-mini", "metaculus/gpt-4o"],
-                "full": ["metaculus/gpt-4o", "metaculus/gpt-4o-mini"],
+                "nano": free_models,
+                "mini": free_models,
+                "full": free_models,
             }
         else:
             # Emergency configuration - use free models only
             logger.warning("No primary API keys available - using free models only")
             return {"nano": free_models, "mini": free_models, "full": free_models}
 
-    def _initialize_all_models(self):
+    def _initialize_all_models(self) -> None:
         """Initialize all models with availability detection."""
         for tier, config in self.model_configs.items():
             try:
@@ -339,45 +352,32 @@ class OpenRouterTriModelRouter:
     ) -> Tuple[GeneralLlm, ModelStatus]:
         """Initialize a model with OpenRouter fallback chain."""
         fallback_chain = self.fallback_chains[tier]
-
-        # Optional: validate models on init to avoid selecting unavailable free models
-        validate_on_init = os.getenv("OPENROUTER_VALIDATE_MODELS_ON_INIT", "0") == "1"
-
         for model_name in fallback_chain:
             try:
-                # Create model with OpenRouter configuration (normal mode for initialization)
                 model = self._create_openrouter_model(model_name, config, "normal")
-
                 if model is None:
                     logger.debug(f"Could not create model for {model_name}, skipping")
                     continue
 
-                # If enabled, perform a quick self-check flag; actual async check will be done
-                # by health_monitor_startup to avoid sync/async loop issues here.
-                ok = True
-
                 status = ModelStatus(
                     tier=tier,
                     model_name=model_name,
-                    is_available=bool(ok),
+                    is_available=True,
                     last_check=(
                         asyncio.get_event_loop().time()
                         if asyncio.get_event_loop().is_running()
                         else 0
                     ),
-                    error_message=None if ok else "Initial validation failed",
+                    error_message=None,
                 )
-
                 logger.debug(
                     f"Successfully initialized {model_name} for {tier} tier via OpenRouter"
                 )
                 return model, status
-
             except Exception as e:
                 logger.debug(f"Model {model_name} not available for {tier}: {e}")
                 continue
 
-        # If all models in chain fail, create emergency fallback
         emergency_model = self._create_emergency_model(tier)
         status = ModelStatus(
             tier=tier,
@@ -386,7 +386,6 @@ class OpenRouterTriModelRouter:
             last_check=0,
             error_message="All models in fallback chain failed",
         )
-
         return emergency_model, status
 
     def _create_openrouter_model(
@@ -433,17 +432,40 @@ class OpenRouterTriModelRouter:
         ):
             optimized_model_name = self._normalize_model_id(optimized_model_name)
 
-        return GeneralLlm(
-            model=optimized_model_name,
-            api_key=self.openrouter_key,
-            base_url=self.openrouter_base_url,
-            extra_headers=extra_headers,
-            temperature=config.temperature,
-            timeout=config.timeout,
-            allowed_tries=config.allowed_tries,
-            # Critical: mark provider explicitly to route via OpenRouter in LiteLLM
-            custom_llm_provider="openrouter",
-        )
+        # Prefer hardened OpenRouter client when available to unify backoff/diagnostics
+        try:
+            # Lazily create client if not present (e.g., during tests)
+            if not hasattr(self, "llm_client") or self.llm_client is None:
+                self.llm_client = LLMClient(
+                    LLMConfig(
+                        provider="openrouter",
+                        model=optimized_model_name,
+                        temperature=config.temperature,
+                        max_tokens=None,
+                        api_key=self.openrouter_key or "",
+                        openrouter_api_key=self.openrouter_key or "",
+                        timeout=float(config.timeout),
+                    )
+                )
+            return HardenedOpenRouterModel(
+                llm_client=self.llm_client,
+                model=optimized_model_name,
+                temperature=config.temperature,
+                timeout=config.timeout,
+                allowed_tries=config.allowed_tries,
+            )
+        except Exception:
+            # Fallback to GeneralLlm if hardened client unavailable for any reason
+            return GeneralLlm(
+                model=optimized_model_name,
+                api_key=self.openrouter_key,
+                base_url=self.openrouter_base_url,
+                extra_headers=extra_headers,
+                temperature=config.temperature,
+                timeout=config.timeout,
+                allowed_tries=config.allowed_tries,
+                custom_llm_provider="openrouter",
+            )
 
     def _get_provider_preferences_for_operation_mode(
         self, operation_mode: OperationMode
@@ -641,10 +663,10 @@ class OpenRouterTriModelRouter:
                 custom_llm_provider="openrouter",
             )
         elif os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true":
-            # Use Metaculus proxy as emergency
+            # Use alternative free model despite proxy (GPT-4o removed)
             return GeneralLlm(
-                model="metaculus/gpt-4o-mini",
-                api_key=None,  # Proxy doesn't need API key
+                model="moonshotai/kimi-k2:free",
+                api_key=None,
                 temperature=config.temperature,
                 timeout=config.timeout,
                 allowed_tries=1,
@@ -688,9 +710,7 @@ class OpenRouterTriModelRouter:
 
                 # Try a simple test call with very short timeout
                 # Short timeout to avoid blocking startup; health monitor will refine later
-                test_response = await asyncio.wait_for(
-                    test_model.invoke("Test"), timeout=3.0
-                )
+                await asyncio.wait_for(test_model.invoke("Test"), timeout=3.0)
                 availability[model_name] = True
                 logger.info(f"✓ {model_name} is available via OpenRouter")
 
@@ -713,42 +733,26 @@ class OpenRouterTriModelRouter:
     async def auto_configure_fallback_chains(self) -> Dict[ModelTier, List[str]]:
         """Automatically configure fallback chains based on model availability."""
         logger.info("Auto-configuring fallback chains based on model availability...")
-
         # Detect current model availability
         availability = await self.detect_model_availability()
 
-        # Filter available models by tier preference
-        available_models = [
-            model for model, is_available in availability.items() if is_available
-        ]
-
-        if not available_models:
-            logger.error(
-                "No OpenRouter models available - using emergency configuration"
-            )
+        # If none available, return emergency chains
+        if not any(availability.values()):
+            logger.error("No OpenRouter models available - using emergency configuration")
             return self._get_emergency_fallback_chains()
 
-        # Build optimized fallback chains based on availability
-        optimized_chains = {}
-
-        for tier in ["nano", "mini", "full"]:
-            chain = []
-            primary_model = self.model_configs[cast(ModelTier, tier)].model_name
-
-            # Add primary model if available
+        optimized_chains: Dict[ModelTier, List[str]] = {}
+        for tier_name in ["nano", "mini", "full"]:
+            tier = cast(ModelTier, tier_name)
+            chain: List[str] = []
+            primary_model = self.model_configs[tier].model_name
             if availability.get(primary_model, False):
                 chain.append(primary_model)
-                logger.info(
-                    f"✓ Primary model {primary_model} available for {tier} tier"
-                )
+                logger.info(f"✓ Primary model {primary_model} available for {tier} tier")
             else:
-                logger.warning(
-                    f"⚠ Primary model {primary_model} unavailable for {tier} tier"
-                )
+                logger.warning(f"⚠ Primary model {primary_model} unavailable for {tier} tier")
 
-            # Add tier-appropriate fallbacks
             if tier == "full":
-                # Full tier: try mini, then free models
                 if availability.get("openai/gpt-5-mini", False):
                     chain.append("openai/gpt-5-mini")
                 if availability.get("openai/gpt-oss-20b:free", False):
@@ -758,61 +762,43 @@ class OpenRouterTriModelRouter:
                 if availability.get("moonshotai/kimi-k2:free", False):
                     chain.append("moonshotai/kimi-k2:free")
             elif tier == "mini":
-                # Mini tier: try nano, then free models
                 if availability.get("openai/gpt-5-nano", False):
                     chain.append("openai/gpt-5-nano")
                 if availability.get("openai/gpt-oss-20b:free", False):
                     chain.append("openai/gpt-oss-20b:free")
                 if availability.get("moonshotai/kimi-k2:free", False):
                     chain.append("moonshotai/kimi-k2:free")
-            else:  # nano tier
-                # Nano tier: free models only
+            else:  # nano
                 if availability.get("openai/gpt-oss-20b:free", False):
                     chain.append("openai/gpt-oss-20b:free")
                 if availability.get("moonshotai/kimi-k2:free", False):
                     chain.append("moonshotai/kimi-k2:free")
 
-            # Add Metaculus proxy as last resort if enabled
-            if os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true":
-                if tier == "full":
-                    chain.append("metaculus/gpt-4o")
-                else:
-                    chain.append("metaculus/gpt-4o-mini")
-
             optimized_chains[tier] = chain
             logger.info(f"Auto-configured {tier} tier chain: {' → '.join(chain)}")
 
-        # Update the router's fallback chains
         self.fallback_chains = optimized_chains
-
         return optimized_chains
 
     def _get_emergency_fallback_chains(self) -> Dict[ModelTier, List[str]]:
-        """Get emergency fallback chains when no OpenRouter models are available."""
-        logger.warning("Using emergency fallback chains - Metaculus proxy only")
+        """Get emergency fallback chains when no OpenRouter primary models are available.
 
-        if os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true":
-            return {
-                "nano": ["metaculus/gpt-4o-mini"],
-                "mini": ["metaculus/gpt-4o-mini", "metaculus/gpt-4o"],
-                "full": ["metaculus/gpt-4o", "metaculus/gpt-4o-mini"],
-            }
-        else:
-            logger.error(
-                "No fallback options available - system will have limited functionality"
-            )
-            return {"nano": [], "mini": [], "full": []}
+        Uses only free community models (GPT-4o family removed).
+        """
+        logger.warning("Using emergency fallback chains - free models only (GPT-4o purged)")
+        free_models = ["openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free"]
+        return {"nano": free_models, "mini": free_models, "full": free_models}
 
     async def validate_openrouter_configuration(self) -> Dict[str, Any]:
         """Validate OpenRouter configuration and report any issues."""
-        validation_report = {
+        validation_report: Dict[str, Any] = {
             "api_key_status": "missing",
             "base_url_status": "ok",
             "attribution_headers": {},
             "model_availability": {},
             "fallback_chains": {},
-            "configuration_errors": [],
-            "recommendations": [],
+            "configuration_errors": cast(List[str], []),
+            "recommendations": cast(List[str], []),
         }
 
         # Check API key
@@ -940,7 +926,8 @@ class OpenRouterTriModelRouter:
             # Check if we have at least one working model per tier
             working_tiers = 0
             for tier in ["nano", "mini", "full"]:
-                if self.model_status[tier].is_available:
+                tier_literal = cast(ModelTier, tier)
+                if self.model_status[tier_literal].is_available:
                     working_tiers += 1
 
             if working_tiers == 0:
@@ -957,7 +944,8 @@ class OpenRouterTriModelRouter:
 
             # Test each tier's health
             for tier in ["nano", "mini", "full"]:
-                health_status = await self.check_model_health(cast(ModelTier, tier))
+                tier_literal = cast(ModelTier, tier)
+                health_status = await self.check_model_health(tier_literal)
                 if health_status.is_available:
                     logger.info(
                         f"✓ {tier.upper()} tier healthy: {health_status.model_name} ({health_status.response_time:.2f}s)"
@@ -1030,9 +1018,10 @@ class OpenRouterTriModelRouter:
                 # Check health of all tiers
                 unhealthy_tiers = []
                 for tier in ["nano", "mini", "full"]:
-                    health_status = await self.check_model_health(cast(ModelTier, tier))
+                    tier_literal = cast(ModelTier, tier)
+                    health_status = await self.check_model_health(tier_literal)
                     if not health_status.is_available:
-                        unhealthy_tiers.append(tier)
+                        unhealthy_tiers.append(tier_literal)
                         logger.warning(
                             f"Tier {tier} unhealthy: {health_status.error_message}"
                         )
@@ -1043,25 +1032,23 @@ class OpenRouterTriModelRouter:
                     await self.auto_configure_fallback_chains()
 
                     # Re-initialize unhealthy models
-                    for tier in unhealthy_tiers:
-                        config = self.model_configs[tier]
+                    for tier_literal in unhealthy_tiers:
+                        config = self.model_configs[tier_literal]
                         try:
-                            model, status = self._initialize_model_with_fallback(
-                                tier, config
-                            )
-                            self.models[tier] = model
-                            self.model_status[tier] = status
+                            model, status = self._initialize_model_with_fallback(tier_literal, config)
+                            self.models[tier_literal] = model
+                            self.model_status[tier_literal] = status
 
                             if status.is_available:
                                 logger.info(
-                                    f"✓ Successfully reconfigured {tier} tier: {status.model_name}"
+                                    f"✓ Successfully reconfigured {tier_literal} tier: {status.model_name}"
                                 )
                             else:
                                 logger.warning(
-                                    f"⚠ {tier} tier still unhealthy after reconfiguration"
+                                    f"⚠ {tier_literal} tier still unhealthy after reconfiguration"
                                 )
                         except Exception as e:
-                            logger.error(f"Failed to reconfigure {tier} tier: {e}")
+                            logger.error(f"Failed to reconfigure {tier_literal} tier: {e}")
 
                 # Log periodic status
                 healthy_tiers = sum(
@@ -1154,7 +1141,7 @@ class OpenRouterTriModelRouter:
             start_time = asyncio.get_event_loop().time()
 
             # Simple health check with minimal prompt
-            test_response = await model.invoke("Test")
+            await model.invoke("Test")
 
             response_time = asyncio.get_event_loop().time() - start_time
 
@@ -1195,7 +1182,7 @@ class OpenRouterTriModelRouter:
             ComplexityLevel: minimal, medium, or high
         """
         content_length = len(content)
-        word_count = len(content.split())
+    # word_count intentionally omitted (unused)
 
         # Content length factors
         length_score = 0
@@ -1503,16 +1490,16 @@ class OpenRouterTriModelRouter:
         Returns:
             Tuple of (response, execution_metadata)
         """
-        execution_metadata = {
-            "attempts": [],
+        execution_metadata: Dict[str, Any] = {
+            "attempts": cast(List[Dict[str, Any]], []),
             "final_model": None,
             "final_tier": None,
             "total_cost": 0.0,
             "fallback_used": False,
-            "recovery_actions": [],
+            "recovery_actions": cast(List[str], []),
         }
 
-        last_error = None
+        last_error: Optional[Exception] = None
 
         for attempt in range(max_retries):
             try:
@@ -1700,7 +1687,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
     async def test_model_chain_health(self, tier: ModelTier) -> Dict[str, Any]:
         """Test the health of an entire model fallback chain."""
         chain = self.fallback_chains[tier]
-        health_report = {
+        health_report: Dict[str, Any] = {
             "tier": tier,
             "chain_length": len(chain),
             "healthy_models": [],
@@ -2075,31 +2062,30 @@ Recommendation: Retry when systems are restored or use alternative approach.
 
     def get_model_status(self) -> Dict[str, str]:
         """Get comprehensive status of all models."""
-        status = {}
-        for tier in self.model_status:
-            model_status = self.model_status[tier]
+        status: Dict[str, str] = {}
+        for tier_key, model_status in self.model_status.items():
             if model_status.is_available:
                 response_info = (
                     f" ({model_status.response_time:.2f}s)"
                     if model_status.response_time
                     else ""
                 )
-                status[tier] = f"✓ {model_status.model_name} (Ready{response_info})"
+                status[str(tier_key)] = f"✓ {model_status.model_name} (Ready{response_info})"
             else:
                 error_info = (
                     f" - {model_status.error_message}"
                     if model_status.error_message
                     else ""
                 )
-                status[tier] = f"✗ {model_status.model_name} (Unavailable{error_info})"
+                status[str(tier_key)] = f"✗ {model_status.model_name} (Unavailable{error_info})"
         return status
 
     def get_detailed_status(self) -> Dict[str, Dict]:
         """Get detailed status information for monitoring."""
-        detailed_status = {}
-        for tier, status in self.model_status.items():
-            config = self.model_configs[tier]
-            detailed_status[tier] = {
+        detailed_status: Dict[str, Dict[str, Any]] = {}
+        for tier_key, status in self.model_status.items():
+            config = self.model_configs[tier_key]
+            detailed_status[str(tier_key)] = {
                 "model_name": status.model_name,
                 "is_available": status.is_available,
                 "cost_per_million_input": config.cost_per_million_input,
@@ -2108,7 +2094,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
                 "last_check": status.last_check,
                 "response_time": status.response_time,
                 "error_message": status.error_message,
-                "fallback_chain": self.fallback_chains[tier],
+                "fallback_chain": self.fallback_chains[tier_key],
             }
         return detailed_status
 
@@ -2644,7 +2630,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
 
         return min(sum(score_factors), 1.0)
 
-    def integrate_with_budget_manager(self, budget_manager, budget_aware_manager):
+    def integrate_with_budget_manager(self, budget_manager: Any, budget_aware_manager: Any) -> None:
         """Integrate tri-model router with budget management systems (Task 8.2)."""
         self.budget_manager = budget_manager
         self.budget_aware_manager = budget_aware_manager
@@ -2657,11 +2643,12 @@ Recommendation: Retry when systems are restored or use alternative approach.
 
         try:
             budget_status = self.budget_manager.get_budget_status()
-            operation_mode = "normal"
+            operation_mode: OperationMode = cast(OperationMode, "normal")
 
             if hasattr(self, "budget_aware_manager") and self.budget_aware_manager:
-                operation_mode = (
-                    self.budget_aware_manager.operation_mode_manager.get_current_mode().value
+                operation_mode = cast(
+                    OperationMode,
+                    self.budget_aware_manager.operation_mode_manager.get_current_mode().value,
                 )
 
             return BudgetContext(
@@ -2687,9 +2674,8 @@ Recommendation: Retry when systems are restored or use alternative approach.
             current_mode = (
                 self.budget_aware_manager.operation_mode_manager.get_current_mode()
             )
-            strategy = self.budget_aware_manager.get_cost_optimization_strategy(
-                current_mode
-            )
+            # Retrieve strategy (currently unused but call retained for side effects / logging)
+            self.budget_aware_manager.get_cost_optimization_strategy(current_mode)
 
             # Apply model selection adjustments
             task_type_mapping = {

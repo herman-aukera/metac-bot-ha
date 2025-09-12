@@ -15,6 +15,13 @@ logger = structlog.get_logger(__name__)
 # Avoid duplicating common header values across methods
 CONTENT_TYPE_JSON = "application/json"
 
+# Module-level cumulative OpenRouter metrics (best-effort aggregation)
+OPENROUTER_TOTAL_CALLS = 0
+OPENROUTER_TOTAL_RETRIES = 0  # Sum of (attempt_count-1) across calls
+OPENROUTER_TOTAL_BACKOFF = 0.0
+OPENROUTER_QUOTA_EXCEEDED = False
+OPENROUTER_QUOTA_MESSAGE = None
+
 
 class LLMClient:
     """
@@ -186,35 +193,126 @@ class LLMClient:
         max_tokens: Optional[int],
         **kwargs,
     ) -> str:
-        """Call OpenRouter API."""
-        # OpenRouter attribution headers per docs: https://openrouter.ai/docs/quickstart
-        headers = {
+        """Call OpenRouter API with capped exponential backoff + jitter and diagnostics.
+
+        Adds structured logging of rate-limit headers when present to aid debugging
+        persistent connection failures.
+        """
+        # Declare module-level counters as globals once for this function scope
+        global OPENROUTER_TOTAL_CALLS, OPENROUTER_TOTAL_RETRIES, OPENROUTER_TOTAL_BACKOFF
+        import random
+        import time
+
+        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        endpoint = f"{base_url.rstrip('/')}/chat/completions"
+        headers_base = {
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": CONTENT_TYPE_JSON,
             "HTTP-Referer": os.getenv("OPENROUTER_HTTP_REFERER", "https://github.com/metaculus-bot-ha"),
             "X-Title": os.getenv("OPENROUTER_APP_TITLE", "Metaculus Forecasting Bot HA"),
         }
-
-        data = {
+        data_base = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
         }
-
         if max_tokens:
-            data["max_tokens"] = max_tokens
+            data_base["max_tokens"] = max_tokens
+        data_base.update(kwargs)
 
-        # Add any additional kwargs
-        data.update(kwargs)
-
-        response = await self.client.post(
-            "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data
-        )
-
-        response.raise_for_status()
-        result = response.json()
-
-        return result["choices"][0]["message"]["content"]
+        max_attempts = 5
+        backoff_seconds_total = 0.0
+        attempt_count = 0
+        last_error: Optional[Exception] = None
+        for attempt in range(1, max_attempts + 1):
+            attempt_count = attempt
+            # Fast fail if global quota exceeded previously
+            from . import llm_client as _mod
+            if getattr(_mod, "OPENROUTER_QUOTA_EXCEEDED", False):
+                raise RuntimeError("OpenRouter quota previously exceeded; circuit open")
+            headers = dict(headers_base)
+            data = dict(data_base)
+            start = time.time()
+            try:
+                response = await self.client.post(endpoint, headers=headers, json=data)
+                status = response.status_code
+                rate_headers = {k: v for k, v in response.headers.items() if k.lower().startswith("x-ratelimit")}
+                # Quota / key limit detection (403 with specific body message)
+                if status == 403:
+                    try:
+                        body = response.json()
+                        message = str(body.get("error", {}).get("message", ""))
+                    except Exception:
+                        message = ""
+                    if "Key limit exceeded" in message:
+                        try:
+                            _mod.OPENROUTER_QUOTA_EXCEEDED = True
+                            _mod.OPENROUTER_QUOTA_MESSAGE = message
+                            # Log once at info level on first trip
+                            if not getattr(self, "_quota_logged", False):
+                                logger.info("OpenRouter quota exceeded: %s", message)
+                                setattr(self, "_quota_logged", True)
+                        except Exception:
+                            pass
+                        raise RuntimeError(f"OpenRouter quota exceeded: {message}")
+                if status >= 500:
+                    raise RuntimeError(f"OpenRouter server error status={status}")
+                if status == 429:
+                    # Extract retry-after if present
+                    retry_after = response.headers.get("Retry-After") or response.headers.get("retry-after")
+                    raise RuntimeError(f"OpenRouter 429 rate limited retry_after={retry_after}")
+                response.raise_for_status()
+                result = response.json()
+                # Log success diagnostics once per call
+                if rate_headers:
+                    logger.debug(
+                        "OpenRouter call ok model=%s attempt=%s rate_headers=%s duration=%.2fs", model, attempt, rate_headers, time.time()-start
+                    )
+                content = result["choices"][0]["message"]["content"]
+                # Expose counters externally (for run summary) via attributes
+                try:
+                    self.last_openrouter_retry_count = attempt_count
+                    self.last_openrouter_total_backoff = round(backoff_seconds_total, 3)
+                    try:
+                        # Update module-level cumulative metrics
+                        OPENROUTER_TOTAL_CALLS += 1
+                        OPENROUTER_TOTAL_RETRIES += (attempt_count - 1)
+                        OPENROUTER_TOTAL_BACKOFF += backoff_seconds_total
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                return content
+            except Exception as e:  # pragma: no cover - network/dynamic
+                last_error = e
+                # Do not retry/backoff on hard quota/circuit errors
+                err_str = str(e).lower()
+                if "quota" in err_str or "circuit open" in err_str:
+                    raise
+                sleep_base = min(8.0, 0.75 * (2 ** (attempt - 1)))  # 0.75,1.5,3,6,8 capped
+                jitter = random.uniform(0, sleep_base * 0.25)
+                sleep_time = sleep_base + jitter
+                backoff_seconds_total += sleep_time
+                logger.warning(
+                    "OpenRouter call failed attempt=%s/%s model=%s error=%s backoff=%.2fs total_backoff=%.2fs",
+                    attempt, max_attempts, model, e, sleep_time, backoff_seconds_total
+                )
+                if attempt == max_attempts:
+                    break
+                await asyncio.sleep(sleep_time)
+        # After attempts exhausted
+        try:
+            self.last_openrouter_retry_count = attempt_count
+            self.last_openrouter_total_backoff = round(backoff_seconds_total, 3)
+            try:
+                OPENROUTER_TOTAL_CALLS += 1
+                OPENROUTER_TOTAL_RETRIES += (attempt_count - 1)
+                OPENROUTER_TOTAL_BACKOFF += backoff_seconds_total
+            except Exception:
+                pass
+        except Exception:
+            pass
+        raise RuntimeError(f"OpenRouter call failed after {max_attempts} attempts last_error={last_error}")
 
     async def batch_generate(
         self,

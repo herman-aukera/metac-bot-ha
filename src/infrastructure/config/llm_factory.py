@@ -32,7 +32,7 @@ def _openrouter_headers() -> Dict[str, str]:
     return headers
 
 
-def normalize_model_id(model_name: str) -> str:
+def normalize_model_id(model_name: Any) -> str:
     """Ensure model IDs are provider-prefixed for litellm/OpenRouter.
 
     Examples:
@@ -43,6 +43,13 @@ def normalize_model_id(model_name: str) -> str:
     - perplexity/sonar-pro -> perplexity/sonar-pro (unchanged)
     - metaculus/* -> keep as-is (proxy decides concrete model)
     """
+    # Support being passed model adapter objects that expose `.model`
+    if not isinstance(model_name, str):
+        if hasattr(model_name, "model"):
+            model_name = getattr(model_name, "model")
+        else:  # last-resort stringification
+            model_name = str(model_name)
+
     if not model_name:
         return model_name
     if "/" in model_name or model_name.startswith("metaculus/"):

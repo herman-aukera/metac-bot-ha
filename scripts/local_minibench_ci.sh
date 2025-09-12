@@ -7,6 +7,7 @@ echo "[local-ci] Starting MiniBench local CI simulation..."
 export TOURNAMENT_MODE=${TOURNAMENT_MODE:-true}
 export DRY_RUN=${DRY_RUN:-false}
 export PUBLISH_REPORTS=${PUBLISH_REPORTS:-false}
+export SKIP_PREVIOUSLY_FORECASTED=${SKIP_PREVIOUSLY_FORECASTED:-true}
 # Avoid setting PYTHONPATH=src to prevent module name collisions with forecasting_tools
 
 # Offline by default to avoid accidental spend; set LOCAL_CI_NETWORK=1 to enable networked run
@@ -156,7 +157,7 @@ if [[ "$TARGET" =~ ^[0-9]+$ ]]; then
      TOURNAMENT_MODE=true \
      PUBLISH_REPORTS=true \
      DRY_RUN="$DRY_RUN" \
-     SKIP_PREVIOUSLY_FORECASTED=false \
+     SKIP_PREVIOUSLY_FORECASTED="$SKIP_PREVIOUSLY_FORECASTED" \
      python3 main.py --mode tournament; then
     echo "[local-ci] Bot run completed"
   else
@@ -168,7 +169,7 @@ else
      TOURNAMENT_MODE=true \
      PUBLISH_REPORTS=true \
      DRY_RUN="$DRY_RUN" \
-     SKIP_PREVIOUSLY_FORECASTED=false \
+     SKIP_PREVIOUSLY_FORECASTED="$SKIP_PREVIOUSLY_FORECASTED" \
      python3 main.py --mode tournament; then
     echo "[local-ci] Bot run completed"
   else

@@ -77,28 +77,33 @@ class CostOptimizationService:
     - Graceful feature degradation for emergency modes
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize cost optimization service."""
         self.budget_manager = budget_manager
 
-        # Model cost hierarchy (cost per 1M tokens)
+        # Model cost hierarchy (cost per 1M tokens) - GPT-4o family removed
+        # Pricing placeholders for GPT-5 tiers (verify against provider docs)
         self.model_costs = {
-            "openai/gpt-4o": {"input": 2.5, "output": 10.0},
-            "openai/gpt-4o-mini": {"input": 0.15, "output": 0.6},
+            "openai/gpt-5-mini": {"input": 2.2, "output": 8.8},
+            "openai/gpt-5-nano": {"input": 0.12, "output": 0.5},
             "claude-3-5-sonnet": {"input": 3.0, "output": 15.0},
             "claude-3-haiku": {"input": 0.25, "output": 1.25},
             "perplexity/sonar-reasoning": {"input": 5.0, "output": 5.0},
             "perplexity/sonar-pro": {"input": 1.0, "output": 1.0},
+            "openai/gpt-oss-20b:free": {"input": 0.0, "output": 0.0},
+            "moonshotai/kimi-k2:free": {"input": 0.0, "output": 0.0},
         }
 
-        # Model performance scores (0.0 to 1.0)
+        # Model performance scores (0.0 to 1.0) - approximate; verify
         self.model_performance = {
-            "openai/gpt-4o": 0.95,
-            "openai/gpt-4o-mini": 0.85,
+            "openai/gpt-5-mini": 0.96,
+            "openai/gpt-5-nano": 0.87,
             "claude-3-5-sonnet": 0.92,
             "claude-3-haiku": 0.78,
             "perplexity/sonar-reasoning": 0.88,
             "perplexity/sonar-pro": 0.82,
+            "openai/gpt-oss-20b:free": 0.71,
+            "moonshotai/kimi-k2:free": 0.69,
         }
 
         # Task priority weights for scoring
@@ -346,11 +351,11 @@ class CostOptimizationService:
             max_sources=max_sources,
             max_depth=max_depth,
             max_iterations=max_iterations,
-            enable_deep_analysis=factors["enable_deep"],
+            enable_deep_analysis=bool(factors["enable_deep"]),
             complexity_threshold=(
                 0.7 if operation_mode == OperationMode.EMERGENCY else 0.5
             ),
-            time_limit_seconds=factors["time_limit"],
+            time_limit_seconds=int(factors["time_limit"]),
         )
 
     def get_graceful_degradation_strategy(
@@ -419,17 +424,35 @@ class CostOptimizationService:
         """Get model preferences based on operation mode and task type."""
         if operation_mode == OperationMode.NORMAL:
             if task_type == "forecast":
-                return ["openai/gpt-4o", "claude-3-5-sonnet", "openai/gpt-4o-mini"]
+                return [
+                    "openai/gpt-5-mini",
+                    "claude-3-5-sonnet",
+                    "openai/gpt-5-nano",
+                ]
             else:  # research, validation
-                return ["openai/gpt-4o-mini", "claude-3-haiku", "openai/gpt-4o"]
+                return [
+                    "openai/gpt-5-nano",
+                    "claude-3-haiku",
+                    "openai/gpt-5-mini",
+                ]
 
         elif operation_mode == OperationMode.CONSERVATIVE:
             # Prefer cost-efficient models
-            return ["openai/gpt-4o-mini", "claude-3-haiku", "perplexity/sonar-pro"]
+            return [
+                "openai/gpt-5-nano",
+                "claude-3-haiku",
+                "perplexity/sonar-pro",
+                "openai/gpt-oss-20b:free",
+            ]
 
         else:  # EMERGENCY
-            # Only cheapest models
-            return ["openai/gpt-4o-mini", "claude-3-haiku"]
+            # Only cheapest / free models
+            return [
+                "openai/gpt-5-nano",
+                "claude-3-haiku",
+                "openai/gpt-oss-20b:free",
+                "moonshotai/kimi-k2:free",
+            ]
 
     def _calculate_cost_score(self, model: str, complexity: TaskComplexity) -> float:
         """Calculate normalized cost score (0.0 = cheapest, 1.0 = most expensive)."""
@@ -490,7 +513,7 @@ class CostOptimizationService:
         priority_score: float,
         estimated_cost: float,
         operation_mode: OperationMode,
-        budget_status,
+        budget_status: Any,
     ) -> bool:
         """Determine if a task should be processed based on priority and budget."""
         # Check if we have enough budget
@@ -536,18 +559,40 @@ class CostOptimizationService:
 
         # Adjust based on operation mode
         if operation_mode == OperationMode.EMERGENCY:
+            def _to_int(v: Any, default: int) -> int:
+                if isinstance(v, int):
+                    return v
+                if isinstance(v, float):
+                    return int(v)
+                try:
+                    return int(str(v))
+                except Exception:
+                    return default
+
+            mem_int = _to_int(base_allocation.get("memory_limit_mb", 256), 256)
+            timeout_int = _to_int(base_allocation.get("timeout_seconds", 45), 45)
             base_allocation.update(
                 {
                     "cpu_priority": "low",
-                    "memory_limit_mb": min(base_allocation["memory_limit_mb"], 256),
-                    "timeout_seconds": min(base_allocation["timeout_seconds"], 45),
+                    "memory_limit_mb": min(mem_int, 256),
+                    "timeout_seconds": min(timeout_int, 45),
                     "max_retries": 1,
                 }
             )
         elif operation_mode == OperationMode.CONSERVATIVE:
+            def _to_int2(v: Any, default: int) -> int:
+                if isinstance(v, int):
+                    return v
+                if isinstance(v, float):
+                    return int(v)
+                try:
+                    return int(str(v))
+                except Exception:
+                    return default
+            timeout_int2 = _to_int2(base_allocation.get("timeout_seconds", 60), 60)
             base_allocation.update(
                 {
-                    "timeout_seconds": min(base_allocation["timeout_seconds"], 60),
+                    "timeout_seconds": min(timeout_int2, 60),
                     "max_retries": 2,
                 }
             )
@@ -555,7 +600,7 @@ class CostOptimizationService:
         return base_allocation
 
     def _get_rejection_reason(
-        self, priority: TaskPriority, mode: OperationMode, cost: float, budget_status
+        self, priority: TaskPriority, mode: OperationMode, cost: float, budget_status: Any
     ) -> str:
         """Generate reason for task rejection."""
         if cost > budget_status.remaining:

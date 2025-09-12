@@ -72,7 +72,7 @@ class MultiStageResearchPipeline:
         ]
 
     async def execute_research_pipeline(
-        self, question: str, context: Dict[str, Any] = None
+        self, question: str, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Execute the complete multi-stage research pipeline.
@@ -159,70 +159,101 @@ class MultiStageResearchPipeline:
         stage_start = datetime.now()
 
         try:
-            # Try tournament AskNews client first (prioritized)
+            # AskNews only – all other external/news model fallbacks removed to stop 404 & noisy retries.
             if self.tournament_asknews:
                 try:
-                    research_content = await self.tournament_asknews.get_news_research(
-                        question
-                    )
-
+                    research_content = await self.tournament_asknews.get_news_research(question)
                     if research_content and len(research_content.strip()) > 0:
                         execution_time = (datetime.now() - stage_start).total_seconds()
-
                         return ResearchStageResult(
                             content=research_content,
                             sources_used=["AskNews API"],
                             model_used="asknews",
-                            cost_estimate=0.0,  # Free via METACULUSQ4
-                            quality_score=0.8,  # High quality for AskNews
+                            cost_estimate=0.0,
+                            quality_score=0.8,
                             stage_name="asknews_research",
                             execution_time=execution_time,
                             success=True,
                         )
-
                 except Exception as e:
                     self.logger.warning(f"Tournament AskNews failed: {e}")
 
-            # Fallback to free models; if they fail, try Perplexity as last resort
-            free_result = await self._execute_free_model_research_fallback(
-                question, context, stage_start
-            )
-            if free_result.success:
-                return free_result
-
-            # Perplexity last-resort (enabled if keys available)
+            # AskNews failed or unavailable: attempt multi-source search fallback with incremental backoff
+            sources_used: List[str] = []
+            aggregated_snippets: List[str] = []
             try:
-                if self.tri_model_router:
-                    # Use mini config for reasonable limits
-                    cfg = self.tri_model_router.model_configs.get("mini")
-                    px_model = self.tri_model_router._create_openrouter_model(
-                        "perplexity/sonar-reasoning", cfg, "emergency"
-                    )
-                    if px_model:
-                        px_prompt = (
-                            f"Research the following question focusing on last 48 hours:\n\n"
-                            f"Question: {question}\n\nProvide 3-6 bullet points with citations when possible."
-                        )
-                        px_content = await px_model.invoke(px_prompt)
-                        if px_content and len(px_content.strip()) > 0:
-                            execution_time = (
-                                datetime.now() - stage_start
-                            ).total_seconds()
-                            return ResearchStageResult(
-                                content=px_content,
-                                sources_used=["Perplexity"],
-                                model_used="perplexity/sonar-reasoning",
-                                cost_estimate=0.0,
-                                quality_score=0.6,
-                                stage_name="asknews_research",
-                                execution_time=execution_time,
-                                success=True,
-                            )
-            except Exception as e:
-                self.logger.warning(f"Perplexity fallback failed: {e}")
+                # NOTE: Avoid relative import past top-level (previous '...' caused runtime error).
+                # Domain layer exceptional import of infrastructure search factory kept TEMPORARILY until refactor
+                # (will be moved behind an injected adapter). This unblocks research fallback reliability.
+                from src.infrastructure.config.settings import get_settings  # type: ignore  # noqa: E402
+                from src.infrastructure.external_apis.search_client import create_search_client  # type: ignore  # noqa: E402
+                settings = get_settings()
+                search_client = create_search_client(settings)
+                # Derive a concise subject-style query (avoid sending full question sentences to simple APIs)
 
-            # If all fail, return the free_result (failed) to propagate error
-            return free_result
+                def _extract_subject(q: str) -> str:
+                    base = q.strip().rstrip('?')
+                    # If starts with 'Will ' or similar, drop auxiliary and keep entity/phrase up to first punctuation
+                    lowers = base.lower()
+                    for prefix in ("will ", "is ", "are ", "does ", "do ", "who ", "what "):
+                        if lowers.startswith(prefix):
+                            base = base[len(prefix):]
+                            break
+                    # Keep first 8 words to stay concise
+                    parts = base.split()
+                    return " ".join(parts[:8])
+                concise_query = _extract_subject(question)
+                # Up to 2 attempts with exponential backoff (1s, 2s)
+                for attempt in range(2):
+                    try:
+                        # Attempt with concise query first; if empty on first attempt, try original question second
+                        query_to_use = concise_query if attempt == 0 else question
+                        results = await search_client.search(query_to_use, max_results=8)
+                        if results:
+                            sources_used = list({r.get('source', 'unknown') for r in results})
+                            for r in results:
+                                aggregated_snippets.append(
+                                    f"- {r.get('title', '')} | {r.get('url', '')}\n  {r.get('snippet', '')[:240]}"
+                                )
+                            break
+                    except Exception as se:  # pragma: no cover - defensive
+                        self.logger.warning(f"Search fallback attempt {attempt+1} failed: {se}")
+                    await asyncio.sleep(1 * (2 ** attempt))
+            except Exception as se:  # pragma: no cover
+                self.logger.warning(f"Multi-source search fallback init failed: {se}")
+
+            if aggregated_snippets:
+                snippet_block = "\n".join(aggregated_snippets)
+                fallback_content = (
+                    "Research synthesized from public multi-source search (AskNews unavailable).\n\n"
+                    + snippet_block
+                )
+                execution_time = (datetime.now() - stage_start).total_seconds()
+                return ResearchStageResult(
+                    content=fallback_content,
+                    sources_used=sources_used,
+                    model_used="multi_source_search",
+                    cost_estimate=0.0,
+                    quality_score=0.55,  # moderate provisional quality
+                    stage_name="asknews_research",
+                    execution_time=execution_time,
+                    success=True,
+                    error_message="AskNews failed; used multi-source search",
+                )
+
+            # Still no research
+            execution_time = (datetime.now() - stage_start).total_seconds()
+            return ResearchStageResult(
+                content="Research unavailable – AskNews failed and search fallback returned no results.",
+                sources_used=[],
+                model_used="none",
+                cost_estimate=0.0,
+                quality_score=0.1,
+                stage_name="asknews_research",
+                execution_time=execution_time,
+                success=False,
+                error_message="AskNews unavailable and no search results",
+            )
 
         except Exception as e:
             execution_time = (datetime.now() - stage_start).total_seconds()
@@ -240,77 +271,10 @@ class MultiStageResearchPipeline:
                 error_message=str(e),
             )
 
-    async def _execute_free_model_research_fallback(
-        self, question: str, context: Dict[str, Any], stage_start: datetime
-    ) -> ResearchStageResult:
-        """
-        Execute research using free models as fallback when AskNews quota is tight.
-        Uses gpt-oss-20b:free and kimi-k2:free as specified in requirements.
-        """
-        if not self.tri_model_router:
-            raise Exception("Tri-model router not available for free model fallback")
-
-        # Get free models from router
-        free_models = ["openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free"]
-
-        for model_name in free_models:
-            try:
-                # Create research prompt for free models
-                research_prompt = f"""
-Research the following question focusing on recent developments (last 48 hours):
-
-Question: {question}
-
-Provide a concise research summary with:
-- Key recent developments
-- Relevant background information
-- Important factors to consider
-- Any uncertainties or information gaps
-
-Keep response focused and factual.
-"""
-
-                # Use the tri-model router to get a free model
-                model = self.tri_model_router._create_openrouter_model(
-                    model_name,
-                    self.tri_model_router.model_configs["mini"],
-                    "emergency",  # Use emergency mode for free models
-                )
-
-                if model:
-                    research_content = await model.invoke(research_prompt)
-
-                    if research_content and len(research_content.strip()) > 0:
-                        execution_time = (datetime.now() - stage_start).total_seconds()
-
-                        return ResearchStageResult(
-                            content=research_content,
-                            sources_used=[f"Free Model: {model_name}"],
-                            model_used=model_name,
-                            cost_estimate=0.0,  # Free models
-                            quality_score=0.5,  # Lower quality than AskNews
-                            stage_name="asknews_research",
-                            execution_time=execution_time,
-                            success=True,
-                        )
-
-            except Exception as e:
-                self.logger.warning(f"Free model {model_name} failed: {e}")
-                continue
-
-        # If all free models fail
-        execution_time = (datetime.now() - stage_start).total_seconds()
-        return ResearchStageResult(
-            content="Research unavailable - all sources failed",
-            sources_used=[],
-            model_used="none",
-            cost_estimate=0.0,
-            quality_score=0.1,
-            stage_name="asknews_research",
-            execution_time=execution_time,
-            success=False,
-            error_message="All research sources failed",
-        )
+    # Removed: free model & Perplexity fallbacks (deprecated). Keeping method slot intentionally empty
+    # to avoid accidental external calls if referenced elsewhere.
+    async def _execute_free_model_research_fallback(self, *args, **kwargs):  # type: ignore
+        raise RuntimeError("Free model research fallback removed – use AskNews only.")
 
     async def _execute_synthesis_stage(
         self, question: str, research_content: str, context: Dict[str, Any]
@@ -331,7 +295,7 @@ Keep response focused and factual.
                 raise Exception("GPT-5-mini model not available")
 
             # Import anti-slop prompts for synthesis
-            from ...prompts.anti_slop_prompts import anti_slop_prompts
+            from src.prompts.anti_slop_prompts import anti_slop_prompts  # absolute import (domain -> permitted prompts)
 
             # Create synthesis prompt with mandatory citations
             synthesis_prompt = anti_slop_prompts.get_research_prompt(
@@ -638,8 +602,5 @@ Keep response concise and focused on actionable gaps.
             "quality_threshold": self.quality_threshold,
             "asknews_available": bool(self.tournament_asknews),
             "tri_model_router_available": bool(self.tri_model_router),
-            "free_models_configured": [
-                "openai/gpt-oss-20b:free",
-                "moonshotai/kimi-k2:free",
-            ],
+            "free_models_configured": [],  # Purged to prevent 404 spam
         }

@@ -25,6 +25,7 @@ class SearchClient(ABC):
     async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """Search for information and return results."""
         pass
+
     @abstractmethod
     async def health_check(self) -> bool:
         """Check if the search service is available."""
@@ -62,33 +63,85 @@ class DuckDuckGoSearchClient(SearchClient):
         self.base_url = "https://api.duckduckgo.com"
 
     async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
-        """Search using DuckDuckGo API."""
-        logger.info(
-            "Performing DuckDuckGo search", query=query, max_results=max_results
-        )
+        """Search using DuckDuckGo API with query simplification + fallback variants.
 
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # DuckDuckGo instant answer API
-                params = {
-                    "q": query,
-                    "format": "json",
-                    "no_html": "1",
-                    "skip_disambig": "1",
-                }
+        Strategy:
+        - Derive concise keyword query (strip auxiliaries, punctuation, limit tokens)
+        - Try concise form first; if zero results, fallback to original question
+        - If still zero, attempt keyword-only variant (drop stopwords)
+        """
+        original_query = query.strip()
+        simplified = self._simplify_query(original_query)
+        keyword_only = self._keywords_only(original_query)
+        tried: List[str] = []
+        for variant in [simplified, original_query, keyword_only]:
+            if not variant or variant in tried:
+                continue
+            tried.append(variant)
+            logger.info("Performing DuckDuckGo search", query=variant, original=original_query, max_results=max_results)
+            try:
+                async with httpx.AsyncClient(timeout=20.0) as client:
+                    params = {
+                        "q": variant,
+                        "format": "json",
+                        "no_html": "1",
+                        "skip_disambig": "1",
+                    }
+                    response = await client.get(f"{self.base_url}/", params=params)
+                    response.raise_for_status()
+                    data = response.json()
+                    results = self._parse_duckduckgo_response(data, max_results)
+                    if results:
+                        logger.info("DuckDuckGo search completed", results_count=len(results), variant=variant)
+                        return results
+                    logger.debug("DuckDuckGo returned zero results", variant=variant)
+            except Exception as e:  # pragma: no cover
+                logger.warning("DuckDuckGo variant failed", variant=variant, error=str(e))
+        logger.info("DuckDuckGo search exhausted variants with no results", original=original_query)
+        return []
 
-                response = await client.get(f"{self.base_url}/", params=params)
-                response.raise_for_status()
+    def _simplify_query(self, q: str) -> str:
+        lowers = q.lower().strip().rstrip('?')
+        for prefix in (
+            "what will be the ",
+            "what will be the result of the ",
+            "what will be the",
+            "what will",
+            "what is",
+            "will ",
+            "what ",
+            "who ",
+            "how ",
+        ):
+            if lowers.startswith(prefix):
+                lowers = lowers[len(prefix):]
+                break
+        # Keep first 8 words for brevity
+        return " ".join([w for w in lowers.split()[:8]])
 
-                data = response.json()
-                results = self._parse_duckduckgo_response(data, max_results)
-
-                logger.info("DuckDuckGo search completed", results_count=len(results))
-                return results
-
-        except Exception as e:
-            logger.error("DuckDuckGo search failed", query=query, error=str(e))
-            return []
+    def _keywords_only(self, q: str) -> str:
+        import re
+        tokens = re.findall(r"[A-Za-z0-9]+", q.lower())
+        stop = {
+            "the",
+            "of",
+            "a",
+            "an",
+            "will",
+            "be",
+            "is",
+            "what",
+            "result",
+            "between",
+            "vs",
+            "and",
+            "in",
+            "on",
+            "at",
+            "to",
+        }
+        keep = [t for t in tokens if t not in stop]
+        return " ".join(keep[:10])
 
     def _parse_duckduckgo_response(
         self, data: Dict[str, Any], max_results: int
@@ -233,54 +286,53 @@ class WikipediaSearchClient(SearchClient):
         self.base_url = "https://en.wikipedia.org/api/rest_v1"
 
     async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
-        """Search Wikipedia articles."""
-        logger.info("Performing Wikipedia search", query=query, max_results=max_results)
+        """Search Wikipedia articles (guard against poorly-formed question queries).
 
+        We skip if the query looks like a long interrogative sentence ( >10 words & ends with '?')
+        or contains verbs unlikely to map to article titles, to avoid 404 spam.
+        """
+        q = query.strip()
+        if (q.endswith("?") and len(q.split()) > 10) or q.lower().startswith(
+            "what will be the result"
+        ):
+            logger.info("Skipping Wikipedia search for interrogative question form", query=q)
+            return []
+        logger.info("Performing Wikipedia search", query=q, max_results=max_results)
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Search for articles
-                search_url = f"{self.base_url}/page/search/{query}"
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                search_url = f"{self.base_url}/page/search/{q}"
                 params = {"limit": min(max_results, 10)}
-
                 response = await client.get(search_url, params=params)
                 response.raise_for_status()
-
                 search_data = response.json()
-                results = []
-
-                # Get summaries for top results
-                for page in search_data.get("pages", [])[:max_results]:
+                pages = search_data.get("pages", [])
+                results: List[Dict[str, Any]] = []
+                for page in pages[:max_results]:
                     try:
                         summary_url = f"{self.base_url}/page/summary/{page['key']}"
                         summary_response = await client.get(summary_url)
-
                         if summary_response.status_code == 200:
-                            summary_data = summary_response.json()
+                            sd = summary_response.json()
                             results.append(
                                 {
-                                    "title": summary_data.get(
-                                        "title", page.get("title", "")
-                                    ),
-                                    "snippet": summary_data.get("extract", ""),
-                                    "url": summary_data.get("content_urls", {})
+                                    "title": sd.get("title", page.get("title", "")),
+                                    "snippet": sd.get("extract", ""),
+                                    "url": sd.get("content_urls", {})
                                     .get("desktop", {})
                                     .get("page", ""),
                                     "source": "Wikipedia",
                                 }
                             )
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to get Wikipedia summary",
+                    except Exception as e:  # pragma: no cover
+                        logger.debug(
+                            "Wikipedia summary fetch failed",
                             page=page.get("title"),
                             error=str(e),
                         )
-                        continue
-
                 logger.info("Wikipedia search completed", results_count=len(results))
                 return results
-
         except Exception as e:
-            logger.error("Wikipedia search failed", query=query, error=str(e))
+            logger.debug("Wikipedia search failed", query=q, error=str(e))
             return []
 
     async def health_check(self) -> bool:
@@ -365,9 +417,16 @@ class MultiSourceSearchClient(SearchClient):
 
 
 def create_search_client(settings: Settings) -> SearchClient:
-    """Factory function to create appropriate search client based on settings."""
-    # Per provider policy, disable external web search; research handled elsewhere
-    logger.info(
-        "Creating NoOpSearchClient — external search disabled; AskNews-first via pipeline"
-    )
-    return NoOpSearchClient(settings)
+    """Factory selecting multi-source search if enabled, else NoOp.
+
+    Environment overrides:
+        SEARCH_DISABLE_ALL=true  -> force NoOp
+        SEARCH_DUCKDUCKGO_ENABLED / SERPAPI_KEY presence / Wikipedia always on
+    """
+    import os
+
+    if os.getenv("SEARCH_DISABLE_ALL", "").lower() in ("1", "true", "yes"):
+        logger.info("Search globally disabled by SEARCH_DISABLE_ALL env var")
+        return NoOpSearchClient(settings)
+    logger.info("Creating MultiSourceSearchClient for research fallback")
+    return MultiSourceSearchClient(settings)

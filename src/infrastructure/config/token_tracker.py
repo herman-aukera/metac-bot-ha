@@ -4,11 +4,10 @@ Token counting and tracking utilities for accurate cost estimation.
 
 import json
 import logging
-import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Mapping
 
 import tiktoken
 
@@ -46,19 +45,21 @@ class TokenUsageRecord:
 class TokenTracker:
     """Tracks token usage for accurate cost estimation and real-time cost calculation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize token tracker with model encodings and cost tracking."""
-        self.encodings = {}
+        self.encodings: Dict[str, Any] = {}
         self.usage_records: List[TokenUsageRecord] = []
         self.total_tokens_used = {"input": 0, "output": 0, "total": 0}
         self.total_estimated_cost = 0.0
 
-        # Pricing (per 1K tokens). Keep minimal, OpenRouter-routed OpenAI variants only.
-        # Unknown models will fall back to gpt-4o rates. Free-tier models are zero-cost via check below.
+        # Pricing (per 1K tokens). GPT-4o family removed; GPT-5 tiers + free models.
+        # Unknown models default to gpt-5-mini pricing for conservative estimation.
         self.cost_per_token = {
-            "gpt-4o": {"input": 0.0025, "output": 0.01},
-            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
-            # Note: gpt-5 rates not defined here; default fallback will apply.
+            "gpt-5": {"input": 0.0015, "output": 0.0015},  # assumed balanced pricing
+            "gpt-5-mini": {"input": 0.0024, "output": 0.0096},
+            "gpt-5-nano": {"input": 0.00012, "output": 0.0005},
+            "claude-3-5-sonnet": {"input": 0.0030, "output": 0.0150},
+            "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
         }
 
         # Data persistence
@@ -68,13 +69,12 @@ class TokenTracker:
         self._initialize_encodings()
         self._load_existing_data()
 
-    def _initialize_encodings(self):
+    def _initialize_encodings(self) -> None:
         """Initialize tiktoken encodings for different models."""
         try:
             # GPT-4 and GPT-4o use cl100k_base encoding
-            self.encodings["gpt-4"] = tiktoken.get_encoding("cl100k_base")
-            self.encodings["gpt-4o"] = tiktoken.get_encoding("cl100k_base")
-            self.encodings["gpt-4o-mini"] = tiktoken.get_encoding("cl100k_base")
+            self.encodings["gpt-5-mini"] = tiktoken.get_encoding("cl100k_base")
+            self.encodings["gpt-5-nano"] = tiktoken.get_encoding("cl100k_base")
 
             # Claude models - approximate using cl100k_base
             self.encodings["claude-3-5-sonnet"] = tiktoken.get_encoding("cl100k_base")
@@ -85,30 +85,29 @@ class TokenTracker:
         except Exception as e:
             logger.warning(f"Failed to initialize some token encodings: {e}")
 
-    def count_tokens(self, text: str, model: str = "gpt-4o") -> int:
+    def count_tokens(self, text: str, model: str = "gpt-5-mini") -> int:
         """Count tokens in text for a specific model."""
         if not text:
             return 0
 
         # Normalize model name
         model_key = self._normalize_model_name(model)
-
-        # Get appropriate encoding
-        encoding = self.encodings.get(model_key, self.encodings.get("gpt-4o"))
+        # Get appropriate encoding (fallback to gpt-5-mini if missing)
+        encoding = self.encodings.get(model_key) or self.encodings.get("gpt-5-mini")
 
         if not encoding:
             # Fallback: rough estimation (1 token ≈ 4 characters for English)
             logger.warning(
                 f"No encoding available for {model}, using character-based estimation"
             )
-            return len(text) // 4
+            return max(1, len(text) // 4)
 
         try:
             return len(encoding.encode(text))
         except Exception as e:
             logger.warning(f"Failed to count tokens for {model}: {e}")
             # Fallback estimation
-            return len(text) // 4
+            return max(1, len(text) // 4)
 
     def _normalize_model_name(self, model: str) -> str:
         """Normalize model name for encoding lookup."""
@@ -118,17 +117,17 @@ class TokenTracker:
 
         # Handle common variations
         model_mappings = {
-            "gpt-4o": "gpt-4o",
-            "gpt-4o-mini": "gpt-4o-mini",
-            "gpt-4": "gpt-4",
+            "gpt-5": "gpt-5",
+            "gpt-5-mini": "gpt-5-mini",
+            "gpt-5-nano": "gpt-5-nano",
             "claude-3-5-sonnet": "claude-3-5-sonnet",
             "claude-3-haiku": "claude-3-haiku",
         }
 
-        return model_mappings.get(model, "gpt-4o")  # Default to gpt-4o
+        return model_mappings.get(model, "gpt-5-mini")  # Default to gpt-5-mini
 
     def estimate_tokens_for_prompt(
-        self, prompt: str, model: str = "gpt-4o"
+        self, prompt: str, model: str = "gpt-5-mini"
     ) -> Dict[str, int]:
         """Estimate input and output tokens for a prompt."""
         input_tokens = self.count_tokens(prompt, model)
@@ -149,10 +148,10 @@ class TokenTracker:
 
         # Different models have different typical response lengths
         model_factors = {
-            "gpt-4o": 0.3,  # Typically concise
-            "gpt-4o-mini": 0.25,  # More concise
-            "claude-3-5-sonnet": 0.4,  # More verbose
-            "claude-3-haiku": 0.2,  # Very concise
+            "gpt-5-mini": 0.3,
+            "gpt-5-nano": 0.25,
+            "claude-3-5-sonnet": 0.4,
+            "claude-3-haiku": 0.2,
         }
 
         model_key = self._normalize_model_name(model)
@@ -183,15 +182,15 @@ class TokenTracker:
         """Calculate real-time cost for token usage."""
         model_key = self._normalize_model_name(model)
 
-        # Suppress costs for explicit free-tier models routed via OpenRouter (e.g., "openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free")
+        # Suppress costs for explicit free-tier models
         if ":free" in model:
             return 0.0
 
         if model_key not in self.cost_per_token:
-            logger.warning(
-                f"Unknown model {model}, treating as zero-cost fallback (free baseline)"
+            logger.debug(
+                f"Unknown model {model}, defaulting to gpt-5-mini pricing for estimation"
             )
-            return 0.0
+            model_key = "gpt-5-mini"
 
         rates = self.cost_per_token[model_key]
         cost = (input_tokens * rates["input"] / 1000) + (
@@ -305,9 +304,9 @@ class TokenTracker:
         model_key = self._normalize_model_name(model)
 
         limits = {
-            "gpt-4o": {"context": 128000, "output": 4096},
-            "gpt-4o-mini": {"context": 128000, "output": 16384},
-            "gpt-4": {"context": 8192, "output": 4096},
+            "gpt-5": {"context": 200000, "output": 8192},
+            "gpt-5-mini": {"context": 128000, "output": 6144},
+            "gpt-5-nano": {"context": 64000, "output": 4096},
             "claude-3-5-sonnet": {"context": 200000, "output": 4096},
             "claude-3-haiku": {"context": 200000, "output": 4096},
         }
@@ -385,8 +384,7 @@ class TokenTracker:
                 "by_task_type": {},
                 "success_rate": 0.0,
             }
-
-        summary = {
+        summary: Dict[str, Any] = {
             "total_calls": len(self.usage_records),
             "total_tokens": self.total_tokens_used.copy(),
             "total_cost": self.total_estimated_cost,
@@ -395,7 +393,6 @@ class TokenTracker:
             "by_day": {},
             "success_rate": 0.0,
         }
-
         successful_calls = 0
 
         for record in self.usage_records:
@@ -452,15 +449,15 @@ class TokenTracker:
             successful_calls / len(self.usage_records) if self.usage_records else 0.0
         )
 
-        for model_stats in summary["by_model"].values():
-            model_stats["success_rate"] = sum(
-                1 for r in self.usage_records if r.model_used == model and r.success
-            ) / max(sum(1 for r in self.usage_records if r.model_used == model), 1)
+        for model_name, model_stats in summary["by_model"].items():
+            successes = sum(1 for r in self.usage_records if r.model_used == model_name and r.success)
+            total_calls = sum(1 for r in self.usage_records if r.model_used == model_name)
+            model_stats["success_rate"] = successes / max(total_calls, 1)
 
-        for task_stats in summary["by_task_type"].values():
-            task_stats["success_rate"] = sum(
-                1 for r in self.usage_records if r.task_type == task and r.success
-            ) / max(sum(1 for r in self.usage_records if r.task_type == task), 1)
+        for task_name, task_stats in summary["by_task_type"].items():
+            successes = sum(1 for r in self.usage_records if r.task_type == task_name and r.success)
+            total_calls = sum(1 for r in self.usage_records if r.task_type == task_name)
+            task_stats["success_rate"] = successes / max(total_calls, 1)
 
         return summary
 
@@ -503,7 +500,7 @@ class TokenTracker:
 
         return metrics
 
-    def log_usage_summary(self):
+    def log_usage_summary(self) -> None:
         """Log comprehensive usage summary."""
         summary = self.get_usage_summary()
 
@@ -545,7 +542,7 @@ class TokenTracker:
                 f"{stats['success_rate']:.1%} success"
             )
 
-    def _save_data(self):
+    def _save_data(self) -> None:
         """Save token usage data to file."""
         try:
             data = {
@@ -561,7 +558,7 @@ class TokenTracker:
         except Exception as e:
             logger.error(f"Failed to save token usage data: {e}")
 
-    def _load_existing_data(self):
+    def _load_existing_data(self) -> None:
         """Load existing token usage data if available."""
         try:
             if self.data_file.exists():
@@ -588,7 +585,7 @@ class TokenTracker:
         except Exception as e:
             logger.warning(f"Failed to load existing token usage data: {e}")
 
-    def reset_tracking(self):
+    def reset_tracking(self) -> None:
         """Reset token usage tracking (use with caution)."""
         self.usage_records = []
         self.total_tokens_used = {"input": 0, "output": 0, "total": 0}

@@ -3,6 +3,7 @@ Tournament-focused Metaculus API client with enhanced tournament operations.
 """
 
 import asyncio
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -100,7 +101,7 @@ class TournamentMetaculusClient(MetaculusClient):
         self.deadline_tracker: Dict[str, QuestionDeadlineInfo] = {}
         self._initialize_categories()
 
-    def _initialize_categories(self):
+    def _initialize_categories(self) -> None:
         """Initialize question categories with tournament strategies."""
         self.question_categories = {
             "technology": QuestionCategory(
@@ -167,46 +168,75 @@ class TournamentMetaculusClient(MetaculusClient):
         )
 
         # Build query parameters
-        params = {
-            "limit": limit,
-            "order_by": "-close_time",  # Prioritize by deadline
-        }
-
+        params: Dict[str, Any] = {"limit": limit}
         if tournament_id:
             params["tournament"] = tournament_id
-
         if not include_resolved:
             params["status"] = "open"
 
-        # Fetch questions using base client
-        questions = await self.fetch_questions(**params)
+        # Pagination integration: allow environment to control page size and max questions
+        try:
+            page_size = int(os.getenv("TOURNAMENT_PAGE_SIZE", str(min(limit, 50))))
+        except Exception:
+            page_size = min(limit, 50)
+        try:
+            max_questions = int(os.getenv("TOURNAMENT_MAX_QUESTIONS", str(limit)))
+        except Exception:
+            max_questions = limit
+        max_questions = min(max_questions, limit)
 
-        # Enhance with tournament-specific metadata
-        enhanced_questions = []
-        for question in questions:
-            enhanced_question = await self._enhance_question_with_tournament_data(
-                question
+        async def _fetch_page(page: int, size: int) -> List[Question]:
+            offset = page * size
+            remaining = max_questions - offset
+            if remaining <= 0:
+                return []
+            page_limit = min(size, remaining)
+            status_val = params.get("status", "open")
+            return await self.fetch_questions(status=status_val, limit=page_limit, offset=offset)
+
+        questions: List[Question] = []
+        if page_size >= max_questions:
+            questions = await self.fetch_questions(status=params.get("status", "open"), limit=max_questions, offset=0)
+        else:
+            page = 0
+            seen_ids: Set[str] = set()
+            while len(questions) < max_questions:
+                batch = await _fetch_page(page, page_size)
+                if not batch:
+                    break
+                for q in batch:
+                    qid = str(q.id)
+                    if qid in seen_ids:
+                        continue
+                    seen_ids.add(qid)
+                    questions.append(q)
+                    if len(questions) >= max_questions:
+                        break
+                if len(batch) < page_size:
+                    break
+                page += 1
+            logger.info(
+                "Pagination summary",
+                pages=page + 1,
+                retrieved=len(questions),
+                target=max_questions,
+                page_size=page_size,
             )
 
-            # Apply priority filtering
+        enhanced_questions: List[Question] = []
+        for question in questions:
+            enhanced = await self._enhance_question_with_tournament_data(question)
             if priority_filter:
-                question_priority = self._calculate_question_priority(enhanced_question)
-                if question_priority != priority_filter:
+                if self._calculate_question_priority(enhanced) != priority_filter:
                     continue
+            enhanced_questions.append(enhanced)
 
-            enhanced_questions.append(enhanced_question)
-
-        # Sort by tournament priority
         enhanced_questions.sort(key=self._get_priority_sort_key, reverse=True)
-
         logger.info(
             "Fetched tournament questions",
             total=len(enhanced_questions),
-            critical=len(
-                [q for q in enhanced_questions if self._is_critical_question(q)]
-            ),
+            critical=len([q for q in enhanced_questions if self._is_critical_question(q)]),
         )
-
         return enhanced_questions
 
     async def _enhance_question_with_tournament_data(
@@ -216,7 +246,8 @@ class TournamentMetaculusClient(MetaculusClient):
         # Calculate deadline information
         if question.close_time:
             deadline_info = self._calculate_deadline_info(question)
-            self.deadline_tracker[question.id] = deadline_info
+            # Use string key to avoid UUID vs str typing mismatches
+            self.deadline_tracker[str(question.id)] = deadline_info
 
         # Categorize question
         category = self._categorize_question(question)
@@ -229,9 +260,9 @@ class TournamentMetaculusClient(MetaculusClient):
             "tournament_priority": priority.value,
             "category": category.category_name if category else "unknown",
             "urgency_score": self.deadline_tracker.get(
-                question.id,
+                str(question.id),
                 QuestionDeadlineInfo(
-                    question_id=question.id,
+                    question_id=str(question.id),
                     close_time=question.close_time or datetime.now(timezone.utc),
                     resolve_time=question.resolve_time,
                     time_until_close=timedelta(days=30),
@@ -276,7 +307,7 @@ class TournamentMetaculusClient(MetaculusClient):
         submission_start = close_time - (question_lifetime * 0.25)
 
         return QuestionDeadlineInfo(
-            question_id=question.id,
+            question_id=str(question.id),
             close_time=close_time,
             resolve_time=question.resolve_time,
             time_until_close=time_until_close,
@@ -381,7 +412,7 @@ class TournamentMetaculusClient(MetaculusClient):
 
     def _calculate_question_priority(self, question: Question) -> TournamentPriority:
         """Calculate tournament priority for a question."""
-        deadline_info = self.deadline_tracker.get(question.id)
+        deadline_info = self.deadline_tracker.get(str(question.id))
 
         if not deadline_info:
             return TournamentPriority.LOW
@@ -624,7 +655,7 @@ class TournamentMetaculusClient(MetaculusClient):
             questions = await self.fetch_tournament_questions(tournament_id, limit=200)
 
             # Calculate category distribution
-            category_distribution = {}
+            category_distribution: Dict[str, int] = {}
             for question in questions:
                 category = question.metadata.get("category", "unknown")
                 category_distribution[category] = (
@@ -721,7 +752,7 @@ class TournamentMetaculusClient(MetaculusClient):
                     "priority": "critical",
                     "message": f"{len(urgent_questions)} questions closing soon. Prioritize immediate action.",
                     "action": "handle_urgent_questions",
-                    "question_count": len(urgent_questions),
+                    "question_count": str(len(urgent_questions)),
                 }
             )
 
@@ -772,7 +803,7 @@ class TournamentMetaculusClient(MetaculusClient):
         """Get summary of question deadlines and urgency."""
         now = datetime.now(timezone.utc)
 
-        summary = {
+        summary: Dict[str, List[Any]] = {
             "critical": [],  # < 6 hours
             "urgent": [],  # < 24 hours
             "soon": [],  # < 72 hours

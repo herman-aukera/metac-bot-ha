@@ -4,8 +4,8 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..config.tournament_config import get_tournament_config
 
@@ -28,7 +28,7 @@ class AskNewsUsageStats:
 
     def add_request(
         self, success: bool, used_fallback: bool = False, quota_exhausted: bool = False
-    ):
+    ) -> None:
         """Add a request to the statistics."""
         now = datetime.now(timezone.utc)
         today = now.strftime("%Y-%m-%d")
@@ -86,7 +86,10 @@ class TournamentAskNewsClient:
     - Tournament-specific optimizations
     """
 
-    def __init__(self):
+    # Class-level semaphore for cross-instance concurrency limiting
+    _global_semaphore: Optional[asyncio.Semaphore] = None
+
+    def __init__(self) -> None:
         """Initialize the tournament AskNews client."""
         self.config = get_tournament_config()
         self.usage_stats = AskNewsUsageStats()
@@ -102,13 +105,24 @@ class TournamentAskNewsClient:
         self.daily_limit = int(
             os.getenv("ASKNEWS_DAILY_LIMIT", "500")
         )  # Conservative daily limit
+        # Circuit breaker state
+        self._consecutive_failures = 0
+        self._breaker_open_until: Optional[datetime] = None
+        self._failure_threshold = int(os.getenv("ASKNEWS_FAILURE_THRESHOLD", "5"))
+        self._cooldown_seconds = int(os.getenv("ASKNEWS_COOLDOWN_SECONDS", "120"))
 
-        # Fallback providers (disabled per policy to avoid non-OpenRouter calls)
-        self.fallback_providers = []
+        # Fallback providers (re-enabled DuckDuckGo lightweight public source)
+        self.fallback_providers = ["duckduckgo"]
 
         # Initialize AskNews SDK if credentials are available
         self.asknews_available = bool(self.client_id and self.client_secret)
         self.ask = None
+
+        # Initialize global semaphore lazily
+        if TournamentAskNewsClient._global_semaphore is None:
+            max_conc = int(os.getenv("ASKNEWS_MAX_CONCURRENCY", "1"))
+            TournamentAskNewsClient._global_semaphore = asyncio.Semaphore(max_conc)
+            self.logger.info(f"AskNews global concurrency set to {max_conc}")
         if self.asknews_available:
             try:
                 from asknews_sdk import AskNewsSDK  # Provided by 'asknews' package
@@ -159,6 +173,10 @@ class TournamentAskNewsClient:
         if not self.asknews_available:
             return False
 
+        # Circuit breaker check
+        if self._breaker_open_until and datetime.now(timezone.utc) < self._breaker_open_until:
+            return False
+
         if self.quota_exhausted:
             return False
 
@@ -189,17 +207,20 @@ class TournamentAskNewsClient:
             raise RuntimeError("AskNews SDK not available")
 
         try:
-            # AskNews SDK is sync; run in a thread to avoid blocking the event loop
-            def _search():
-                assert self.ask is not None
-                return self.ask.news.search_news(
-                    query=question,
-                    n_articles=10,
-                    return_type="string",
-                    method="nl",
-                )
-
-            resp = await asyncio.to_thread(_search)
+            # Stagger start to reduce burst (global small jitter)
+            await asyncio.sleep(float(os.getenv("ASKNEWS_STAGGER_SECONDS", "0.15")))
+            # Acquire global semaphore
+            assert TournamentAskNewsClient._global_semaphore is not None
+            async with TournamentAskNewsClient._global_semaphore:
+                def _search() -> Any:  # run sync SDK in thread
+                    assert self.ask is not None
+                    return self.ask.news.search_news(
+                        query=question,
+                        n_articles=10,
+                        return_type="string",
+                        method="nl",
+                    )
+                resp = await asyncio.to_thread(_search)
             research = getattr(resp, "as_string", None) or str(resp)
 
             # Log successful usage
@@ -213,11 +234,22 @@ class TournamentAskNewsClient:
             self.logger.error(f"AskNews API call failed: {e}")
             raise
 
-    async def _asknews_attempt(self, question: str, attempt: int):
-        """Perform a single AskNews attempt. Returns (result or None, should_break)."""
+    async def _asknews_attempt(self, question: str, attempt: int) -> Tuple[Optional[str], bool]:
+        """Perform a single AskNews attempt.
+
+        Returns
+        -------
+        tuple
+            (research_text_or_none, should_break)
+        """
         try:
+            # Simple rate limit guard: small async sleep between attempts to reduce burst 429s
+            if attempt > 0:
+                await asyncio.sleep(0.75)
             research = await self._call_asknews(question)
             if research and len(research.strip()) > 0:
+                # reset failure counter on success
+                self._consecutive_failures = 0
                 self.usage_stats.add_request(success=True)
                 self.logger.info(
                     f"AskNews research successful (attempt {attempt + 1})"
@@ -228,6 +260,7 @@ class TournamentAskNewsClient:
                     f"AskNews returned empty result (attempt {attempt + 1})"
                 )
                 self.usage_stats.add_request(success=False)
+                self._consecutive_failures += 1
                 return None, False
         except Exception as e:
             self.logger.warning(
@@ -242,17 +275,32 @@ class TournamentAskNewsClient:
                 return None, True
             else:
                 self.usage_stats.add_request(success=False)
+                self._consecutive_failures += 1
+                if self._consecutive_failures >= self._failure_threshold:
+                    self._breaker_open_until = datetime.now(timezone.utc) + timedelta(seconds=self._cooldown_seconds)
+                    self.logger.error(
+                        f"AskNews circuit breaker OPEN for {self._cooldown_seconds}s after {self._consecutive_failures} consecutive failures"
+                    )
                 return None, False
 
     async def _call_fallback_providers(self, question: str) -> str:
-        """External fallbacks disabled; handled by pipeline free models."""
-        # Use parameters and async features to satisfy linters
-        self.logger.info(
-            "External search fallbacks disabled; deferring to pipeline free-model synthesis for question: %s",
-            question[:80] if question else "",
-        )
-        await asyncio.sleep(0)
-        return ""
+        """Use DuckDuckGo instant answer as lightweight fallback, then synthesize."""
+        try:
+            from .search_client import DuckDuckGoSearchClient
+            from ..config.settings import get_settings
+            settings = get_settings()
+            ddg = DuckDuckGoSearchClient(settings)
+            results = await ddg.search(question, max_results=5)
+            if not results:
+                return ""
+            bullet_lines = [
+                f"- {r.get('title', '')}: {r.get('url', '')[:120]}" for r in results
+            ]
+            summary = "DuckDuckGo fallback results:\n" + "\n".join(bullet_lines)
+            return summary
+        except Exception as e:
+            self.logger.warning(f"DuckDuckGo fallback failed: {e}")
+            return ""
 
     async def _call_perplexity(self, question: str, use_open_router: bool = False) -> str:
         """Deprecated: Perplexity usage removed per provider policy."""
@@ -288,7 +336,7 @@ class TournamentAskNewsClient:
             ),
         }
 
-    def reset_quota_status(self):
+    def reset_quota_status(self) -> None:
         """Reset quota status (useful for testing or manual recovery)."""
         self.quota_exhausted = False
         self.usage_stats = AskNewsUsageStats()
@@ -317,3 +365,14 @@ class TournamentAskNewsClient:
         return {
             "openrouter": bool(os.getenv("OPENROUTER_API_KEY")),
         }
+
+    async def aclose(self) -> None:  # pragma: no cover - graceful shutdown hook
+        """Graceful async close for interface parity (future async SDK)."""
+        try:
+            ask_obj = getattr(self, "ask", None)
+            if ask_obj and hasattr(ask_obj, "close"):
+                maybe = ask_obj.close()
+                if asyncio.iscoroutine(maybe):  # type: ignore[arg-type]
+                    await maybe  # type: ignore[misc]
+        except Exception:
+            pass

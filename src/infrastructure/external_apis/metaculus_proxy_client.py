@@ -13,11 +13,16 @@ logger = logging.getLogger(__name__)
 
 
 class ProxyModelType(Enum):
-    """Metaculus proxy model types."""
+    """Metaculus proxy model types.
+
+    Note: GPT-4o proxy entries are deprecated in favor of GPT-5 routing via OpenRouter.
+    They are retained for compatibility when explicitly enabled via env.
+    """
 
     CLAUDE_3_5_SONNET = "metaculus/claude-3-5-sonnet"
-    GPT_4O = "metaculus/gpt-4o"
-    GPT_4O_MINI = "metaculus/gpt-4o-mini"
+    # Deprecated: prefer GPT-5 tiers through OpenRouter fallbacks
+    GPT_4O = "metaculus/gpt-4o"  # deprecated
+    GPT_4O_MINI = "metaculus/gpt-4o-mini"  # deprecated
 
 
 @dataclass
@@ -32,7 +37,7 @@ class ProxyUsageStats:
 
     def add_request(
         self, success: bool, used_fallback: bool = False, credits_used: float = 0.0
-    ):
+    ) -> None:
         """Add a request to the statistics."""
         self.total_requests += 1
         if success:
@@ -90,16 +95,16 @@ class MetaculusProxyClient:
             ),
         }
 
-        # Fallback model configuration
+        # Fallback model configuration (purged legacy GPT-4o; use GPT-5 tiers)
         self.fallback_models = {
-            "default": "anthropic/claude-3-5-sonnet",
-            "summarizer": "openai/gpt-4o-mini",
-            "research": "openai/gpt-4o",
+            "default": "openai/gpt-5",
+            "summarizer": "openai/gpt-5-nano",
+            "research": "openai/gpt-5-mini",
         }
 
-        # Credit management
+        # Credit management: disable by default to avoid legacy proxy model usage
         self.proxy_credits_enabled = (
-            os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true"
+            os.getenv("ENABLE_PROXY_CREDITS", "false").lower() == "true"
         )
         self.max_proxy_requests = int(
             os.getenv("MAX_PROXY_REQUESTS", "1000")
@@ -245,7 +250,7 @@ class MetaculusProxyClient:
         """Wrap proxy client to track usage statistics by intercepting async generate."""
         original_generate = client.generate
 
-        async def tracked_generate(*args, **kwargs):
+        async def tracked_generate(*args: Any, **kwargs: Any) -> str:
             try:
                 result = await original_generate(*args, **kwargs)
                 # Estimate credits used (rough approximation)
@@ -265,7 +270,7 @@ class MetaculusProxyClient:
         """Wrap fallback client to track usage statistics by intercepting async generate."""
         original_generate = client.generate
 
-        async def tracked_generate(*args, **kwargs):
+        async def tracked_generate(*args: Any, **kwargs: Any) -> str:
             try:
                 result = await original_generate(*args, **kwargs)
                 self.usage_stats.add_request(success=True, used_fallback=True)
@@ -305,13 +310,13 @@ class MetaculusProxyClient:
             "proxy_credits_enabled": self.proxy_credits_enabled,
         }
 
-    def reset_proxy_status(self):
+    def reset_proxy_status(self) -> None:
         """Reset proxy status (useful for testing or manual recovery)."""
         self.proxy_exhausted = False
         self.usage_stats = ProxyUsageStats()
         self.logger.info("Proxy status reset")
 
-    def disable_proxy(self):
+    def disable_proxy(self) -> None:
         """Manually disable proxy (useful for testing fallback)."""
         self.proxy_exhausted = True
         self.logger.info("Proxy manually disabled")

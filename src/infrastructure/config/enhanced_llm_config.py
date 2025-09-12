@@ -299,10 +299,11 @@ class EnhancedLLMConfig:
     def get_fallback_models(self) -> Dict[str, str]:
         """Get fallback models for different scenarios."""
         return {
-            # Prefer GPT-5 tiers + free fallbacks; avoid GPT-4o per policy
+            # Prefer GPT-5 tiers + free fallbacks; purge GPT-4o(mini) usage per policy
             "emergency": DEFAULT_GPT5_NANO,
             "conservative": DEFAULT_GPT5_NANO,
-            "proxy_fallback": "metaculus/gpt-4o-mini",  # proxy-supported fallback
+            # Use nano as proxy fallback (cheapest) until explicit proxy GPT-5 mapping is available
+            "proxy_fallback": DEFAULT_GPT5_NANO,
             "last_resort": "openai/gpt-5-mini",
         }
 

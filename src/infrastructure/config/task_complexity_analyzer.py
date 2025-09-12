@@ -135,19 +135,19 @@ class TaskComplexityAnalyzer:
         """Setup model recommendations based on complexity and budget status."""
         return {
             ComplexityLevel.SIMPLE: {
-                "normal": "openai/gpt-4o-mini",
-                "conservative": "openai/gpt-4o-mini",
-                "emergency": "openai/gpt-4o-mini",
+                "normal": "openai/gpt-5-mini",
+                "conservative": "openai/gpt-5-nano",
+                "emergency": "openai/gpt-5-nano",
             },
             ComplexityLevel.MEDIUM: {
-                "normal": "openai/gpt-4o-mini",  # Research tasks
-                "conservative": "openai/gpt-4o-mini",
-                "emergency": "openai/gpt-4o-mini",
+                "normal": "openai/gpt-5-mini",  # Research tasks
+                "conservative": "openai/gpt-5-nano",
+                "emergency": "openai/gpt-5-nano",
             },
             ComplexityLevel.COMPLEX: {
-                "normal": "openai/gpt-4o",  # Use premium model for complex tasks
-                "conservative": "openai/gpt-4o-mini",  # Downgrade in conservative mode
-                "emergency": "openai/gpt-4o-mini",  # Always use cheap model in emergency
+                "normal": "openai/gpt-5",  # Use premium model for complex tasks
+                "conservative": "openai/gpt-5-mini",  # Downgrade in conservative mode
+                "emergency": "openai/gpt-5-nano",  # Always use cheapest model in emergency
             },
         }
 
@@ -340,9 +340,9 @@ class TaskComplexityAnalyzer:
                 complexity_assessment.level == ComplexityLevel.COMPLEX
                 and budget_status == "normal"
             ):
-                return "openai/gpt-4o-mini"  # Still use mini for research, but could upgrade
+                return "openai/gpt-5-mini"  # Use mini for research; upgrade if budget allows
             else:
-                return "openai/gpt-4o-mini"
+                return "openai/gpt-5-nano"
 
         # For forecast tasks, use complexity-based selection
         elif task_type == "forecast":
@@ -385,11 +385,12 @@ class TaskComplexityAnalyzer:
 
         # Cost calculation (simplified - would use actual BudgetManager in practice)
         cost_per_1k = {
-            "openai/gpt-4o": {"input": 0.0025, "output": 0.01},
-            "openai/gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+            "openai/gpt-5": {"input": 0.0025, "output": 0.01},  # placeholder cost parity assumption
+            "openai/gpt-5-mini": {"input": 0.0005, "output": 0.0015},  # adjust when official pricing known (verify)
+            "openai/gpt-5-nano": {"input": 0.00015, "output": 0.0006},
         }
 
-        model_costs = cost_per_1k.get(model, cost_per_1k["openai/gpt-4o-mini"])
+        model_costs = cost_per_1k.get(model, cost_per_1k["openai/gpt-5-nano"])
         estimated_cost = (input_tokens * model_costs["input"] / 1000) + (
             output_tokens * model_costs["output"] / 1000
         )

@@ -82,6 +82,8 @@ class BudgetManager:
             "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
             "perplexity/sonar-reasoning": {"input": 0.005, "output": 0.005},
             "perplexity/sonar-pro": {"input": 0.001, "output": 0.001},
+            # Composite bucket for multi-stage pipeline aggregated usage (approximate blended rate)
+            "multi_stage_pipeline": {"input": 0.00025, "output": 0.0009},
         }
 
         # Load existing data if available
@@ -239,8 +241,10 @@ class BudgetManager:
             return "NORMAL"
 
     def get_cost_breakdown(self) -> Dict[str, Any]:
-        """Get detailed cost breakdown by model and task type."""
-        breakdown = {
+        """Return detailed cost breakdown by model and task type."""
+        breakdown: Dict[str, Any] = {
+            "total_spend": self.current_spend,
+            "questions_processed": self.questions_processed,
             "by_model": {},
             "by_task_type": {},
             "by_day": {},
@@ -248,34 +252,31 @@ class BudgetManager:
         }
 
         for record in self.cost_records:
-            # By model
             model = record.model_used
             if model not in breakdown["by_model"]:
                 breakdown["by_model"][model] = {
-                    "cost": 0,
+                    "cost": 0.0,
                     "calls": 0,
                     "tokens": {"input": 0, "output": 0},
                 }
-            breakdown["by_model"][model]["cost"] += record.estimated_cost
-            breakdown["by_model"][model]["calls"] += 1
-            breakdown["by_model"][model]["tokens"]["input"] += record.input_tokens
-            breakdown["by_model"][model]["tokens"]["output"] += record.output_tokens
+            md = breakdown["by_model"][model]
+            md["cost"] += record.estimated_cost
+            md["calls"] += 1
+            md["tokens"]["input"] += record.input_tokens
+            md["tokens"]["output"] += record.output_tokens
 
-            # By task type
             task = record.task_type
             if task not in breakdown["by_task_type"]:
-                breakdown["by_task_type"][task] = {"cost": 0, "calls": 0}
+                breakdown["by_task_type"][task] = {"cost": 0.0, "calls": 0}
             breakdown["by_task_type"][task]["cost"] += record.estimated_cost
             breakdown["by_task_type"][task]["calls"] += 1
 
-            # By day
-            day = record.timestamp.date().isoformat()
+            day = record.timestamp.strftime("%Y-%m-%d")
             if day not in breakdown["by_day"]:
-                breakdown["by_day"][day] = {"cost": 0, "calls": 0}
+                breakdown["by_day"][day] = {"cost": 0.0, "calls": 0}
             breakdown["by_day"][day]["cost"] += record.estimated_cost
             breakdown["by_day"][day]["calls"] += 1
 
-            # Total tokens
             breakdown["total_tokens"]["input"] += record.input_tokens
             breakdown["total_tokens"]["output"] += record.output_tokens
 
