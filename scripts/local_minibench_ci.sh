@@ -6,7 +6,7 @@ echo "[local-ci] Starting MiniBench local CI simulation..."
 # Safe local overrides to avoid side effects (can be overridden by env)
 export TOURNAMENT_MODE=${TOURNAMENT_MODE:-true}
 export DRY_RUN=${DRY_RUN:-false}
-export PUBLISH_REPORTS=${PUBLISH_REPORTS:-false}
+export PUBLISH_REPORTS=${PUBLISH_REPORTS:-true}
 export SKIP_PREVIOUSLY_FORECASTED=${SKIP_PREVIOUSLY_FORECASTED:-true}
 # Avoid setting PYTHONPATH=src to prevent module name collisions with forecasting_tools
 
@@ -148,6 +148,15 @@ PY
 fi
 
 echo "[local-ci] Running bot (dry-run: $DRY_RUN, publish: $PUBLISH_REPORTS)"
+
+# Guard MiniBench runs by schedule and daily limits if target is MiniBench
+if [[ "${AIB_TOURNAMENT_SLUG:-}" == "minibench" || "${TOURNAMENT_SLUG:-}" == "minibench" || "${AIB_TOURNAMENT_ID:-}" == "minibench" || "$TARGET" == "minibench" ]]; then
+  if ! bash "$(dirname "$0")/minibench_guard.sh"; then
+    code=$?
+    echo "[local-ci] MiniBench guard blocked run (exit $code) — skipping MiniBench execution." >&2
+    exit 0
+  fi
+fi
 set +e
 
 # Decide whether TARGET is an ID (digits) or a slug, then export accordingly
@@ -155,7 +164,7 @@ if [[ "$TARGET" =~ ^[0-9]+$ ]]; then
   echo "[local-ci] Using numeric tournament ID: (hidden)"
   if AIB_TOURNAMENT_ID="$TARGET" \
      TOURNAMENT_MODE=true \
-     PUBLISH_REPORTS=true \
+    PUBLISH_REPORTS="$PUBLISH_REPORTS" \
      DRY_RUN="$DRY_RUN" \
      SKIP_PREVIOUSLY_FORECASTED="$SKIP_PREVIOUSLY_FORECASTED" \
      python3 main.py --mode tournament; then
@@ -167,7 +176,7 @@ else
   echo "[local-ci] Using tournament slug: (hidden)"
   if AIB_TOURNAMENT_SLUG="$TARGET" \
      TOURNAMENT_MODE=true \
-     PUBLISH_REPORTS=true \
+    PUBLISH_REPORTS="$PUBLISH_REPORTS" \
      DRY_RUN="$DRY_RUN" \
      SKIP_PREVIOUSLY_FORECASTED="$SKIP_PREVIOUSLY_FORECASTED" \
      python3 main.py --mode tournament; then

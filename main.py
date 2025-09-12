@@ -3163,6 +3163,36 @@ if __name__ == "__main__":
     # TODO(publish-gate): integrate final publish gate decisions & metrics aggregation
     try:
         if run_mode == "tournament":
+            # MiniBench safety window: optionally skip runs on weekends or outside hours
+            try:
+                tgt = (
+                    os.getenv("AIB_TOURNAMENT_SLUG")
+                    or os.getenv("TOURNAMENT_SLUG")
+                    or os.getenv("AIB_TOURNAMENT_ID", "")
+                )
+                if tgt == "minibench":
+                    import datetime as _dt
+                    try:
+                        from zoneinfo import ZoneInfo as _ZoneInfo
+                    except Exception:  # pragma: no cover
+                        _ZoneInfo = None  # type: ignore
+                    tz_name = os.getenv("MINIBENCH_TZ", "UTC")
+                    start_hh = int(os.getenv("MINIBENCH_WINDOW_START_HH", "15"))
+                    end_hh = int(os.getenv("MINIBENCH_WINDOW_END_HH", "23"))
+                    allow_weekends = os.getenv("MINIBENCH_ALLOW_WEEKENDS", "false").lower() in ("1","true","yes")
+                    now = _dt.datetime.utcnow() if _ZoneInfo is None else _dt.datetime.now(_ZoneInfo(tz_name))
+                    dow = now.isoweekday()
+                    if not allow_weekends and dow >= 6:
+                        logger.info("MiniBench safety: weekend in %s; skipping run.", tz_name)
+                        import sys as _sys
+                        _sys.exit(0)
+                    if not (start_hh <= now.hour <= end_hh):
+                        logger.info("MiniBench safety: outside window %s-%s in %s; skipping run.", start_hh, end_hh, tz_name)
+                        import sys as _sys
+                        _sys.exit(0)
+            except Exception as _e:  # pragma: no cover
+                logger.warning("MiniBench safety check failed: %s (continuing)", _e)
+
             # Accept tournament ID or slug. Prefer explicit slug if provided.
             tournament_target = (
                 os.getenv("AIB_TOURNAMENT_SLUG")
