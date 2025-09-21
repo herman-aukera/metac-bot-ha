@@ -4,7 +4,6 @@ Test OpenRouter configuration and model availability.
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add src to path
@@ -70,7 +69,7 @@ async def test_openrouter_configuration():
         # Get status report
         status_report = router.get_configuration_status_report()
 
-        print(f"   Router initialized: ✅")
+        print("   Router initialized: ✅")
         print(f"   API key configured: {'✅' if status_report['router_info']['api_key_configured'] else '❌'}")
 
         # Check model status

@@ -3,8 +3,7 @@ Unit tests for budget-aware operation manager components.
 Tests operation mode detection, cost optimization, and graceful degradation.
 """
 
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from datetime import datetime
 
 import pytest
 

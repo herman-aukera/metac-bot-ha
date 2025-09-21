@@ -3,11 +3,9 @@ Comprehensive integration tests for the tournament orchestrator.
 Tests all components working together with proper dependency injection.
 """
 
-import asyncio
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
@@ -16,9 +14,6 @@ from src.application.tournament_orchestrator import (
     TournamentOrchestrator,
     create_tournament_orchestrator,
 )
-from src.domain.entities.forecast import Forecast
-from src.domain.entities.question import Question, QuestionStatus, QuestionType
-from src.infrastructure.config.settings import Settings
 
 
 class TestTournamentOrchestrator:

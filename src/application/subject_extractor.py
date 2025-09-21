@@ -5,8 +5,7 @@ Deliberately simple & deterministic; future improvements can add NLP.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from typing import List, Set, Dict
+from typing import List, Dict
 
 LEADING_WORDS = {
     "will",

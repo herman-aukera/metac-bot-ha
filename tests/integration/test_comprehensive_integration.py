@@ -3,22 +3,16 @@ Comprehensive integration tests for task 12.1 - Integration and System Optimizat
 Tests all components working together with proper dependency injection.
 """
 
-import asyncio
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
 
 from src.application.tournament_orchestrator import (
-    ComponentRegistry,
     TournamentOrchestrator,
 )
-from src.domain.entities.forecast import Forecast
-from src.domain.entities.question import Question, QuestionStatus, QuestionType
-from src.infrastructure.config.config_manager import create_config_manager
 
 
 class TestComprehensiveIntegration:

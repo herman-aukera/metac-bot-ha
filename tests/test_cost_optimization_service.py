@@ -4,7 +4,6 @@ Tests for Cost Optimization Service.
 
 from unittest.mock import Mock, patch
 
-import pytest
 
 from src.domain.services.cost_optimization_service import (
     CostOptimizationService,

@@ -3,7 +3,6 @@
 Demo script showing budget-aware operation modes functionality.
 """
 import sys
-import os
 from pathlib import Path
 
 # Add project root to path
@@ -11,7 +10,6 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.infrastructure.config.operation_modes import operation_mode_manager, OperationMode
-from src.infrastructure.config.budget_manager import budget_manager
 
 
 def demo_operation_modes():
@@ -114,7 +112,7 @@ def demo_operation_modes():
         strategy = operation_mode_manager.get_graceful_degradation_strategy()
 
         print(f"    Mode: {strategy['current_mode']}")
-        print(f"    Actions:")
+        print("    Actions:")
         for action in strategy['actions']:
             print(f"      - {action}")
         print()

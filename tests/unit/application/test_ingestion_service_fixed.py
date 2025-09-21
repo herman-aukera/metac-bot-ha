@@ -3,7 +3,6 @@ Unit tests for IngestionService application component.
 Tests JSON parsing, validation, and error handling.
 """
 
-from datetime import datetime, timezone
 
 import pytest
 
@@ -15,7 +14,7 @@ from src.application.ingestion_service import (
     ValidationError,
     ValidationLevel,
 )
-from src.domain.entities.question import Question, QuestionStatus, QuestionType
+from src.domain.entities.question import QuestionStatus, QuestionType
 
 
 class TestIngestionService:

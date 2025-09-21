@@ -4,7 +4,6 @@ Simple validation for Enhanced Anti-Slop Prompts.
 Tests prompt structure and key components without complex imports.
 """
 
-import os
 from pathlib import Path
 
 
@@ -120,7 +119,7 @@ def test_prompt_structure():
     total_lines = len(lines)
     docstring_lines = sum(1 for line in lines if '"""' in line or "'''" in line)
 
-    print(f"\nFile Statistics:")
+    print("\nFile Statistics:")
     print(f"  Total lines: {total_lines}")
     print(f"  Estimated prompt content: {total_lines - docstring_lines} lines")
 

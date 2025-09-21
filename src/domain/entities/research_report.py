@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 
 

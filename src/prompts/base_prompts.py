@@ -1,6 +1,6 @@
 """Base prompt templates and utilities."""
 
-from typing import Any, Dict
+from typing import Any
 
 from jinja2 import Template
 

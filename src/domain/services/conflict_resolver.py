@@ -12,13 +12,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
 from ..entities.question import Question
-from ..entities.research_report import ResearchSource
-from .authoritative_source_manager import AuthoritativeSource, CredibilityFactor
+from .authoritative_source_manager import AuthoritativeSource
 
 logger = structlog.get_logger(__name__)
 

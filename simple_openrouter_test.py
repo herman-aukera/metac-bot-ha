@@ -81,7 +81,7 @@ def test_environment_variables():
     base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     if base_url != "https://openrouter.ai/api/v1":
         print(f"   ⚠️  Non-standard base URL: {base_url}")
-        print(f"      Recommended: https://openrouter.ai/api/v1")
+        print("      Recommended: https://openrouter.ai/api/v1")
     else:
         print(f"   ✅ Base URL is correct: {base_url}")
 
@@ -110,13 +110,13 @@ def test_environment_variables():
     title = os.getenv("OPENROUTER_APP_TITLE")
 
     if not referer and not title:
-        print(f"   ⚠️  No attribution headers set")
-        print(f"      Consider setting OPENROUTER_HTTP_REFERER and OPENROUTER_APP_TITLE")
-        print(f"      This helps with OpenRouter ranking and attribution")
+        print("   ⚠️  No attribution headers set")
+        print("      Consider setting OPENROUTER_HTTP_REFERER and OPENROUTER_APP_TITLE")
+        print("      This helps with OpenRouter ranking and attribution")
     elif referer and title:
-        print(f"   ✅ Attribution headers configured")
+        print("   ✅ Attribution headers configured")
     else:
-        print(f"   ℹ️  Partial attribution headers configured")
+        print("   ℹ️  Partial attribution headers configured")
 
     print("\n" + "="*60)
 

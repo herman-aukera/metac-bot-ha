@@ -5,10 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from src.domain.entities.forecast import Forecast
-from src.domain.entities.prediction import Prediction
 from src.domain.entities.question import Question, QuestionStatus, QuestionType
-from src.domain.entities.research_report import ResearchReport
 from src.domain.value_objects.probability import Probability
 
 

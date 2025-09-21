@@ -3,7 +3,6 @@
 Demo script showing how to use the enhanced token counting and cost tracking system.
 This demonstrates the integration of TokenTracker, BudgetManager, and CostMonitor.
 """
-import os
 import sys
 import logging
 from pathlib import Path
@@ -178,7 +177,7 @@ def demo_budget_alerts():
     # Final status
     status = cost_monitor.get_comprehensive_status()
     budget = status["budget"]
-    print(f"\nFinal Budget Status:")
+    print("\nFinal Budget Status:")
     print(f"  Spent: ${budget['spent']:.4f} / ${budget['total']:.2f}")
     print(f"  Utilization: {budget['utilization_percent']:.1f}%")
     print(f"  Status: {budget['status_level'].upper()}")

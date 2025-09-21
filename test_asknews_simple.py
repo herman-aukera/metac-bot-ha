@@ -26,7 +26,7 @@ def test_asknews_simple():
     print(f"✅ Secret: {client_secret[:4]}...{client_secret[-4:]}")
 
     # Try direct news search with basic auth
-    print(f"\n🔗 Testing direct news search...")
+    print("\n🔗 Testing direct news search...")
 
     try:
         # Use requests with basic auth

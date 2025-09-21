@@ -9,7 +9,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional
 
 from .error_classification import (
     APIError,
@@ -19,7 +19,6 @@ from .error_classification import (
     ErrorContext,
     ErrorRecoveryManager,
     ErrorSeverity,
-    ForecastingError,
     ModelError,
     QualityError,
     RecoveryAction,
@@ -28,9 +27,7 @@ from .error_classification import (
 from .fallback_strategies import (
     AlertConfig,
     FallbackResult,
-    FallbackTier,
     IntelligentFallbackOrchestrator,
-    PerformanceLevel,
 )
 
 logger = logging.getLogger(__name__)

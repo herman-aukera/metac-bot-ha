@@ -6,7 +6,6 @@ Validates the strategic cost-performance triangle implementation.
 
 import asyncio
 import logging
-import os
 import sys
 from pathlib import Path
 

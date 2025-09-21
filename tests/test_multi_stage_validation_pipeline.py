@@ -3,14 +3,12 @@ Tests for Multi-Stage Validation Pipeline Implementation.
 Tests task 4 requirements with all three stages integrated.
 """
 
-import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from src.domain.services.forecasting_stage_service import ForecastResult
-from src.domain.services.multi_stage_research_pipeline import ResearchStageResult
 from src.domain.services.multi_stage_validation_pipeline import (
     MultiStageResult,
     MultiStageValidationPipeline,

@@ -5,11 +5,8 @@ This test verifies that the essential forecasting pipeline works end-to-end
 with minimal dependencies and mocked external services.
 """
 
-import asyncio
 import os
-import tempfile
-from unittest.mock import Mock, patch, AsyncMock
-from typing import Dict, Any
+from unittest.mock import patch, AsyncMock
 
 import pytest
 

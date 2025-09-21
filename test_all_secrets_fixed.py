@@ -118,7 +118,7 @@ async def test_metaculus_api():
                     data = await response.json()
                     results = data.get('results', [])
                     count = data.get('count', 0)
-                    print(f"✅ Metaculus API working!")
+                    print("✅ Metaculus API working!")
                     print(f"📊 Total questions available: {count}")
                     if results:
                         sample_question = results[0]
@@ -193,7 +193,7 @@ def check_environment_variables():
     print(f"\n📊 Summary: {len(configured_vars)}/{len(required_vars)} variables configured")
 
     if missing_vars:
-        print(f"\n❌ Missing variables:")
+        print("\n❌ Missing variables:")
         for var in missing_vars:
             print(f"  - {var}")
         return False

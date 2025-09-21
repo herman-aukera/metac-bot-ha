@@ -18,9 +18,8 @@ import asyncio
 import time
 import traceback
 import json
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, Tuple
 import argparse
-from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -618,7 +617,7 @@ class DeploymentReadinessChecker:
             print("2. Re-run deployment readiness check")
             print("3. Consider emergency deployment procedures if urgent")
 
-        print(f"\n📋 Full test results saved to: deployment_readiness_report.json")
+        print("\n📋 Full test results saved to: deployment_readiness_report.json")
 
     def save_report(self, tests: Dict[str, Tuple[bool, str]], success: bool):
         """Save deployment readiness report to file."""

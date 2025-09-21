@@ -108,7 +108,7 @@ def demo_environment_configuration():
         print(f"  Tournament scope: {config.tournament_scope}")
 
         # Test with deadline-aware disabled
-        print(f"\nWith deadline-aware disabled:")
+        print("\nWith deadline-aware disabled:")
         print(f"  100h left → {config.get_deadline_aware_frequency(100)}h frequency")
         print(f"  12h left → {config.get_deadline_aware_frequency(12)}h frequency")
 

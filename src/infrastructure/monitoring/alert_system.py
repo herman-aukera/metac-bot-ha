@@ -5,12 +5,11 @@ Provides real-time monitoring and alerting for forecast accuracy and API perform
 
 import json
 import logging
-import statistics
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from ..entities.forecast import Forecast
 from ..entities.prediction import Prediction

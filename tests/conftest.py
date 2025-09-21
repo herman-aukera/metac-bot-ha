@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from src.infrastructure.config.settings import AggregationMethod, Settings
+from src.infrastructure.config.settings import Settings
 
 
 @pytest.fixture

@@ -74,7 +74,7 @@ class APIKeyManager:
                     {
                         "key": key_name,
                         "description": description,
-                        "status": "using_fallback",
+                        "status": "missing",
                     }
                 )
 
@@ -101,8 +101,9 @@ class APIKeyManager:
             )
 
         if validation["warnings"]:
-            logger.info(
-                f"Using fallback for optional keys: {[w['key'] for w in validation['warnings']]}"
+            logger.warning(
+                "Optional API keys not configured (this is fine): %d missing",
+                len(validation["warnings"]),
             )
 
 

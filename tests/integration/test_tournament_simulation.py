@@ -3,10 +3,8 @@ Tournament simulation and dry-run mode testing.
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
-import pytest
 
 from src.domain.entities.prediction import Prediction
 from src.domain.entities.question import Question, QuestionType

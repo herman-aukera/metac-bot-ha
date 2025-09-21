@@ -162,14 +162,14 @@ def main():
             results.append(False)
 
     # Run async test
-    print(f"\nModel Availability Test:")
+    print("\nModel Availability Test:")
     try:
         availability_result = asyncio.run(test_model_availability())
         results.append(availability_result)
         print(
-            f"✓ Model Availability Test passed"
+            "✓ Model Availability Test passed"
             if availability_result
-            else f"✗ Model Availability Test failed"
+            else "✗ Model Availability Test failed"
         )
     except Exception as e:
         print(f"✗ Model Availability Test failed with error: {e}")

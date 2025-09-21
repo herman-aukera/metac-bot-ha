@@ -3,6 +3,7 @@ Search client for gathering external information to support forecasting.
 """
 
 import asyncio
+import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -17,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class SearchClient(ABC):
     """Abstract base class for search clients."""
 
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize with optional config parameter for test compatibility."""
         self.config = config
 
@@ -81,7 +82,7 @@ class DuckDuckGoSearchClient(SearchClient):
             logger.info("Performing DuckDuckGo search", query=variant, original=original_query, max_results=max_results)
             try:
                 async with httpx.AsyncClient(timeout=20.0) as client:
-                    params = {
+                    params: Dict[str, str | int | float | bool | Any | None] = {
                         "q": variant,
                         "format": "json",
                         "no_html": "1",
@@ -205,7 +206,7 @@ class SerpAPISearchClient(SearchClient):
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                params = {
+                params: Dict[str, str | int | float | bool | None] = {
                     "q": query,
                     "api_key": self.api_key,
                     "engine": "google",
@@ -266,7 +267,7 @@ class SerpAPISearchClient(SearchClient):
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                params = {
+                params: Dict[str, str | int | float | bool | None] = {
                     "q": "test",
                     "api_key": self.api_key,
                     "engine": "google",
@@ -350,16 +351,41 @@ class MultiSourceSearchClient(SearchClient):
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.clients = []
+        self.clients: List[SearchClient] = []
 
-        # Initialize available search clients
-        self.clients.append(DuckDuckGoSearchClient(settings))
-        self.clients.append(WikipediaSearchClient(settings))
+        # Environment overrides for quick disable without changing config
+        ddg_env = os.getenv("SEARCH_DUCKDUCKGO_ENABLED", "").lower()
+        wiki_env = os.getenv("SEARCH_WIKIPEDIA_ENABLED", "").lower()
+        serp_env = os.getenv("SEARCH_SERPAPI_ENABLED", "").lower()
 
-        if settings.search.serpapi_key:
+        ddg_enabled = (
+            settings.search.duckduckgo_enabled
+            and ddg_env not in ("0", "false", "no")
+        ) or ddg_env in ("1", "true", "yes")
+        wiki_enabled = (
+            settings.search.wikipedia_enabled
+            and wiki_env not in ("0", "false", "no")
+        ) or wiki_env in ("1", "true", "yes")
+        serp_enabled = (
+            bool(settings.search.serpapi_key)
+            and serp_env not in ("0", "false", "no")
+        ) or serp_env in ("1", "true", "yes")
+
+        # Initialize available search clients according to flags
+        if ddg_enabled:
+            self.clients.append(DuckDuckGoSearchClient(settings))
+        if wiki_enabled:
+            self.clients.append(WikipediaSearchClient(settings))
+        if serp_enabled:
             self.clients.append(SerpAPISearchClient(settings))
 
-        logger.info("Initialized multi-source search", client_count=len(self.clients))
+        logger.info(
+            "Initialized multi-source search",
+            client_count=len(self.clients),
+            ddg_enabled=ddg_enabled,
+            wikipedia_enabled=wiki_enabled,
+            serpapi_enabled=serp_enabled,
+        )
 
     async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """Search across multiple sources and combine results."""

@@ -12,8 +12,6 @@ Usage:
 import sys
 import os
 import asyncio
-import time
-from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -90,7 +88,7 @@ async def main():
             print("- The failing tests are related to missing API keys")
             print("- Core Python/project structure tests are passing")
 
-        print(f"\n🎯 Ready for tournament development!")
+        print("\n🎯 Ready for tournament development!")
         print("Push your changes to GitHub to run the full deployment pipeline with secrets.")
 
     except ImportError as e:

@@ -298,7 +298,7 @@ def print_summary():
     print("  4. Use health checks to detect model issues early")
     print("  5. Review routing decisions periodically for optimization")
 
-    print(f"\nConfiguration Status:")
+    print("\nConfiguration Status:")
     print(
         f"  OpenRouter API Key: {'✓ Configured' if os.getenv('OPENROUTER_API_KEY') else '✗ Missing'}"
     )

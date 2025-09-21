@@ -51,7 +51,7 @@ def test_environment_configuration():
         "openai/gpt-4o-mini",
         "anthropic/claude-3-5-sonnet",
     ]
-    print(f"\nVerifying expensive models are NOT in primary configuration:")
+    print("\nVerifying expensive models are NOT in primary configuration:")
     all_passed = True
     for model in expensive_models:
         if model not in [
@@ -97,7 +97,7 @@ def test_tri_model_router():
                 )
 
         # Test fallback chains
-        print(f"\nFallback chains:")
+        print("\nFallback chains:")
         for tier, chain in tri_model_router.fallback_chains.items():
             print(f"  {tier}: {' → '.join(chain)}")
 
@@ -109,20 +109,20 @@ def test_tri_model_router():
                     and "openai/gpt-4o" not in chain
                 ):
                     print(
-                        f"    ✅ Correct fallback order (GPT-5 → Free, skip expensive)"
+                        "    ✅ Correct fallback order (GPT-5 → Free, skip expensive)"
                     )
                 else:
-                    print(f"    ❌ Incorrect fallback order")
+                    print("    ❌ Incorrect fallback order")
 
         # Test operation modes
-        print(f"\nOperation mode thresholds:")
+        print("\nOperation mode thresholds:")
         routing_info = tri_model_router.get_openrouter_provider_routing_info()
         for mode, description in routing_info["operation_modes"].items():
             print(f"  {mode}: {description}")
             if "GPT-5" in description or "Free models" in description:
-                print(f"    ✅ Mentions GPT-5 or free models")
+                print("    ✅ Mentions GPT-5 or free models")
             else:
-                print(f"    ❌ Should mention GPT-5 or free models")
+                print("    ❌ Should mention GPT-5 or free models")
 
         return True
 
@@ -147,7 +147,7 @@ def test_anti_slop_prompts():
                 print(f"❌ {tier}: Missing GPT-5 optimization")
 
         # Test model-specific adaptations
-        print(f"\nModel-specific adaptations:")
+        print("\nModel-specific adaptations:")
         test_models = [
             ("openai/gpt-5-nano", "GPT-5-NANO SPECIFIC"),
             ("openai/gpt-5-mini", "GPT-5-MINI SPECIFIC"),
@@ -178,7 +178,6 @@ def test_cost_analysis():
     print("\n=== COST ANALYSIS ===")
 
     try:
-        from src.infrastructure.config.tri_model_router import tri_model_router
 
         # Simulate cost for 1000 questions
         questions = 1000
@@ -225,7 +224,7 @@ def test_cost_analysis():
         questions_with_gpt5 = int(100 / mixed_cost * questions)
         questions_with_gpt4o = int(100 / gpt4o_cost * questions)
 
-        print(f"\nQuestions possible with $100 budget:")
+        print("\nQuestions possible with $100 budget:")
         print(f"  GPT-5 cost-optimized: {questions_with_gpt5:,} questions")
         print(f"  GPT-4o expensive: {questions_with_gpt4o:,} questions")
         print(
@@ -233,9 +232,9 @@ def test_cost_analysis():
         )
 
         if questions_with_gpt5 > 2000:
-            print(f"✅ Achieves 2000+ questions target")
+            print("✅ Achieves 2000+ questions target")
         else:
-            print(f"❌ Does not achieve 2000+ questions target")
+            print("❌ Does not achieve 2000+ questions target")
 
         return True
 

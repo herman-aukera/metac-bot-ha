@@ -3,12 +3,10 @@ Tests for prompt optimization and token usage efficiency.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-import pytest
 
 from src.domain.entities.question import Question, QuestionType
-from src.domain.entities.research_report import ResearchReport
 from src.infrastructure.config.token_tracker import TokenTracker
 from src.prompts.calibrated_forecasting_prompts import (
     CalibratedForecastingPrompts,

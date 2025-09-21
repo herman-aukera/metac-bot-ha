@@ -1,7 +1,6 @@
 """Chain of Thought reasoning agent."""
 
 from typing import Any, Dict, List, Optional
-from uuid import UUID
 
 import structlog
 

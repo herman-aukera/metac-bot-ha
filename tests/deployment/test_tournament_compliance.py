@@ -5,10 +5,9 @@ This test verifies that the bot meets all tournament requirements and compliance
 before deployment to ensure it can participate without violations.
 """
 
-import asyncio
+from datetime import datetime, timedelta
 import os
 from unittest.mock import Mock, patch, AsyncMock
-from typing import Dict, Any, List
 
 import pytest
 
@@ -76,7 +75,6 @@ class TestTournamentCompliance:
             url="https://metaculus.com/questions/98765",
             close_time=datetime.utcnow() + timedelta(days=30),
             categories=["Environment", "Climate"],
-            url="https://metaculus.com/questions/98765/",
             tournament_id=32813,
         )
 

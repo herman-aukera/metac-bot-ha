@@ -1,6 +1,6 @@
 """Tests for CalibrationTracker service."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -10,7 +10,6 @@ from src.domain.entities.prediction import (
     Prediction,
     PredictionConfidence,
     PredictionMethod,
-    PredictionResult,
 )
 from src.domain.services.calibration_service import (
     CalibrationBin,

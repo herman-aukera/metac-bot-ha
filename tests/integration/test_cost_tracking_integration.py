@@ -5,9 +5,7 @@ Tests integration with existing forecasting components.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 from src.infrastructure.config.budget_manager import BudgetManager
 from src.infrastructure.config.cost_monitor import CostMonitor

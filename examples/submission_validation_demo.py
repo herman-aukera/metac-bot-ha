@@ -8,7 +8,6 @@ This script demonstrates the key features implemented for task 10.2:
 3. Dry-run mode with tournament condition simulation
 """
 
-import asyncio
 import sys
 import os
 from datetime import datetime, timezone, timedelta
@@ -19,13 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from src.infrastructure.external_apis.submission_validator import (
     SubmissionValidator,
     AuditTrailManager,
-    DryRunManager,
-    ValidationResult,
-    SubmissionStatus
+    DryRunManager
 )
 from src.domain.entities.question import Question, QuestionType
-from src.domain.entities.prediction import Prediction, PredictionResult
-from src.domain.value_objects.confidence import ConfidenceLevel
 
 
 def create_sample_questions():
@@ -146,20 +141,20 @@ def demonstrate_validation_features():
         question, prediction, tournament_context
     )
 
-    print(f"Question analysis:")
+    print("Question analysis:")
     qa = simulation_results["question_analysis"]
     print(f"  - Category: {qa['category']}")
     print(f"  - Priority: {qa['tournament_priority']}")
     print(f"  - Is urgent: {qa['is_urgent']}")
     print(f"  - Community prediction: {qa['community_prediction']}")
 
-    print(f"\nTournament simulation:")
+    print("\nTournament simulation:")
     ts = simulation_results["tournament_simulation"]
     print(f"  - Market efficiency: {ts['market_efficiency']}")
     print(f"  - Competitive pressure: {ts['competitive_pressure']}")
     print(f"  - Scoring impact: {ts['scoring_impact']['impact']}")
 
-    print(f"\nRisk assessment:")
+    print("\nRisk assessment:")
     ra = simulation_results["risk_assessment"]
     print(f"  - Risk level: {ra['risk_level']}")
     print(f"  - Identified risks: {', '.join(ra['identified_risks'])}")
@@ -316,23 +311,23 @@ def demonstrate_dry_run_mode():
     report = dry_run_manager.end_dry_run_session(session_id)
 
     session_summary = report["session_summary"]
-    print(f"Session completed:")
+    print("Session completed:")
     print(f"  - Total submissions: {session_summary['total_submissions']}")
     print(f"  - Validation success rate: {session_summary['validation_success_rate']:.1%}")
     print(f"  - Duration: {session_summary['duration_seconds']:.1f} seconds")
 
     risk_analysis = report["risk_analysis"]
-    print(f"\nRisk analysis:")
+    print("\nRisk analysis:")
     print(f"  - High risk submissions: {risk_analysis['high_risk_submissions']}")
     print(f"  - Risk rate: {risk_analysis['risk_rate']:.1%}")
 
     learning_analysis = report["learning_analysis"]
-    print(f"\nLearning analysis:")
+    print("\nLearning analysis:")
     print(f"  - Total opportunities: {learning_analysis['total_opportunities']}")
     print(f"  - Top learning areas: {', '.join(learning_analysis['top_learning_areas'])}")
 
     competitive_analysis = report["competitive_analysis"]
-    print(f"\nCompetitive analysis:")
+    print("\nCompetitive analysis:")
     print(f"  - Average ranking change: {competitive_analysis['average_ranking_change']:.1f}")
     print(f"  - Competitive readiness: {competitive_analysis['competitive_readiness']}")
 

@@ -6,7 +6,6 @@ to markdown files in the logs/reasoning/ directory structure.
 """
 
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union

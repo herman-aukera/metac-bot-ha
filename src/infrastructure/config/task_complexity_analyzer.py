@@ -6,7 +6,7 @@ import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -135,12 +135,12 @@ class TaskComplexityAnalyzer:
         """Setup model recommendations based on complexity and budget status."""
         return {
             ComplexityLevel.SIMPLE: {
-                "normal": "openai/gpt-5-mini",
+                "normal": "openai/gpt-5-nano",
                 "conservative": "openai/gpt-5-nano",
                 "emergency": "openai/gpt-5-nano",
             },
             ComplexityLevel.MEDIUM: {
-                "normal": "openai/gpt-5-mini",  # Research tasks
+                "normal": "openai/gpt-5-mini",  # Balanced research
                 "conservative": "openai/gpt-5-nano",
                 "emergency": "openai/gpt-5-nano",
             },

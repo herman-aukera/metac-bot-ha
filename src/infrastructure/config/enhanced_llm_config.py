@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 # Default model constants to avoid duplicated literals
 DEFAULT_GPT5 = "openai/gpt-5"

@@ -10,8 +10,6 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime
-from typing import Dict, Any
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -23,7 +21,6 @@ from src.infrastructure.reliability.comprehensive_error_recovery import (
     ComprehensiveErrorRecoveryManager, RecoveryConfiguration
 )
 from src.infrastructure.config.tri_model_router import OpenRouterTriModelRouter
-from src.infrastructure.config.budget_aware_operation_manager import BudgetAwareOperationManager
 
 # Configure logging
 logging.basicConfig(
@@ -181,7 +178,7 @@ class ErrorHandlingSystemDemo:
 
         # Show error statistics
         stats = classifier.get_error_statistics()
-        logger.info(f"\nError Statistics:")
+        logger.info("\nError Statistics:")
         logger.info(f"  Total Errors: {stats['total_errors']}")
         logger.info(f"  Error Categories: {stats['error_categories']}")
 
@@ -217,7 +214,7 @@ class ErrorHandlingSystemDemo:
                 result = await fallback_manager.execute_fallback(tier, context, budget_remaining)
 
                 if result.success:
-                    logger.info(f"  ✓ Fallback Successful")
+                    logger.info("  ✓ Fallback Successful")
                     logger.info(f"  Fallback Model: {result.fallback_used.name}")
                     logger.info(f"  Performance Impact: {result.performance_impact:.2f}")
                     logger.info(f"  Cost Impact: {result.cost_impact:.2f}")
@@ -230,7 +227,7 @@ class ErrorHandlingSystemDemo:
 
         # Show fallback statistics
         stats = fallback_manager.get_fallback_statistics()
-        logger.info(f"\nFallback Statistics:")
+        logger.info("\nFallback Statistics:")
         logger.info(f"  Total Fallbacks: {stats['total_fallbacks']}")
         logger.info(f"  Recent Fallbacks (24h): {stats.get('recent_fallbacks_24h', 0)}")
 
@@ -266,7 +263,7 @@ class ErrorHandlingSystemDemo:
                 result = await provider_manager.execute_provider_fallback(original_provider, context)
 
                 if result.success:
-                    logger.info(f"  ✓ Provider Fallback Successful")
+                    logger.info("  ✓ Provider Fallback Successful")
                     logger.info(f"  Fallback Provider: {result.fallback_used.name}")
                     logger.info(f"  Recovery Time: {result.recovery_time:.2f}s")
                 else:
@@ -305,7 +302,7 @@ class ErrorHandlingSystemDemo:
                 # Activate emergency mode
                 recovery_action = await emergency_manager.activate_emergency_mode(trigger_error, context)
 
-                logger.info(f"  ✓ Emergency Mode Activated")
+                logger.info("  ✓ Emergency Mode Activated")
                 logger.info(f"  Strategy: {recovery_action.strategy.value}")
                 logger.info(f"  Free Models Only: {recovery_action.parameters.get('free_models_only', False)}")
                 logger.info(f"  Minimal Functionality: {recovery_action.parameters.get('minimal_functionality', False)}")
@@ -318,7 +315,7 @@ class ErrorHandlingSystemDemo:
 
                 # Test deactivation (with mock conditions)
                 # Note: In real scenario, this would check actual system conditions
-                logger.info(f"  Attempting to deactivate emergency mode...")
+                logger.info("  Attempting to deactivate emergency mode...")
                 deactivated = await emergency_manager.deactivate_emergency_mode()
                 logger.info(f"  Deactivation {'successful' if deactivated else 'failed'}")
 
@@ -366,7 +363,7 @@ class ErrorHandlingSystemDemo:
                 # Execute comprehensive recovery
                 result = await self.recovery_manager.recover_from_error(error, context)
 
-                logger.info(f"  Recovery Result:")
+                logger.info("  Recovery Result:")
                 logger.info(f"    Success: {result.success}")
                 logger.info(f"    Strategy: {result.recovery_strategy.value}")
                 logger.info(f"    Recovery Time: {result.recovery_time:.2f}s")
@@ -397,14 +394,14 @@ class ErrorHandlingSystemDemo:
 
         # Show recovery statistics
         stats = status['recovery_statistics']
-        logger.info(f"\nRecovery Statistics:")
+        logger.info("\nRecovery Statistics:")
         logger.info(f"  Total Recoveries: {stats['total_recoveries']}")
         logger.info(f"  Successful Recoveries: {stats['successful_recoveries']}")
         logger.info(f"  Failed Recoveries: {stats['failed_recoveries']}")
         logger.info(f"  Average Recovery Time: {stats['average_recovery_time']:.2f}s")
 
         if stats['strategy_effectiveness']:
-            logger.info(f"\nStrategy Effectiveness:")
+            logger.info("\nStrategy Effectiveness:")
             for strategy, effectiveness in stats['strategy_effectiveness'].items():
                 logger.info(f"  {strategy}:")
                 logger.info(f"    Attempts: {effectiveness['attempts']}")
@@ -413,17 +410,17 @@ class ErrorHandlingSystemDemo:
 
         # Show system health
         health = status['system_health']
-        logger.info(f"\nSystem Health:")
+        logger.info("\nSystem Health:")
         logger.info(f"  Status: {health['status']}")
         logger.info(f"  Health Score: {health['score']:.2f}")
         if health['issues']:
             logger.info(f"  Issues: {health['issues']}")
 
         # Test recovery system
-        logger.info(f"\nTesting Recovery System...")
+        logger.info("\nTesting Recovery System...")
         test_results = await self.recovery_manager.test_recovery_system()
 
-        logger.info(f"Test Results:")
+        logger.info("Test Results:")
         for test_name, result in test_results['test_results'].items():
             if result['success']:
                 logger.info(f"  ✓ {test_name}: Passed")

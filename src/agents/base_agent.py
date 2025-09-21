@@ -1,11 +1,11 @@
 """Base agent class for forecasting."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import structlog
 
-from ..domain.entities.forecast import Forecast, ForecastStatus
+from ..domain.entities.forecast import Forecast
 from ..domain.entities.prediction import Prediction
 from ..domain.entities.question import Question
 from ..domain.entities.research_report import ResearchReport

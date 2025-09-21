@@ -3,17 +3,13 @@
 import statistics
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
-from uuid import UUID
+from typing import Any, Dict, List, Optional
 
 import structlog
 
 from ..entities.forecast import Forecast
-from ..entities.prediction import Prediction
 from ..entities.question import Question
-from ..value_objects.confidence import ConfidenceLevel
 from ..value_objects.tournament_strategy import (
-    QuestionCategory,
     RiskProfile,
     TournamentStrategy,
 )

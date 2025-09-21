@@ -2,10 +2,9 @@
 
 import asyncio
 import random
-import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, List, Optional, Type
 
 import structlog
 

@@ -8,8 +8,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..entities.forecast import Forecast
-from ..entities.prediction import Prediction, PredictionConfidence
-from ..value_objects.confidence import ConfidenceLevel
+from ..entities.prediction import Prediction
 
 
 class UncertaintySource(Enum):

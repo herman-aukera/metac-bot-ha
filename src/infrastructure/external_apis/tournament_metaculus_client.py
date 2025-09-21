@@ -2,7 +2,6 @@
 Tournament-focused Metaculus API client with enhanced tournament operations.
 """
 
-import asyncio
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -12,7 +11,7 @@ from typing import Any, Dict, List, Optional, Set
 import httpx
 import structlog
 
-from ...domain.entities.question import Question, QuestionType
+from ...domain.entities.question import Question
 from ...domain.value_objects.time_range import TimeRange
 from ..config.settings import Settings
 from .metaculus_client import MetaculusClient

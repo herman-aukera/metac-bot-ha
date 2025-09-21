@@ -1,7 +1,7 @@
 """Tests for StrategyAdaptationEngine service."""
 
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -11,7 +11,6 @@ from src.domain.entities.prediction import (
     Prediction,
     PredictionConfidence,
     PredictionMethod,
-    PredictionResult,
 )
 from src.domain.services.pattern_detector import PatternDetector
 from src.domain.services.performance_analyzer import PerformanceAnalyzer

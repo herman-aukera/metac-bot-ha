@@ -5,8 +5,6 @@ from uuid import UUID
 
 from ..entities.forecast import Forecast
 from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
-from ..entities.question import Question
-from ..entities.research_report import ResearchReport
 
 
 class ForecastingService:

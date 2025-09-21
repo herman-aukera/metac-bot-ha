@@ -9,12 +9,11 @@ from uuid import uuid4
 
 import pytest
 
-from src.domain.entities.forecast import Forecast, ForecastStatus
+from src.domain.entities.forecast import Forecast
 from src.domain.entities.prediction import (
     Prediction,
     PredictionConfidence,
     PredictionMethod,
-    PredictionResult,
 )
 from src.domain.entities.research_report import (
     ResearchQuality,
@@ -27,7 +26,6 @@ from src.domain.services.performance_tracking_service import (
     PerformanceAlert,
     PerformanceMetric,
     PerformanceTrackingService,
-    TournamentAnalytics,
 )
 from src.domain.value_objects.reasoning_trace import (
     ReasoningStep,

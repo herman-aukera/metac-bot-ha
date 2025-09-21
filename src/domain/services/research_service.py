@@ -2,13 +2,11 @@
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from uuid import UUID
 
 import structlog
 
 from ..entities.question import Question
 from ..entities.research_report import ResearchQuality, ResearchReport, ResearchSource
-from ..value_objects.confidence import ConfidenceLevel
 from ..value_objects.time_range import TimeRange
 from .multi_stage_research_pipeline import MultiStageResearchPipeline
 
@@ -592,7 +590,7 @@ class ResearchService:
             ]
 
         # Create executive summary
-        executive_summary = f"Multi-stage research conducted using AskNews API and GPT-5-mini synthesis. "
+        executive_summary = "Multi-stage research conducted using AskNews API and GPT-5-mini synthesis. "
         if quality_metrics:
             executive_summary += (
                 f"Quality score: {quality_metrics.overall_quality:.2f}, "

@@ -4,7 +4,6 @@ Integration tests for operation modes with enhanced LLM configuration.
 
 from unittest.mock import Mock, patch
 
-import pytest
 
 from src.infrastructure.config.enhanced_llm_config import EnhancedLLMConfig
 from src.infrastructure.config.operation_modes import OperationMode

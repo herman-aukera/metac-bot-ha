@@ -8,16 +8,12 @@ of divergence, and provides strategies for resolving conflicts in predictions.
 import math
 import statistics
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
-from uuid import UUID
+from typing import Any, Dict, List, Optional
 
 import structlog
 
-from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
-from ..value_objects.confidence import ConfidenceLevel
-from ..value_objects.probability import Probability
+from ..entities.prediction import Prediction
 
 logger = structlog.get_logger(__name__)
 
@@ -643,14 +639,14 @@ class DivergenceAnalyzer:
         """Generate human-readable explanation of divergence analysis."""
         explanation = f"Divergence Analysis: {level.value.replace('_', ' ').title()} divergence detected among {prediction_count} predictions.\n\n"
 
-        explanation += f"Key Metrics:\n"
+        explanation += "Key Metrics:\n"
         explanation += f"- Variance: {metrics.variance:.4f}\n"
         explanation += f"- Range: {metrics.range_spread:.3f}\n"
         explanation += f"- Consensus Strength: {metrics.consensus_strength:.2f}\n"
         explanation += f"- Outliers: {metrics.outlier_count}\n\n"
 
         if sources:
-            explanation += f"Primary Divergence Sources:\n"
+            explanation += "Primary Divergence Sources:\n"
             for source in sources:
                 explanation += f"- {source.value.replace('_', ' ').title()}\n"
             explanation += "\n"

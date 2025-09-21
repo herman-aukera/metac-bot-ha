@@ -4,16 +4,15 @@ import asyncio
 import random
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from src.application.forecast_service import ForecastService
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
-from src.domain.services.ensemble_service import EnsembleService
 from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
 

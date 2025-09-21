@@ -15,7 +15,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from datetime import datetime, timedelta
 from uuid import uuid4
-import json
 
 from src.domain.services.dynamic_weight_adjuster import (
     DynamicWeightAdjuster,
@@ -175,7 +174,7 @@ def main():
     print("   Optimal ensemble:")
     for agent, weight in optimal_composition.agent_weights.items():
         print(f"     {agent}: {weight:.3f}")
-    print(f"   Composition rationale:")
+    print("   Composition rationale:")
     print(f"     {optimal_composition.composition_rationale}")
 
     print("\n=== Demo Complete ===")

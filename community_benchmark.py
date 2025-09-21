@@ -11,7 +11,6 @@ import typeguard
 from forecasting_tools import (
     Benchmarker,
     ForecastBot,
-    GeneralLlm,
     MonetaryCostManager,
     MetaculusApi,
     ApiFilter,

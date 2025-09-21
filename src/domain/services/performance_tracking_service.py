@@ -15,13 +15,11 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from ...infrastructure.logging.reasoning_logger import get_reasoning_logger
 from ..entities.forecast import Forecast
-from ..entities.prediction import Prediction
-from ..value_objects.reasoning_trace import ReasoningTrace
 
 
 class MetricType(Enum):

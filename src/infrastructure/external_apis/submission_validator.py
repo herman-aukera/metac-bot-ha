@@ -6,7 +6,7 @@ import json
 import os
 import random
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
@@ -15,7 +15,6 @@ import structlog
 
 from ...domain.entities.prediction import Prediction
 from ...domain.entities.question import Question, QuestionType
-from ...domain.value_objects.probability import Probability
 
 logger = structlog.get_logger(__name__)
 

@@ -3,14 +3,11 @@ Integration tests for the comprehensive error handling and recovery system.
 Tests the complete error recovery workflow with all fallback strategies.
 """
 
-import asyncio
 import os
-from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.infrastructure.config.tri_model_router import OpenRouterTriModelRouter
 from src.infrastructure.reliability import (
     APIError,
     BudgetError,

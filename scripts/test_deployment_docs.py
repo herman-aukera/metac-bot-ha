@@ -8,7 +8,6 @@ the required information for emergency tournament deployment.
 
 import os
 import sys
-from pathlib import Path
 
 def test_file_exists(filepath: str, description: str) -> bool:
     """Test if a file exists and is readable."""
@@ -199,35 +198,35 @@ def test_requirements_coverage():
             # Manual deployment instructions
             if (os.path.exists("docs/EMERGENCY_DEPLOYMENT.md") and
                 os.path.exists("scripts/manual_cloud_deployment.sh")):
-                print(f"  ✅ Covered by emergency deployment guide and cloud deployment script")
+                print("  ✅ Covered by emergency deployment guide and cloud deployment script")
                 coverage_passed += 1
             else:
-                print(f"  ❌ Missing manual deployment documentation")
+                print("  ❌ Missing manual deployment documentation")
 
         elif req_id == "11.2":
             # Pip-based installation
             if os.path.exists("requirements-emergency.txt"):
-                print(f"  ✅ Covered by emergency requirements file")
+                print("  ✅ Covered by emergency requirements file")
                 coverage_passed += 1
             else:
-                print(f"  ❌ Missing pip-based installation support")
+                print("  ❌ Missing pip-based installation support")
 
         elif req_id == "11.3":
             # Local testing
             if os.path.exists("scripts/emergency_deployment_verification.py"):
-                print(f"  ✅ Covered by deployment verification script")
+                print("  ✅ Covered by deployment verification script")
                 coverage_passed += 1
             else:
-                print(f"  ❌ Missing local testing verification")
+                print("  ❌ Missing local testing verification")
 
         elif req_id == "11.4":
             # Linux server deployment
             if (os.path.exists("scripts/manual_cloud_deployment.sh") and
                 os.path.exists("requirements-emergency.txt")):
-                print(f"  ✅ Covered by cloud deployment script and emergency requirements")
+                print("  ✅ Covered by cloud deployment script and emergency requirements")
                 coverage_passed += 1
             else:
-                print(f"  ❌ Missing Linux server deployment support")
+                print("  ❌ Missing Linux server deployment support")
 
     print(f"\n📊 Requirements Coverage: {coverage_passed}/{coverage_tests}")
     return coverage_passed == coverage_tests

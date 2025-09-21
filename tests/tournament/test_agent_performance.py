@@ -5,8 +5,8 @@ import math
 import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
-from unittest.mock import AsyncMock, Mock, patch
+from typing import Any, Dict, List, Tuple
+from unittest.mock import AsyncMock, Mock
 
 import numpy as np
 import pytest

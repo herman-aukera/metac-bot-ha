@@ -3,8 +3,6 @@ Unit tests for advanced EnsembleService aggregation methods.
 Tests sophisticated aggregation methods and method selection.
 """
 
-import statistics
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -15,8 +13,6 @@ from src.domain.entities.prediction import (
     PredictionMethod,
 )
 from src.domain.services.ensemble_service import EnsembleService
-from src.domain.value_objects.confidence import ConfidenceLevel
-from src.domain.value_objects.probability import Probability
 
 
 class TestEnsembleServiceAdvanced:

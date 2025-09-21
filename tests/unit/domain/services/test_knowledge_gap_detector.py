@@ -6,7 +6,6 @@ research planning functionality.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -21,14 +20,12 @@ from src.domain.services.authoritative_source_manager import (
     SourceType,
 )
 from src.domain.services.knowledge_gap_detector import (
-    AdaptiveResearchPlan,
     CredibilityGapDetector,
     GapSeverity,
     GapType,
     KnowledgeGap,
     KnowledgeGapDetector,
     QuantitativeDataDetector,
-    ResearchQualityAssessment,
     ResearchStrategy,
     SourceDiversityDetector,
     TemporalCoverageDetector,

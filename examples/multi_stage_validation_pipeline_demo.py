@@ -5,8 +5,6 @@ Demonstrates the complete task 4 implementation with all three stages integrated
 
 import asyncio
 import logging
-from datetime import datetime
-from typing import Dict, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,13 +39,13 @@ async def demo_multi_stage_validation_pipeline():
         )
 
         print("✅ Multi-stage validation pipeline initialized")
-        print(f"   - Research Stage: AskNews (free) + GPT-5-mini synthesis")
-        print(f"   - Validation Stage: GPT-5-nano quality assurance")
-        print(f"   - Forecasting Stage: GPT-5 with calibration")
+        print("   - Research Stage: AskNews (free) + GPT-5-mini synthesis")
+        print("   - Validation Stage: GPT-5-nano quality assurance")
+        print("   - Forecasting Stage: GPT-5 with calibration")
 
         # Get pipeline configuration
         config = pipeline.get_pipeline_configuration()
-        print(f"\n📋 Pipeline Configuration:")
+        print("\n📋 Pipeline Configuration:")
         print(f"   - Stages: {len(config['stages'])}")
         print(f"   - Cost per question target: ${config['cost_optimization']['target_cost_per_question']}")
         print(f"   - Quality threshold: {config['quality_thresholds']['overall_quality_threshold']}")
@@ -102,42 +100,42 @@ async def demo_multi_stage_validation_pipeline():
 
             try:
                 # In a real implementation, this would process through all stages
-                print(f"\n🔬 Stage 1: Research with AskNews + GPT-5-mini")
-                print(f"   - Querying AskNews API (FREE via METACULUSQ4)")
-                print(f"   - Synthesizing with GPT-5-mini ($0.25/1M tokens)")
-                print(f"   - Fallback to free models if needed")
+                print("\n🔬 Stage 1: Research with AskNews + GPT-5-mini")
+                print("   - Querying AskNews API (FREE via METACULUSQ4)")
+                print("   - Synthesizing with GPT-5-mini ($0.25/1M tokens)")
+                print("   - Fallback to free models if needed")
 
-                print(f"\n🔍 Stage 2: Validation with GPT-5-nano")
-                print(f"   - Evidence traceability verification")
-                print(f"   - Hallucination detection")
-                print(f"   - Logical consistency checking")
-                print(f"   - Quality scoring ($0.05/1M tokens)")
+                print("\n🔍 Stage 2: Validation with GPT-5-nano")
+                print("   - Evidence traceability verification")
+                print("   - Hallucination detection")
+                print("   - Logical consistency checking")
+                print("   - Quality scoring ($0.05/1M tokens)")
 
-                print(f"\n🎯 Stage 3: Forecasting with GPT-5")
-                print(f"   - Maximum reasoning capability ($1.50/1M tokens)")
-                print(f"   - Calibration checks and overconfidence reduction")
-                print(f"   - Uncertainty quantification")
-                print(f"   - Tournament compliance validation")
+                print("\n🎯 Stage 3: Forecasting with GPT-5")
+                print("   - Maximum reasoning capability ($1.50/1M tokens)")
+                print("   - Calibration checks and overconfidence reduction")
+                print("   - Uncertainty quantification")
+                print("   - Tournament compliance validation")
 
                 # Simulate processing result
-                print(f"\n📊 SIMULATED RESULTS:")
+                print("\n📊 SIMULATED RESULTS:")
                 if demo['type'] == 'binary':
-                    print(f"   - Prediction: 35% probability")
-                    print(f"   - Confidence: Medium (0.65)")
-                    print(f"   - Calibration Score: 0.78")
+                    print("   - Prediction: 35% probability")
+                    print("   - Confidence: Medium (0.65)")
+                    print("   - Calibration Score: 0.78")
                 elif demo['type'] == 'multiple_choice':
-                    print(f"   - AI/ML: 45%, Quantum: 20%, Biotech: 15%, Renewable: 12%, Autonomous: 8%")
-                    print(f"   - Confidence: High (0.82)")
-                    print(f"   - Calibration Score: 0.74")
+                    print("   - AI/ML: 45%, Quantum: 20%, Biotech: 15%, Renewable: 12%, Autonomous: 8%")
+                    print("   - Confidence: High (0.82)")
+                    print("   - Calibration Score: 0.74")
                 elif demo['type'] == 'numeric':
-                    print(f"   - P10: 1.2°C, P50: 1.5°C, P90: 1.8°C")
-                    print(f"   - Confidence: Medium (0.68)")
-                    print(f"   - Calibration Score: 0.71")
+                    print("   - P10: 1.2°C, P50: 1.5°C, P90: 1.8°C")
+                    print("   - Confidence: Medium (0.68)")
+                    print("   - Calibration Score: 0.71")
 
-                print(f"   - Quality Score: 0.76")
-                print(f"   - Tournament Compliant: ✅ Yes")
-                print(f"   - Total Cost: $0.018")
-                print(f"   - Execution Time: 12.3s")
+                print("   - Quality Score: 0.76")
+                print("   - Tournament Compliant: ✅ Yes")
+                print("   - Total Cost: $0.018")
+                print("   - Execution Time: 12.3s")
 
             except Exception as e:
                 print(f"❌ Error processing question: {e}")
@@ -171,10 +169,10 @@ async def demo_multi_stage_validation_pipeline():
         print("   - Total Average: $0.018 (✅ Under budget)")
 
         print("\n📈 Projected Tournament Performance:")
-        print(f"   - Questions processable with $100: ~5,556")
-        print(f"   - Quality improvement vs single model: +40%")
-        print(f"   - Tournament compliance rate: 95%+")
-        print(f"   - Hallucination detection rate: 98%+")
+        print("   - Questions processable with $100: ~5,556")
+        print("   - Quality improvement vs single model: +40%")
+        print("   - Tournament compliance rate: 95%+")
+        print("   - Hallucination detection rate: 98%+")
 
         print("\n5. QUALITY ASSURANCE FEATURES")
         print("-" * 50)

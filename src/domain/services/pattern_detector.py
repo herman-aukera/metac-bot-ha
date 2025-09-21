@@ -6,15 +6,13 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import structlog
 
-from ..entities.forecast import Forecast, ForecastStatus
-from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
-from ..entities.question import Question, QuestionType
-from ..value_objects.tournament_strategy import TournamentStrategy
+from ..entities.forecast import Forecast
+from ..entities.question import Question
 
 logger = structlog.get_logger(__name__)
 
@@ -1126,7 +1124,7 @@ class PatternDetector:
         return AdaptationRecommendation(
             strategy_type=AdaptationStrategy.CHANGE_METHOD_PREFERENCE,
             title=f"Optimize Method Selection: Favor {best_method}",
-            description=f"Adjust method preferences based on performance analysis",
+            description="Adjust method preferences based on performance analysis",
             rationale=f"Significant performance gap detected: {best_method} outperforms {worst_method} by {performance_gap:.2f}",
             expected_impact=performance_gap * 0.4,
             confidence=pattern.confidence,

@@ -3,7 +3,7 @@ Metaculus API client for fetching questions and submitting predictions.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -11,7 +11,6 @@ import structlog
 
 from ...domain.entities.prediction import Prediction
 from ...domain.entities.question import Question, QuestionType
-from ...domain.value_objects.probability import Probability
 from ..config.settings import Settings
 from .reasoning_comment_formatter import ReasoningCommentFormatter
 

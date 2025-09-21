@@ -3,14 +3,12 @@ Optimization analytics and strategic recommendations for tournament performance.
 Analyzes cost-effectiveness, performance correlations, and provides actionable insights.
 """
 
-import json
 import logging
 import statistics
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 

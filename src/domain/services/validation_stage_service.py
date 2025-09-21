@@ -3,7 +3,6 @@ Validation Stage Service with GPT-5-Nano for Quality Assurance.
 Implements task 4.2 requirements with evidence traceability and hallucination detection.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime

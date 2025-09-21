@@ -55,7 +55,7 @@ async def demo_binary_forecast():
             context=context
         )
 
-        print(f"\n📊 FORECAST RESULTS:")
+        print("\n📊 FORECAST RESULTS:")
         print(f"Prediction: {result.prediction:.1%}")
         print(f"Confidence Score: {result.confidence_score:.2f}")
         print(f"Calibration Score: {result.calibration_score:.2f}")
@@ -64,7 +64,7 @@ async def demo_binary_forecast():
         print(f"Tournament Compliant: {'✅ YES' if result.tournament_compliant else '❌ NO'}")
 
         if result.uncertainty_bounds:
-            print(f"\n🎯 UNCERTAINTY BOUNDS:")
+            print("\n🎯 UNCERTAINTY BOUNDS:")
             print(f"Lower Bound: {result.uncertainty_bounds.get('lower_bound', 0):.1%}")
             print(f"Upper Bound: {result.uncertainty_bounds.get('upper_bound', 1):.1%}")
 
@@ -72,7 +72,7 @@ async def demo_binary_forecast():
         print(f"⏱️ TIME: {result.execution_time:.2f}s")
         print(f"🤖 MODEL: {result.model_used}")
 
-        print(f"\n📝 REASONING EXCERPT:")
+        print("\n📝 REASONING EXCERPT:")
         reasoning_preview = result.reasoning[:300] + "..." if len(result.reasoning) > 300 else result.reasoning
         print(reasoning_preview)
 
@@ -121,7 +121,7 @@ async def demo_multiple_choice_forecast():
             context=context
         )
 
-        print(f"\n📊 PROBABILITY DISTRIBUTION:")
+        print("\n📊 PROBABILITY DISTRIBUTION:")
         if isinstance(result.prediction, dict):
             for option, probability in result.prediction.items():
                 print(f"{option}: {probability:.1%}")
@@ -175,7 +175,7 @@ async def demo_numeric_forecast():
             context=context
         )
 
-        print(f"\n📊 PERCENTILE ESTIMATES:")
+        print("\n📊 PERCENTILE ESTIMATES:")
         if isinstance(result.prediction, dict):
             for percentile in sorted(result.prediction.keys()):
                 value = result.prediction[percentile]

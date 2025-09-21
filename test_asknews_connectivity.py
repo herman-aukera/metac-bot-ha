@@ -60,7 +60,7 @@ async def test_asknews_connectivity():
                     data = await response.json()
                     if 'access_token' in data:
                         token = data['access_token']
-                        print(f"✅ Authentication successful!")
+                        print("✅ Authentication successful!")
                         print(f"🔑 Token received: {token[:20]}...{token[-10:]}")
 
                         # Test a simple news query
@@ -82,7 +82,7 @@ async def test_asknews_connectivity():
 
 async def test_news_query(session, base_url, token):
     """Test a simple news query."""
-    print(f"\n📰 Testing news query...")
+    print("\n📰 Testing news query...")
 
     news_url = f"{base_url}/v1/news/search"
     headers = {
@@ -104,7 +104,7 @@ async def test_news_query(session, base_url, token):
             if response.status == 200:
                 data = await response.json()
                 articles = data.get('articles', [])
-                print(f"✅ News query successful!")
+                print("✅ News query successful!")
                 print(f"📊 Retrieved {len(articles)} articles")
 
                 if articles:

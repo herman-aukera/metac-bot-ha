@@ -1,11 +1,8 @@
 """Reasoning orchestrator service."""
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Protocol, Union
-from uuid import UUID, uuid4
+from typing import Any, Dict, List, Optional, Protocol
 
 import structlog
 
@@ -468,19 +465,15 @@ class ReasoningOrchestrator:
         )
 
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Protocol, Union
-from uuid import UUID, uuid4
+from typing import Any, Dict, List, Optional, Protocol
 
 import structlog
 
 from ..entities.question import Question
 from ..value_objects.reasoning_trace import (
     ReasoningStep,
-    ReasoningStepType,
     ReasoningTrace,
 )
 

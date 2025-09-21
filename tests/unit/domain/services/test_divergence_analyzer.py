@@ -3,8 +3,6 @@ Unit tests for DivergenceAnalyzer.
 Tests divergence analysis, agent disagreement analysis, and resolution strategies.
 """
 
-import statistics
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -22,8 +20,6 @@ from src.domain.services.divergence_analyzer import (
     DivergenceMetrics,
     DivergenceSource,
 )
-from src.domain.value_objects.confidence import ConfidenceLevel
-from src.domain.value_objects.probability import Probability
 
 
 class TestDivergenceAnalyzer:

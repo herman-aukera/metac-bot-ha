@@ -4,10 +4,9 @@ Tests end-to-end question processing, budget-aware operation mode switching,
 and tournament simulation scenarios.
 """
 
-import asyncio
 import os
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 

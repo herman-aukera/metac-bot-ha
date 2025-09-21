@@ -2,7 +2,6 @@
 """
 Test script for budget management integration with main application.
 """
-import asyncio
 import os
 import sys
 from pathlib import Path

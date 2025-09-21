@@ -156,7 +156,7 @@ Status: POOR"""
     print(f"🔧 Service: {status['service']}")
     print(f"🤖 Model: {status['model_used']}")
     print(f"📏 Quality Threshold: {status['quality_threshold']}")
-    print(f"🎯 Capabilities:")
+    print("🎯 Capabilities:")
     for capability in status['capabilities']:
         print(f"   • {capability.replace('_', ' ').title()}")
 

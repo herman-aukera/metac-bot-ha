@@ -6,12 +6,11 @@ Tracks model routing decisions, cost per question, and quality metrics.
 import json
 import logging
 import statistics
-import time
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

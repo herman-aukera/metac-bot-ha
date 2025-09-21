@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 
-def load_env_file():
+def load_env_file() -> None:
     """Load environment variables from .env file."""
     env_file = Path(__file__).parent.parent / ".env"
     if env_file.exists():
@@ -26,7 +26,7 @@ def load_env_file():
 load_env_file()
 
 
-def test_environment_configuration():
+def test_environment_configuration() -> bool:
     """Test that OpenRouter environment variables are properly configured."""
     print("🔧 Testing OpenRouter Environment Configuration")
     print("=" * 50)
@@ -42,11 +42,19 @@ def test_environment_configuration():
 
     all_good = True
 
+    def _mask_secret(value: str) -> str:
+        """Mask sensitive values for safe logging."""
+        if not value:
+            return value
+        # Preserve minimal context without exposing full secret
+        return (value[:6] + "…" + value[-4:]) if len(value) > 12 else "***"
+
     print("Required Variables:")
     for var in required_vars:
         value = os.getenv(var)
         if value and not value.startswith("dummy_"):
-            print(f"  ✓ {var}: {value}")
+            safe_val = _mask_secret(value) if var == "OPENROUTER_API_KEY" else value
+            print(f"  ✓ {var}: {safe_val}")
         else:
             print(f"  ✗ {var}: Not set or dummy value")
             all_good = False
@@ -62,7 +70,7 @@ def test_environment_configuration():
     return all_good
 
 
-def test_model_names():
+def test_model_names() -> bool:
     """Test that model names follow OpenRouter conventions."""
     print("\n📝 Testing Model Name Conventions")
     print("=" * 50)
@@ -99,7 +107,7 @@ def test_model_names():
     return all_good
 
 
-def test_openrouter_base_configuration():
+def test_openrouter_base_configuration() -> bool:
     """Test OpenRouter base configuration."""
     print("\n🌐 Testing OpenRouter Base Configuration")
     print("=" * 50)
@@ -128,7 +136,7 @@ def test_openrouter_base_configuration():
     return True
 
 
-def test_free_fallback_models():
+def test_free_fallback_models() -> bool:
     """Test free fallback model configuration."""
     print("\n🆓 Testing Free Fallback Models")
     print("=" * 50)
@@ -152,7 +160,7 @@ def test_free_fallback_models():
     return True
 
 
-def test_pricing_awareness():
+def test_pricing_awareness() -> bool:
     """Test that we understand the pricing structure."""
     print("\n💰 OpenRouter Pricing Structure")
     print("=" * 50)
@@ -172,7 +180,7 @@ def test_pricing_awareness():
     return True
 
 
-def main():
+def main() -> int:
     """Run all configuration tests."""
     print("🚀 OpenRouter Configuration Validation")
     print("=" * 60)

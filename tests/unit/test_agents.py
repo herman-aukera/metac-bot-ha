@@ -1,9 +1,8 @@
 """Unit tests for AI agents."""
 
-import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
-from uuid import UUID, uuid4
+from unittest.mock import AsyncMock, Mock
+from uuid import UUID
 
 import pytest
 
@@ -25,8 +24,7 @@ from src.domain.entities.research_report import (
     ResearchReport,
     ResearchSource,
 )
-from src.domain.value_objects.probability import Probability
-from src.infrastructure.config.settings import AggregationMethod, Settings
+from src.infrastructure.config.settings import AggregationMethod
 
 
 class TestBaseAgent:

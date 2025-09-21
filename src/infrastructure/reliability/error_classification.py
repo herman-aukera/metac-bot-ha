@@ -4,13 +4,12 @@ Implements model-specific error detection, budget exhaustion handling, API failu
 and quality validation failure recovery with intelligent prompt revision.
 """
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

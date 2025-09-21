@@ -4,7 +4,47 @@ version = "0.1.0"
 description = "Production-ready AI forecasting bot for Metaculus AI Forecasting Benchmark"
 authors = ["Herman <herman@example.com>"]
 readme = "README.md"
-package-mode = false
+package-mode = true
+
+[[tool.poetry.packages]]
+from = "src"
+include = "agents"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "api"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "application"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "domain"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "infrastructure"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "pipelines"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "prompts"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "reporters"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "research"
+
+[[tool.poetry.packages]]
+from = "src"
+include = "utils"
 
 [tool.poetry.dependencies]
 python = "^3.11"

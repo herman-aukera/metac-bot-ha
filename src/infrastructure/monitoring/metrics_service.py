@@ -12,7 +12,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from http.server import HTTPServer
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import psutil
 from prometheus_client import (
@@ -20,7 +20,6 @@ from prometheus_client import (
     Counter,
     Gauge,
     Histogram,
-    Summary,
     generate_latest,
 )
 from prometheus_client.exposition import MetricsHandler

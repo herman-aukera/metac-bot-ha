@@ -14,7 +14,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 
-def load_env_file():
+def load_env_file() -> None:
     """Load environment variables from .env file."""
     env_file = project_root / ".env"
     if env_file.exists():
@@ -26,7 +26,7 @@ def load_env_file():
                     os.environ[key] = value
 
 
-def test_openrouter_base_configuration():
+def test_openrouter_base_configuration() -> bool:
     """Test OpenRouter base configuration."""
     print("🔧 OPENROUTER BASE CONFIGURATION TEST")
     print("=" * 50)
@@ -39,10 +39,16 @@ def test_openrouter_base_configuration():
         "OPENROUTER_APP_TITLE": os.getenv("OPENROUTER_APP_TITLE"),
     }
 
+    def _mask_secret(value: str) -> str:
+        if not value:
+            return value
+        return (value[:6] + "…" + value[-4:]) if len(value) > 12 else "***"
+
     all_configured = True
     for key, value in config_items.items():
         status = "✓" if value else "✗"
-        print(f"  {status} {key}: {value or 'NOT SET'}")
+        safe_val = _mask_secret(value) if key == "OPENROUTER_API_KEY" and value else (value or "NOT SET")
+        print(f"  {status} {key}: {safe_val}")
         if not value:
             all_configured = False
 
@@ -75,7 +81,7 @@ def test_model_names() -> bool:
 
     # Test free fallback models
     free_models = os.getenv("FREE_FALLBACK_MODELS", "").split(",")
-    print(f"\nFree Fallback Models:")
+    print("\nFree Fallback Models:")
     for model in free_models:
         model = model.strip()
         if model:
@@ -106,11 +112,11 @@ def test_pricing_awareness() -> bool:
         print(f"    Output: ${pricing['output']}/1M")
 
     # Calculate cost efficiency
-    print(f"\nCost Efficiency Analysis:")
-    print(f"  Nano tier (gpt-5-nano): $0.05/1M - Ultra-cheap validation")
-    print(f"  Mini tier (gpt-5-mini): $0.25/1M - Balanced research")
-    print(f"  Full tier (gpt-5): $1.50/1M - Premium forecasting")
-    print(f"  Free tier (oss/kimi): $0/1M - Budget exhaustion fallback")
+    print("\nCost Efficiency Analysis:")
+    print("  Nano tier (gpt-5-nano): $0.05/1M - Ultra-cheap validation")
+    print("  Mini tier (gpt-5-mini): $0.25/1M - Balanced research")
+    print("  Full tier (gpt-5): $1.50/1M - Premium forecasting")
+    print("  Free tier (oss/kimi): $0/1M - Budget exhaustion fallback")
     return True
 
 
@@ -153,7 +159,7 @@ def test_environment_configuration() -> bool:
     budget_limit = os.getenv("BUDGET_LIMIT", "100.0")
     max_cost_per_question = os.getenv("MAX_COST_PER_QUESTION", "1.50")
 
-    print(f"Budget Configuration:")
+    print("Budget Configuration:")
     print(f"  Total Budget: ${budget_limit}")
     print(f"  Max Cost per Question: ${max_cost_per_question}")
 
@@ -161,7 +167,7 @@ def test_environment_configuration() -> bool:
     conservative_threshold = os.getenv("CONSERVATIVE_MODE_THRESHOLD", "0.50")
     emergency_threshold = os.getenv("EMERGENCY_MODE_THRESHOLD", "0.80")
 
-    print(f"\nOperation Mode Thresholds:")
+    print("\nOperation Mode Thresholds:")
     print(f"  Conservative Mode: {float(conservative_threshold)*100}% budget used")
     print(f"  Emergency Mode: {float(emergency_threshold)*100}% budget used")
 
@@ -169,13 +175,13 @@ def test_environment_configuration() -> bool:
     tournament_id = os.getenv("AIB_TOURNAMENT_ID", "32813")
     publish_reports = os.getenv("PUBLISH_REPORTS", "true")
 
-    print(f"\nTournament Configuration:")
+    print("\nTournament Configuration:")
     print(f"  Tournament ID: {tournament_id}")
     print(f"  Publish Reports: {publish_reports}")
     return True
 
 
-async def test_model_availability():
+async def test_model_availability() -> bool:
     """Test actual model availability via OpenRouter (skips if pydantic missing)."""
     print("\n🔍 MODEL AVAILABILITY TEST")
     print("=" * 50)
@@ -219,7 +225,7 @@ async def test_model_availability():
         return False
 
 
-def main():
+def main() -> bool:
     """Run all OpenRouter configuration tests."""
     print("🧪 OPENROUTER CONFIGURATION TEST SUITE")
     print("=" * 60)

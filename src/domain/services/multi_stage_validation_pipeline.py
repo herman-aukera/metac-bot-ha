@@ -4,11 +4,10 @@ Integrates research, validation, and forecasting stages for complete question pr
 Implements task 4 requirements with comprehensive quality assurance.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from .forecasting_stage_service import ForecastingStageService, ForecastResult
 from .multi_stage_research_pipeline import (

@@ -2,18 +2,11 @@
 
 import math
 import statistics
-from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from uuid import UUID
+from typing import Any, Dict, List, Optional
 
 import structlog
 
-from ..entities.forecast import Forecast
 from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
-from ..entities.question import Question
-from ..entities.research_report import ResearchReport
-from ..value_objects.confidence import ConfidenceLevel
-from ..value_objects.probability import Probability
 
 logger = structlog.get_logger(__name__)
 
@@ -305,7 +298,7 @@ class EnsembleService:
                 f"- {pred.created_by}: {prob_val:.3f} (confidence: {conf_val:.2f})\n"
             )
 
-        reasoning += f"\nStatistics:\n"
+        reasoning += "\nStatistics:\n"
         reasoning += f"- Mean: {statistics.mean(probabilities):.3f}\n"
         reasoning += f"- Median: {statistics.median(probabilities):.3f}\n"
 

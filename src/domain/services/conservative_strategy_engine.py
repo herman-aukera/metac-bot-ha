@@ -1,6 +1,5 @@
 """Conservative strategy engine for risk management and tournament optimization."""
 
-import math
 import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -8,8 +7,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..entities.forecast import Forecast
-from ..entities.prediction import Prediction, PredictionConfidence
-from ..value_objects.tournament_strategy import TournamentStrategy
+from ..entities.prediction import Prediction
 from .calibration_service import CalibrationMetrics, CalibrationTracker
 from .uncertainty_quantifier import UncertaintyAssessment, UncertaintyQuantifier
 

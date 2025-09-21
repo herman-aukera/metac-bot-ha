@@ -3,11 +3,7 @@ Performance tests for cost-effectiveness analysis and optimization.
 Tests cost vs quality correlation, budget efficiency, and tournament competitiveness.
 """
 
-import asyncio
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
-from unittest.mock import Mock, patch
+from typing import Dict, List
 
 import pytest
 

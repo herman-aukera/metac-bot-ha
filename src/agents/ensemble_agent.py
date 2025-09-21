@@ -16,7 +16,6 @@ from ..domain.entities.prediction import (
 from ..domain.entities.question import Question
 from ..domain.entities.research_report import ResearchReport
 from ..domain.services.forecasting_service import ForecastingService
-from ..domain.value_objects.probability import Probability
 from ..infrastructure.external_apis.llm_client import LLMClient
 from ..infrastructure.external_apis.search_client import SearchClient
 from .base_agent import BaseAgent

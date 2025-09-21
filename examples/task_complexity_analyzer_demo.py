@@ -6,14 +6,13 @@ This script shows how the complexity analyzer assesses different types of foreca
 questions and recommends appropriate models based on complexity and budget constraints.
 """
 import sys
-import os
 from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from infrastructure.config.task_complexity_analyzer import (
-    TaskComplexityAnalyzer, ComplexityLevel
+    TaskComplexityAnalyzer
 )
 
 
@@ -80,20 +79,20 @@ def demo_complexity_analysis():
             question_data['fine_print']
         )
 
-        print(f"COMPLEXITY ASSESSMENT:")
+        print("COMPLEXITY ASSESSMENT:")
         print(f"  Level: {assessment.level.value.upper()}")
         print(f"  Score: {assessment.score:.2f}")
         print(f"  Reasoning: {assessment.reasoning}")
         print()
 
-        print(f"DETAILED FACTORS:")
+        print("DETAILED FACTORS:")
         for factor, score in assessment.factors.items():
             if score > 0:
                 print(f"  {factor}: {score:.2f}")
         print()
 
         # Show model recommendations for different budget states
-        print(f"MODEL RECOMMENDATIONS:")
+        print("MODEL RECOMMENDATIONS:")
         budget_states = ["normal", "conservative", "emergency"]
         for budget_state in budget_states:
             research_model = analyzer.get_model_for_task("research", assessment, budget_state)
@@ -104,7 +103,7 @@ def demo_complexity_analysis():
         print()
 
         # Show cost estimates
-        print(f"COST ESTIMATES (Normal Budget):")
+        print("COST ESTIMATES (Normal Budget):")
         research_cost = analyzer.estimate_cost_per_task(assessment, "research", "normal")
         forecast_cost = analyzer.estimate_cost_per_task(assessment, "forecast", "normal")
         total_cost = research_cost["estimated_cost"] + forecast_cost["estimated_cost"]

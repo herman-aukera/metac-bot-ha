@@ -4,9 +4,7 @@ Tests tournament rule compliance, automation requirements, and system performanc
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Any, Dict, List
-from unittest.mock import Mock, patch
+from typing import Dict
 
 import pytest
 

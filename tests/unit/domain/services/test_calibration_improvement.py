@@ -4,9 +4,8 @@ Tests for calibration improvement and overconfidence reduction.
 
 import math
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-import pytest
 
 from uuid import uuid4
 
@@ -16,7 +15,6 @@ from src.domain.entities.prediction import (
     PredictionMethod,
 )
 from src.domain.services.tournament_calibration_service import (
-    CalibrationAdjustment,
     CommunityPredictionData,
     TournamentCalibrationService,
 )
@@ -227,7 +225,7 @@ class TestCalibrationImprovement:
             ):
                 assert (
                     calibrated_log_score > original_log_score
-                ), f"Calibration should improve log score for extreme incorrect prediction"
+                ), "Calibration should improve log score for extreme incorrect prediction"
 
     def _calculate_log_score(self, prediction: float, outcome: bool) -> float:
         """Calculate log score for a prediction."""

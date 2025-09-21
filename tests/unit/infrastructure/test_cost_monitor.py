@@ -5,9 +5,8 @@ Tests for CostMonitor integration with TokenTracker and BudgetManager.
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from src.infrastructure.config.budget_manager import BudgetManager
 from src.infrastructure.config.cost_monitor import CostAlert, CostMonitor

@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -104,9 +104,11 @@ class BudgetManager:
             return 0.0
 
         if model_key not in self.cost_per_token:
-            # Default to zero-cost for unknown/unpriced models to avoid noisy warnings for free tiers
-            logger.warning(f"Unknown model {model}, treating as zero-cost for safety")
-            return 0.0
+            # Default unknown models to GPT-4o pricing to keep estimates conservative and tests compatible
+            logger.warning(
+                f"Unknown model {model}, defaulting to gpt-4o pricing for estimation"
+            )
+            model_key = "gpt-4o"
 
         rates = self.cost_per_token[model_key]
         cost = (input_tokens * rates["input"] / 1000) + (
@@ -282,7 +284,7 @@ class BudgetManager:
 
         return breakdown
 
-    def _save_data(self):
+    def _save_data(self) -> None:
         """Save budget tracking data to file."""
         try:
             data = {
@@ -299,7 +301,7 @@ class BudgetManager:
         except Exception as e:
             logger.error(f"Failed to save budget data: {e}")
 
-    def _load_existing_data(self):
+    def _load_existing_data(self) -> None:
         """Load existing budget tracking data if available."""
         try:
             if self.data_file.exists():
@@ -323,7 +325,7 @@ class BudgetManager:
         except Exception as e:
             logger.warning(f"Failed to load existing budget data: {e}")
 
-    def reset_budget(self, new_limit: Optional[float] = None):
+    def reset_budget(self, new_limit: Optional[float] = None) -> None:
         """Reset budget tracking (use with caution)."""
         if new_limit:
             self.budget_limit = new_limit
@@ -338,7 +340,7 @@ class BudgetManager:
 
         logger.warning(f"Budget tracking reset. New limit: ${self.budget_limit}")
 
-    def log_budget_status(self):
+    def log_budget_status(self) -> None:
         """Log current budget status."""
         status = self.get_budget_status()
 

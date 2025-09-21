@@ -143,7 +143,7 @@ async def main():
             results[test_name] = False
 
     # Test AskNews connectivity
-    print(f"\n🧪 Running AskNews Authentication Test...")
+    print("\n🧪 Running AskNews Authentication Test...")
     print("-" * 50)
     asknews_result = run_test_suite("AskNews Auth", "test_asknews_auth_only.py")
     results["AskNews Authentication"] = asknews_result

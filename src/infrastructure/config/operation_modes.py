@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Any, Dict, Optional, Tuple
 
 from .budget_manager import budget_manager
-from .task_complexity_analyzer import ComplexityLevel, task_complexity_analyzer
+from .task_complexity_analyzer import task_complexity_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +221,7 @@ class OperationModeManager:
             and config.skip_low_priority_questions
             and question_priority.lower() == "low"
         ):
-            return False, f"Conservative mode: skipping low priority question"
+            return False, "Conservative mode: skipping low priority question"
 
         return True, "Question can be processed"
 

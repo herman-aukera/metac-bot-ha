@@ -3,7 +3,6 @@ Tests for TournamentMetaculusClient.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import List
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -12,7 +11,6 @@ from src.domain.entities.question import Question, QuestionType
 from src.domain.value_objects.time_range import TimeRange
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external_apis.tournament_metaculus_client import (
-    QuestionCategory,
     QuestionDeadlineInfo,
     TournamentContext,
     TournamentMetaculusClient,

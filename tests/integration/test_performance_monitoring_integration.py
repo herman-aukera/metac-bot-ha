@@ -4,9 +4,7 @@ Tests the complete monitoring pipeline and analytics functionality.
 """
 
 import asyncio
-import time
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -15,7 +13,6 @@ from src.infrastructure.monitoring.integrated_monitoring_service import (
 )
 from src.infrastructure.monitoring.model_performance_tracker import (
     ModelPerformanceTracker,
-    ModelSelectionRecord,
 )
 from src.infrastructure.monitoring.optimization_analytics import OptimizationAnalytics
 from src.infrastructure.monitoring.performance_tracker import PerformanceTracker

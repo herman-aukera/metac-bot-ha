@@ -1,10 +1,9 @@
 """ForecastService application layer for managing forecasts."""
 
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from src.domain.entities.forecast import Forecast, ForecastStatus, calculate_brier_score
+from src.domain.entities.forecast import Forecast, calculate_brier_score
 from src.domain.entities.question import Question, QuestionType
 from src.domain.entities.research_report import ResearchReport
 from src.domain.value_objects.confidence import ConfidenceLevel
@@ -117,7 +116,6 @@ class ForecastService:
             Prediction,
             PredictionConfidence,
             PredictionMethod,
-            PredictionResult,
         )
 
         # Convert confidence level to prediction confidence
@@ -282,19 +280,7 @@ class ForecastService:
         Raises:
             ForecastValidationError: If the question cannot be forecasted
         """
-        import random
 
-        from src.domain.entities.prediction import (
-            Prediction,
-            PredictionConfidence,
-            PredictionMethod,
-            PredictionResult,
-        )
-        from src.domain.entities.research_report import (
-            ResearchQuality,
-            ResearchReport,
-            ResearchSource,
-        )
 
         # Validate that we can forecast this question
         if not question.is_open():
@@ -322,12 +308,6 @@ class ForecastService:
             Prediction,
             PredictionConfidence,
             PredictionMethod,
-            PredictionResult,
-        )
-        from src.domain.entities.research_report import (
-            ResearchQuality,
-            ResearchReport,
-            ResearchSource,
         )
 
         # Mock AI prediction logic: use community prediction if available,
@@ -421,12 +401,6 @@ class ForecastService:
             Prediction,
             PredictionConfidence,
             PredictionMethod,
-            PredictionResult,
-        )
-        from src.domain.entities.research_report import (
-            ResearchQuality,
-            ResearchReport,
-            ResearchSource,
         )
 
         # Extract bounds
@@ -529,12 +503,6 @@ class ForecastService:
             Prediction,
             PredictionConfidence,
             PredictionMethod,
-            PredictionResult,
-        )
-        from src.domain.entities.research_report import (
-            ResearchQuality,
-            ResearchReport,
-            ResearchSource,
         )
 
         if not question.choices:
@@ -652,15 +620,15 @@ class ForecastService:
         """Generate reasoning for binary predictions."""
         reasoning_parts = [
             f"Analysis of binary question: {question.title}",
-            f"",
-            f"Key factors considered:",
+            "",
+            "Key factors considered:",
             f"- Base rate probability: {base_probability:.1%}",
             f"- Predicted probability: {predicted_probability:.1%}",
-            f"- Historical precedents and patterns",
-            f"- Current indicators and expert opinions",
-            f"- Market signals and community predictions",
-            f"",
-            f"Assessment:",
+            "- Historical precedents and patterns",
+            "- Current indicators and expert opinions",
+            "- Market signals and community predictions",
+            "",
+            "Assessment:",
             f"Based on comprehensive analysis, the probability of a positive outcome "
             f"is estimated at {predicted_probability:.1%}. This assessment incorporates "
             f"base rate analysis, current indicators, and expert opinion synthesis.",
@@ -669,15 +637,15 @@ class ForecastService:
         # Add interpretation based on probability level
         if predicted_probability > 0.7:
             reasoning_parts.append(
-                f"The high probability reflects strong supporting evidence."
+                "The high probability reflects strong supporting evidence."
             )
         elif predicted_probability < 0.3:
             reasoning_parts.append(
-                f"The low probability reflects limited supporting evidence."
+                "The low probability reflects limited supporting evidence."
             )
         else:
             reasoning_parts.append(
-                f"The moderate probability reflects mixed evidence and uncertainty."
+                "The moderate probability reflects mixed evidence and uncertainty."
             )
 
         return "\n".join(reasoning_parts)
@@ -688,15 +656,15 @@ class ForecastService:
         """Generate reasoning for numeric predictions."""
         reasoning_parts = [
             f"Analysis of numeric question: {question.title}",
-            f"",
-            f"Key factors considered:",
+            "",
+            "Key factors considered:",
             f"- Base estimate: {base_value:.2f}",
             f"- Predicted value: {predicted_value:.2f}",
             f"- Valid range: {question.min_value} to {question.max_value}",
-            f"- Historical patterns and trends",
-            f"- Expert projections and market indicators",
-            f"",
-            f"Assessment:",
+            "- Historical patterns and trends",
+            "- Expert projections and market indicators",
+            "",
+            "Assessment:",
             f"Based on quantitative analysis and expert opinion synthesis, "
             f"the predicted value is {predicted_value:.2f}. This estimate considers "
             f"both baseline trends and potential variability factors.",
@@ -715,8 +683,8 @@ class ForecastService:
 
         reasoning_parts = [
             f"Analysis of multiple choice question: {question.title}",
-            f"",
-            f"Choice probabilities:",
+            "",
+            "Choice probabilities:",
         ]
 
         # List all choices with their probabilities
@@ -726,8 +694,8 @@ class ForecastService:
 
         reasoning_parts.extend(
             [
-                f"",
-                f"Assessment:",
+                "",
+                "Assessment:",
                 f"Based on available evidence and analysis, '{predicted_choice}' appears "
                 f"to be the most likely outcome with {choice_prob:.1%} probability. "
                 f"This assessment considers historical precedents, expert opinions, "

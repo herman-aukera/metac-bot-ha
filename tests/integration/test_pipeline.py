@@ -1,20 +1,15 @@
 """Integration tests for forecasting pipeline."""
 
-import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from src.agents.chain_of_thought_agent import ChainOfThoughtAgent
-from src.agents.ensemble_agent import EnsembleAgent
 from src.agents.react_agent import ReActAgent
 from src.agents.tot_agent import TreeOfThoughtAgent
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
-from src.domain.value_objects.probability import Probability
-from src.infrastructure.config.settings import Settings
 from src.pipelines.forecasting_pipeline import ForecastingPipeline
 
 

@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
@@ -11,7 +11,6 @@ from src.domain.entities.prediction import (
     Prediction,
     PredictionConfidence,
     PredictionMethod,
-    PredictionResult,
 )
 from src.domain.entities.research_report import ResearchReport
 from src.domain.services.forecasting_service import ForecastingService

@@ -85,6 +85,10 @@ PY
   fi
 fi
 
+# Default: disable noisy web search fallbacks unless explicitly enabled
+export SEARCH_DUCKDUCKGO_ENABLED=${SEARCH_DUCKDUCKGO_ENABLED:-false}
+export SEARCH_WIKIPEDIA_ENABLED=${SEARCH_WIKIPEDIA_ENABLED:-false}
+
 if [[ "${FAST:-0}" != "1" ]]; then
   python3 --version || true
   python3 -m pip install --upgrade pip >/dev/null 2>&1 || true

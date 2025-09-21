@@ -2,14 +2,12 @@
 
 import asyncio
 import math
-import random
 import statistics
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Any, Dict, List
 from unittest.mock import AsyncMock, Mock
 
-import numpy as np
 import pytest
 
 from src.agents.base_agent import BaseAgent
@@ -328,7 +326,7 @@ class CalibrationValidator:
             try:
                 forecast = await agent.generate_forecast(question)
                 forecasts.append(forecast)
-            except Exception as e:
+            except Exception:
                 continue  # Skip failed forecasts
 
         if not forecasts:

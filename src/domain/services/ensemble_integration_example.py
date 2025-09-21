@@ -7,7 +7,6 @@ for real-time agent selection and automatic rebalancing.
 
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from uuid import uuid4
 
 import structlog
 

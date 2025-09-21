@@ -979,7 +979,7 @@ async def forecast_individual_question(
         forecast_is_already_made(post_details)
         and skip_previously_forecasted_questions == True
     ):
-        summary_of_forecast += f"Skipped: Forecast already made\n"
+        summary_of_forecast += "Skipped: Forecast already made\n"
         return summary_of_forecast
 
     if question_type == "binary":

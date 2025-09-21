@@ -1,7 +1,7 @@
 """Tests for DynamicWeightAdjuster service."""
 
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -13,15 +13,11 @@ from src.domain.entities.prediction import (
 )
 from src.domain.entities.question import Question
 from src.domain.services.dynamic_weight_adjuster import (
-    AgentPerformanceProfile,
     DynamicWeightAdjuster,
     EnsembleComposition,
-    PerformanceMetric,
     PerformanceRecord,
     WeightAdjustmentStrategy,
 )
-from src.domain.value_objects.confidence import ConfidenceLevel
-from src.domain.value_objects.probability import Probability
 
 
 class TestDynamicWeightAdjuster:

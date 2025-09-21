@@ -93,7 +93,7 @@ async def test_openrouter_validation():
         # Get configuration status
         status_report = router.get_configuration_status_report()
 
-        print(f"   Router initialized: ✅")
+        print("   Router initialized: ✅")
         print(f"   API key configured: {'✅' if status_report['router_info']['api_key_configured'] else '❌'}")
 
         # Check model status
@@ -115,7 +115,7 @@ async def test_openrouter_validation():
     try:
         optimized_chains = await router.auto_configure_fallback_chains()
 
-        print(f"   Fallback chains configured: ✅")
+        print("   Fallback chains configured: ✅")
         for tier, chain in optimized_chains.items():
             print(f"     {tier.upper()}: {' → '.join(chain[:3])}{'...' if len(chain) > 3 else ''}")
 

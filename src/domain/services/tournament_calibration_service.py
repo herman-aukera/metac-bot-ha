@@ -2,14 +2,12 @@
 
 import logging
 import math
-import statistics
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 from ..entities.forecast import Forecast
 from ..entities.prediction import Prediction, PredictionConfidence, PredictionResult
-from ..value_objects.probability import Probability
 
 
 @dataclass

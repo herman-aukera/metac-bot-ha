@@ -4,7 +4,6 @@ Tests model configuration, content analysis, and routing logic.
 """
 
 from datetime import datetime
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -16,7 +15,6 @@ from src.infrastructure.config.budget_aware_operation_manager import (
 
 # Import actual classes that exist
 from src.infrastructure.config.tri_model_router import (
-    ComplexityLevel,
     ContentAnalysis,
     ModelConfig,
     ModelStatus,

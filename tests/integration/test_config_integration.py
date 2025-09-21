@@ -4,9 +4,8 @@ Integration tests for configuration management and hot-reloading.
 
 import asyncio
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
@@ -15,10 +14,8 @@ from src.application.tournament_orchestrator import TournamentOrchestrator
 from src.infrastructure.config.config_manager import (
     ConfigChangeEvent,
     ConfigChangeType,
-    ConfigManager,
     create_config_manager,
 )
-from src.infrastructure.config.settings import Settings
 
 
 class TestConfigManagerIntegration:

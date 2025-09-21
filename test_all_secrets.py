@@ -125,7 +125,7 @@ async def test_metaculus_api():
                         data = await response.json()
                         username = data.get('username', data.get('user', {}).get('username', 'Unknown'))
                         user_id = data.get('id', data.get('user', {}).get('id', 'Unknown'))
-                        print(f"✅ Metaculus API working!")
+                        print("✅ Metaculus API working!")
                         print(f"👤 User: {username} (ID: {user_id})")
                         return True
                     elif response.status in (301, 302, 307, 308, 401, 403, 404):
@@ -199,7 +199,7 @@ def check_environment_variables():
     print(f"\n📊 Summary: {len(configured_vars)}/{len(required_vars)} variables configured")
 
     if missing_vars:
-        print(f"\n❌ Missing variables:")
+        print("\n❌ Missing variables:")
         for var in missing_vars:
             print(f"  - {var}")
         return False

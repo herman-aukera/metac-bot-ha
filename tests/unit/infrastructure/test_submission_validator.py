@@ -5,14 +5,11 @@ Tests for submission validation and audit trail system.
 import os
 import tempfile
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch
 
 import pytest
 
 from src.domain.entities.prediction import Prediction, PredictionResult
 from src.domain.entities.question import Question, QuestionType
-from src.domain.value_objects.confidence import ConfidenceLevel
-from src.domain.value_objects.probability import Probability
 from src.infrastructure.external_apis.submission_validator import (
     AuditTrailManager,
     SubmissionRecord,

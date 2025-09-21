@@ -31,7 +31,7 @@ async def validate_tournament_integration():
     print("\n1. Testing Configuration Loading...")
     try:
         config = Config()
-        print(f"   ✅ Config loaded successfully")
+        print("   ✅ Config loaded successfully")
         print(f"   📊 LLM Provider: {config.llm.provider}")
         print(f"   📊 Tournament ID: {config.metaculus.tournament_id}")
     except Exception as e:
@@ -43,7 +43,7 @@ async def validate_tournament_integration():
     try:
         asknews_client = TournamentAskNewsClient()
         stats = asknews_client.get_usage_stats()
-        print(f"   ✅ AskNews client initialized")
+        print("   ✅ AskNews client initialized")
         print(f"   📊 Quota usage: {stats['quota_usage_percentage']:.1f}%")
         print(f"   📊 Success rate: {stats['success_rate']:.1f}%")
     except Exception as e:
@@ -55,7 +55,7 @@ async def validate_tournament_integration():
     try:
         proxy_client = MetaculusProxyClient(config)
         proxy_stats = proxy_client.get_usage_stats()
-        print(f"   ✅ Proxy client initialized")
+        print("   ✅ Proxy client initialized")
         print(f"   📊 Total requests: {proxy_stats['total_requests']}")
         print(f"   📊 Credits available: {proxy_client.proxy_credits_enabled}")
     except Exception as e:
@@ -66,7 +66,7 @@ async def validate_tournament_integration():
     print("\n4. Testing Tournament Bot Integration...")
     try:
         bot = MetaculusForecastingBot(config)
-        print(f"   ✅ Tournament bot initialized")
+        print("   ✅ Tournament bot initialized")
         print(f"   📊 Pipeline ready: {bot.pipeline is not None}")
         print(f"   📊 LLM client ready: {bot.llm_client is not None}")
         print(f"   📊 Search client ready: {bot.search_client is not None}")
@@ -78,7 +78,7 @@ async def validate_tournament_integration():
     print("\n5. Testing Sample Forecast...")
     try:
         result = await bot.forecast_question(12345, "chain_of_thought")
-        print(f"   ✅ Sample forecast completed")
+        print("   ✅ Sample forecast completed")
         print(f"   📊 Prediction: {result['forecast']['prediction']:.3f}")
         print(f"   📊 Confidence: {result['forecast']['confidence']:.3f}")
         print(f"   📊 Method: {result['forecast']['method']}")
@@ -92,7 +92,7 @@ async def validate_tournament_integration():
         ensemble_result = await bot.forecast_question_ensemble(
             12346, ["chain_of_thought", "tree_of_thought"]
         )
-        print(f"   ✅ Ensemble forecast completed")
+        print("   ✅ Ensemble forecast completed")
         print(
             f"   📊 Ensemble prediction: {ensemble_result['ensemble_forecast']['prediction']:.3f}"
         )
@@ -110,14 +110,14 @@ async def validate_tournament_integration():
         final_asknews_stats = asknews_client.get_usage_stats()
         final_proxy_stats = proxy_client.get_usage_stats()
 
-        print(f"   📊 AskNews Final Stats:")
+        print("   📊 AskNews Final Stats:")
         print(f"      - Total requests: {final_asknews_stats['total_requests']}")
         print(f"      - Success rate: {final_asknews_stats['success_rate']:.1f}%")
         print(
             f"      - Quota usage: {final_asknews_stats['quota_usage_percentage']:.1f}%"
         )
 
-        print(f"   📊 Proxy Final Stats:")
+        print("   📊 Proxy Final Stats:")
         print(f"      - Total requests: {final_proxy_stats['total_requests']}")
         print(f"      - Fallback rate: {final_proxy_stats['fallback_rate']:.1f}%")
         print(

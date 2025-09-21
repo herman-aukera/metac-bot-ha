@@ -10,7 +10,7 @@ import atexit
 import inspect
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Literal, Tuple, Union, Set, TYPE_CHECKING, Protocol
+from typing import Any, Dict, List, Optional, Literal, Set, TYPE_CHECKING, Protocol
 
 
 logger = logging.getLogger(__name__)
@@ -886,8 +886,8 @@ class TemplateForecaster(ForecastBot):
 
         # Initialize a search client for tests and research integrations
         try:
-            from src.infrastructure.config.settings import get_settings, Settings
-            from src.infrastructure.external_apis.search_client import create_search_client, SearchClient
+            from src.infrastructure.config.settings import get_settings
+            from src.infrastructure.external_apis.search_client import create_search_client
 
             settings = get_settings()
             self.search_client = create_search_client(settings)
@@ -3090,7 +3090,12 @@ if __name__ == "__main__":
             from src.infrastructure.config.tri_model_router import tri_model_router
             router_models = tri_model_router.models
             llms["default"] = router_models["full"]
-            llms["summarizer"] = router_models["nano"]
+            # Downstream code may expect a string ID for summarizer (uses .startswith);
+            # pass the model name string to avoid AttributeError while keeping objects for others.
+            try:
+                llms["summarizer"] = getattr(router_models["nano"], "model", "openai/gpt-5-nano")
+            except Exception:
+                llms["summarizer"] = "openai/gpt-5-nano"
             llms["researcher"] = router_models["mini"]
             logger.info("Using tri-model GPT-5 configuration for LLMs")
             return llms
@@ -3140,9 +3145,11 @@ if __name__ == "__main__":
     logger.info(f"  Skip previously forecasted: {skip_previously_forecasted}")
     logger.info(f"  Tournament mode: {os.getenv('TOURNAMENT_MODE', 'false')}")
     tournament_target_env = (
-        os.getenv("AIB_TOURNAMENT_ID")
+        os.getenv("AIB_MINIBENCH_TOURNAMENT_SLUG")
         or os.getenv("AIB_TOURNAMENT_SLUG")
         or os.getenv("TOURNAMENT_SLUG")
+        or os.getenv("AIB_MINIBENCH_TOURNAMENT_ID")
+        or os.getenv("AIB_TOURNAMENT_ID")
         or "minibench"
     )
     logger.info(f"  Tournament target: {tournament_target_env}")
@@ -3193,80 +3200,33 @@ if __name__ == "__main__":
             except Exception as _e:  # pragma: no cover
                 logger.warning("MiniBench safety check failed: %s (continuing)", _e)
 
-            # Accept tournament ID or slug. Prefer explicit slug if provided.
+            # Always prefer MiniBench unless explicitly overridden by env.
             tournament_target = (
-                os.getenv("AIB_TOURNAMENT_SLUG")
+                os.getenv("AIB_MINIBENCH_TOURNAMENT_SLUG")
+                or os.getenv("AIB_TOURNAMENT_SLUG")
                 or os.getenv("TOURNAMENT_SLUG")
-                or os.getenv("AIB_TOURNAMENT_ID", "minibench")
+                or os.getenv("AIB_MINIBENCH_TOURNAMENT_ID")
+                or os.getenv("AIB_TOURNAMENT_ID")
+                or "minibench"
             )
             # In dry-run, allow reprocessing to validate pipeline end-to-end
             if os.getenv("DRY_RUN", "false").lower() == "true":
                 template_bot.skip_previously_forecasted_questions = False
-            forecast_reports = asyncio.run(
-                template_bot.forecast_on_tournament(
-                    tournament_target, return_exceptions=True
+            try:
+                forecast_reports = asyncio.run(
+                    template_bot.forecast_on_tournament(
+                        tournament_target, return_exceptions=True
+                    )
                 )
-            )
-            # Safe fallback: if nothing processed, try Quarterly Cup (usually has open qs)
+            except Exception as e:
+                logger.error("MiniBench run failed: %s", e)
+                forecast_reports = []
+            # No fallback to long tournament by policy. Exit if nothing processed.
             if not forecast_reports:
                 logger.warning(
-                    "No questions processed for '%s'. Attempting fallback tournaments (Quarterly Cup chain)...",
+                    "No questions for '%s'. Long tournament fallback is disabled; exiting.",
                     tournament_target,
                 )
-                # Build a list of candidate quarterly cup IDs; prefer attribute if available
-                candidate_quarterly_ids = []
-                try:
-                    # Some versions expose CURRENT_QUARTERLY_CUP_ID on MetaculusApi class from forecasting_tools
-                    from forecasting_tools.forecast_helpers.metaculus_api import MetaculusApi as FTMetaculusApi  # type: ignore
-
-                    if hasattr(FTMetaculusApi, "CURRENT_QUARTERLY_CUP_ID"):
-                        candidate_quarterly_ids.append(
-                            getattr(FTMetaculusApi, "CURRENT_QUARTERLY_CUP_ID")
-                        )
-                except Exception:  # pragma: no cover - best effort
-                    pass
-
-                # Add a small set of recently observed quarterly cup IDs (historical sequence)
-                # These are harmless to try; API will just return zero or 404 if obsolete
-                historical_quarterly = [
-                    32775,  # example: prior quarter
-                    32564,  # AXC_2025_TOURNAMENT_ID mentioned in comments
-                ]
-                for hid in historical_quarterly:
-                    if hid not in candidate_quarterly_ids:
-                        candidate_quarterly_ids.append(hid)
-
-                logger.info(
-                    "Quarterly Cup fallback candidates: %s", candidate_quarterly_ids
-                )
-
-                template_bot.skip_previously_forecasted_questions = False
-                for fallback_id in candidate_quarterly_ids:
-                    try:
-                        logger.info(
-                            "Attempting fallback tournament id=%s", fallback_id
-                        )
-                        fallback_reports = asyncio.run(
-                            template_bot.forecast_on_tournament(
-                                fallback_id, return_exceptions=True
-                            )
-                        )
-                        if fallback_reports:
-                            forecast_reports = fallback_reports
-                            logger.info(
-                                "Fallback succeeded via tournament %s with %d question(s)",
-                                fallback_id,
-                                len(forecast_reports),
-                            )
-                            break
-                    except Exception as inner_fe:  # pragma: no cover - diagnostic
-                        logger.warning(
-                            "Fallback attempt tournament %s failed: %s", fallback_id, inner_fe
-                        )
-                if not forecast_reports:
-                    logger.warning(
-                        "All fallback tournaments returned zero questions; no forecasting performed."
-                    )
         elif run_mode == "quarterly_cup":
             # The quarterly cup is a good way to test the bot's performance on regularly open questions. You can also use AXC_2025_TOURNAMENT_ID = 32564
             # The new quarterly cup may not be initialized near the beginning of a quarter

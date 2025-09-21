@@ -2,8 +2,7 @@
 Tests for ForecastingStageService with GPT-5 and calibration.
 """
 
-import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 

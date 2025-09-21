@@ -2,7 +2,6 @@
 Tests for ValidationStageService implementing task 4.2 requirements.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest

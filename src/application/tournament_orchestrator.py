@@ -3,12 +3,11 @@ Tournament orchestration system that integrates all components with proper depen
 """
 
 import asyncio
-import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 try:
     import structlog  # type: ignore[import]
@@ -40,8 +39,6 @@ except Exception:  # pragma: no cover - fallback if structlog isn't available du
 from ..application.dispatcher import Dispatcher
 from ..application.forecast_service import ForecastService
 from ..application.ingestion_service import IngestionService
-from ..domain.entities.forecast import Forecast
-from ..domain.entities.question import Question
 from ..domain.services.authoritative_source_manager import AuthoritativeSourceManager
 from ..domain.services.calibration_service import CalibrationTracker
 from ..domain.services.conflict_resolver import ConflictResolver
@@ -68,7 +65,7 @@ from ..infrastructure.config.config_manager import (
     ConfigManager,
     create_config_manager,
 )
-from ..infrastructure.config.settings import Config, Settings
+from ..infrastructure.config.settings import Settings
 from ..infrastructure.external_apis.llm_client import LLMClient
 from ..infrastructure.external_apis.metaculus_client import MetaculusClient
 from ..infrastructure.external_apis.search_client import (

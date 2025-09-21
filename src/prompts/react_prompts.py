@@ -86,7 +86,7 @@ Synthesize this information to:
 Focus on how different pieces of evidence interact and what they collectively suggest.
 """
 
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from jinja2 import Template
 

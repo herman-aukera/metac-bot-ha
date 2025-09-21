@@ -1,5 +1,3 @@
-import asyncio
-import types
 import pytest
 
 import src.infrastructure.external_apis.llm_client as llm_mod

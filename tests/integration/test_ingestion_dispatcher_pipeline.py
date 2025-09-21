@@ -1,14 +1,11 @@
 """Integration test: ingestion → dispatcher → forecast pipeline."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
-import pytest
 
 from src.application.dispatcher import Dispatcher
-from src.application.forecast_service import ForecastService
 from src.application.ingestion_service import IngestionService
 from src.domain.entities.question import QuestionType
-from src.infrastructure.metaculus_api import MetaculusAPI
 
 
 def test_ingestion_dispatcher_forecast_pipeline(monkeypatch):

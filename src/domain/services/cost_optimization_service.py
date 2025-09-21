@@ -7,7 +7,7 @@ research depth adaptation, and graceful feature degradation.
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from ...infrastructure.config.budget_manager import budget_manager
 from ...infrastructure.config.operation_modes import OperationMode
@@ -608,7 +608,7 @@ class CostOptimizationService:
 
         mode_reasons = {
             OperationMode.CONSERVATIVE: f"Conservative mode: {priority.value} priority tasks not processed",
-            OperationMode.EMERGENCY: f"Emergency mode: only critical/high priority tasks processed",
+            OperationMode.EMERGENCY: "Emergency mode: only critical/high priority tasks processed",
         }
 
         return mode_reasons.get(

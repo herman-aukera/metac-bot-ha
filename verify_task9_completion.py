@@ -108,17 +108,17 @@ def check_task_9_2():
 
         # Check class method
         if hasattr(OpenRouterTriModelRouter, 'create_with_auto_configuration'):
-            print(f"  ✅ OpenRouterTriModelRouter.create_with_auto_configuration: Available")
+            print("  ✅ OpenRouterTriModelRouter.create_with_auto_configuration: Available")
         else:
-            print(f"  ❌ OpenRouterTriModelRouter.create_with_auto_configuration: Missing")
+            print("  ❌ OpenRouterTriModelRouter.create_with_auto_configuration: Missing")
             return False
 
-        print(f"\n🎯 Task 9.2 Status: ✅ COMPLETE")
+        print("\n🎯 Task 9.2 Status: ✅ COMPLETE")
         return True
 
     except ImportError as e:
         print(f"  ❌ Import Error: {e}")
-        print(f"\n🎯 Task 9.2 Status: ❌ INCOMPLETE")
+        print("\n🎯 Task 9.2 Status: ❌ INCOMPLETE")
         return False
 
 def check_main_integration():

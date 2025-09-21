@@ -55,7 +55,7 @@ async def demonstrate_operation_mode_switching():
     mode_changed, transition_log = budget_aware_operation_manager.detect_and_switch_operation_mode()
 
     if mode_changed and transition_log:
-        print(f"Mode transition detected!")
+        print("Mode transition detected!")
         print(f"  From: {transition_log.from_mode.value}")
         print(f"  To: {transition_log.to_mode.value}")
         print(f"  Reason: {transition_log.trigger_reason}")

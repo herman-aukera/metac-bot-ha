@@ -16,10 +16,6 @@ sys.path.insert(0, str(project_root))
 from src.main import MetaculusForecastingBot
 
 from src.infrastructure.config.settings import Config
-from src.infrastructure.external_apis.metaculus_proxy_client import MetaculusProxyClient
-from src.infrastructure.external_apis.tournament_asknews_client import (
-    TournamentAskNewsClient,
-)
 
 
 async def test_tournament_features():
@@ -34,7 +30,7 @@ async def test_tournament_features():
     print("\n1. Testing Single Question Forecast...")
     try:
         result = await bot.forecast_question(12345, "chain_of_thought")
-        print(f"   ✅ Single forecast successful")
+        print("   ✅ Single forecast successful")
         print(f"   📊 Question: {result['question']['title'][:50]}...")
         print(f"   📊 Prediction: {result['forecast']['prediction']:.3f}")
         print(f"   📊 Confidence: {result['forecast']['confidence']:.3f}")
@@ -45,7 +41,7 @@ async def test_tournament_features():
                 f"   ⚠️  Research error handled: {result['metadata']['error'][:50]}..."
             )
         else:
-            print(f"   ✅ Research completed successfully")
+            print("   ✅ Research completed successfully")
 
     except Exception as e:
         print(f"   ❌ Single forecast failed: {e}")
@@ -57,7 +53,7 @@ async def test_tournament_features():
         agents = ["chain_of_thought", "tree_of_thought", "react"]
         ensemble_result = await bot.forecast_question_ensemble(12346, agents)
 
-        print(f"   ✅ Ensemble forecast successful")
+        print("   ✅ Ensemble forecast successful")
         print(f"   📊 Agents used: {len(ensemble_result['individual_forecasts'])}")
         print(
             f"   📊 Ensemble prediction: {ensemble_result['ensemble_forecast']['prediction']:.3f}"
@@ -85,7 +81,7 @@ async def test_tournament_features():
         )
 
         successful = len([r for r in batch_results if "error" not in r])
-        print(f"   ✅ Batch processing completed")
+        print("   ✅ Batch processing completed")
         print(f"   📊 Questions processed: {len(batch_results)}")
         print(f"   📊 Successful forecasts: {successful}")
         print(f"   📊 Success rate: {successful/len(batch_results)*100:.1f}%")
@@ -100,7 +96,7 @@ async def test_tournament_features():
         # Test with small number of questions
         tournament_results = await bot.run_tournament(32813, max_questions=3)
 
-        print(f"   ✅ Tournament mode completed")
+        print("   ✅ Tournament mode completed")
         print(f"   📊 Tournament ID: {tournament_results['tournament_id']}")
         print(f"   📊 Total questions: {tournament_results['total_questions']}")
         print(
@@ -118,7 +114,7 @@ async def test_tournament_features():
         asknews_stats = bot.tournament_asknews.get_usage_stats()
         proxy_stats = bot.metaculus_proxy.get_usage_stats()
 
-        print(f"   ✅ Resource management working")
+        print("   ✅ Resource management working")
         print(
             f"   📊 AskNews quota usage: {asknews_stats['quota_usage_percentage']:.1f}%"
         )
@@ -142,7 +138,7 @@ async def test_tournament_features():
         # Test with invalid question ID to trigger fallbacks
         fallback_result = await bot.forecast_question(999999, "chain_of_thought")
 
-        print(f"   ✅ Fallback mechanisms working")
+        print("   ✅ Fallback mechanisms working")
         print(
             f"   📊 Fallback prediction: {fallback_result['forecast']['prediction']:.3f}"
         )

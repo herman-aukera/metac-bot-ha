@@ -16,7 +16,6 @@ from src.domain.services.authoritative_source_manager import (
 )
 from src.domain.services.knowledge_gap_detector import (
     GapSeverity,
-    GapType,
     KnowledgeGapDetector,
     ResearchStrategy,
 )

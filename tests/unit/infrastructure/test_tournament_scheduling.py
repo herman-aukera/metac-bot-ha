@@ -15,7 +15,7 @@ class TestTournamentScheduling:
         """Test default scheduling configuration values."""
         config = TournamentConfig()
 
-        assert config.scheduling_interval_hours == 4
+        assert config.scheduling_interval_hours == 6
         assert config.deadline_aware_scheduling is True
         assert config.critical_period_frequency_hours == 2
         assert config.final_24h_frequency_hours == 1
@@ -113,7 +113,7 @@ class TestTournamentScheduling:
         config = TournamentConfig(
             mode=TournamentMode.QUARTERLY_CUP, scheduling_interval_hours=4
         )
-        assert config.get_cron_schedule() == "0 0 */2 * *"
+        assert config.get_cron_schedule() == "0 0 */3 * *"
 
     def test_scheduling_strategy_output(self):
         """Test scheduling strategy configuration output."""

@@ -9,22 +9,17 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
-from uuid import uuid4
 
 from src.application.forecast_service import ForecastService
 from src.application.ingestion_service import (
     IngestionService,
-    IngestionStats,
     ValidationLevel,
 )
 from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question
-from src.domain.value_objects.confidence import ConfidenceLevel
-from src.domain.value_objects.probability import Probability
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.logging.reasoning_logger import (
     log_agent_reasoning,
-    log_ensemble_reasoning,
 )
 from src.infrastructure.metaculus_api import APIConfig, MetaculusAPI, MetaculusAPIError
 

@@ -12,13 +12,10 @@ Key Features:
 - Seasonal scope validation (50-100 questions total, not per day)
 """
 
-import os
 import sys
 sys.path.append('src')
 
 from infrastructure.config.tournament_config import (
-    TournamentConfig,
-    TournamentScopeManager,
     get_tournament_config,
     get_tournament_scope_manager
 )
@@ -116,7 +113,7 @@ def demo_tournament_scope_management():
 
     print()
     print("🎯 Key Insights:")
-    print(f"• This is a SEASONAL tournament, not daily")
+    print("• This is a SEASONAL tournament, not daily")
     print(f"• Target: {config.expected_total_questions} questions over {duration or 120} days")
     print(f"• Sustainable rate: ~{rates['questions_per_day']:.1f} questions per day")
     print(f"• Recommended scheduling: Every {recommended_freq} hours")
@@ -143,13 +140,13 @@ def demo_scope_comparison():
     print("❌ OLD (Daily Scope):")
     print(f"  Expected: {daily_questions} questions PER DAY")
     print(f"  Total over {duration} days: {daily_total:,} questions")
-    print(f"  Completely unsustainable! 💸")
+    print("  Completely unsustainable! 💸")
     print()
 
     print("✅ NEW (Seasonal Scope):")
     print(f"  Expected: {seasonal_total} questions TOTAL")
     print(f"  Daily rate: {seasonal_daily:.2f} questions per day")
-    print(f"  Sustainable and budget-friendly! 💰")
+    print("  Sustainable and budget-friendly! 💰")
     print()
 
     print(f"💡 Savings: {daily_total - seasonal_total:,} fewer questions")

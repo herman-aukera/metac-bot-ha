@@ -6,8 +6,6 @@ Simulates the CI/CD pipeline to test if all components work correctly.
 
 import subprocess
 import sys
-import os
-from pathlib import Path
 
 def run_command(cmd, description):
     """Run a command and return success status."""

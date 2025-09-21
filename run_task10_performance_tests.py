@@ -112,7 +112,7 @@ def run_performance_test_suite():
         print(f"{status_icon} {Path(test_file).name}: {status}")
         print(f"   ⏱️  Execution time: {exec_time:.2f}s")
 
-    print(f"\n📈 PERFORMANCE METRICS:")
+    print("\n📈 PERFORMANCE METRICS:")
     print(f"   Total execution time: {total_execution_time:.2f}s")
     print(f"   Average test time: {total_execution_time/len(test_files):.2f}s")
     print(f"   Tests per second: {len(test_files)/total_execution_time:.2f}")

@@ -13,7 +13,6 @@ from ..value_objects.tournament_strategy import (
     CompetitiveIntelligence,
     QuestionCategory,
     RiskProfile,
-    TournamentPhase,
     TournamentStrategy,
 )
 

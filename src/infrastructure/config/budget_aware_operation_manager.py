@@ -6,13 +6,13 @@ Implements comprehensive budget monitoring, operation mode transitions, and cost
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from .budget_manager import BudgetStatus, budget_manager
-from .operation_modes import ModeTransition, OperationMode, operation_mode_manager
+from .operation_modes import OperationMode, operation_mode_manager
 from .tri_model_router import OpenRouterTriModelRouter
 
 logger = logging.getLogger(__name__)
@@ -565,10 +565,10 @@ class BudgetAwareOperationManager:
         # Apply mode-specific rules
         if current_mode == OperationMode.EMERGENCY:
             if question_priority.lower() not in ["critical", "high"]:
-                return True, f"Emergency mode: processing critical/high priority only"
+                return True, "Emergency mode: processing critical/high priority only"
         elif current_mode == OperationMode.CONSERVATIVE:
             if question_priority.lower() == "low":
-                return True, f"Conservative mode: skipping low priority questions"
+                return True, "Conservative mode: skipping low priority questions"
 
         return False, "Question can be processed"
 

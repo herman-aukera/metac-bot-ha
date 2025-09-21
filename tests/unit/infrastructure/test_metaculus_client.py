@@ -1,7 +1,7 @@
 """Comprehensive unit tests for MetaculusClient."""
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import httpx

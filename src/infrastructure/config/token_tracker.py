@@ -52,9 +52,11 @@ class TokenTracker:
         self.total_tokens_used = {"input": 0, "output": 0, "total": 0}
         self.total_estimated_cost = 0.0
 
-        # Pricing (per 1K tokens). GPT-4o family removed; GPT-5 tiers + free models.
-        # Unknown models default to gpt-5-mini pricing for conservative estimation.
+        # Pricing (per 1K tokens). Include GPT-4o family for legacy/test compatibility,
+        # plus GPT-5 tiers. Unknown models default to gpt-4o pricing for cost estimation.
         self.cost_per_token = {
+            "gpt-4o": {"input": 0.0025, "output": 0.01},
+            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
             "gpt-5": {"input": 0.0015, "output": 0.0015},  # assumed balanced pricing
             "gpt-5-mini": {"input": 0.0024, "output": 0.0096},
             "gpt-5-nano": {"input": 0.00012, "output": 0.0005},
@@ -72,9 +74,11 @@ class TokenTracker:
     def _initialize_encodings(self) -> None:
         """Initialize tiktoken encodings for different models."""
         try:
-            # GPT-4 and GPT-4o use cl100k_base encoding
+            # Use cl100k_base encoding as approximation across supported models
             self.encodings["gpt-5-mini"] = tiktoken.get_encoding("cl100k_base")
             self.encodings["gpt-5-nano"] = tiktoken.get_encoding("cl100k_base")
+            self.encodings["gpt-4o"] = tiktoken.get_encoding("cl100k_base")
+            self.encodings["gpt-4o-mini"] = tiktoken.get_encoding("cl100k_base")
 
             # Claude models - approximate using cl100k_base
             self.encodings["claude-3-5-sonnet"] = tiktoken.get_encoding("cl100k_base")
@@ -116,7 +120,9 @@ class TokenTracker:
             model = model.split("/")[-1]
 
         # Handle common variations
-        model_mappings = {
+        model_mappings: Mapping[str, str] = {
+            "gpt-4o": "gpt-4o",
+            "gpt-4o-mini": "gpt-4o-mini",
             "gpt-5": "gpt-5",
             "gpt-5-mini": "gpt-5-mini",
             "gpt-5-nano": "gpt-5-nano",
@@ -124,7 +130,7 @@ class TokenTracker:
             "claude-3-haiku": "claude-3-haiku",
         }
 
-        return model_mappings.get(model, "gpt-5-mini")  # Default to gpt-5-mini
+        return model_mappings.get(model, "gpt-5-mini")  # Default to gpt-5-mini for encoding
 
     def estimate_tokens_for_prompt(
         self, prompt: str, model: str = "gpt-5-mini"
@@ -188,9 +194,9 @@ class TokenTracker:
 
         if model_key not in self.cost_per_token:
             logger.debug(
-                f"Unknown model {model}, defaulting to gpt-5-mini pricing for estimation"
+                f"Unknown model {model}, defaulting to gpt-4o pricing for estimation"
             )
-            model_key = "gpt-5-mini"
+            model_key = "gpt-4o"
 
         rates = self.cost_per_token[model_key]
         cost = (input_tokens * rates["input"] / 1000) + (

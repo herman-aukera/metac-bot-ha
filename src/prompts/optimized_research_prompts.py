@@ -4,12 +4,11 @@ This module provides token-efficient research prompts designed to maximize
 accuracy per token spent while maintaining competitive forecasting performance.
 """
 
-from typing import Any, Dict, List
+from typing import Dict
 
 from jinja2 import Template
 
 from ..domain.entities.question import Question
-from ..domain.entities.research_report import ResearchSource
 
 
 class OptimizedResearchPrompts:
@@ -318,7 +317,7 @@ class QuestionComplexityAnalyzer:
         Returns:
             Focus type: "general", "news", or "base_rate"
         """
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timezone
 
         # Check if question is time-sensitive (closes soon)
         if question.close_time:

@@ -8,7 +8,6 @@ This script demonstrates the new features added in task 8.2:
 - Performance attribution analysis and optimization recommendations
 """
 
-import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -269,7 +268,7 @@ def main():
         print(f"     Category: {rec['category']}")
         print(f"     Description: {rec['description']}")
         print(f"     Expected Impact: {rec['expected_impact']}")
-        print(f"     Actions:")
+        print("     Actions:")
         for action in rec['specific_actions'][:2]:  # Show first 2 actions
             print(f"       - {action}")
 

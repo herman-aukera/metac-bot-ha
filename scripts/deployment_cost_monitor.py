@@ -12,7 +12,6 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Configure logging
@@ -401,7 +400,6 @@ class DeploymentCostMonitor:
 
 def main():
     """Main function to run cost monitoring."""
-    import sys
 
     # Check for JSON output flag
     json_output = "--json-output" in sys.argv
@@ -443,12 +441,12 @@ def main():
             print(json.dumps(json_report, indent=2))
         else:
             # Regular output
-            print(f"\\n=== Cost Monitor Summary ===")
+            print("\\n=== Cost Monitor Summary ===")
             print(f"Current Spend: ${current_spend:.2f}")
             print(f"Remaining Budget: ${remaining:.2f}")
             print(f"Budget Utilization: {utilization:.1f}%")
             print(f"Operation Mode: {operation_mode}")
-            print(f"Reports generated successfully!")
+            print("Reports generated successfully!")
 
     except Exception as e:
         logger.error(f"Cost monitoring failed: {e}")

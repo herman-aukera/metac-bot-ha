@@ -2,6 +2,9 @@
 OpenRouter Tri-Model Router with Anti-Slop Directives.
 Implements strategic cost-performance optimization through OpenRouter's unified gateway
 with actual available models and correct pricing for tournament forecasting.
+
+Policy update: All free-model fallbacks (e.g., kimi-k2:free, gpt-oss-20b:free) are removed.
+Emergency/critical modes now use GPT-5-nano instead of any free model.
 """
 
 import asyncio
@@ -110,7 +113,6 @@ class OpenRouterTriModelRouter:
     - Tier 3 (nano): openai/gpt-5-nano ($0.05/1M tokens) — ultra-fast validation, parsing
     - Tier 2 (mini): openai/gpt-5-mini ($0.25/1M tokens) — research synthesis, intermediate reasoning
     - Tier 1 (full): openai/gpt-5 ($1.50/1M tokens) — final forecasting, complex analysis
-    - Free Fallbacks: openai/gpt-oss-20b:free, moonshotai/kimi-k2:free — budget exhaustion operation
 
     Budget Impact: At $100 budget, processes 5000+ questions vs ~300 with single GPT-4o.
 
@@ -132,7 +134,8 @@ class OpenRouterTriModelRouter:
         # OpenRouter model configurations with actual pricing
         self.model_configs = self._get_openrouter_model_configurations()
         # Initialize containers for models & status (after configs defined)
-        self.models: Dict[ModelTier, GeneralLlm] = {}
+        # May hold GeneralLlm or HardenedOpenRouterModel adapters
+        self.models: Dict[ModelTier, Union[GeneralLlm, HardenedOpenRouterModel]] = {}
         self.model_status: Dict[ModelTier, ModelStatus] = {}
         self.fallback_chains: Dict[ModelTier, List[str]] = self._define_openrouter_fallback_chains()
 
@@ -144,12 +147,12 @@ class OpenRouterTriModelRouter:
             "forecast": "full",
         }
 
-        # Operation mode thresholds (budget utilization percentages) - optimized for free fallbacks
+        # Operation mode thresholds (budget utilization percentages)
         self.operation_thresholds = {
             "normal": (0, 70),  # 0-70% budget used: Use GPT-5 models
             "conservative": (70, 85),  # 70-85% budget used: Use GPT-5 mini/nano only
-            "emergency": (85, 95),  # 85-95% budget used: Use free models
-            "critical": (95, 100),  # 95-100% budget used: Free models only
+            "emergency": (85, 95),  # 85-95% budget used: Prefer nano-only to minimize cost
+            "critical": (95, 100),  # 95-100% budget used: Pause heavy work; nano-only if essential
         }
 
         # Initialize models and check availability
@@ -159,6 +162,9 @@ class OpenRouterTriModelRouter:
             "OpenRouter tri-model router initialized with actual available models and pricing"
         )
         # Expose underlying hardened client for metrics (optional use by main run summary)
+        # Initialize optional hardened LLM client reference (created lazily below)
+        self.llm_client: Optional[LLMClient] = None
+
         try:
             self.llm_client = LLMClient(
                 LLMConfig(
@@ -172,7 +178,7 @@ class OpenRouterTriModelRouter:
                 )
             )
         except Exception:
-            self.llm_client = None  # type: ignore[attr-defined]
+            self.llm_client = None
 
     @classmethod
     async def create_with_auto_configuration(cls) -> "OpenRouterTriModelRouter":
@@ -204,7 +210,7 @@ class OpenRouterTriModelRouter:
         return headers
 
     def _get_openrouter_model_configurations(self) -> Dict[ModelTier, ModelConfig]:
-        """Cost-optimized model configurations with free fallbacks."""
+        """Cost-optimized model configurations (no free fallbacks)."""
         return {
             "nano": ModelConfig(
                 model_name=self._normalize_model_id(
@@ -214,8 +220,8 @@ class OpenRouterTriModelRouter:
                 cost_per_million_output=0.05,
                 temperature=0.1,
                 timeout=30,
-                allowed_tries=3,  # More tries since we have free fallbacks
-                description="GPT-5 Nano with free OSS/Kimi fallbacks",
+                allowed_tries=3,
+                description="GPT-5 Nano",
             ),
             "mini": ModelConfig(
                 model_name=self._normalize_model_id(
@@ -226,7 +232,7 @@ class OpenRouterTriModelRouter:
                 temperature=0.3,
                 timeout=60,
                 allowed_tries=3,
-                description="GPT-5 Mini with free fallbacks",
+                description="GPT-5 Mini",
             ),
             "full": ModelConfig(
                 model_name=self._normalize_model_id(
@@ -237,12 +243,12 @@ class OpenRouterTriModelRouter:
                 temperature=0.0,
                 timeout=90,
                 allowed_tries=3,
-                description="GPT-5 Full with cost-optimized fallbacks",
+                description="GPT-5 Full with intra-tier fallbacks",
             ),
         }
 
     def _define_openrouter_fallback_chains(self) -> Dict[ModelTier, List[str]]:
-        """Cost-optimized fallback chains: GPT-5 → Free models (skip expensive GPT-4o)."""
+        """Fallback chains: GPT-5 tiers only (full → mini → nano). No free models."""
         # Check which API keys are available
         has_openrouter = self.openrouter_key and not self.openrouter_key.startswith(
             "dummy_"
@@ -251,72 +257,25 @@ class OpenRouterTriModelRouter:
             os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true"
         )
 
-        # Free models for budget-conscious operation
-        # Prefer OSS-20B over Kimi due to availability issues observed via OpenRouter (404 NotFound)
-        free_models = [
-            "openai/gpt-oss-20b:free",  # Free OSS - reliable fallback
-            "moonshotai/kimi-k2:free",  # Free Kimi - alternate
-        ]
-
-        if has_openrouter and has_metaculus_proxy:
-            # Metaculus proxy present but GPT-4o family purged; keep free models only
+        if has_openrouter:
+            logger.info("Using OpenRouter fallback chains: GPT-5 full → mini → nano (no free models)")
             return {
                 "nano": [
                     "openai/gpt-5-nano",
-                    "openai/gpt-oss-20b:free",
-                    "moonshotai/kimi-k2:free",
                 ],
                 "mini": [
                     "openai/gpt-5-mini",
                     "openai/gpt-5-nano",
-                    "openai/gpt-oss-20b:free",
-                    "moonshotai/kimi-k2:free",
                 ],
                 "full": [
                     "openai/gpt-5",
                     "openai/gpt-5-mini",
-                    "openai/gpt-oss-20b:free",
                     "openai/gpt-5-nano",
-                    "moonshotai/kimi-k2:free",
                 ],
-            }
-        elif has_openrouter:
-            # OpenRouter only configuration with cost optimization
-            logger.info(
-                "Using cost-optimized OpenRouter fallback chains: GPT-5 → Free models"
-            )
-            return {
-                "nano": [
-                    "openai/gpt-5-nano",  # Primary: GPT-5 Nano ($0.05)
-                    "openai/gpt-oss-20b:free",  # Free fallback (skip expensive models)
-                    "moonshotai/kimi-k2:free",  # Free alternative
-                ],
-                "mini": [
-                    "openai/gpt-5-mini",  # Primary: GPT-5 Mini ($0.25)
-                    "openai/gpt-5-nano",  # Downgrade to nano first
-                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
-                    "moonshotai/kimi-k2:free",  # Free alternative
-                ],
-                "full": [
-                    "openai/gpt-5",  # Primary: GPT-5 Full ($1.50)
-                    "openai/gpt-5-mini",  # Downgrade to mini first
-                    "openai/gpt-oss-20b:free",  # Free research model (prefer over Kimi)
-                    "openai/gpt-5-nano",  # Further downgrade
-                    "moonshotai/kimi-k2:free",  # Final free fallback
-                ],
-            }
-        elif has_metaculus_proxy:
-            # Metaculus proxy present; GPT-4o banned → rely on free chains
-            logger.info("Metaculus proxy detected; using free model chains (GPT-4o removed)")
-            return {
-                "nano": free_models,
-                "mini": free_models,
-                "full": free_models,
             }
         else:
-            # Emergency configuration - use free models only
-            logger.warning("No primary API keys available - using free models only")
-            return {"nano": free_models, "mini": free_models, "full": free_models}
+            logger.warning("No valid OPENROUTER_API_KEY detected; using nano-only placeholder chain")
+            return {"nano": ["openai/gpt-5-nano"], "mini": ["openai/gpt-5-nano"], "full": ["openai/gpt-5-nano"]}
 
     def _initialize_all_models(self) -> None:
         """Initialize all models with availability detection."""
@@ -349,7 +308,7 @@ class OpenRouterTriModelRouter:
 
     def _initialize_model_with_fallback(
         self, tier: ModelTier, config: ModelConfig
-    ) -> Tuple[GeneralLlm, ModelStatus]:
+    ) -> Tuple[Union[GeneralLlm, HardenedOpenRouterModel], ModelStatus]:
         """Initialize a model with OpenRouter fallback chain."""
         fallback_chain = self.fallback_chains[tier]
         for model_name in fallback_chain:
@@ -393,7 +352,7 @@ class OpenRouterTriModelRouter:
         model_name: str,
         config: ModelConfig,
         operation_mode: Optional[OperationMode] = None,
-    ) -> Optional[GeneralLlm]:
+    ) -> Optional[Union[GeneralLlm, HardenedOpenRouterModel]]:
         """Create a model configured for OpenRouter with proper headers and provider routing."""
         # Defensive normalization to ensure provider prefix before any routing logic
         model_name = self._normalize_model_id(model_name)
@@ -477,13 +436,13 @@ class OpenRouterTriModelRouter:
         }
 
         if operation_mode == "critical":
-            # Critical mode: only free models, price-sorted with strict limits
+            # Critical mode: nano-only preference with strict limits (no free models)
             return {
                 **base_preferences,
                 "sort": "price",
-                "max_price": {"prompt": 0, "completion": 0},  # Free only
-                "order": ["free", "cheapest"],  # Prioritize free providers
-                "require_parameters": True,  # Ensure we get exactly what we ask for
+                "max_price": {"prompt": 0.1, "completion": 0.1},
+                "order": ["cheapest", "fastest"],
+                "require_parameters": True,
             }
         elif operation_mode == "emergency":
             # Emergency mode: prefer cheapest options with strict cost controls
@@ -534,16 +493,16 @@ class OpenRouterTriModelRouter:
                 "provider_routing": "Price-first with reliability requirements",
             },
             "emergency": {
-                "description": "Budget preservation mode with free model preference",
-                "model_preference": "Free models preferred, GPT-5 nano for critical tasks",
+                "description": "Budget preservation mode with nano preference",
+                "model_preference": "GPT-5 nano preferred for critical tasks",
                 "cost_strategy": "Aggressive cost minimization",
                 "provider_routing": "Cheapest available with speed priority",
             },
             "critical": {
-                "description": "Budget exhaustion mode - free models only",
-                "model_preference": "Free models only (Kimi-K2, OSS-20B)",
-                "cost_strategy": "Zero-cost operation only",
-                "provider_routing": "Free providers only with strict limits",
+                "description": "Budget exhaustion mode - nano-only essential ops",
+                "model_preference": "GPT-5 nano only",
+                "cost_strategy": "Essential operations only",
+                "provider_routing": "Strict limits, fast and cheap",
             },
         }
 
@@ -645,14 +604,14 @@ class OpenRouterTriModelRouter:
             )
 
     def _create_emergency_model(self, tier: ModelTier) -> GeneralLlm:
-        """Create emergency fallback model using available API keys."""
+        """Create emergency fallback model using available API keys (nano-only)."""
         config = self.model_configs[tier]
 
         # Try to use the best available emergency model
         if self.openrouter_key and not self.openrouter_key.startswith("dummy_"):
-            # Use OpenRouter with free model as emergency
+            # Use OpenRouter with GPT-5-nano as emergency
             return GeneralLlm(
-                model="openai/gpt-oss-20b:free",  # Free model for emergency
+                model="openai/gpt-5-nano",
                 api_key=self.openrouter_key,
                 base_url=self.openrouter_base_url,
                 extra_headers=self.openrouter_headers,
@@ -661,15 +620,6 @@ class OpenRouterTriModelRouter:
                 allowed_tries=1,
                 # Ensure LiteLLM routes via OpenRouter; prevents provider ambiguity
                 custom_llm_provider="openrouter",
-            )
-        elif os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true":
-            # Use alternative free model despite proxy (GPT-4o removed)
-            return GeneralLlm(
-                model="moonshotai/kimi-k2:free",
-                api_key=None,
-                temperature=config.temperature,
-                timeout=config.timeout,
-                allowed_tries=1,
             )
         else:
             # Last resort - create a dummy model that will fail gracefully
@@ -686,13 +636,11 @@ class OpenRouterTriModelRouter:
         """Detect availability of OpenRouter models with comprehensive testing."""
         availability = {}
 
-        # Test cost-optimized models: GPT-5 primary + free fallbacks
+        # Test cost-optimized models: GPT-5 tiers only
         test_models = [
             "openai/gpt-5",  # Tier 1 (full) - GPT-5 primary
             "openai/gpt-5-mini",  # Tier 2 (mini) - GPT-5 mini
             "openai/gpt-5-nano",  # Tier 3 (nano) - GPT-5 nano
-            "moonshotai/kimi-k2:free",  # Free fallback 1 - Kimi reasoning
-            "openai/gpt-oss-20b:free",  # Free fallback 2 - OSS reliable
         ]
 
         logger.info("Starting OpenRouter model availability detection...")
@@ -755,24 +703,14 @@ class OpenRouterTriModelRouter:
             if tier == "full":
                 if availability.get("openai/gpt-5-mini", False):
                     chain.append("openai/gpt-5-mini")
-                if availability.get("openai/gpt-oss-20b:free", False):
-                    chain.append("openai/gpt-oss-20b:free")
                 if availability.get("openai/gpt-5-nano", False):
                     chain.append("openai/gpt-5-nano")
-                if availability.get("moonshotai/kimi-k2:free", False):
-                    chain.append("moonshotai/kimi-k2:free")
             elif tier == "mini":
                 if availability.get("openai/gpt-5-nano", False):
                     chain.append("openai/gpt-5-nano")
-                if availability.get("openai/gpt-oss-20b:free", False):
-                    chain.append("openai/gpt-oss-20b:free")
-                if availability.get("moonshotai/kimi-k2:free", False):
-                    chain.append("moonshotai/kimi-k2:free")
             else:  # nano
-                if availability.get("openai/gpt-oss-20b:free", False):
-                    chain.append("openai/gpt-oss-20b:free")
-                if availability.get("moonshotai/kimi-k2:free", False):
-                    chain.append("moonshotai/kimi-k2:free")
+                # nano has no lower-cost fallback beyond itself
+                pass
 
             optimized_chains[tier] = chain
             logger.info(f"Auto-configured {tier} tier chain: {' → '.join(chain)}")
@@ -783,11 +721,11 @@ class OpenRouterTriModelRouter:
     def _get_emergency_fallback_chains(self) -> Dict[ModelTier, List[str]]:
         """Get emergency fallback chains when no OpenRouter primary models are available.
 
-        Uses only free community models (GPT-4o family removed).
+        Policy: Use nano-only GPT-5 to minimize cost; no free/community models.
         """
-        logger.warning("Using emergency fallback chains - free models only (GPT-4o purged)")
-        free_models = ["openai/gpt-oss-20b:free", "moonshotai/kimi-k2:free"]
-        return {"nano": free_models, "mini": free_models, "full": free_models}
+        logger.warning("Using emergency fallback chains - nano-only (no free models)")
+        nano_only = ["openai/gpt-5-nano"]
+        return {"nano": nano_only, "mini": nano_only, "full": nano_only}
 
     async def validate_openrouter_configuration(self) -> Dict[str, Any]:
         """Validate OpenRouter configuration and report any issues."""
@@ -969,8 +907,8 @@ class OpenRouterTriModelRouter:
             "operation_modes": {
                 "normal": "GPT-5 models with optimal routing (0-70% budget)",
                 "conservative": "GPT-5 mini/nano only (70-85% budget)",
-                "emergency": "Free models preferred (85-95% budget)",
-                "critical": "Free models only (95-100% budget)",
+                "emergency": "Nano-preferred, cost-minimizing (85-95% budget)",
+                "critical": "Nano-only essential operations (95-100% budget)",
             },
             "tier_models": {
                 "full": self.model_configs["full"].model_name,  # openai/gpt-5
@@ -981,23 +919,15 @@ class OpenRouterTriModelRouter:
             "cost_optimized_fallbacks": {
                 "full_fallbacks": [
                     "openai/gpt-5-mini",
-                    "openai/gpt-oss-20b:free",
-                    "moonshotai/kimi-k2:free",
+                    "openai/gpt-5-nano",
                 ],
                 "mini_fallbacks": [
                     "openai/gpt-5-nano",
-                    "openai/gpt-oss-20b:free",
-                    "moonshotai/kimi-k2:free",
                 ],
                 "nano_fallbacks": [
-                    "openai/gpt-oss-20b:free",
-                    "moonshotai/kimi-k2:free",
+                    "openai/gpt-5-nano",
                 ],
             },
-            "free_fallbacks": [
-                "openai/gpt-oss-20b:free",  # GPT-OSS free model
-                "moonshotai/kimi-k2:free",  # Kimi free model
-            ],
             "model_status": {
                 tier: status.__dict__ for tier, status in self.model_status.items()
             },
@@ -1308,7 +1238,7 @@ class OpenRouterTriModelRouter:
         content_length: int = 0,
         budget_remaining: float = 100.0,
         content: Optional[str] = None,
-    ) -> Tuple[GeneralLlm, ModelTier]:
+    ) -> Tuple[Union[GeneralLlm, HardenedOpenRouterModel], ModelTier]:
         """
         Choose optimal model based on task requirements and budget constraints with enhanced logic.
 
@@ -1451,8 +1381,7 @@ class OpenRouterTriModelRouter:
 
             if operation_mode == "emergency":
                 suggestions.append(
-                    "Switch to free models (Kimi-K2, OSS-20B) for non-critical tasks "
-                    "to extend operational capacity"
+                    "Prefer GPT-5 nano for non-critical tasks to extend operational capacity"
                 )
 
         if budget_remaining < 20:
@@ -1463,8 +1392,7 @@ class OpenRouterTriModelRouter:
 
         if operation_mode == "critical":
             suggestions.append(
-                "Operating in critical mode - only free models available. "
-                "Focus on highest-priority tasks only."
+                "Operating in critical mode - nano-only. Focus on highest-priority tasks only."
             )
 
         return suggestions
@@ -1801,10 +1729,10 @@ Recommendation: Retry when systems are restored or use alternative approach.
     def _adjust_for_operation_mode(
         self, base_tier: ModelTier, mode: OperationMode, task_type: TaskType
     ) -> ModelTier:
-        """Adjust model tier based on operation mode - optimized for free fallbacks."""
+        """Adjust model tier based on operation mode - nano preference in tight budgets."""
         if mode == "critical":
-            # Critical mode: free models only (handled by fallback chain)
-            return base_tier  # Will use free models from chain
+            # Critical mode: force nano
+            return "nano"
         elif mode == "emergency":
             # Emergency mode: prefer nano, allow mini for forecasts
             if task_type == "forecast" and base_tier == "full":
@@ -2042,11 +1970,7 @@ Recommendation: Retry when systems are restored or use alternative approach.
         # Get cost-optimized pricing for selected tier
         config = self.model_configs[tier]
 
-        # Check if we're likely to use free models based on operation mode
-        operation_mode = self.get_operation_mode(budget_remaining)
-        if operation_mode in ["emergency", "critical"]:
-            # Likely to use free models, so cost is $0
-            return 0.0
+        # Operation mode may influence tier choice, but we do not assume zero-cost models
 
         # Calculate cost with separate input/output pricing
         input_cost = (input_tokens / 1_000_000) * config.cost_per_million_input

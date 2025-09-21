@@ -1,8 +1,8 @@
 """Tests for the ForecastService application service."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch
-from uuid import UUID, uuid4
+from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 

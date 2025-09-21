@@ -8,23 +8,19 @@ and source diversification to ensure comprehensive evidence gathering.
 
 import statistics
 from abc import ABC, abstractmethod
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
 from ..entities.question import Question
-from ..entities.research_report import ResearchQuality, ResearchSource
+from ..entities.research_report import ResearchQuality
 from .authoritative_source_manager import (
     AuthoritativeSource,
-    ExpertiseArea,
-    KnowledgeBase,
-    SourceType,
 )
-from .conflict_resolver import SynthesizedConclusion, UncertaintyLevel
 
 logger = structlog.get_logger(__name__)
 

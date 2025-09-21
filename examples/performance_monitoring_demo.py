@@ -4,9 +4,7 @@ Shows real-time cost tracking, model effectiveness analysis, and optimization re
 """
 
 import asyncio
-import time
 import random
-from datetime import datetime
 
 import sys
 import os
@@ -141,7 +139,7 @@ def demonstrate_real_time_monitoring(monitoring: IntegratedMonitoringService):
 
     # Budget status
     budget = status.budget_status.get("budget", {})
-    print(f"\n💰 Budget Status:")
+    print("\n💰 Budget Status:")
     print(f"  Used: ${budget.get('spent', 0):.3f} / ${budget.get('total', 100):.0f}")
     print(f"  Remaining: ${budget.get('remaining', 0):.3f}")
     print(f"  Utilization: {budget.get('utilization_percent', 0):.1f}%")
@@ -150,7 +148,7 @@ def demonstrate_real_time_monitoring(monitoring: IntegratedMonitoringService):
 
     # Performance metrics
     perf = status.performance_metrics.get("quality_metrics", {})
-    print(f"\n📈 Performance Metrics:")
+    print("\n📈 Performance Metrics:")
     print(f"  Avg Quality Score: {perf.get('avg_quality_score', 0):.3f}")
     print(f"  Success Rate: {perf.get('success_rate', 0):.1%}")
     print(f"  Fallback Rate: {perf.get('fallback_rate', 0):.1%}")
@@ -158,7 +156,7 @@ def demonstrate_real_time_monitoring(monitoring: IntegratedMonitoringService):
 
     # Tournament competitiveness
     tournament = status.tournament_competitiveness
-    print(f"\n🏆 Tournament Competitiveness:")
+    print("\n🏆 Tournament Competitiveness:")
     print(f"  Level: {tournament.get('competitiveness_level', 'unknown').upper()}")
     print(f"  Cost Efficiency: {tournament.get('cost_efficiency_score', 0):.1f} questions/$")
     print(f"  Quality Efficiency: {tournament.get('quality_efficiency_score', 0):.1f} quality/$")
@@ -173,7 +171,7 @@ def demonstrate_real_time_monitoring(monitoring: IntegratedMonitoringService):
 
     # Top recommendations
     if status.optimization_recommendations:
-        print(f"\n💡 Top Optimization Recommendations:")
+        print("\n💡 Top Optimization Recommendations:")
         for i, rec in enumerate(status.optimization_recommendations[:5], 1):
             print(f"  {i}. {rec}")
 
@@ -192,7 +190,7 @@ def demonstrate_cost_effectiveness_analysis(monitoring: IntegratedMonitoringServ
 
     # Tier breakdown
     if cost_breakdown.by_tier:
-        print(f"\n📊 Cost by Model Tier:")
+        print("\n📊 Cost by Model Tier:")
         for tier, data in cost_breakdown.by_tier.items():
             efficiency = data['count'] / data['cost'] if data['cost'] > 0 else 0
             print(f"  {tier.upper()}: {data['count']} questions, ${data['cost']:.4f} "
@@ -200,7 +198,7 @@ def demonstrate_cost_effectiveness_analysis(monitoring: IntegratedMonitoringServ
 
     # Task type breakdown
     if cost_breakdown.by_task_type:
-        print(f"\n📋 Cost by Task Type:")
+        print("\n📋 Cost by Task Type:")
         for task, data in cost_breakdown.by_task_type.items():
             efficiency = data['count'] / data['cost'] if data['cost'] > 0 else 0
             print(f"  {task}: {data['count']} questions, ${data['cost']:.4f} "
@@ -208,7 +206,7 @@ def demonstrate_cost_effectiveness_analysis(monitoring: IntegratedMonitoringServ
 
     # Operation mode breakdown
     if cost_breakdown.by_operation_mode:
-        print(f"\n⚙️  Cost by Operation Mode:")
+        print("\n⚙️  Cost by Operation Mode:")
         for mode, data in cost_breakdown.by_operation_mode.items():
             efficiency = data['count'] / data['cost'] if data['cost'] > 0 else 0
             print(f"  {mode}: {data['count']} questions, ${data['cost']:.4f} "
@@ -227,30 +225,30 @@ def demonstrate_strategic_recommendations(monitoring: IntegratedMonitoringServic
     print(f"Tournament Phase: {phase_strategy['phase'].upper()}")
     print(f"Risk Tolerance: {phase_strategy['risk_tolerance']}")
 
-    print(f"\n📊 Recommended Budget Allocation:")
+    print("\n📊 Recommended Budget Allocation:")
     for tier, percentage in phase_strategy["budget_allocation_strategy"].items():
         print(f"  {tier.upper()}: {percentage:.1f}%")
 
-    print(f"\n🔧 Routing Adjustments:")
+    print("\n🔧 Routing Adjustments:")
     for i, adjustment in enumerate(phase_strategy["routing_adjustments"], 1):
         print(f"  {i}. {adjustment}")
 
     # Budget optimization
     budget_opt = recommendations["budget_optimization"]
-    print(f"\n💰 Budget Optimization:")
+    print("\n💰 Budget Optimization:")
     print(f"  Potential Savings: ${budget_opt['potential_savings']:.4f}")
     print(f"  Additional Questions Possible: {budget_opt['additional_questions_possible']}")
     print(f"  Risk Assessment: {budget_opt['risk_assessment'].upper()}")
 
     if budget_opt["implementation_steps"]:
-        print(f"\n📋 Implementation Steps:")
+        print("\n📋 Implementation Steps:")
         for i, step in enumerate(budget_opt["implementation_steps"], 1):
             print(f"  {i}. {step}")
 
     # Implementation priorities
     priorities = recommendations["implementation_priority"]
     if priorities:
-        print(f"\n🎯 Implementation Priorities:")
+        print("\n🎯 Implementation Priorities:")
         for i, priority in enumerate(priorities, 1):
             print(f"  {i}. {priority}")
 
@@ -279,7 +277,7 @@ def demonstrate_trend_analysis(monitoring: IntegratedMonitoringService):
     # Trend analysis
     trend_analysis = trends.get("trend_analysis", {})
     if trend_analysis:
-        print(f"\n📊 Trend Analysis:")
+        print("\n📊 Trend Analysis:")
         print(f"  Cost Trend: {trend_analysis.get('cost_trend', 'unknown').upper()}")
         print(f"  Quality Trend: {trend_analysis.get('quality_trend', 'unknown').upper()}")
         print(f"  Efficiency Trend: {trend_analysis.get('efficiency_trend', 'unknown').upper()}")
@@ -333,15 +331,15 @@ async def main():
         print("\n📤 DATA EXPORT")
         print("=" * 60)
         export_data = monitoring.export_monitoring_data(24)
-        print(f"Exported comprehensive monitoring data:")
+        print("Exported comprehensive monitoring data:")
         print(f"  - Comprehensive status with {len(export_data['comprehensive_status'])} metrics")
         print(f"  - Cost breakdown for {export_data['cost_breakdown']['question_count']} questions")
-        print(f"  - Quality metrics and trends")
-        print(f"  - Optimization analysis and recommendations")
+        print("  - Quality metrics and trends")
+        print("  - Optimization analysis and recommendations")
         print(f"  - Alert history with {len(export_data['alert_history'])} alerts")
 
-        print(f"\n🎉 DEMONSTRATION COMPLETED SUCCESSFULLY!")
-        print(f"📊 Final Stats:")
+        print("\n🎉 DEMONSTRATION COMPLETED SUCCESSFULLY!")
+        print("📊 Final Stats:")
         print(f"  - Questions Processed: {export_data['cost_breakdown']['question_count']}")
         print(f"  - Total Cost: ${export_data['cost_breakdown']['total_cost']:.4f}")
         print(f"  - Budget Utilization: {budget_used_percentage:.1f}%")

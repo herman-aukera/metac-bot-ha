@@ -5,7 +5,7 @@ that package directly to keep testability (call site provides adapter).
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, List
 
 
 def fetch_all(

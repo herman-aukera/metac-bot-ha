@@ -6,9 +6,7 @@ This handles SSL issues and gets the bot running quickly.
 
 import os
 import sys
-import ssl
 import subprocess
-from pathlib import Path
 
 def setup_ssl():
     """Fix SSL certificate issues."""
@@ -68,7 +66,6 @@ def main():
 
     # Run the bot
     try:
-        import main
         print("\n" + "="*50)
         print("🏆 BOT IS READY FOR TOURNAMENT!")
         print("Run: python3 main.py --mode tournament")

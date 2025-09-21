@@ -1,7 +1,7 @@
 """Tests for ConservativeStrategyEngine."""
 
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -11,7 +11,6 @@ from src.domain.entities.prediction import (
     Prediction,
     PredictionConfidence,
     PredictionMethod,
-    PredictionResult,
 )
 from src.domain.services.calibration_service import (
     CalibrationMetrics,
@@ -21,7 +20,6 @@ from src.domain.services.conservative_strategy_engine import (
     ConservativeAction,
     ConservativeStrategyConfig,
     ConservativeStrategyEngine,
-    RiskAssessment,
     RiskLevel,
 )
 from src.domain.services.uncertainty_quantifier import (
@@ -29,7 +27,6 @@ from src.domain.services.uncertainty_quantifier import (
     UncertaintyQuantifier,
     UncertaintySource,
 )
-from src.domain.value_objects.confidence import ConfidenceLevel
 
 
 class TestConservativeStrategyEngine:

@@ -5,7 +5,6 @@ This service handles parsing JSON question data from the Metaculus API
 and converting it into Question domain objects with validation.
 """
 
-import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -347,7 +346,7 @@ class IngestionService:
             dt = datetime.strptime(str(close_time_str), "%Y-%m-%d %H:%M:%S")
             return dt.replace(tzinfo=timezone.utc)
 
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             if self.validation_level == ValidationLevel.STRICT:
                 raise ParseError(f"Invalid close time format: {close_time_str}")
             return datetime(2030, 12, 31, tzinfo=timezone.utc)

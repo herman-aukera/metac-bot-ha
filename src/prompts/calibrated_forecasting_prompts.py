@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional
 from jinja2 import Template
 
 from ..domain.entities.question import Question
-from ..domain.entities.research_report import ResearchReport
 
 
 class CalibratedForecastingPrompts:

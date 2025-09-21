@@ -11,7 +11,7 @@ import sys
 import json
 import argparse
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Tuple
 
 
 def check_python_version() -> Tuple[bool, str]:
@@ -202,7 +202,7 @@ def run_ci_checks(fork_mode: bool = False) -> int:
     with open("ci_deployment_report.json", "w") as f:
         json.dump(results, f, indent=2)
 
-    print(f"📋 Report saved to: ci_deployment_report.json")
+    print("📋 Report saved to: ci_deployment_report.json")
 
     return return_code
 

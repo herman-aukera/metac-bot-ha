@@ -11,7 +11,6 @@ from src.domain.entities.prediction import (
     Prediction,
     PredictionConfidence,
     PredictionMethod,
-    PredictionResult,
 )
 from src.domain.services.uncertainty_quantifier import (
     ConfidenceThresholds,

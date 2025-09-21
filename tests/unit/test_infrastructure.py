@@ -1,16 +1,13 @@
 """Unit tests for infrastructure components."""
 
-import json
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import aiohttp
 import httpx
 import pytest
 
 from src.infrastructure.config.settings import LLMConfig, MetaculusConfig, SearchConfig
 from src.infrastructure.external_apis.llm_client import LLMClient
 from src.infrastructure.external_apis.metaculus_client import MetaculusClient
-from src.infrastructure.external_apis.search_client import SearchClient
 
 
 class TestLLMClient:

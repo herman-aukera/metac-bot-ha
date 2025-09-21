@@ -6,7 +6,7 @@ Provides seamless integration with existing services.
 import logging
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
 from .budget_dashboard import budget_dashboard
 from .comprehensive_monitor import comprehensive_monitor

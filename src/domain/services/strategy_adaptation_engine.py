@@ -1,22 +1,18 @@
 """Strategy adaptation engine for dynamic optimization and competitive positioning."""
 
-import math
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
-from uuid import UUID
+from typing import Any, Dict, List, Optional
 
 import structlog
 
-from ..entities.forecast import Forecast, ForecastStatus
-from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
-from ..entities.question import Question, QuestionType
-from ..value_objects.tournament_strategy import QuestionPriority, TournamentStrategy
-from .pattern_detector import AdaptationRecommendation, DetectedPattern, PatternDetector
-from .performance_analyzer import ImprovementOpportunity, PerformanceAnalyzer
+from ..entities.forecast import Forecast
+from ..value_objects.tournament_strategy import TournamentStrategy
+from .pattern_detector import PatternDetector
+from .performance_analyzer import PerformanceAnalyzer
 
 logger = structlog.get_logger(__name__)
 

@@ -7,8 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ..entities.prediction import Prediction, PredictionConfidence
-from ..value_objects.probability import Probability
+from ..entities.prediction import Prediction
 
 
 @dataclass

@@ -2,7 +2,6 @@
 """
 Test script for budget management system.
 """
-import os
 import sys
 from pathlib import Path
 

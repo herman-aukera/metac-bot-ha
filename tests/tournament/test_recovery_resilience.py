@@ -4,9 +4,9 @@ import asyncio
 import random
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, Mock, patch
+from datetime import datetime
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -15,8 +15,6 @@ from src.domain.entities.forecast import Forecast
 from src.domain.entities.question import Question, QuestionType
 from src.domain.value_objects.confidence import ConfidenceLevel
 from src.domain.value_objects.probability import Probability
-from src.infrastructure.reliability.circuit_breaker import CircuitBreaker
-from src.infrastructure.reliability.retry_manager import RetryManager
 
 
 @dataclass
@@ -359,7 +357,7 @@ class TestRecoveryResilience:
                     question_id=question.id,
                     prediction=Probability(0.42),
                     confidence=ConfidenceLevel(0.78),
-                    reasoning=f"Quick forecast after timeout recovery",
+                    reasoning="Quick forecast after timeout recovery",
                     method="chain_of_thought",
                     sources=["timeout_recovery"],
                     metadata={"call_count": call_count},

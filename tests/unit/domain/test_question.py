@@ -2,9 +2,8 @@
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
-from src.domain.entities.question import Question, QuestionStatus, QuestionType
+from src.domain.entities.question import Question, QuestionType
 
 
 def test_can_create_binary_question():

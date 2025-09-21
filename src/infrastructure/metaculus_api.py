@@ -5,8 +5,6 @@ Provides mock client functionality for fetching dummy question data.
 No actual API calls are made - uses dummy JSON data for testing purposes.
 """
 
-import json
-import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional

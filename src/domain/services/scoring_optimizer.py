@@ -5,11 +5,10 @@ import statistics
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from ..entities.forecast import Forecast, calculate_brier_score
-from ..entities.prediction import Prediction
 from ..entities.question import Question
 from ..value_objects.tournament_strategy import (
     QuestionCategory,

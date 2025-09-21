@@ -151,7 +151,7 @@ def demo_efficiency_metrics():
         print(f"  Cost per question (GPT-4o-mini): ${data['cost_per_question']['gpt-4o-mini']['total_cost']:.4f}")
         print(f"  Cost per question (GPT-4o): ${data['cost_per_question']['gpt-4o']['total_cost']:.4f}")
 
-    print(f"\nRECOMMENDATIONS:")
+    print("\nRECOMMENDATIONS:")
     for use_case, prompt_type in metrics["recommendations"].items():
         print(f"  {use_case.replace('_', ' ').title()}: {prompt_type}")
 

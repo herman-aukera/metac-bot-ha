@@ -5,15 +5,12 @@ import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import structlog
 
-from ..entities.forecast import Forecast, ForecastStatus
-from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
-from ..entities.question import Question
-from ..value_objects.probability import Probability
+from ..entities.forecast import Forecast
 
 logger = structlog.get_logger(__name__)
 

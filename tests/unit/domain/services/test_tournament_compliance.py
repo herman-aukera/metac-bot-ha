@@ -3,19 +3,15 @@ Tests for tournament rule compliance and transparency requirements.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-import pytest
 
 from src.domain.entities.prediction import Prediction
 from src.domain.entities.question import Question, QuestionType
 from src.domain.services.tournament_compliance_validator import (
-    ComplianceIssue,
-    ComplianceReport,
     TournamentComplianceValidator,
 )
 from src.domain.services.tournament_rule_compliance_monitor import (
-    ComplianceViolation,
     ComplianceViolationType,
     TournamentRuleComplianceMonitor,
 )

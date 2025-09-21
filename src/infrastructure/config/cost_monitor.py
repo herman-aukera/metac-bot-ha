@@ -8,10 +8,10 @@ import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from .budget_manager import BudgetManager, budget_manager
-from .token_tracker import TokenTracker, token_tracker
+from .budget_manager import BudgetManager
+from .token_tracker import TokenTracker
 
 logger = logging.getLogger(__name__)
 

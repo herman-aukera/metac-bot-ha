@@ -1,7 +1,6 @@
 """Tests for PatternDetector service."""
 
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -11,10 +10,8 @@ from src.domain.entities.prediction import (
     Prediction,
     PredictionConfidence,
     PredictionMethod,
-    PredictionResult,
 )
 from src.domain.entities.question import Question, QuestionStatus, QuestionType
-from src.domain.entities.research_report import ResearchQuality, ResearchReport
 from src.domain.services.pattern_detector import (
     AdaptationRecommendation,
     AdaptationStrategy,

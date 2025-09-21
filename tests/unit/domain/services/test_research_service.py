@@ -1,8 +1,7 @@
 """Unit tests for ResearchService domain service."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
+from unittest.mock import patch
 
 import pytest
 
@@ -13,7 +12,6 @@ from src.domain.entities.research_report import (
     ResearchSource,
 )
 from src.domain.services.research_service import ResearchService
-from src.domain.value_objects.time_range import TimeRange
 
 
 class TestResearchService:

@@ -3,14 +3,12 @@
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from ..entities.question import Question
 from ..value_objects.tournament_strategy import (
     QuestionCategory,
-    QuestionPriority,
     TournamentStrategy,
 )
 

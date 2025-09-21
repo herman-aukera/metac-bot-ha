@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
@@ -94,7 +94,7 @@ class CircuitBreaker:
             await self._record_success()
             return result
 
-        except asyncio.TimeoutError as e:
+        except asyncio.TimeoutError:
             await self._record_failure()
             self.logger.error("Function call timed out", timeout=self.config.timeout)
             raise

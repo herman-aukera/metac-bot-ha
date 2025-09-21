@@ -3,7 +3,6 @@ Forecasting Stage Service with GPT-5 and Calibration.
 Implements task 4.3 requirements with uncertainty quantification and tournament compliance.
 """
 
-import asyncio
 import logging
 import re
 from dataclasses import dataclass

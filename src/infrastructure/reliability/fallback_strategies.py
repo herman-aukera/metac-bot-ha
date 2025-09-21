@@ -12,15 +12,13 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 from .error_classification import (
     APIError,
     BudgetError,
-    ErrorCategory,
     ErrorContext,
     ErrorSeverity,
-    ForecastingError,
     ModelError,
     RecoveryAction,
     RecoveryStrategy,

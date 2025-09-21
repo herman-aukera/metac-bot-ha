@@ -11,7 +11,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import structlog
@@ -23,7 +23,6 @@ from ..domain.entities.prediction import (
 )
 from ..domain.entities.question import Question
 from ..domain.entities.research_report import ResearchReport
-from ..domain.value_objects.probability import Probability
 from ..domain.value_objects.reasoning_trace import (
     ReasoningStep,
     ReasoningStepType,

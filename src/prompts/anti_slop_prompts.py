@@ -4,7 +4,7 @@ Implements tier-specific prompt optimizations with advanced quality guards.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

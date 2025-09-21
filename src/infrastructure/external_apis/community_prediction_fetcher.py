@@ -2,9 +2,8 @@
 
 import asyncio
 import logging
-import statistics
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import httpx
 

@@ -1,10 +1,35 @@
 """Tournament-specific configuration and utilities."""
 
 import os
+import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional, List
+logger = logging.getLogger(__name__)
+
+
+def _parse_int_env(name: str, default: int) -> int:
+    """Parse integer environment variable values safely.
+
+    - Accepts integer strings directly.
+    - For float-like strings (e.g., '5.5'), coerces upward to avoid higher run cadence.
+    - On invalid values, returns the provided default and logs a warning.
+    """
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except Exception:
+        try:
+            fval = float(raw)
+            coerced = int(fval) if fval == int(fval) else int(fval) + 1
+            logger.warning("%s expected int but got %r; coercing to %d", name, raw, coerced)
+            return coerced
+        except Exception:
+            logger.warning("%s expected int but got %r; using default %d", name, raw, default)
+            return default
 
 
 class TournamentMode(Enum):
@@ -61,7 +86,7 @@ class TournamentConfig:
     enable_proxy_credits: bool = True
     asknews_quota_limit: int = 9000
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize default values after dataclass creation."""
         if self.priority_categories is None:
             self.priority_categories = [
@@ -94,15 +119,15 @@ class TournamentConfig:
                 "TOURNAMENT_NAME", "Fall 2025 AI Forecasting Benchmark"
             ),
             mode=mode,
-            scheduling_interval_hours=int(os.getenv("SCHEDULING_FREQUENCY_HOURS", "6")),
+            scheduling_interval_hours=_parse_int_env("SCHEDULING_FREQUENCY_HOURS", 6),
             deadline_aware_scheduling=os.getenv(
                 "DEADLINE_AWARE_SCHEDULING", "true"
             ).lower()
             == "true",
-            critical_period_frequency_hours=int(
-                os.getenv("CRITICAL_PERIOD_FREQUENCY_HOURS", "2")
+            critical_period_frequency_hours=_parse_int_env(
+                "CRITICAL_PERIOD_FREQUENCY_HOURS", 2
             ),
-            final_24h_frequency_hours=int(os.getenv("FINAL_24H_FREQUENCY_HOURS", "1")),
+            final_24h_frequency_hours=_parse_int_env("FINAL_24H_FREQUENCY_HOURS", 1),
             tournament_scope=os.getenv("TOURNAMENT_SCOPE", "seasonal"),
             max_concurrent_questions=int(os.getenv("TOURNAMENT_MAX_QUESTIONS", "5")),
             max_research_reports_per_question=int(
@@ -341,11 +366,11 @@ class TournamentConfig:
         else:  # More than 2 questions per day
             return 2  # Every 2 hours
 
-    def update_questions_processed(self, count: int):
+    def update_questions_processed(self, count: int) -> None:
         """Update the count of questions processed."""
         self.questions_processed = count
 
-    def increment_questions_processed(self, increment: int = 1):
+    def increment_questions_processed(self, increment: int = 1) -> None:
         """Increment the count of questions processed."""
         self.questions_processed += increment
 
@@ -476,7 +501,7 @@ def get_tournament_scope_manager() -> TournamentScopeManager:
     return TournamentScopeManager(get_tournament_config())
 
 
-def reset_tournament_config():
+def reset_tournament_config() -> None:
     """Reset the global tournament configuration (useful for testing)."""
     global _tournament_config
     _tournament_config = None

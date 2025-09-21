@@ -5,23 +5,18 @@ This service implements log-based scoring optimization strategies, tournament-sp
 calibration adjustments, compliance monitoring, and competitive performance validation.
 """
 
-import json
 import logging
-import math
-import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from ...infrastructure.config.tournament_config import get_tournament_config
 from ...infrastructure.logging.reasoning_logger import get_reasoning_logger
 from ..entities.forecast import Forecast
-from ..entities.prediction import Prediction
-from .calibration_service import CalibrationDriftSeverity, CalibrationTracker
-from .performance_tracking_service import MetricType, PerformanceTrackingService
+from .calibration_service import CalibrationTracker
+from .performance_tracking_service import PerformanceTrackingService
 from .tournament_analytics import TournamentAnalytics
 
 

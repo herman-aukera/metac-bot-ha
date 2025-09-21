@@ -6,7 +6,7 @@ Implements task 4.1 requirements with cost-optimized research strategy.
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)

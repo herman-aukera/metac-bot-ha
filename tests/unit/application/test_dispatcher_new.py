@@ -1,8 +1,7 @@
 """Tests for the Dispatcher application service."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest

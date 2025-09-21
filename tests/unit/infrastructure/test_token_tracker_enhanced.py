@@ -2,13 +2,10 @@
 Tests for enhanced TokenTracker with real-time cost calculation and monitoring.
 """
 
-import json
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from src.infrastructure.config.token_tracker import TokenTracker, TokenUsageRecord
 

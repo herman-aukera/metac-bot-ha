@@ -10,14 +10,12 @@ import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 import structlog
 
-from ..entities.prediction import Prediction, PredictionConfidence, PredictionMethod
-from ..value_objects.confidence import ConfidenceLevel
-from ..value_objects.probability import Probability
+from ..entities.prediction import Prediction, PredictionMethod
 
 logger = structlog.get_logger(__name__)
 
@@ -933,7 +931,7 @@ class DynamicWeightAdjuster:
                 rationale += f"Trend: {profile.performance_trend:+.2f}, "
                 rationale += f"Consistency: {profile.consistency_score:.2f}\n"
 
-        rationale += f"\nEnsemble Metrics:\n"
+        rationale += "\nEnsemble Metrics:\n"
         rationale += f"- Diversity Score: {diversity_score:.3f}\n"
         rationale += f"- Expected Performance: {expected_performance:.3f}\n"
 

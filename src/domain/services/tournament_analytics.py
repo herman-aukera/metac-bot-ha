@@ -11,14 +11,9 @@ import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from ..entities.forecast import Forecast
-from ..value_objects.tournament_strategy import (
-    CompetitiveIntelligence,
-    TournamentStrategy,
-)
 
 
 class MarketInefficiencyType(Enum):

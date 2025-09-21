@@ -5,8 +5,6 @@ Tests the routing logic without requiring full model initialization.
 """
 
 import os
-import sys
-from pathlib import Path
 
 
 def test_environment_config():
@@ -34,7 +32,7 @@ def test_environment_config():
 
     # Check budget configuration
     budget_limit = os.getenv("BUDGET_LIMIT", "100.0")
-    print(f"\nBudget Configuration:")
+    print("\nBudget Configuration:")
     print(f"  Budget Limit: ${budget_limit}")
     print(
         f"  Conservative Threshold: {os.getenv('CONSERVATIVE_MODE_THRESHOLD', '0.80')}"

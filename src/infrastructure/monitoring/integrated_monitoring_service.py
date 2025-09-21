@@ -3,10 +3,8 @@ Integrated monitoring service that combines all monitoring components.
 Provides unified interface for performance tracking, analytics, and optimization.
 """
 
-import asyncio
 import logging
 import threading
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional

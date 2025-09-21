@@ -13,7 +13,6 @@ Usage:
 """
 
 import argparse
-import asyncio
 import json
 import logging
 import sys
@@ -72,7 +71,7 @@ def load_questions_from_file(file_path: Path) -> List[Dict[str, Any]]:
     elif isinstance(data, dict) and 'questions' in data:
         questions = data['questions']
     else:
-        raise ValueError(f"Invalid file format. Expected list of questions or {{'questions': [...]}}")
+        raise ValueError("Invalid file format. Expected list of questions or {'questions': [...]}")
     
     if not isinstance(questions, list):
         raise ValueError("Questions must be a list")
@@ -226,7 +225,7 @@ def run_forecasting_pipeline(
                 continue
         
         # Step 4: Summary
-        print(f"\n\nFORECAST SUMMARY:")
+        print("\n\nFORECAST SUMMARY:")
         print(f"Questions processed: {len(questions)}")
         print(f"Forecasts generated: {len(forecasts)}")
         print(f"Success rate: {len(forecasts)/len(questions)*100:.1f}%")

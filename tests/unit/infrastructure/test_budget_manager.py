@@ -2,18 +2,14 @@
 Tests for BudgetManager budget tracking and cost management.
 """
 
-import json
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from src.infrastructure.config.budget_manager import (
     BudgetManager,
     BudgetStatus,
-    CostTrackingRecord,
 )
 
 

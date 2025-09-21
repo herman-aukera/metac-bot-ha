@@ -2,7 +2,6 @@
 Tree-of-Thought agent implementation for complex multi-step reasoning.
 """
 
-import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
@@ -16,7 +15,6 @@ from ..domain.entities.prediction import (
 )
 from ..domain.entities.question import Question
 from ..domain.entities.research_report import (
-    ResearchQuality,
     ResearchReport,
     ResearchSource,
 )
