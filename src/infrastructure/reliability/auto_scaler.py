@@ -284,7 +284,6 @@ class AutoScaler:
                 or time_since_last_scale >= policy.scale_up_cooldown
             )
         ):
-
             self.logger.info(
                 "Scale up condition met",
                 policy_name=policy.name,
@@ -303,7 +302,6 @@ class AutoScaler:
                 or time_since_last_scale >= policy.scale_down_cooldown
             )
         ):
-
             self.logger.info(
                 "Scale down condition met",
                 policy_name=policy.name,

@@ -331,10 +331,10 @@ class ConservativeStrategyEngine:
                     optimization_results["submitted_predictions"] += 1
 
             # Calculate expected score impact
-            optimization_results[
-                "expected_score_impact"
-            ] += self._calculate_score_impact(
-                prediction, risk_assessment, tournament_context
+            optimization_results["expected_score_impact"] += (
+                self._calculate_score_impact(
+                    prediction, risk_assessment, tournament_context
+                )
             )
 
         optimization_results["optimized_predictions"] = optimized_predictions

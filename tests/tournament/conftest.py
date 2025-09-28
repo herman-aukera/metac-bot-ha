@@ -137,7 +137,7 @@ def sample_tournament_questions():
         questions.append(
             {
                 "id": 9000 + i,
-                "title": f"Tournament question {i+1}: {category} prediction",
+                "title": f"Tournament question {i + 1}: {category} prediction",
                 "description": f"Tournament test question for {category.lower()} category",
                 "type": "binary",
                 "close_time": (datetime.now() + timedelta(days=30)).isoformat() + "Z",

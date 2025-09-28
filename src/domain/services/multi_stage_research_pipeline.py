@@ -162,7 +162,9 @@ class MultiStageResearchPipeline:
             # AskNews only – all other external/news model fallbacks removed to stop 404 & noisy retries.
             if self.tournament_asknews:
                 try:
-                    research_content = await self.tournament_asknews.get_news_research(question)
+                    research_content = await self.tournament_asknews.get_news_research(
+                        question
+                    )
                     if research_content and len(research_content.strip()) > 0:
                         execution_time = (datetime.now() - stage_start).total_seconds()
                         return ResearchStageResult(
@@ -186,39 +188,57 @@ class MultiStageResearchPipeline:
                 # Domain layer exceptional import of infrastructure search factory kept TEMPORARILY until refactor
                 # (will be moved behind an injected adapter). This unblocks research fallback reliability.
                 from src.infrastructure.config.settings import get_settings  # type: ignore  # noqa: E402
-                from src.infrastructure.external_apis.search_client import create_search_client  # type: ignore  # noqa: E402
+                from src.infrastructure.external_apis.search_client import (
+                    create_search_client,
+                )  # type: ignore  # noqa: E402
+
                 settings = get_settings()
                 search_client = create_search_client(settings)
                 # Derive a concise subject-style query (avoid sending full question sentences to simple APIs)
 
                 def _extract_subject(q: str) -> str:
-                    base = q.strip().rstrip('?')
+                    base = q.strip().rstrip("?")
                     # If starts with 'Will ' or similar, drop auxiliary and keep entity/phrase up to first punctuation
                     lowers = base.lower()
-                    for prefix in ("will ", "is ", "are ", "does ", "do ", "who ", "what "):
+                    for prefix in (
+                        "will ",
+                        "is ",
+                        "are ",
+                        "does ",
+                        "do ",
+                        "who ",
+                        "what ",
+                    ):
                         if lowers.startswith(prefix):
-                            base = base[len(prefix):]
+                            base = base[len(prefix) :]
                             break
                     # Keep first 8 words to stay concise
                     parts = base.split()
                     return " ".join(parts[:8])
+
                 concise_query = _extract_subject(question)
                 # Up to 2 attempts with exponential backoff (1s, 2s)
                 for attempt in range(2):
                     try:
                         # Attempt with concise query first; if empty on first attempt, try original question second
                         query_to_use = concise_query if attempt == 0 else question
-                        results = await search_client.search(query_to_use, max_results=8)
+                        results = await search_client.search(
+                            query_to_use, max_results=8
+                        )
                         if results:
-                            sources_used = list({r.get('source', 'unknown') for r in results})
+                            sources_used = list(
+                                {r.get("source", "unknown") for r in results}
+                            )
                             for r in results:
                                 aggregated_snippets.append(
                                     f"- {r.get('title', '')} | {r.get('url', '')}\n  {r.get('snippet', '')[:240]}"
                                 )
                             break
                     except Exception as se:  # pragma: no cover - defensive
-                        self.logger.warning(f"Search fallback attempt {attempt+1} failed: {se}")
-                    await asyncio.sleep(1 * (2 ** attempt))
+                        self.logger.warning(
+                            f"Search fallback attempt {attempt + 1} failed: {se}"
+                        )
+                    await asyncio.sleep(1 * (2**attempt))
             except Exception as se:  # pragma: no cover
                 self.logger.warning(f"Multi-source search fallback init failed: {se}")
 
@@ -295,7 +315,9 @@ class MultiStageResearchPipeline:
                 raise Exception("GPT-5-mini model not available")
 
             # Import anti-slop prompts for synthesis
-            from src.prompts.anti_slop_prompts import anti_slop_prompts  # absolute import (domain -> permitted prompts)
+            from src.prompts.anti_slop_prompts import (
+                anti_slop_prompts,
+            )  # absolute import (domain -> permitted prompts)
 
             # Create synthesis prompt with mandatory citations
             synthesis_prompt = anti_slop_prompts.get_research_prompt(

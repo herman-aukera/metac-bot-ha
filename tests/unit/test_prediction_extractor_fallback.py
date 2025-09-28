@@ -27,7 +27,9 @@ def test_extract_option_list_with_percentage_afterwards_simple_lines():
 
     text = "A: 10%\nB: 20%\nC: 70%\n"
     opts = ["A", "B", "C"]
-    res = m.PredictionExtractor.extract_option_list_with_percentage_afterwards(text, opts)
+    res = m.PredictionExtractor.extract_option_list_with_percentage_afterwards(
+        text, opts
+    )
     assert res is not None
     probs = [o.probability for o in res.predicted_options]
     assert len(probs) == 3

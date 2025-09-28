@@ -164,7 +164,9 @@ class CostMonitor:
                     severity = (
                         "critical"
                         if threshold >= 0.95
-                        else "warning" if threshold >= 0.85 else "info"
+                        else "warning"
+                        if threshold >= 0.85
+                        else "info"
                     )
 
                     recommendations = {
@@ -268,7 +270,7 @@ class CostMonitor:
                     timestamp=datetime.now(),
                     alert_type="efficiency_drop",
                     severity="warning",
-                    message=f"Cost efficiency dropped {(1-efficiency_ratio):.1%}",
+                    message=f"Cost efficiency dropped {(1 - efficiency_ratio):.1%}",
                     current_value=recent_efficiency,
                     threshold_value=historical_efficiency
                     * self.efficiency_drop_threshold,

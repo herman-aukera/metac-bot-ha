@@ -282,7 +282,7 @@ class EnsembleService:
             for p in predictions
             if p.result.binary_probability is not None
         ]
-        agent_names = [p.created_by for p in predictions]
+        [p.created_by for p in predictions]
 
         reasoning = f"Ensemble prediction using {method} aggregation of {len(predictions)} predictions.\n\n"
 
@@ -686,7 +686,7 @@ class EnsembleService:
         confidence_weights = [pred.get_confidence_score() for pred in predictions]
 
         # Adjust weights based on prediction diversity
-        diversity_factor = self._calculate_diversity_factor(probabilities)
+        self._calculate_diversity_factor(probabilities)
 
         # Apply diversity adjustment to weights
         adjusted_weights = []

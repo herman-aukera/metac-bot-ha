@@ -1,4 +1,3 @@
-
 import pytest
 
 from src.infrastructure.config.llm_factory import normalize_model_id

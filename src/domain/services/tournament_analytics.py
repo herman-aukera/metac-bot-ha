@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 
-
 class MarketInefficiencyType(Enum):
     """Types of market inefficiencies that can be detected."""
 
@@ -616,7 +615,7 @@ class TournamentAnalytics:
             return None
 
         # Look for anchoring to round numbers or question framing
-        question_text = question_data.get("title", "").lower()
+        question_data.get("title", "").lower()
 
         # Check for clustering around round numbers
         round_numbers = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9]
@@ -1518,7 +1517,9 @@ class TournamentAnalytics:
                             "severity": (
                                 "high"
                                 if gap_size > 0.1
-                                else "medium" if gap_size > 0.05 else "low"
+                                else "medium"
+                                if gap_size > 0.05
+                                else "low"
                             ),
                             "improvement_potential": gap_size
                             * 100,  # Rough scoring improvement estimate
@@ -1543,7 +1544,9 @@ class TournamentAnalytics:
                             "severity": (
                                 "high"
                                 if gap_size > 0.2
-                                else "medium" if gap_size > 0.1 else "low"
+                                else "medium"
+                                if gap_size > 0.1
+                                else "low"
                             ),
                             "improvement_potential": gap_size
                             * 50,  # Rough scoring improvement estimate
@@ -1974,7 +1977,9 @@ class TournamentAnalytics:
             "market_tightness": (
                 "high"
                 if iqr / score_range < 0.3
-                else "medium" if iqr / score_range < 0.6 else "low"
+                else "medium"
+                if iqr / score_range < 0.6
+                else "low"
             ),
         }
 
@@ -2061,7 +2066,7 @@ class TournamentAnalytics:
                     "priority": "high",
                     "title": "Aggressive Improvement Strategy",
                     "description": "Low ranking requires significant strategy changes",
-                    "rationale": f"Currently in bottom {(1-standings.our_percentile)*100:.0f}% of participants",
+                    "rationale": f"Currently in bottom {(1 - standings.our_percentile) * 100:.0f}% of participants",
                     "specific_actions": [
                         "Focus on high-impact, high-confidence questions",
                         "Take calculated risks on contrarian positions",
@@ -2078,7 +2083,7 @@ class TournamentAnalytics:
                     "priority": "medium",
                     "title": "Defensive Excellence Strategy",
                     "description": "Maintain top position through consistent performance",
-                    "rationale": f"Currently in top {standings.our_percentile*100:.0f}% of participants",
+                    "rationale": f"Currently in top {standings.our_percentile * 100:.0f}% of participants",
                     "specific_actions": [
                         "Focus on maintaining prediction quality",
                         "Avoid unnecessary risks",

@@ -140,9 +140,7 @@ class TestComprehensiveErrorRecoveryIntegration:
             assert result.success
             assert result.recovery_strategy == RecoveryStrategy.EMERGENCY_MODE
             assert result.cost_impact < 0  # Should save costs
-            assert (
-                recovery_manager.fallback_orchestrator.emergency_manager.is_emergency_active()
-            )
+            assert recovery_manager.fallback_orchestrator.emergency_manager.is_emergency_active()
 
     @pytest.mark.asyncio
     async def test_api_error_provider_fallback_workflow(self, recovery_system):
@@ -236,7 +234,6 @@ class TestComprehensiveErrorRecoveryIntegration:
                 "execute_provider_fallback",
             ) as mock_provider_fallback,
         ):
-
             # Mock failures for first attempts
             mock_model_fallback.return_value = Mock(
                 success=False, message="Model fallback failed"
@@ -374,7 +371,6 @@ class TestComprehensiveErrorRecoveryIntegration:
 
         # Mock file writing to avoid actual file operations
         with patch("builtins.open"), patch("os.makedirs"):
-
             # Execute recovery (which should log the error)
             await recovery_manager.recover_from_error(error, context)
 

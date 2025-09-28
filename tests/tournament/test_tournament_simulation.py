@@ -99,9 +99,7 @@ class TournamentSimulator:
 
                     # Apply resource constraints
                     if scenario.resource_constraints.get("limited_api_calls"):
-                        max_calls = scenario.resource_constraints[
-                            "max_api_calls_per_question"
-                        ]
+                        scenario.resource_constraints["max_api_calls_per_question"]
                         # Mock API call limiting would be implemented here
 
                     # Generate forecast with tournament conditions
@@ -270,8 +268,8 @@ class TestTournamentSimulation:
             questions.append(
                 {
                     "id": 2000 + i,
-                    "title": f"High-pressure question {i+1}",
-                    "description": f"Complex forecasting question {i+1}",
+                    "title": f"High-pressure question {i + 1}",
+                    "description": f"Complex forecasting question {i + 1}",
                     "type": "binary",
                     "close_time": "2025-12-01T00:00:00Z",
                     "resolve_time": "2026-01-01T00:00:00Z",

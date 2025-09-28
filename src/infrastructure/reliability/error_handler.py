@@ -303,9 +303,7 @@ class ErrorHandler:
         if not self._initialized:
             return False
 
-        return (
-            self.recovery_manager.fallback_orchestrator.emergency_manager.is_emergency_active()
-        )
+        return self.recovery_manager.fallback_orchestrator.emergency_manager.is_emergency_active()
 
     async def deactivate_emergency_mode(self) -> bool:
         """
@@ -317,9 +315,7 @@ class ErrorHandler:
         if not self._initialized:
             return False
 
-        return (
-            await self.recovery_manager.fallback_orchestrator.emergency_manager.deactivate_emergency_mode()
-        )
+        return await self.recovery_manager.fallback_orchestrator.emergency_manager.deactivate_emergency_mode()
 
     async def test_system(self) -> Dict[str, Any]:
         """

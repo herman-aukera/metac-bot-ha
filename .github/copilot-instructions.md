@@ -35,6 +35,27 @@
 - Key touchpoints:
   - `main.py`, `src/infrastructure/config/{tournament_config,enhanced_llm_config}.py`, `src/domain/services/multi_stage_research_pipeline.py`, `scripts/local_minibench_ci.sh`, `.github/workflows/run_bot_on_minibench.yaml`.
 
+## CRITICAL: Full Circuit Validation Required
+
+**MANDATORY before any production deployment or major API changes:**
+
+1. **Comprehensive dry-run validation**: `DRY_RUN=true SKIP_PREVIOUSLY_FORECASTED=true python3 main.py --mode tournament`
+2. **Verify all 3 critical API circuits**:
+   - ✅ **OpenRouter retry logic**: Look for `Retrying OpenRouter request after Xs (attempt N/5)` in logs
+   - ✅ **AskNews exponential backoff**: Look for `AskNews rate limited, will retry in 12s (attempt 1/3)` progression
+   - ✅ **Wikipedia URL encoding**: Verify `wikipedia_enabled=True` and no 404 encoding errors
+3. **Evidence-based validation**: Must see actual retry behavior in terminal logs, not just code inspection
+4. **Only commit after validation**: No commits to main without proven full-circuit functionality
+5. **Document validation results**: Include evidence summary in commit message
+
+**Validation checklist**:
+
+- [ ] Dry-run shows proper OpenRouter 403 retry (2s→4s→8s exponential backoff)
+- [ ] AskNews shows 12s→24s→48s backoff before DuckDuckGo fallback
+- [ ] Wikipedia search client enabled without URL encoding errors
+- [ ] Multi-source search integration working (`client_count=2+`)
+- [ ] No crashes or unhandled exceptions during concurrent processing
+
 ## High-level rules (summary)
 
 - Be an expert, pragmatic technical copilot for advanced developers.
@@ -42,7 +63,7 @@
 - Do **not** hallucinate. If uncertain, say so and list what to verify.
 - Internal chain-of-thought is allowed **internally**, but only final outputs are emitted.
 - Changes to this file require explicit repo-owner approval via PR.
-- So lint, fix, run, fix, lint, fix, run, fix and lint, and run before commit and push, don't forget that the secrets are in .env and I want to see the logs in the terminal.
+- **VALIDATE BEFORE COMMIT**: lint, fix, run, validate APIs, fix, lint, run full circuit test, verify evidence, then commit and push.
 
 ---
 

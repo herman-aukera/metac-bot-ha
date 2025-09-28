@@ -281,7 +281,6 @@ class ForecastService:
             ForecastValidationError: If the question cannot be forecasted
         """
 
-
         # Validate that we can forecast this question
         if not question.is_open():
             raise ForecastValidationError(
@@ -529,7 +528,7 @@ class ForecastService:
         base_probs = [p / total for p in base_probs]
 
         # Create a mock research report
-        best_choice_idx = base_probs.index(max(base_probs))
+        base_probs.index(max(base_probs))
         research_report = self._create_mock_research_report(question, max(base_probs))
 
         # Generate multiple prediction variants

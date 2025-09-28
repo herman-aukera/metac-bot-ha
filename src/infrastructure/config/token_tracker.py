@@ -130,7 +130,9 @@ class TokenTracker:
             "claude-3-haiku": "claude-3-haiku",
         }
 
-        return model_mappings.get(model, "gpt-5-mini")  # Default to gpt-5-mini for encoding
+        return model_mappings.get(
+            model, "gpt-5-mini"
+        )  # Default to gpt-5-mini for encoding
 
     def estimate_tokens_for_prompt(
         self, prompt: str, model: str = "gpt-5-mini"
@@ -352,13 +354,13 @@ class TokenTracker:
         if is_valid:
             return prompt, False
 
-    # Calculate how much we need to remove (implicit via context limits below)
+        # Calculate how much we need to remove (implicit via context limits below)
 
         # Convert token counts to approximate character counts for truncation
         chars_per_token = 4  # Rough approximation
         preserve_start_chars = preserve_start * chars_per_token
         preserve_end_chars = preserve_end * chars_per_token
-    # chars_to_remove not needed; we truncate structurally below
+        # chars_to_remove not needed; we truncate structurally below
 
         if len(prompt) <= preserve_start_chars + preserve_end_chars:
             # Prompt is too short to truncate safely, just take the beginning
@@ -456,12 +458,20 @@ class TokenTracker:
         )
 
         for model_name, model_stats in summary["by_model"].items():
-            successes = sum(1 for r in self.usage_records if r.model_used == model_name and r.success)
-            total_calls = sum(1 for r in self.usage_records if r.model_used == model_name)
+            successes = sum(
+                1
+                for r in self.usage_records
+                if r.model_used == model_name and r.success
+            )
+            total_calls = sum(
+                1 for r in self.usage_records if r.model_used == model_name
+            )
             model_stats["success_rate"] = successes / max(total_calls, 1)
 
         for task_name, task_stats in summary["by_task_type"].items():
-            successes = sum(1 for r in self.usage_records if r.task_type == task_name and r.success)
+            successes = sum(
+                1 for r in self.usage_records if r.task_type == task_name and r.success
+            )
             total_calls = sum(1 for r in self.usage_records if r.task_type == task_name)
             task_stats["success_rate"] = successes / max(total_calls, 1)
 
@@ -522,10 +532,10 @@ class TokenTracker:
 
         if summary["total_calls"] > 0:
             logger.info(
-                f"Average Cost/Call: ${summary['total_cost']/summary['total_calls']:.4f}"
+                f"Average Cost/Call: ${summary['total_cost'] / summary['total_calls']:.4f}"
             )
             logger.info(
-                f"Average Tokens/Call: {summary['total_tokens']['total']/summary['total_calls']:.0f}"
+                f"Average Tokens/Call: {summary['total_tokens']['total'] / summary['total_calls']:.0f}"
             )
 
         # Model breakdown

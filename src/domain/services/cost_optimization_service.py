@@ -143,7 +143,7 @@ class CostOptimizationService:
             ModelSelectionResult with optimized model selection
         """
         budget_status = self.budget_manager.get_budget_status()
-        utilization = budget_status.utilization_percentage / 100.0
+        budget_status.utilization_percentage / 100.0
 
         # Get mode-specific model preferences
         mode_preferences = self._get_model_preferences_for_mode(
@@ -229,7 +229,7 @@ class CostOptimizationService:
 
         # Calculate priority score
         base_priority = self.priority_weights[task_priority]
-        complexity_factor = self.complexity_multipliers[task_complexity]
+        self.complexity_multipliers[task_complexity]
 
         # Adjust priority based on operation mode
         mode_adjustments = {
@@ -559,6 +559,7 @@ class CostOptimizationService:
 
         # Adjust based on operation mode
         if operation_mode == OperationMode.EMERGENCY:
+
             def _to_int(v: Any, default: int) -> int:
                 if isinstance(v, int):
                     return v
@@ -580,6 +581,7 @@ class CostOptimizationService:
                 }
             )
         elif operation_mode == OperationMode.CONSERVATIVE:
+
             def _to_int2(v: Any, default: int) -> int:
                 if isinstance(v, int):
                     return v
@@ -589,6 +591,7 @@ class CostOptimizationService:
                     return int(str(v))
                 except Exception:
                     return default
+
             timeout_int2 = _to_int2(base_allocation.get("timeout_seconds", 60), 60)
             base_allocation.update(
                 {
@@ -600,7 +603,11 @@ class CostOptimizationService:
         return base_allocation
 
     def _get_rejection_reason(
-        self, priority: TaskPriority, mode: OperationMode, cost: float, budget_status: Any
+        self,
+        priority: TaskPriority,
+        mode: OperationMode,
+        cost: float,
+        budget_status: Any,
     ) -> str:
         """Generate reason for task rejection."""
         if cost > budget_status.remaining:

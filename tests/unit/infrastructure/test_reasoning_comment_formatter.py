@@ -1,7 +1,8 @@
-
 from typing import cast, Any
 
-from src.infrastructure.external_apis.reasoning_comment_formatter import ReasoningCommentFormatter
+from src.infrastructure.external_apis.reasoning_comment_formatter import (
+    ReasoningCommentFormatter,
+)
 
 
 class DummyForecast:
@@ -9,7 +10,9 @@ class DummyForecast:
         self.predictions = [object()] * n_preds
         self.ensemble_method = "confidence_weighted"
         self.weight_distribution = {"agent_a": 0.6, "agent_b": 0.4}
-        self.reasoning_summary = "Consensus leans toward outcome A based on available evidence."
+        self.reasoning_summary = (
+            "Consensus leans toward outcome A based on available evidence."
+        )
 
 
 def test_format_ensemble_information_basic():

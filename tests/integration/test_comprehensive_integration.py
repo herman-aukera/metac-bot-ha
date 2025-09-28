@@ -85,7 +85,6 @@ class TestComprehensiveIntegration:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure LLM client mock
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()

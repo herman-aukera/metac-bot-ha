@@ -966,7 +966,7 @@ class TestSubmissionRecord:
             record2.submission_id, SubmissionStatus.FAILED
         )
 
-        record3 = audit_manager.create_submission_record(
+        audit_manager.create_submission_record(
             question_id="question_3",
             prediction_value=0.8,
             reasoning="Dry run prediction",
@@ -983,14 +983,14 @@ class TestSubmissionRecord:
     def test_audit_trail_export(self, audit_manager):
         """Test audit trail export functionality."""
         # Create test submissions
-        record1 = audit_manager.create_submission_record(
+        audit_manager.create_submission_record(
             question_id="question_1",
             prediction_value=0.75,
             reasoning="Test reasoning 1",
             confidence=0.8,
         )
 
-        record2 = audit_manager.create_submission_record(
+        audit_manager.create_submission_record(
             question_id="question_2",
             prediction_value=0.65,
             reasoning="Test reasoning 2",
@@ -1032,7 +1032,11 @@ class TestSubmissionRecord:
         callback_success = None
 
         def test_callback(record, api_response, success):
-            nonlocal callback_called, callback_record, callback_response, callback_success
+            nonlocal \
+                callback_called, \
+                callback_record, \
+                callback_response, \
+                callback_success
             callback_called = True
             callback_record = record
             callback_response = api_response

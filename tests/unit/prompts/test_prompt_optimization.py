@@ -94,9 +94,9 @@ class TestPromptOptimization:
 
         # Count tokens for efficiency
         token_count = self.token_tracker.count_tokens(prompt, "gpt-4o-mini")
-        assert (
-            token_count < 600
-        ), f"Overconfidence prompt too long: {token_count} tokens"
+        assert token_count < 600, (
+            f"Overconfidence prompt too long: {token_count} tokens"
+        )
 
     def test_prompt_selection_optimization(self):
         """Test optimal prompt selection based on question characteristics."""
@@ -157,12 +157,12 @@ class TestPromptOptimization:
         )
 
         # Verify expected token hierarchy
-        assert (
-            basic_tokens < scenario_tokens
-        ), "Basic prompt should be shorter than scenario"
-        assert (
-            basic_tokens < overconfidence_tokens
-        ), "Basic prompt should be shorter than overconfidence"
+        assert basic_tokens < scenario_tokens, (
+            "Basic prompt should be shorter than scenario"
+        )
+        assert basic_tokens < overconfidence_tokens, (
+            "Basic prompt should be shorter than overconfidence"
+        )
 
         # All should be within reasonable bounds
         for tokens in [basic_tokens, scenario_tokens, overconfidence_tokens]:
@@ -190,9 +190,9 @@ class TestPromptOptimization:
         normal_tokens = self.token_tracker.count_tokens(normal_prompt, "gpt-4o-mini")
 
         # Budget version should be more concise
-        assert (
-            budget_tokens <= normal_tokens
-        ), "Budget prompt should not be longer than normal"
+        assert budget_tokens <= normal_tokens, (
+            "Budget prompt should not be longer than normal"
+        )
 
     def teardown_method(self):
         """Clean up test environment."""

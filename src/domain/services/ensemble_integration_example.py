@@ -286,7 +286,9 @@ class EnhancedEnsembleManager:
                 "priority_level": (
                     "high"
                     if profile.recommended_weight > 0.5
-                    else "medium" if profile.recommended_weight > 0.2 else "low"
+                    else "medium"
+                    if profile.recommended_weight > 0.2
+                    else "low"
                 ),
                 "improvement_areas": [],
             },

@@ -71,7 +71,7 @@ class ResilienceTester:
                 if self.failure_injector.should_fail():
                     await self.failure_injector.inject_failure(scenario.failure_type)
 
-                forecast = await self.forecast_service.generate_forecast(
+                await self.forecast_service.generate_forecast(
                     question=question, agent_types=["chain_of_thought"], timeout=60
                 )
 
@@ -326,15 +326,15 @@ class TestRecoveryResilience:
 
         # Verify recovery behavior
         assert result["recovery_successful"], "System should recover from API failures"
-        assert (
-            result["successful_forecasts"] >= 1
-        ), "At least one forecast should succeed after recovery"
-        assert (
-            result["recovery_time"] <= 15.0
-        ), "Recovery should happen within reasonable time"
-        assert "API service unavailable" in str(
-            result["errors"]
-        ), "API errors should be recorded"
+        assert result["successful_forecasts"] >= 1, (
+            "At least one forecast should succeed after recovery"
+        )
+        assert result["recovery_time"] <= 15.0, (
+            "Recovery should happen within reasonable time"
+        )
+        assert "API service unavailable" in str(result["errors"]), (
+            "API errors should be recorded"
+        )
 
     @pytest.mark.asyncio
     async def test_timeout_recovery(self, resilience_tester, resilience_questions):
@@ -383,12 +383,12 @@ class TestRecoveryResilience:
 
         # Verify timeout recovery
         assert result["recovery_successful"], "System should recover from timeouts"
-        assert (
-            result["successful_forecasts"] >= 2
-        ), "Multiple forecasts should succeed after timeout"
-        assert any(
-            "timed out" in error.lower() for error in result["errors"]
-        ), "Timeout errors should be recorded"
+        assert result["successful_forecasts"] >= 2, (
+            "Multiple forecasts should succeed after timeout"
+        )
+        assert any("timed out" in error.lower() for error in result["errors"]), (
+            "Timeout errors should be recorded"
+        )
 
     @pytest.mark.asyncio
     async def test_gradual_recovery_pattern(
@@ -439,9 +439,9 @@ class TestRecoveryResilience:
         )
 
         # Verify gradual recovery
-        assert (
-            result["successful_forecasts"] >= 1
-        ), "Some forecasts should succeed during gradual recovery"
+        assert result["successful_forecasts"] >= 1, (
+            "Some forecasts should succeed during gradual recovery"
+        )
         assert result["recovery_analysis"]["pattern"] in [
             "recovery_detected",
             "no_failures_or_no_recovery",
@@ -512,15 +512,15 @@ class TestRecoveryResilience:
 
         # Verify circuit breaker behavior
         assert len(result["errors"]) > 0, "Circuit breaker should record failures"
-        assert any(
-            "circuit breaker" in error.lower() for error in result["errors"]
-        ), "Circuit breaker errors should be recorded"
+        assert any("circuit breaker" in error.lower() for error in result["errors"]), (
+            "Circuit breaker errors should be recorded"
+        )
 
         # System should eventually recover
         if result["recovery_successful"]:
-            assert (
-                result["recovery_time"] <= 20.0
-            ), "Circuit breaker should allow eventual recovery"
+            assert result["recovery_time"] <= 20.0, (
+                "Circuit breaker should allow eventual recovery"
+            )
 
     @pytest.mark.asyncio
     async def test_cascading_failure_recovery(
@@ -592,9 +592,9 @@ class TestRecoveryResilience:
         )
 
         # Verify cascading failure handling
-        assert (
-            len(result["errors"]) >= 3
-        ), "Multiple types of failures should be recorded"
+        assert len(result["errors"]) >= 3, (
+            "Multiple types of failures should be recorded"
+        )
         error_types = set()
         for error in result["errors"]:
             if "api" in error.lower():
@@ -608,9 +608,9 @@ class TestRecoveryResilience:
 
         # System should eventually recover even from cascading failures
         if result["recovery_successful"]:
-            assert (
-                result["successful_forecasts"] >= 1
-            ), "System should recover from cascading failures"
+            assert result["successful_forecasts"] >= 1, (
+                "System should recover from cascading failures"
+            )
 
     @pytest.mark.asyncio
     async def test_recovery_under_tournament_pressure(
@@ -665,18 +665,18 @@ class TestRecoveryResilience:
         )
 
         # Verify pressure-affected recovery
-        assert (
-            result["successful_forecasts"] >= 1
-        ), "System should recover even under tournament pressure"
+        assert result["successful_forecasts"] >= 1, (
+            "System should recover even under tournament pressure"
+        )
 
         # Recovery might be slower under pressure
         if result["recovery_successful"]:
-            assert (
-                result["recovery_time"] <= 25.0
-            ), "Recovery should happen within extended time under pressure"
+            assert result["recovery_time"] <= 25.0, (
+                "Recovery should happen within extended time under pressure"
+            )
 
         # Some degradation is acceptable under pressure
         success_rate = result["successful_forecasts"] / result["total_questions"]
-        assert (
-            success_rate >= 0.3
-        ), "Minimum success rate should be maintained under pressure"
+        assert success_rate >= 0.3, (
+            "Minimum success rate should be maintained under pressure"
+        )

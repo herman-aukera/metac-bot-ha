@@ -347,7 +347,7 @@ class TournamentPerformanceValidator:
                             ComplianceViolation(
                                 violation_type="deadline_pressure",
                                 severity=ComplianceStatus.WARNING,
-                                description=f"Submission close to deadline ({time_to_deadline/60:.1f} minutes remaining)",
+                                description=f"Submission close to deadline ({time_to_deadline / 60:.1f} minutes remaining)",
                                 detected_at=datetime.utcnow(),
                                 question_id=forecast.question_id,
                                 forecast_id=forecast.id,
@@ -493,7 +493,7 @@ class TournamentPerformanceValidator:
 
         # Calculate current expected log score
         epsilon = 1e-15
-        prob_clamped = max(epsilon, min(1 - epsilon, current_prediction))
+        max(epsilon, min(1 - epsilon, current_prediction))
 
         # Estimate adjustment needed
         if target_log_score < 0.3:  # Aggressive target

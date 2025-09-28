@@ -79,7 +79,12 @@ class DuckDuckGoSearchClient(SearchClient):
             if not variant or variant in tried:
                 continue
             tried.append(variant)
-            logger.info("Performing DuckDuckGo search", query=variant, original=original_query, max_results=max_results)
+            logger.info(
+                "Performing DuckDuckGo search",
+                query=variant,
+                original=original_query,
+                max_results=max_results,
+            )
             try:
                 async with httpx.AsyncClient(timeout=20.0) as client:
                     params: Dict[str, str | int | float | bool | Any | None] = {
@@ -93,16 +98,25 @@ class DuckDuckGoSearchClient(SearchClient):
                     data = response.json()
                     results = self._parse_duckduckgo_response(data, max_results)
                     if results:
-                        logger.info("DuckDuckGo search completed", results_count=len(results), variant=variant)
+                        logger.info(
+                            "DuckDuckGo search completed",
+                            results_count=len(results),
+                            variant=variant,
+                        )
                         return results
                     logger.debug("DuckDuckGo returned zero results", variant=variant)
             except Exception as e:  # pragma: no cover
-                logger.warning("DuckDuckGo variant failed", variant=variant, error=str(e))
-        logger.info("DuckDuckGo search exhausted variants with no results", original=original_query)
+                logger.warning(
+                    "DuckDuckGo variant failed", variant=variant, error=str(e)
+                )
+        logger.info(
+            "DuckDuckGo search exhausted variants with no results",
+            original=original_query,
+        )
         return []
 
     def _simplify_query(self, q: str) -> str:
-        lowers = q.lower().strip().rstrip('?')
+        lowers = q.lower().strip().rstrip("?")
         for prefix in (
             "what will be the ",
             "what will be the result of the ",
@@ -115,13 +129,14 @@ class DuckDuckGoSearchClient(SearchClient):
             "how ",
         ):
             if lowers.startswith(prefix):
-                lowers = lowers[len(prefix):]
+                lowers = lowers[len(prefix) :]
                 break
         # Keep first 8 words for brevity
         return " ".join([w for w in lowers.split()[:8]])
 
     def _keywords_only(self, q: str) -> str:
         import re
+
         tokens = re.findall(r"[A-Za-z0-9]+", q.lower())
         stop = {
             "the",
@@ -296,14 +311,17 @@ class WikipediaSearchClient(SearchClient):
         if (q.endswith("?") and len(q.split()) > 10) or q.lower().startswith(
             "what will be the result"
         ):
-            logger.info("Skipping Wikipedia search for interrogative question form", query=q)
+            logger.info(
+                "Skipping Wikipedia search for interrogative question form", query=q
+            )
             return []
         logger.info("Performing Wikipedia search", query=q, max_results=max_results)
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 # Properly encode query in URL path to avoid 404s
                 from urllib.parse import quote
-                encoded_query = quote(q, safe='')
+
+                encoded_query = quote(q, safe="")
                 search_url = f"{self.base_url}/page/search/{encoded_query}"
                 params = {"limit": min(max_results, 10)}
                 response = await client.get(search_url, params=params)
@@ -362,16 +380,13 @@ class MultiSourceSearchClient(SearchClient):
         serp_env = os.getenv("SEARCH_SERPAPI_ENABLED", "").lower()
 
         ddg_enabled = (
-            settings.search.duckduckgo_enabled
-            and ddg_env not in ("0", "false", "no")
+            settings.search.duckduckgo_enabled and ddg_env not in ("0", "false", "no")
         ) or ddg_env in ("1", "true", "yes")
         wiki_enabled = (
-            settings.search.wikipedia_enabled
-            and wiki_env not in ("0", "false", "no")
+            settings.search.wikipedia_enabled and wiki_env not in ("0", "false", "no")
         ) or wiki_env in ("1", "true", "yes")
         serp_enabled = (
-            bool(settings.search.serpapi_key)
-            and serp_env not in ("0", "false", "no")
+            bool(settings.search.serpapi_key) and serp_env not in ("0", "false", "no")
         ) or serp_env in ("1", "true", "yes")
 
         # Initialize available search clients according to flags

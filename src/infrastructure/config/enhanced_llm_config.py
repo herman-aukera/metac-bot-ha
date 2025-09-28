@@ -105,6 +105,7 @@ class EnhancedLLMConfig:
         """Get appropriate LLM based on task type, complexity assessment, and operation mode."""
         # If running in mock mode (e.g., local DRY_RUN without network), return an async mock LLM
         if getattr(self, "mock_mode", False):
+
             class AsyncMockLLM:
                 def __init__(self, **kwargs):
                     self.model = kwargs.get("model", "mock-model")
@@ -121,7 +122,9 @@ class EnhancedLLMConfig:
                     )
 
             # Use the configured model for the task, but serve through the mock
-            model_config = self.model_configs.get(task_type, self.model_configs["simple"]).copy()
+            model_config = self.model_configs.get(
+                task_type, self.model_configs["simple"]
+            ).copy()
             return AsyncMockLLM(**model_config)
 
         # Check and update operation mode based on current budget
@@ -180,9 +183,8 @@ class EnhancedLLMConfig:
 
                 async def invoke(self, prompt: str) -> str:
                     await asyncio.sleep(0)
-                    return (
-                        "[MOCK-LLM] Deterministic response (factory fallback)\n"
-                        + (prompt[:300] if isinstance(prompt, str) else "")
+                    return "[MOCK-LLM] Deterministic response (factory fallback)\n" + (
+                        prompt[:300] if isinstance(prompt, str) else ""
                     )
 
             return AsyncMockLLMImportFallback(**model_config)

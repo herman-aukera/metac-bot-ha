@@ -163,8 +163,10 @@ class TournamentAskNewsClient:
                     break
                 if attempt < max_retries:
                     # Exponential backoff for rate limits: 12s, 24s, 48s
-                    backoff_delay = 12 * (2 ** attempt)
-                    self.logger.info(f"AskNews retry backoff: waiting {backoff_delay}s before attempt {attempt + 2}")
+                    backoff_delay = 12 * (2**attempt)
+                    self.logger.info(
+                        f"AskNews retry backoff: waiting {backoff_delay}s before attempt {attempt + 2}"
+                    )
                     await asyncio.sleep(backoff_delay)
 
         # Fall back: defer to pipeline free-model synthesis (Kimi K2 / GPT-OSS via OpenRouter)
@@ -177,7 +179,10 @@ class TournamentAskNewsClient:
             return False
 
         # Circuit breaker check
-        if self._breaker_open_until and datetime.now(timezone.utc) < self._breaker_open_until:
+        if (
+            self._breaker_open_until
+            and datetime.now(timezone.utc) < self._breaker_open_until
+        ):
             return False
 
         if self.quota_exhausted:
@@ -213,10 +218,14 @@ class TournamentAskNewsClient:
             # FREE TIER RATE LIMITING: Wait 12 seconds between requests to respect 1 req/10s limit
             rate_limit_delay = float(os.getenv("ASKNEWS_RATE_LIMIT_SECONDS", "12"))
             if self.usage_stats.last_request_time:
-                time_since_last = (datetime.now(timezone.utc) - self.usage_stats.last_request_time).total_seconds()
+                time_since_last = (
+                    datetime.now(timezone.utc) - self.usage_stats.last_request_time
+                ).total_seconds()
                 if time_since_last < rate_limit_delay:
                     sleep_time = rate_limit_delay - time_since_last
-                    self.logger.info(f"Rate limiting: waiting {sleep_time:.1f}s for AskNews free tier")
+                    self.logger.info(
+                        f"Rate limiting: waiting {sleep_time:.1f}s for AskNews free tier"
+                    )
                     await asyncio.sleep(sleep_time)
 
             # Stagger start to reduce burst (global small jitter)
@@ -224,6 +233,7 @@ class TournamentAskNewsClient:
             # Acquire global semaphore
             assert TournamentAskNewsClient._global_semaphore is not None
             async with TournamentAskNewsClient._global_semaphore:
+
                 def _search() -> Any:  # run sync SDK in thread
                     assert self.ask is not None
                     return self.ask.news.search_news(
@@ -232,6 +242,7 @@ class TournamentAskNewsClient:
                         return_type="string",
                         method="nl",
                     )
+
                 resp = await asyncio.to_thread(_search)
             research = getattr(resp, "as_string", None) or str(resp)
 
@@ -246,7 +257,9 @@ class TournamentAskNewsClient:
             self.logger.error(f"AskNews API call failed: {e}")
             raise
 
-    async def _asknews_attempt(self, question: str, attempt: int) -> Tuple[Optional[str], bool]:
+    async def _asknews_attempt(
+        self, question: str, attempt: int
+    ) -> Tuple[Optional[str], bool]:
         """Perform a single AskNews attempt.
 
         Returns
@@ -263,9 +276,7 @@ class TournamentAskNewsClient:
                 # reset failure counter on success
                 self._consecutive_failures = 0
                 self.usage_stats.add_request(success=True)
-                self.logger.info(
-                    f"AskNews research successful (attempt {attempt + 1})"
-                )
+                self.logger.info(f"AskNews research successful (attempt {attempt + 1})")
                 return research, False
             else:
                 self.logger.warning(
@@ -275,11 +286,11 @@ class TournamentAskNewsClient:
                 self._consecutive_failures += 1
                 return None, False
         except Exception as e:
-            self.logger.warning(
-                f"AskNews request failed (attempt {attempt + 1}): {e}"
-            )
+            self.logger.warning(f"AskNews request failed (attempt {attempt + 1}): {e}")
             if "quota" in str(e).lower() or "limit" in str(e).lower():
-                self.usage_stats.add_request(success=False, quota_exhausted=False)  # Don't mark as exhausted yet
+                self.usage_stats.add_request(
+                    success=False, quota_exhausted=False
+                )  # Don't mark as exhausted yet
                 self._consecutive_failures += 1
 
                 # Only switch to fallback after multiple attempts (exponential backoff)
@@ -293,7 +304,7 @@ class TournamentAskNewsClient:
                     return None, True
                 else:
                     # Exponential backoff: 12s, 24s, 48s delays for rate limits
-                    backoff_delay = 12 * (2 ** attempt)
+                    backoff_delay = 12 * (2**attempt)
                     self.logger.warning(
                         f"AskNews rate limited, will retry in {backoff_delay}s (attempt {attempt + 1}/{max_rate_limit_attempts})"
                     )
@@ -302,7 +313,9 @@ class TournamentAskNewsClient:
                 self.usage_stats.add_request(success=False)
                 self._consecutive_failures += 1
                 if self._consecutive_failures >= self._failure_threshold:
-                    self._breaker_open_until = datetime.now(timezone.utc) + timedelta(seconds=self._cooldown_seconds)
+                    self._breaker_open_until = datetime.now(timezone.utc) + timedelta(
+                        seconds=self._cooldown_seconds
+                    )
                     self.logger.error(
                         f"AskNews circuit breaker OPEN for {self._cooldown_seconds}s after {self._consecutive_failures} consecutive failures"
                     )
@@ -313,6 +326,7 @@ class TournamentAskNewsClient:
         try:
             from .search_client import DuckDuckGoSearchClient
             from ..config.settings import get_settings
+
             settings = get_settings()
             ddg = DuckDuckGoSearchClient(settings)
             results = await ddg.search(question, max_results=5)
@@ -327,7 +341,9 @@ class TournamentAskNewsClient:
             self.logger.warning(f"DuckDuckGo fallback failed: {e}")
             return ""
 
-    async def _call_perplexity(self, question: str, use_open_router: bool = False) -> str:
+    async def _call_perplexity(
+        self, question: str, use_open_router: bool = False
+    ) -> str:
         """Deprecated: Perplexity usage removed per provider policy."""
         raise RuntimeError("Perplexity fallback disabled")
 

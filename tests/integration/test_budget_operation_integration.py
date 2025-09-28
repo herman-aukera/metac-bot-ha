@@ -3,7 +3,6 @@ Integration tests for budget-aware operation mode switching and cost optimizatio
 Tests real-world scenarios of budget management during tournament operation.
 """
 
-
 import pytest
 
 
@@ -206,7 +205,7 @@ class TestBudgetOperationIntegration:
         if not budget_sufficient:
             overage = projected_total_cost - total_budget
             recommendations.append(
-                f"Reduce average cost by ${overage/remaining_questions:.2f} per question"
+                f"Reduce average cost by ${overage / remaining_questions:.2f} per question"
             )
             recommendations.append("Switch to conservative mode earlier")
             recommendations.append("Increase use of free models")
@@ -236,7 +235,6 @@ class TestModelFailoverIntegration:
 
     async def _simulate_cascading_failures(self) -> dict:
         """Simulate cascading model failures and recovery."""
-        fallback_chain = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-oss-20b:free"]
 
         # Simulate failures for first 3 models
         failed_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano"]

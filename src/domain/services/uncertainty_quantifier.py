@@ -225,10 +225,6 @@ class UncertaintyQuantifier:
         tournament_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Determine if prediction should be abstained based on uncertainty."""
-        base_abstention = (
-            uncertainty_assessment.confidence_level
-            < self.confidence_thresholds.abstention_threshold
-        )
 
         # Consider tournament context
         tournament_penalty = 0.0

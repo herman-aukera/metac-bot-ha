@@ -121,7 +121,7 @@ class ReasoningPath:
 
         summary_parts.append("Key reasoning steps:")
         for i, step in enumerate(self.steps[:3]):  # Show first 3 steps
-            summary_parts.append(f"{i+1}. {step.content[:100]}...")
+            summary_parts.append(f"{i + 1}. {step.content[:100]}...")
 
         if len(self.steps) > 3:
             summary_parts.append(f"... and {len(self.steps) - 3} more steps")
@@ -284,7 +284,7 @@ class TreeOfThoughtAgent(BaseAgent):
         Analyze this forecasting question and decompose it into key sub-components that need to be analyzed separately:
 
         Question: {question.title}
-        Description: {question.description or 'No description provided'}
+        Description: {question.description or "No description provided"}
         Type: {question.question_type.value}
 
         Identify 3-5 key sub-components or aspects that should be analyzed to answer this question effectively.
@@ -425,7 +425,7 @@ class TreeOfThoughtAgent(BaseAgent):
         {path_prompts.get(path_type, "Analyze this question systematically")}:
 
         Question: {question.title}
-        Description: {question.description or 'No description provided'}
+        Description: {question.description or "No description provided"}
 
         Research Summary: {research_report.executive_summary}
 
@@ -624,7 +624,7 @@ class TreeOfThoughtAgent(BaseAgent):
     ) -> ReasoningStep:
         """Generate the next reasoning step for a path."""
         previous_steps = "\n".join(
-            [f"Step {i+1}: {step.content}" for i, step in enumerate(path.steps)]
+            [f"Step {i + 1}: {step.content}" for i, step in enumerate(path.steps)]
         )
 
         prompt = f"""
@@ -635,7 +635,7 @@ class TreeOfThoughtAgent(BaseAgent):
         Previous reasoning steps:
         {previous_steps}
 
-        Sub-components being analyzed: {', '.join(path.sub_components) if path.sub_components else 'None specified'}
+        Sub-components being analyzed: {", ".join(path.sub_components) if path.sub_components else "None specified"}
 
         Provide the next reasoning step that builds upon the previous analysis.
         Focus on deepening the {path.path_type.value} approach and moving toward a conclusion.
@@ -756,14 +756,14 @@ class TreeOfThoughtAgent(BaseAgent):
         paths_summary = []
         for i, path in enumerate(best_paths):
             paths_summary.append(
-                f"Path {i+1} ({path.path_type.value}):\n{path.get_reasoning_summary()}"
+                f"Path {i + 1} ({path.path_type.value}):\n{path.get_reasoning_summary()}"
             )
 
         synthesis_prompt = f"""
         Synthesize a final prediction based on these diverse reasoning paths:
 
         Question: {question.title}
-        Description: {question.description or 'No description provided'}
+        Description: {question.description or "No description provided"}
         Type: {question.question_type.value}
 
         Research Summary: {research_report.executive_summary}

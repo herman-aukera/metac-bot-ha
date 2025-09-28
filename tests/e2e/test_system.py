@@ -155,7 +155,6 @@ class TestEndToEndForecasting:
             patch("aiohttp.ClientSession.get") as mock_metaculus_get,
             patch.object(e2e_bot.search_client, "search") as mock_search,
         ):
-
             # Setup API mocks
             mock_openai_response = Mock()
             mock_openai_response.status = 200
@@ -221,7 +220,6 @@ class TestEndToEndForecasting:
             patch("aiohttp.ClientSession.get") as mock_metaculus_get,
             patch.object(e2e_bot.search_client, "search") as mock_search,
         ):
-
             # Setup API mocks with different responses for each agent
             agent_responses = [
                 # Chain of Thought response
@@ -307,8 +305,9 @@ class TestEndToEndForecasting:
 
             # Ensemble prediction should be aggregation of individual predictions
             individual_predictions = [f["prediction"] for f in individual_forecasts]
-            min_pred, max_pred = min(individual_predictions), max(
-                individual_predictions
+            min_pred, max_pred = (
+                min(individual_predictions),
+                max(individual_predictions),
             )
             assert min_pred <= ensemble["prediction"] <= max_pred
 
@@ -321,7 +320,6 @@ class TestEndToEndForecasting:
             patch("aiohttp.ClientSession.get") as mock_metaculus_get,
             patch.object(e2e_bot.search_client, "search") as mock_search,
         ):
-
             # Create multiple question responses
             questions = [
                 {**mock_real_apis["metaculus"], "id": 12345, "title": "AGI by 2030?"},
@@ -362,7 +360,7 @@ class TestEndToEndForecasting:
                         "choices": [
                             {
                                 "message": {
-                                    "content": f'{{"reasoning": "Analysis for question {i+1}...", "prediction": {0.3 + i*0.1}, "confidence": 0.75}}'
+                                    "content": f'{{"reasoning": "Analysis for question {i + 1}...", "prediction": {0.3 + i * 0.1}, "confidence": 0.75}}'
                                 }
                             }
                         ]
@@ -399,7 +397,6 @@ class TestEndToEndForecasting:
             patch("aiohttp.ClientSession.get") as mock_metaculus_get,
             patch.object(e2e_bot.search_client, "search") as mock_search,
         ):
-
             # Setup partial failure scenario
             mock_metaculus_response = Mock()
             mock_metaculus_response.status = 200
@@ -452,7 +449,6 @@ class TestEndToEndForecasting:
             patch("aiohttp.ClientSession.get") as mock_metaculus_get,
             patch.object(e2e_bot.search_client, "search") as mock_search,
         ):
-
             # Setup fast mock responses
             mock_openai_response = Mock()
             mock_openai_response.status = 200

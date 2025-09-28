@@ -135,7 +135,7 @@ class TestErrorClassifier:
         # Record some errors
         for i in range(5):
             error = Exception(f"Test error {i}")
-            classification = self.classifier.classify_error(error, self.test_context)
+            self.classifier.classify_error(error, self.test_context)
 
         stats = self.classifier.get_error_statistics()
         assert stats["total_errors"] == 5
@@ -170,7 +170,6 @@ class TestModelTierFallbackManager:
                 self.fallback_manager, "_test_fallback_option", return_value=True
             ),
         ):
-
             result = await self.fallback_manager.execute_fallback(
                 "full", self.test_context, 50.0
             )
@@ -186,7 +185,6 @@ class TestModelTierFallbackManager:
         with patch.object(
             self.fallback_manager, "_check_availability", return_value=False
         ):
-
             result = await self.fallback_manager.execute_fallback(
                 "full", self.test_context, 50.0
             )
@@ -204,7 +202,9 @@ class TestModelTierFallbackManager:
             self.fallback_manager, "_check_availability", return_value=True
         ):
             viable_options = await self.fallback_manager._filter_viable_options(
-                fallback_chain, 10.0, self.test_context  # 10% budget remaining
+                fallback_chain,
+                10.0,
+                self.test_context,  # 10% budget remaining
             )
 
             # Should only include free models
@@ -266,7 +266,6 @@ class TestCrossProviderFallbackManager:
             ),
             patch.object(self.fallback_manager, "_test_provider", return_value=True),
         ):
-
             result = await self.fallback_manager.execute_provider_fallback(
                 "openrouter", self.test_context
             )
@@ -431,7 +430,6 @@ class TestErrorLoggingAndAlertingSystem:
                 self.logging_system, "_write_to_log_file", new_callable=AsyncMock
             ),
         ):
-
             await self.logging_system.log_error(
                 error, self.test_context, recovery_action
             )
@@ -455,7 +453,6 @@ class TestErrorLoggingAndAlertingSystem:
                 self.logging_system, "_write_to_log_file", new_callable=AsyncMock
             ),
         ):
-
             # Log errors up to threshold
             for i in range(self.logging_system.alert_config.error_threshold):
                 await self.logging_system.log_error(error, self.test_context)

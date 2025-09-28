@@ -309,7 +309,6 @@ class TestDispatcher:
                 return_value=sample_forecast,
             ),
         ):
-
             forecasts, stats = dispatcher.run(limit=2, status="open", category=None)
 
             assert isinstance(stats, DispatcherStats)

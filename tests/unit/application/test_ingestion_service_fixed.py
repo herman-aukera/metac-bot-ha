@@ -3,7 +3,6 @@ Unit tests for IngestionService application component.
 Tests JSON parsing, validation, and error handling.
 """
 
-
 import pytest
 
 from src.application.ingestion_service import (

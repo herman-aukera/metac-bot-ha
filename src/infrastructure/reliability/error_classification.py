@@ -695,7 +695,6 @@ class ErrorRecoveryManager:
 
         # Priority order for recovery strategies
         for strategy in classification.recovery_strategies:
-
             if strategy == RecoveryStrategy.RETRY:
                 if self.classifier.should_retry(classification, context.attempt_number):
                     delay = self.classifier.calculate_retry_delay(

@@ -385,8 +385,14 @@ class TaskComplexityAnalyzer:
 
         # Cost calculation (simplified - would use actual BudgetManager in practice)
         cost_per_1k = {
-            "openai/gpt-5": {"input": 0.0025, "output": 0.01},  # placeholder cost parity assumption
-            "openai/gpt-5-mini": {"input": 0.0005, "output": 0.0015},  # adjust when official pricing known (verify)
+            "openai/gpt-5": {
+                "input": 0.0025,
+                "output": 0.01,
+            },  # placeholder cost parity assumption
+            "openai/gpt-5-mini": {
+                "input": 0.0005,
+                "output": 0.0015,
+            },  # adjust when official pricing known (verify)
             "openai/gpt-5-nano": {"input": 0.00015, "output": 0.0006},
         }
 

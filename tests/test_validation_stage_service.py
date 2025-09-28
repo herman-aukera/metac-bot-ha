@@ -67,9 +67,9 @@ Status: EXCELLENT""",
         )
 
         assert isinstance(result, ValidationResult)
-        assert result.is_valid == True
+        assert result.is_valid
         assert result.quality_score > 0.7
-        assert result.hallucination_detected == False
+        assert not result.hallucination_detected
         assert result.confidence_level == "high"
         assert len(result.issues_identified) == 0
 
@@ -117,9 +117,9 @@ Status: FAIR""",
         )
 
         assert isinstance(result, ValidationResult)
-        assert result.is_valid == False
+        assert not result.is_valid
         assert result.quality_score < 0.7
-        assert result.hallucination_detected == True
+        assert result.hallucination_detected
         assert result.confidence_level == "low"
         assert len(result.issues_identified) > 0
 

@@ -139,7 +139,9 @@ class MultiStageValidationPipeline:
                     model_used="none",
                 )
             else:
-                self.logger.info("Executing Stage 3: GPT-5 forecasting with calibration...")
+                self.logger.info(
+                    "Executing Stage 3: GPT-5 forecasting with calibration..."
+                )
                 forecast_result = await self.forecasting_service.generate_forecast(
                     question=question,
                     question_type=question_type,

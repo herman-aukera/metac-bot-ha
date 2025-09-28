@@ -19,11 +19,20 @@ async def test_llm_client_openrouter_headers_from_env(monkeypatch):
     monkeypatch.setenv("OPENROUTER_HTTP_REFERER", "https://example.test/app")
     monkeypatch.setenv("OPENROUTER_APP_TITLE", "Test App Title")
 
-    cfg = LLMConfig(provider="openrouter", model="openai/gpt-oss-20b:free", api_key="sk-test")
+    cfg = LLMConfig(
+        provider="openrouter", model="openai/gpt-oss-20b:free", api_key="sk-test"
+    )
     client = LLMClient(cfg)
 
     with patch.object(client.client, "post") as mock_post:
-        mock_resp = type("R", (), {"raise_for_status": lambda self: None, "json": lambda self: {"choices": [{"message": {"content": "ok"}}]}})()
+        mock_resp = type(
+            "R",
+            (),
+            {
+                "raise_for_status": lambda self: None,
+                "json": lambda self: {"choices": [{"message": {"content": "ok"}}]},
+            },
+        )()
         mock_post.return_value = mock_resp
 
         out = await client.generate("ping", max_tokens=1)

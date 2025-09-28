@@ -189,7 +189,6 @@ class TestDispatcher:
             patch("src.application.dispatcher.IngestionService"),
             patch("src.application.dispatcher.ForecastService"),
         ):
-
             dispatcher = Dispatcher()
 
             assert isinstance(dispatcher.config, DispatcherConfig)
@@ -202,7 +201,6 @@ class TestDispatcher:
             patch("src.application.dispatcher.IngestionService"),
             patch("src.application.dispatcher.ForecastService"),
         ):
-
             dispatcher = Dispatcher(config=dispatcher_config)
 
             assert dispatcher.config == dispatcher_config
@@ -426,7 +424,6 @@ class TestDispatcher:
             patch("src.application.dispatcher.IngestionService"),
             patch("src.application.dispatcher.ForecastService"),
         ):
-
             config = DispatcherConfig(batch_size=5, max_retries=2)
             dispatcher = Dispatcher(config=config)
 

@@ -2,6 +2,7 @@
 
 Deliberately simple & deterministic; future improvements can add NLP.
 """
+
 from __future__ import annotations
 
 import re
@@ -35,7 +36,11 @@ def extract_subject(question: str) -> Dict[str, str]:
         if word in STOPWORDS:
             continue
         # Strip year-only trailing segment heuristically (keep if mid-sentence)
-        if re.fullmatch(r"20\d{2}", word) and len(tokens) > 3 and tokens[-1].rstrip("? ") == t:
+        if (
+            re.fullmatch(r"20\d{2}", word)
+            and len(tokens) > 3
+            and tokens[-1].rstrip("? ") == t
+        ):
             # keep the year if earlier token indicates election context
             if any(s in simplified_parts for s in ("election", "reelection")):
                 simplified_parts.append(word)

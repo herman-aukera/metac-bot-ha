@@ -680,7 +680,7 @@ class TestMetaculusClientComprehensive:
         with patch.object(
             metaculus_client, "fetch_question", return_value=Mock()
         ) as mock_fetch:
-            result = await metaculus_client.get_question(12345)
+            await metaculus_client.get_question(12345)
 
             mock_fetch.assert_called_once_with(12345)
 
@@ -690,7 +690,7 @@ class TestMetaculusClientComprehensive:
         with patch.object(
             metaculus_client, "fetch_questions", return_value=[]
         ) as mock_fetch:
-            result = await metaculus_client.get_questions(limit=5, status="open")
+            await metaculus_client.get_questions(limit=5, status="open")
 
             mock_fetch.assert_called_once_with(limit=5, status="open")
 

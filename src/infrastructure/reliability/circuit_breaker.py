@@ -178,7 +178,6 @@ class CircuitBreaker:
                 self.state == CircuitBreakerState.CLOSED
                 and self.failure_count >= self.config.failure_threshold
             ):
-
                 self.state = CircuitBreakerState.OPEN
                 self.logger.error(
                     "Circuit breaker opened due to failures",

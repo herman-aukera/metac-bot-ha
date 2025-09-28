@@ -3,8 +3,6 @@ Pipeline to orchestrate the forecasting process.
 """
 
 
-
-
 class ForecastPipeline:
     def __init__(self, config):
         self.config = config

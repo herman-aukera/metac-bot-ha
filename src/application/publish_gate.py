@@ -10,6 +10,7 @@ Criteria (initial P0 set):
 
 Future TODOs (non-breaking): integrate confidence normalization & entropy checks.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -64,7 +65,9 @@ def evaluate_publish(
     min_entropy_allow: float = 0.02,  # if entropy >= this, allow even if near uniform
     min_variance_allow: float = 1e-4,  # numeric variance threshold to distinguish true uniform
     treat_low_info_as_withhold: bool = True,  # convert some blocks to withhold if borderline
-    fallback_flag: Optional[bool] = None,  # external signal that distribution came from fallback repair
+    fallback_flag: Optional[
+        bool
+    ] = None,  # external signal that distribution came from fallback repair
 ) -> PublishDecision:
     """Return a publish decision.
 
@@ -101,7 +104,12 @@ def evaluate_publish(
             p0 = probs[0]
             if abs(p0 - 0.5) < 1e-9:
                 # Treat as blocked if rationale missing / placeholder or contains 'neutral'
-                if (not rationale or len(rationale.strip()) < rationale_min_chars or "neutral" in rationale.lower() or "fallback" in rationale.lower()):
+                if (
+                    not rationale
+                    or len(rationale.strip()) < rationale_min_chars
+                    or "neutral" in rationale.lower()
+                    or "fallback" in rationale.lower()
+                ):
                     reasons.append("NEUTRAL_BINARY_PLACEHOLDER")
                     blocked = True
         elif len(probs) >= 3:
@@ -125,11 +133,17 @@ def evaluate_publish(
                     reasons.append("NEAR_UNIFORM_MC")
                     blocked = True
                 # Downgrade ONLY near uniform (not perfectly uniform) if entropy acceptable
-                if (not uniform_detected) and norm_entropy >= min_entropy_allow and treat_low_info_as_withhold:
+                if (
+                    (not uniform_detected)
+                    and norm_entropy >= min_entropy_allow
+                    and treat_low_info_as_withhold
+                ):
                     blocked = False  # downgrade to withhold semantics
             else:
                 # Low-information but not perfectly uniform
-                if (max_ent - ent) < 0.01 and len(probs) >= min_options_for_uniform_block:
+                if (max_ent - ent) < 0.01 and len(
+                    probs
+                ) >= min_options_for_uniform_block:
                     reasons.append("LOW_INFO_MC")
                     blocked = True
                     if norm_entropy >= min_entropy_allow and treat_low_info_as_withhold:
@@ -150,11 +164,17 @@ def evaluate_publish(
         reasons.append("LOW_CONFIDENCE")
 
     # Publication decision: allow if no reasons OR only soft reasons.
-    soft_only = all(r in {"LOW_CONFIDENCE", "LOW_INFO_MC", "NEAR_UNIFORM_MC", "FALLBACK_DISTRIBUTION"} for r in reasons)
+    soft_only = all(
+        r
+        in {"LOW_CONFIDENCE", "LOW_INFO_MC", "NEAR_UNIFORM_MC", "FALLBACK_DISTRIBUTION"}
+        for r in reasons
+    )
     publish = (not reasons) or (soft_only and not blocked)
 
     primary_reason = reasons[0] if reasons else None
-    return PublishDecision(publish=publish, reason=primary_reason, reasons=reasons, blocked=blocked)
+    return PublishDecision(
+        publish=publish, reason=primary_reason, reasons=reasons, blocked=blocked
+    )
 
 
 __all__ = ["PublishDecision", "evaluate_publish"]

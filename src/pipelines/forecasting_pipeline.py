@@ -455,8 +455,7 @@ class ForecastingPipeline:
             agent_type=agent_type,
         )
 
-        start_time = datetime.now(timezone.utc) if collect_metrics else None
-        metrics = {"api_calls": 0} if collect_metrics else None
+        datetime.now(timezone.utc) if collect_metrics else None
 
         try:
             # Get question from Metaculus
@@ -566,7 +565,9 @@ class ForecastingPipeline:
                     ingestion_service = IngestionService()
                     if question_data is None:
                         raise ValueError("Question not found from Metaculus")
-                    question = await ingestion_service.convert_question_data(question_data)  # type: ignore[arg-type]
+                    question = await ingestion_service.convert_question_data(
+                        question_data
+                    )  # type: ignore[arg-type]
                 questions.append(question)
 
             # Generate forecasts using batch processing

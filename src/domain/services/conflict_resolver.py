@@ -150,7 +150,7 @@ class CredibilityWeightedStrategy(ConflictResolutionStrategy):
             claim = (
                 conflict.conflicting_claims[i]
                 if i < len(conflict.conflicting_claims)
-                else f"Position {i+1}"
+                else f"Position {i + 1}"
             )
             claim_weights[claim] += source.credibility_score
             claim_sources[claim].append(source)
@@ -195,7 +195,7 @@ class ConsensusBasedStrategy(ConflictResolutionStrategy):
             claim = (
                 conflict.conflicting_claims[i]
                 if i < len(conflict.conflicting_claims)
-                else f"Position {i+1}"
+                else f"Position {i + 1}"
             )
             claim_counts[claim] += 1
             claim_sources[claim].append(source)
@@ -239,7 +239,6 @@ class EvidenceTriangulationStrategy(ConflictResolutionStrategy):
                 evidence_types[source.source_type.value].append(source)
 
         # Look for convergent evidence across different types
-        convergent_claims = []
         uncertainty_factors = []
 
         # Simple triangulation: look for claims supported by multiple evidence types
@@ -249,7 +248,7 @@ class EvidenceTriangulationStrategy(ConflictResolutionStrategy):
             claim = (
                 conflict.conflicting_claims[i]
                 if i < len(conflict.conflicting_claims)
-                else f"Position {i+1}"
+                else f"Position {i + 1}"
             )
             if hasattr(source, "source_type"):
                 claim_type_support[claim].add(source.source_type.value)

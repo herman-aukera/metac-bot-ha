@@ -257,16 +257,16 @@ class ArxivKnowledgeBase(KnowledgeBaseInterface):
         for i in range(min(query.max_results, 3)):
             source = AuthoritativeSource(
                 url=f"https://arxiv.org/abs/2024.{1000 + i}",
-                title=f"ArXiv Paper: {query.query_text} - Study {i+1}",
+                title=f"ArXiv Paper: {query.query_text} - Study {i + 1}",
                 summary=f"Preprint research on {query.query_text}",
                 source_type=SourceType.PREPRINT,
                 credibility_score=0.0,
                 credibility_factors={},
                 publish_date=datetime.utcnow() - timedelta(days=10 + i * 5),
-                authors=[f"Researcher {i+1}", f"Co-Author {i+1}"],
+                authors=[f"Researcher {i + 1}", f"Co-Author {i + 1}"],
                 knowledge_base=KnowledgeBase.ARXIV,
                 peer_review_status="preprint",
-                abstract=f"Abstract for paper {i+1} on {query.query_text}",
+                abstract=f"Abstract for paper {i + 1} on {query.query_text}",
                 keywords=["AI", "machine learning", "research"],
             )
             sources.append(source)
@@ -310,13 +310,13 @@ class PubMedKnowledgeBase(KnowledgeBaseInterface):
         for i in range(min(query.max_results, 2)):
             source = AuthoritativeSource(
                 url=f"https://pubmed.ncbi.nlm.nih.gov/{30000000 + i}/",
-                title=f"Medical Research: {query.query_text} - Study {i+1}",
+                title=f"Medical Research: {query.query_text} - Study {i + 1}",
                 summary=f"Peer-reviewed medical research on {query.query_text}",
                 source_type=SourceType.PEER_REVIEWED,
                 credibility_score=0.0,
                 credibility_factors={},
                 publish_date=datetime.utcnow() - timedelta(days=60 + i * 15),
-                authors=[f"Dr. Medical {i+1}", f"Prof. Health {i+1}"],
+                authors=[f"Dr. Medical {i + 1}", f"Prof. Health {i + 1}"],
                 institution="Medical University",
                 journal_or_venue="New England Journal of Medicine",
                 knowledge_base=KnowledgeBase.PUBMED,
@@ -390,7 +390,7 @@ class ExpertNetworkKnowledgeBase(KnowledgeBaseInterface):
 
         for i, expert in enumerate(relevant_experts[: query.max_results]):
             source = AuthoritativeSource(
-                url=f"https://expert-network.com/opinion/{expert.name.replace(' ', '-').lower()}-{i+1}",
+                url=f"https://expert-network.com/opinion/{expert.name.replace(' ', '-').lower()}-{i + 1}",
                 title=f"Expert Opinion: {query.query_text}",
                 summary=f"Expert analysis by {expert.name} on {query.query_text}",
                 source_type=SourceType.EXPERT_OPINION,
@@ -816,13 +816,13 @@ class AuthoritativeSourceManager:
         for i in range(min(max_sources, 3)):
             source = AuthoritativeSource(
                 url=f"https://arxiv.org/abs/2024.{1000 + i}",
-                title=f"Academic Research on {question.title} - Paper {i+1}",
+                title=f"Academic Research on {question.title} - Paper {i + 1}",
                 summary=f"Peer-reviewed research examining aspects of {question.title}",
                 source_type=SourceType.ACADEMIC_PAPER,
                 credibility_score=0.0,  # Will be calculated
                 credibility_factors={},
                 publish_date=datetime.utcnow() - timedelta(days=30 + i * 10),
-                authors=[f"Dr. Researcher {i+1}", f"Prof. Expert {i+1}"],
+                authors=[f"Dr. Researcher {i + 1}", f"Prof. Expert {i + 1}"],
                 institution="Research University",
                 journal_or_venue="Nature Communications",
                 citation_count=50 + i * 20,
@@ -844,7 +844,7 @@ class AuthoritativeSourceManager:
         # Create mock government sources
         for i in range(min(max_sources, 2)):
             source = AuthoritativeSource(
-                url=f"https://census.gov/data/report-{i+1}",
+                url=f"https://census.gov/data/report-{i + 1}",
                 title=f"Government Data on {question.title}",
                 summary=f"Official government statistics and data related to {question.title}",
                 source_type=SourceType.GOVERNMENT_DATA,
@@ -869,14 +869,14 @@ class AuthoritativeSourceManager:
         # Create mock expert opinion sources
         for i in range(min(max_sources, 2)):
             source = AuthoritativeSource(
-                url=f"https://brookings.edu/research/expert-analysis-{i+1}",
+                url=f"https://brookings.edu/research/expert-analysis-{i + 1}",
                 title=f"Expert Analysis: {question.title}",
                 summary=f"Expert opinion and analysis on {question.title}",
                 source_type=SourceType.EXPERT_OPINION,
                 credibility_score=0.0,
                 credibility_factors={},
                 publish_date=datetime.utcnow() - timedelta(days=20 + i * 5),
-                authors=[f"Expert Analyst {i+1}"],
+                authors=[f"Expert Analyst {i + 1}"],
                 institution="Brookings Institution",
             )
 
@@ -902,7 +902,7 @@ class AuthoritativeSourceManager:
                 credibility_score=0.0,
                 credibility_factors={},
                 publish_date=datetime.utcnow() - timedelta(days=45 + i * 10),
-                authors=[f"Research Team {i+1}"],
+                authors=[f"Research Team {i + 1}"],
                 institution="RAND Corporation",
             )
 

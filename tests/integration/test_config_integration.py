@@ -309,7 +309,6 @@ class TestOrchestratorConfigIntegration:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()
@@ -379,7 +378,6 @@ class TestOrchestratorConfigIntegration:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()
@@ -422,7 +420,6 @@ class TestOrchestratorConfigIntegration:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()
@@ -438,8 +435,6 @@ class TestOrchestratorConfigIntegration:
 
             orchestrator = TournamentOrchestrator(str(config_file))
             await orchestrator.initialize()
-
-            original_name = orchestrator.registry.settings.bot.name
 
             # Create invalid configuration update
             updated_config = {

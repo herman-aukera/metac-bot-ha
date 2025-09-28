@@ -209,7 +209,8 @@ class TestUncertaintyQuantifier:
         """Test research trigger logic."""
         # Create assessment with high data uncertainty
         assessment = quantifier.assess_prediction_uncertainty(
-            sample_prediction, research_quality_score=0.2  # Low quality
+            sample_prediction,
+            research_quality_score=0.2,  # Low quality
         )
 
         research_decision = quantifier.should_trigger_additional_research(assessment)

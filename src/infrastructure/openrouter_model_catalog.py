@@ -7,6 +7,7 @@ so tests can inject fixtures without performing HTTP.
 TODO: Extend with cached HTTP retrieval (respecting offline/DRY_RUN) once
 network contract stabilized.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,7 +20,9 @@ class ModelInfo:
     available: bool = True
 
 
-def filter_available(requested: Sequence[str], catalog: Iterable[ModelInfo]) -> List[str]:
+def filter_available(
+    requested: Sequence[str], catalog: Iterable[ModelInfo]
+) -> List[str]:
     """Return subset of requested models present & available in catalog.
 
     Silently drops unknown/unavailable entries preserving original order.

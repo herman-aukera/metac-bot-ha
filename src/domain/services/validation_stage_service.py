@@ -814,7 +814,7 @@ Provide brief justification for scores.
         report_sections.append(f"- **Word Count:** {word_count}")
         report_sections.append(f"- **Citations Found:** {citation_count}")
         report_sections.append(
-            f"- **Citation Density:** {(citation_count/max(word_count/100, 1)):.1f} per 100 words"
+            f"- **Citation Density:** {(citation_count / max(word_count / 100, 1)):.1f} per 100 words"
         )
 
         return "\n".join(report_sections)

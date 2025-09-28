@@ -3,7 +3,6 @@
 import asyncio
 import os
 import time
-import sys
 from typing import Dict, List, Optional
 
 import httpx
@@ -201,17 +200,23 @@ class LLMClient:
         persistent connection failures.
         """
         # Declare module-level counters as globals once for this function scope
-        global OPENROUTER_TOTAL_CALLS, OPENROUTER_TOTAL_RETRIES, OPENROUTER_TOTAL_BACKOFF
+        global \
+            OPENROUTER_TOTAL_CALLS, \
+            OPENROUTER_TOTAL_RETRIES, \
+            OPENROUTER_TOTAL_BACKOFF
         import random
-        import time
 
         base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
         endpoint = f"{base_url.rstrip('/')}/chat/completions"
         headers_base = {
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": CONTENT_TYPE_JSON,
-            "HTTP-Referer": os.getenv("OPENROUTER_HTTP_REFERER", "https://github.com/metaculus-bot-ha"),
-            "X-Title": os.getenv("OPENROUTER_APP_TITLE", "Metaculus Forecasting Bot HA"),
+            "HTTP-Referer": os.getenv(
+                "OPENROUTER_HTTP_REFERER", "https://github.com/metaculus-bot-ha"
+            ),
+            "X-Title": os.getenv(
+                "OPENROUTER_APP_TITLE", "Metaculus Forecasting Bot HA"
+            ),
         }
         data_base = {
             "model": model,
@@ -231,7 +236,9 @@ class LLMClient:
             # Exponential backoff for retry attempts
             if attempt > 1:
                 delay = min(2 ** (attempt - 1), 60)  # Cap at 60 seconds
-                logger.info(f"Retrying OpenRouter request after {delay}s (attempt {attempt}/{max_attempts})")
+                logger.info(
+                    f"Retrying OpenRouter request after {delay}s (attempt {attempt}/{max_attempts})"
+                )
                 await asyncio.sleep(delay)
 
             headers = dict(headers_base)
@@ -240,7 +247,11 @@ class LLMClient:
             try:
                 response = await self.client.post(endpoint, headers=headers, json=data)
                 status = response.status_code
-                rate_headers = {k: v for k, v in response.headers.items() if k.lower().startswith("x-ratelimit")}
+                rate_headers = {
+                    k: v
+                    for k, v in response.headers.items()
+                    if k.lower().startswith("x-ratelimit")
+                }
                 # Quota / key limit detection (403 with specific body message)
                 if status == 403:
                     try:
@@ -262,14 +273,22 @@ class LLMClient:
                     raise RuntimeError(f"OpenRouter server error status={status}")
                 if status == 429:
                     # Extract retry-after if present
-                    retry_after = response.headers.get("Retry-After") or response.headers.get("retry-after")
-                    raise RuntimeError(f"OpenRouter 429 rate limited retry_after={retry_after}")
+                    retry_after = response.headers.get(
+                        "Retry-After"
+                    ) or response.headers.get("retry-after")
+                    raise RuntimeError(
+                        f"OpenRouter 429 rate limited retry_after={retry_after}"
+                    )
                 response.raise_for_status()
                 result = response.json()
                 # Log success diagnostics once per call
                 if rate_headers:
                     logger.debug(
-                        "OpenRouter call ok model=%s attempt=%s rate_headers=%s duration=%.2fs", model, attempt, rate_headers, time.time()-start
+                        "OpenRouter call ok model=%s attempt=%s rate_headers=%s duration=%.2fs",
+                        model,
+                        attempt,
+                        rate_headers,
+                        time.time() - start,
                     )
                 content = result["choices"][0]["message"]["content"]
                 # Expose counters externally (for run summary) via attributes
@@ -279,7 +298,7 @@ class LLMClient:
                     try:
                         # Update module-level cumulative metrics
                         OPENROUTER_TOTAL_CALLS += 1
-                        OPENROUTER_TOTAL_RETRIES += (attempt_count - 1)
+                        OPENROUTER_TOTAL_RETRIES += attempt_count - 1
                         OPENROUTER_TOTAL_BACKOFF += backoff_seconds_total
                     except Exception:
                         pass
@@ -292,13 +311,20 @@ class LLMClient:
                 err_str = str(e).lower()
                 if "circuit open" in err_str:
                     raise
-                sleep_base = min(8.0, 0.75 * (2 ** (attempt - 1)))  # 0.75,1.5,3,6,8 capped
+                sleep_base = min(
+                    8.0, 0.75 * (2 ** (attempt - 1))
+                )  # 0.75,1.5,3,6,8 capped
                 jitter = random.uniform(0, sleep_base * 0.25)
                 sleep_time = sleep_base + jitter
                 backoff_seconds_total += sleep_time
                 logger.warning(
                     "OpenRouter call failed attempt=%s/%s model=%s error=%s backoff=%.2fs total_backoff=%.2fs",
-                    attempt, max_attempts, model, e, sleep_time, backoff_seconds_total
+                    attempt,
+                    max_attempts,
+                    model,
+                    e,
+                    sleep_time,
+                    backoff_seconds_total,
                 )
                 if attempt == max_attempts:
                     break
@@ -309,13 +335,15 @@ class LLMClient:
             self.last_openrouter_total_backoff = round(backoff_seconds_total, 3)
             try:
                 OPENROUTER_TOTAL_CALLS += 1
-                OPENROUTER_TOTAL_RETRIES += (attempt_count - 1)
+                OPENROUTER_TOTAL_RETRIES += attempt_count - 1
                 OPENROUTER_TOTAL_BACKOFF += backoff_seconds_total
             except Exception:
                 pass
         except Exception:
             pass
-        raise RuntimeError(f"OpenRouter failed after {max_attempts} attempts: {last_error}")
+        raise RuntimeError(
+            f"OpenRouter failed after {max_attempts} attempts: {last_error}"
+        )
 
     async def batch_generate(
         self,

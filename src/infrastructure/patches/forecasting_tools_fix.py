@@ -24,7 +24,6 @@ def apply_forecasting_tools_patch() -> None:
     logger.info("Applying forecasting-tools library patch for correct API parameters")
 
     # Store the original method for potential restoration
-    original_method = MetaculusApi._grab_filtered_questions_with_offset
 
     def patched_grab_filtered_questions_with_offset(
         cls,
@@ -45,13 +44,19 @@ def apply_forecasting_tools_patch() -> None:
 
         # Fix 2: Use correct parameter names (singular, not plural)
         if api_filter.allowed_statuses:
-            if isinstance(api_filter.allowed_statuses, list) and api_filter.allowed_statuses:
+            if (
+                isinstance(api_filter.allowed_statuses, list)
+                and api_filter.allowed_statuses
+            ):
                 url_params["status"] = api_filter.allowed_statuses[0]
             else:
                 url_params["status"] = api_filter.allowed_statuses
 
         if api_filter.allowed_tournaments:
-            if isinstance(api_filter.allowed_tournaments, list) and api_filter.allowed_tournaments:
+            if (
+                isinstance(api_filter.allowed_tournaments, list)
+                and api_filter.allowed_tournaments
+            ):
                 url_params["tournament"] = api_filter.allowed_tournaments[0]
             else:
                 url_params["tournament"] = api_filter.allowed_tournaments
@@ -67,12 +72,12 @@ def apply_forecasting_tools_patch() -> None:
             )
 
         if api_filter.publish_time_gt:
-            url_params["published_at__gt"] = (
-                api_filter.publish_time_gt.strftime("%Y-%m-%d")
+            url_params["published_at__gt"] = api_filter.publish_time_gt.strftime(
+                "%Y-%m-%d"
             )
         if api_filter.publish_time_lt:
-            url_params["published_at__lt"] = (
-                api_filter.publish_time_lt.strftime("%Y-%m-%d")
+            url_params["published_at__lt"] = api_filter.publish_time_lt.strftime(
+                "%Y-%m-%d"
             )
 
         if api_filter.open_time_gt:
@@ -110,7 +115,13 @@ def apply_forecasting_tools_patch() -> None:
             )
 
         logger.info(f"Returning {len(questions)} questions after local filtering")
-        return questions, questions_were_found_before_local_filter    # Apply the patch - replace the classmethod
-    MetaculusApi._grab_filtered_questions_with_offset = classmethod(patched_grab_filtered_questions_with_offset)
+        return (
+            questions,
+            questions_were_found_before_local_filter,
+        )  # Apply the patch - replace the classmethod
+
+    MetaculusApi._grab_filtered_questions_with_offset = classmethod(
+        patched_grab_filtered_questions_with_offset
+    )
 
     logger.info("✅ Forecasting-tools patch applied successfully")

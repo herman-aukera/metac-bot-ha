@@ -298,7 +298,7 @@ CONFIDENCE: [0-1]
         """Evaluate a batch of thoughts."""
         thoughts_text = "\n\n".join(
             [
-                f"THOUGHT {i+1}:\n{thought.content}\nREASONING: {thought.reasoning}"
+                f"THOUGHT {i + 1}:\n{thought.content}\nREASONING: {thought.reasoning}"
                 for i, thought in enumerate(thoughts)
             ]
         )

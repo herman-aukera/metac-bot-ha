@@ -536,7 +536,7 @@ class TestTournamentAnalytics:
         our_user_id = "our_user"
 
         # First analyze standings
-        standings = tournament_analytics.analyze_tournament_standings(
+        tournament_analytics.analyze_tournament_standings(
             tournament_id, sample_standings_data, our_user_id
         )
 
@@ -952,7 +952,7 @@ class TestTournamentAnalytics:
         our_user_id = "our_user"
 
         # First analyze standings
-        standings = tournament_analytics.analyze_tournament_standings(
+        tournament_analytics.analyze_tournament_standings(
             tournament_id, sample_standings_data, our_user_id
         )
 

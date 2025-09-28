@@ -176,7 +176,6 @@ class ChainOfThoughtAgent(BaseAgent):
         self.logger.info("Starting CoT reasoning", question_id=str(question.id))
 
         reasoning_steps = []
-        current_confidence = 0.5
 
         # Step 1: Initial observation and problem understanding
         observation_step = await self._create_observation_step(question, context)
@@ -263,7 +262,7 @@ Key aspects to consider:
         for i, hypothesis in enumerate(hypotheses):
             step = ReasoningStep.create(
                 step_type=ReasoningStepType.HYPOTHESIS,
-                content=f"Hypothesis {i+1}: {hypothesis}",
+                content=f"Hypothesis {i + 1}: {hypothesis}",
                 confidence=0.6,
                 metadata={
                     "hypothesis_number": i + 1,

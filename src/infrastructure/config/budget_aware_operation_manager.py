@@ -552,7 +552,7 @@ class BudgetAwareOperationManager:
     ) -> Tuple[bool, str]:
         """Determine if a question should be skipped based on current operation mode."""
         current_mode = self.operation_mode_manager.get_current_mode()
-        strategy = self.get_cost_optimization_strategy(current_mode)
+        self.get_cost_optimization_strategy(current_mode)
 
         # Check emergency protocol first
         if self.current_emergency_protocol == EmergencyProtocol.BUDGET_CRITICAL:
@@ -775,7 +775,9 @@ class BudgetAwareOperationManager:
         # Default to normal if below all thresholds
         return "normal"
 
-    def get_operation_mode_details(self, utilization_percentage: float) -> Dict[str, Any]:
+    def get_operation_mode_details(
+        self, utilization_percentage: float
+    ) -> Dict[str, Any]:
         """Return a structured snapshot of the current/expected operation mode.
 
         Args:
@@ -787,7 +789,9 @@ class BudgetAwareOperationManager:
         """
         try:
             # Resolve expected mode from utilization and get live mode too
-            expected_mode_value = self.get_operation_mode_for_budget(utilization_percentage)
+            expected_mode_value = self.get_operation_mode_for_budget(
+                utilization_percentage
+            )
             current_mode = self.operation_mode_manager.get_current_mode()
             expected_mode = OperationMode(expected_mode_value)
 
@@ -796,7 +800,9 @@ class BudgetAwareOperationManager:
 
             # Find the threshold we matched (if any) to surface recommended actions
             matched_threshold = None
-            for threshold in sorted(self.budget_thresholds, key=lambda x: x.percentage, reverse=True):
+            for threshold in sorted(
+                self.budget_thresholds, key=lambda x: x.percentage, reverse=True
+            ):
                 if utilization_percentage >= threshold.percentage:
                     matched_threshold = threshold
                     break
@@ -811,8 +817,12 @@ class BudgetAwareOperationManager:
                 "research_depth_limits": strategy.research_depth_limits,
                 "estimated_cost_reduction": strategy.estimated_cost_reduction,
                 "performance_impact_score": strategy.performance_impact_score,
-                "recommended_actions": matched_threshold.actions if matched_threshold else [],
-                "threshold": matched_threshold.name if matched_threshold else "normal_operation",
+                "recommended_actions": matched_threshold.actions
+                if matched_threshold
+                else [],
+                "threshold": matched_threshold.name
+                if matched_threshold
+                else "normal_operation",
             }
 
             return details

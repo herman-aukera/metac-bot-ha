@@ -374,7 +374,6 @@ class TestForecastingService:
             patch.object(pred1, "get_confidence_score", return_value=0.0),
             patch.object(pred2, "get_confidence_score", return_value=0.0),
         ):
-
             result = forecasting_service.confidence_weighted_average([pred1, pred2])
 
             # Should use equal weights: (0.3 + 0.7) / 2 = 0.5
@@ -650,7 +649,6 @@ class TestForecastingService:
             patch.object(pred1, "get_confidence_score", return_value=0.0),
             patch.object(pred2, "get_confidence_score", return_value=0.0),
         ):
-
             # Mock the _weighted_average_aggregation method to verify it's called
             with patch.object(
                 forecasting_service, "_weighted_average_aggregation"

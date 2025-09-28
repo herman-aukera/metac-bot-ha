@@ -340,7 +340,6 @@ class TestTournamentCompliance:
                     return_value=mock_research_client,
                 ),
             ):
-
                 config = Config.from_dict(tournament_config)
                 agent = EnsembleAgent("tournament-agent", config.llm_config)
                 validator = TournamentComplianceValidator(config)

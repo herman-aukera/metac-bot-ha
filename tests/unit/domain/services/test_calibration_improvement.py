@@ -69,9 +69,9 @@ class TestCalibrationImprovement:
         )
         original_value = 0.98
 
-        assert (
-            calibrated_value < original_value
-        ), "Should reduce overconfident prediction"
+        assert calibrated_value < original_value, (
+            "Should reduce overconfident prediction"
+        )
         assert calibrated_value > 0.5, "Should still indicate positive prediction"
         assert adjustment.adjustment_type in [
             "overconfidence",
@@ -105,19 +105,19 @@ class TestCalibrationImprovement:
 
             # Should pull back from extremes
             if extreme_value < 0.5:
-                assert (
-                    calibrated_value > extreme_value
-                ), f"Should increase {description} value"
-                assert (
-                    calibrated_value < 0.5
-                ), f"Should maintain {description} direction"
+                assert calibrated_value > extreme_value, (
+                    f"Should increase {description} value"
+                )
+                assert calibrated_value < 0.5, (
+                    f"Should maintain {description} direction"
+                )
             else:
-                assert (
-                    calibrated_value < extreme_value
-                ), f"Should decrease {description} value"
-                assert (
-                    calibrated_value > 0.5
-                ), f"Should maintain {description} direction"
+                assert calibrated_value < extreme_value, (
+                    f"Should decrease {description} value"
+                )
+                assert calibrated_value > 0.5, (
+                    f"Should maintain {description} direction"
+                )
 
     def test_community_anchoring_adjustment(self):
         """Test community anchoring for calibration improvement."""
@@ -186,9 +186,9 @@ class TestCalibrationImprovement:
             adj for conf, adj in adjustments if conf == PredictionConfidence.LOW
         )
 
-        assert (
-            very_high_adj > low_adj
-        ), "Very high confidence should be adjusted more than low confidence"
+        assert very_high_adj > low_adj, (
+            "Very high confidence should be adjusted more than low confidence"
+        )
 
     def test_log_scoring_optimization(self):
         """Test calibration adjustments optimize log scoring."""
@@ -223,9 +223,9 @@ class TestCalibrationImprovement:
             if (pred_value > 0.9 and not actual_outcome) or (
                 pred_value < 0.1 and actual_outcome
             ):
-                assert (
-                    calibrated_log_score > original_log_score
-                ), "Calibration should improve log score for extreme incorrect prediction"
+                assert calibrated_log_score > original_log_score, (
+                    "Calibration should improve log score for extreme incorrect prediction"
+                )
 
     def _calculate_log_score(self, prediction: float, outcome: bool) -> float:
         """Calculate log score for a prediction."""
@@ -259,9 +259,9 @@ class TestCalibrationImprovement:
         )
 
         # Should adjust based on historical overconfidence
-        assert (
-            calibrated_value < 0.9
-        ), "Should reduce prediction due to historical overconfidence"
+        assert calibrated_value < 0.9, (
+            "Should reduce prediction due to historical overconfidence"
+        )
         assert calibrated_value > 0.5, "Should maintain prediction direction"
 
     def test_no_adjustment_for_well_calibrated_predictions(self):
@@ -282,9 +282,9 @@ class TestCalibrationImprovement:
 
         # Should have minimal adjustment
         adjustment_magnitude = abs(calibrated_value - 0.65)
-        assert (
-            adjustment_magnitude < 0.1
-        ), "Well-calibrated prediction should have minimal adjustment"
+        assert adjustment_magnitude < 0.1, (
+            "Well-calibrated prediction should have minimal adjustment"
+        )
 
     def test_calibration_reasoning_quality(self):
         """Test that calibration adjustments include clear reasoning."""

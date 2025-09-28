@@ -11,8 +11,11 @@ from typing import Any, Dict, List, Optional
 
 try:
     import structlog  # type: ignore[import]
+
     logger = structlog.get_logger(__name__)
-except Exception:  # pragma: no cover - fallback if structlog isn't available during analysis
+except (
+    Exception
+):  # pragma: no cover - fallback if structlog isn't available during analysis
     import logging as _logging
 
     class _KwLogger:

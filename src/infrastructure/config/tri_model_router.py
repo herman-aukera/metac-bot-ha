@@ -137,7 +137,9 @@ class OpenRouterTriModelRouter:
         # May hold GeneralLlm or HardenedOpenRouterModel adapters
         self.models: Dict[ModelTier, Union[GeneralLlm, HardenedOpenRouterModel]] = {}
         self.model_status: Dict[ModelTier, ModelStatus] = {}
-        self.fallback_chains: Dict[ModelTier, List[str]] = self._define_openrouter_fallback_chains()
+        self.fallback_chains: Dict[ModelTier, List[str]] = (
+            self._define_openrouter_fallback_chains()
+        )
 
         # Routing strategy based on task complexity and budget constraints
         self.routing_strategy = {
@@ -151,8 +153,14 @@ class OpenRouterTriModelRouter:
         self.operation_thresholds = {
             "normal": (0, 70),  # 0-70% budget used: Use GPT-5 models
             "conservative": (70, 85),  # 70-85% budget used: Use GPT-5 mini/nano only
-            "emergency": (85, 95),  # 85-95% budget used: Prefer nano-only to minimize cost
-            "critical": (95, 100),  # 95-100% budget used: Pause heavy work; nano-only if essential
+            "emergency": (
+                85,
+                95,
+            ),  # 85-95% budget used: Prefer nano-only to minimize cost
+            "critical": (
+                95,
+                100,
+            ),  # 95-100% budget used: Pause heavy work; nano-only if essential
         }
 
         # Initialize models and check availability
@@ -253,12 +261,12 @@ class OpenRouterTriModelRouter:
         has_openrouter = self.openrouter_key and not self.openrouter_key.startswith(
             "dummy_"
         )
-        has_metaculus_proxy = (
-            os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true"
-        )
+        (os.getenv("ENABLE_PROXY_CREDITS", "true").lower() == "true")
 
         if has_openrouter:
-            logger.info("Using OpenRouter fallback chains: GPT-5 full → mini → nano (no free models)")
+            logger.info(
+                "Using OpenRouter fallback chains: GPT-5 full → mini → nano (no free models)"
+            )
             return {
                 "nano": [
                     "openai/gpt-5-nano",
@@ -274,8 +282,14 @@ class OpenRouterTriModelRouter:
                 ],
             }
         else:
-            logger.warning("No valid OPENROUTER_API_KEY detected; using nano-only placeholder chain")
-            return {"nano": ["openai/gpt-5-nano"], "mini": ["openai/gpt-5-nano"], "full": ["openai/gpt-5-nano"]}
+            logger.warning(
+                "No valid OPENROUTER_API_KEY detected; using nano-only placeholder chain"
+            )
+            return {
+                "nano": ["openai/gpt-5-nano"],
+                "mini": ["openai/gpt-5-nano"],
+                "full": ["openai/gpt-5-nano"],
+            }
 
     def _initialize_all_models(self) -> None:
         """Initialize all models with availability detection."""
@@ -542,11 +556,16 @@ class OpenRouterTriModelRouter:
             # If explicitly requested via env, allow opting in.
             try:
                 import os  # local import to avoid top-level cycles
+
                 enable_nitro = os.getenv("OPENROUTER_ENABLE_NITRO", "0") == "1"
             except Exception:
                 enable_nitro = False
 
-            if enable_nitro and (not model_name.endswith(":nitro")) and (not model_name.endswith(":free")):
+            if (
+                enable_nitro
+                and (not model_name.endswith(":nitro"))
+                and (not model_name.endswith(":free"))
+            ):
                 return f"{model_name}:nitro"
 
         return model_name
@@ -574,7 +593,11 @@ class OpenRouterTriModelRouter:
 
         normalized_base = base
         lower = base.lower()
-        if lower.startswith("gpt-5") or lower.startswith("gpt-4o") or lower.startswith("gpt-oss"):
+        if (
+            lower.startswith("gpt-5")
+            or lower.startswith("gpt-4o")
+            or lower.startswith("gpt-oss")
+        ):
             normalized_base = f"openai/{base}"
         elif lower.startswith("claude"):
             normalized_base = f"anthropic/{base}"
@@ -686,7 +709,9 @@ class OpenRouterTriModelRouter:
 
         # If none available, return emergency chains
         if not any(availability.values()):
-            logger.error("No OpenRouter models available - using emergency configuration")
+            logger.error(
+                "No OpenRouter models available - using emergency configuration"
+            )
             return self._get_emergency_fallback_chains()
 
         optimized_chains: Dict[ModelTier, List[str]] = {}
@@ -696,9 +721,13 @@ class OpenRouterTriModelRouter:
             primary_model = self.model_configs[tier].model_name
             if availability.get(primary_model, False):
                 chain.append(primary_model)
-                logger.info(f"✓ Primary model {primary_model} available for {tier} tier")
+                logger.info(
+                    f"✓ Primary model {primary_model} available for {tier} tier"
+                )
             else:
-                logger.warning(f"⚠ Primary model {primary_model} unavailable for {tier} tier")
+                logger.warning(
+                    f"⚠ Primary model {primary_model} unavailable for {tier} tier"
+                )
 
             if tier == "full":
                 if availability.get("openai/gpt-5-mini", False):
@@ -782,14 +811,14 @@ class OpenRouterTriModelRouter:
         # Test model availability if API key is valid
         if validation_report["api_key_status"] == "configured":
             try:
-                validation_report["model_availability"] = (
-                    await self.detect_model_availability()
-                )
+                validation_report[
+                    "model_availability"
+                ] = await self.detect_model_availability()
 
                 # Auto-configure fallback chains based on availability
-                validation_report["fallback_chains"] = (
-                    await self.auto_configure_fallback_chains()
-                )
+                validation_report[
+                    "fallback_chains"
+                ] = await self.auto_configure_fallback_chains()
 
                 # Check if any models are available
                 available_models = [
@@ -965,7 +994,9 @@ class OpenRouterTriModelRouter:
                     for tier_literal in unhealthy_tiers:
                         config = self.model_configs[tier_literal]
                         try:
-                            model, status = self._initialize_model_with_fallback(tier_literal, config)
+                            model, status = self._initialize_model_with_fallback(
+                                tier_literal, config
+                            )
                             self.models[tier_literal] = model
                             self.model_status[tier_literal] = status
 
@@ -978,7 +1009,9 @@ class OpenRouterTriModelRouter:
                                     f"⚠ {tier_literal} tier still unhealthy after reconfiguration"
                                 )
                         except Exception as e:
-                            logger.error(f"Failed to reconfigure {tier_literal} tier: {e}")
+                            logger.error(
+                                f"Failed to reconfigure {tier_literal} tier: {e}"
+                            )
 
                 # Log periodic status
                 healthy_tiers = sum(
@@ -1112,7 +1145,7 @@ class OpenRouterTriModelRouter:
             ComplexityLevel: minimal, medium, or high
         """
         content_length = len(content)
-    # word_count intentionally omitted (unused)
+        # word_count intentionally omitted (unused)
 
         # Content length factors
         length_score = 0
@@ -1569,10 +1602,10 @@ class OpenRouterTriModelRouter:
 EMERGENCY RESPONSE - API FAILURES
 
 Task Type: {task_type}
-Failed Models: {', '.join(failed_models)}
+Failed Models: {", ".join(failed_models)}
 Recovery Actions Attempted: {len(recovery_actions)}
 
-Content Preview: {content[:200]}{'...' if len(content) > 200 else ''}
+Content Preview: {content[:200]}{"..." if len(content) > 200 else ""}
 """
 
         if task_type == "research":
@@ -1994,14 +2027,18 @@ Recommendation: Retry when systems are restored or use alternative approach.
                     if model_status.response_time
                     else ""
                 )
-                status[str(tier_key)] = f"✓ {model_status.model_name} (Ready{response_info})"
+                status[str(tier_key)] = (
+                    f"✓ {model_status.model_name} (Ready{response_info})"
+                )
             else:
                 error_info = (
                     f" - {model_status.error_message}"
                     if model_status.error_message
                     else ""
                 )
-                status[str(tier_key)] = f"✗ {model_status.model_name} (Unavailable{error_info})"
+                status[str(tier_key)] = (
+                    f"✗ {model_status.model_name} (Unavailable{error_info})"
+                )
         return status
 
     def get_detailed_status(self) -> Dict[str, Dict]:
@@ -2422,16 +2459,17 @@ Recommendation: Retry when systems are restored or use alternative approach.
 
         # Execute with fallback handling
         try:
-            response, execution_metadata = (
-                await self.intelligent_fallback_with_recovery(
-                    task_type=task_type,
-                    content=content,
-                    complexity=complexity,
-                    budget_remaining=(
-                        budget_context.remaining_percentage if budget_context else 100.0
-                    ),
-                    max_retries=3,
-                )
+            (
+                response,
+                execution_metadata,
+            ) = await self.intelligent_fallback_with_recovery(
+                task_type=task_type,
+                content=content,
+                complexity=complexity,
+                budget_remaining=(
+                    budget_context.remaining_percentage if budget_context else 100.0
+                ),
+                max_retries=3,
             )
 
             execution_time = asyncio.get_event_loop().time() - start_time
@@ -2554,7 +2592,9 @@ Recommendation: Retry when systems are restored or use alternative approach.
 
         return min(sum(score_factors), 1.0)
 
-    def integrate_with_budget_manager(self, budget_manager: Any, budget_aware_manager: Any) -> None:
+    def integrate_with_budget_manager(
+        self, budget_manager: Any, budget_aware_manager: Any
+    ) -> None:
         """Integrate tri-model router with budget management systems (Task 8.2)."""
         self.budget_manager = budget_manager
         self.budget_aware_manager = budget_aware_manager

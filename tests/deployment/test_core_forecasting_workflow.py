@@ -140,7 +140,6 @@ class TestCoreForeccastingWorkflow:
                     return_value=mock_research_client,
                 ),
             ):
-
                 config = Config.from_dict(minimal_config)
                 agent = EnsembleAgent("test-agent", config.llm_config)
 
@@ -217,7 +216,6 @@ class TestCoreForeccastingWorkflow:
                     return_value=mock_research_client,
                 ),
             ):
-
                 config = Config.from_dict(minimal_config)
                 agent = EnsembleAgent("test-agent", config.llm_config)
 
@@ -273,7 +271,6 @@ class TestCoreForeccastingWorkflow:
                     return_value=mock_research_client,
                 ),
             ):
-
                 config = Config.from_dict(minimal_config)
                 agent = EnsembleAgent("test-agent", config.llm_config)
 

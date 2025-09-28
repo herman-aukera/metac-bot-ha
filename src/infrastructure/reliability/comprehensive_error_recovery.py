@@ -246,7 +246,12 @@ class ComprehensiveErrorRecoveryManager:
                 try:
                     self.error_recovery_manager._update_circuit_breaker(
                         error_classification.error_code,
-                        RecoveryAction(strategy=strategy, parameters={}, expected_delay=0, success_probability=0.0),
+                        RecoveryAction(
+                            strategy=strategy,
+                            parameters={},
+                            expected_delay=0,
+                            success_probability=0.0,
+                        ),
                     )
                 except Exception:
                     pass

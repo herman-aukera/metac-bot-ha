@@ -37,7 +37,7 @@ class TestOperationModesIntegration:
         config = EnhancedLLMConfig()
 
         # Test getting LLM for task
-        llm = config.get_llm_for_task("research")
+        config.get_llm_for_task("research")
 
         # Verify operation mode manager was called
         mock_operation_manager.check_and_update_mode.assert_called_once()
@@ -77,7 +77,7 @@ class TestOperationModesIntegration:
 
         # Create enhanced LLM config and request LLM
         config = EnhancedLLMConfig()
-        llm = config.get_llm_for_task("forecast")
+        config.get_llm_for_task("forecast")
 
         # Verify mode change was detected and handled
         mock_operation_manager.check_and_update_mode.assert_called_once()

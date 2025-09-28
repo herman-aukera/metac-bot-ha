@@ -418,7 +418,7 @@ def create_database_health_check(name: str, connection_func: Callable) -> Health
     async def check_database():
         try:
             # This should be customized based on your database client
-            result = await connection_func()
+            await connection_func()
             return {"healthy": True, "connection_time": time.time()}
         except Exception as e:
             return {"healthy": False, "error": str(e)}

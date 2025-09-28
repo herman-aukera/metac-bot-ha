@@ -320,7 +320,7 @@ class TestCircuitBreakerManager:
         manager = CircuitBreakerManager()
 
         cb1 = manager.get_circuit_breaker("test1")
-        cb2 = manager.get_circuit_breaker("test2")
+        manager.get_circuit_breaker("test2")
 
         # Initially all healthy
         unhealthy = manager.get_unhealthy_circuits()
@@ -339,7 +339,7 @@ class TestCircuitBreakerManager:
         manager = CircuitBreakerManager()
 
         cb1 = manager.get_circuit_breaker("test1")
-        cb2 = manager.get_circuit_breaker("test2")
+        manager.get_circuit_breaker("test2")
 
         health = await manager.health_check()
 

@@ -314,7 +314,9 @@ class AdaptiveResearchManager:
         quality_level = (
             "high"
             if overall_score >= 0.8
-            else "medium" if overall_score >= 0.6 else "low"
+            else "medium"
+            if overall_score >= 0.6
+            else "low"
         )
 
         return {

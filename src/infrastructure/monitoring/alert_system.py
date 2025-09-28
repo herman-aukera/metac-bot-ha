@@ -135,7 +135,7 @@ class AlertSystem:
                 alert_type=AlertType.ACCURACY_DEGRADATION,
                 severity=severity,
                 title="Forecast Accuracy Degradation Detected",
-                message=f"Brier score increased by {degradation:.4f} ({degradation/historical_brier:.1%})",
+                message=f"Brier score increased by {degradation:.4f} ({degradation / historical_brier:.1%})",
                 current_value=current_brier,
                 threshold_value=historical_brier + threshold,
                 context={

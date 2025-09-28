@@ -3,8 +3,6 @@ Unit tests for MetaculusAPI infrastructure component.
 Tests the mock API client functionality and error handling.
 """
 
-
-
 from src.infrastructure.metaculus_api import APIConfig, MetaculusAPI, MetaculusAPIError
 
 

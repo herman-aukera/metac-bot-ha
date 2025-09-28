@@ -488,9 +488,11 @@ class TestEnhancedAuthoritativeSourceManager:
             publish_date=datetime.utcnow() - timedelta(days=30),
         )
 
-        is_valid, issues, details = (
-            await source_manager.validate_source_authenticity_enhanced(valid_source)
-        )
+        (
+            is_valid,
+            issues,
+            details,
+        ) = await source_manager.validate_source_authenticity_enhanced(valid_source)
 
         assert isinstance(is_valid, bool)
         assert isinstance(issues, list)

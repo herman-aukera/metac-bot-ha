@@ -4,6 +4,7 @@ Provides utilities to purge deprecated GPT-4o family references while allowing
 tests to assert behavior deterministically. All code selecting model lists
 should pass them through `enforce_model_policy` prior to use.
 """
+
 from __future__ import annotations
 
 from typing import Iterable, List

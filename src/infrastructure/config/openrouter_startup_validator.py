@@ -90,7 +90,10 @@ class OpenRouterStartupValidator:
 
         if missing_required:
             errors.extend(
-                [f"Missing required environment variable: {var}" for var in missing_required]
+                [
+                    f"Missing required environment variable: {var}"
+                    for var in missing_required
+                ]
             )
         return missing_required
 
@@ -103,14 +106,19 @@ class OpenRouterStartupValidator:
                 missing_recommended.append(var)
         if missing_recommended:
             warnings.extend(
-                [f"Recommended environment variable not set: {var}" for var in missing_recommended]
+                [
+                    f"Recommended environment variable not set: {var}"
+                    for var in missing_recommended
+                ]
             )
             recommendations.append(
                 "Set recommended environment variables for optimal configuration"
             )
         return missing_recommended
 
-    def _validate_base_url(self, warnings: List[str], recommendations: List[str]) -> None:
+    def _validate_base_url(
+        self, warnings: List[str], recommendations: List[str]
+    ) -> None:
         base_url = os.getenv(
             "OPENROUTER_BASE_URL", self.default_values["OPENROUTER_BASE_URL"]
         )
@@ -264,7 +272,9 @@ class OpenRouterStartupValidator:
                     await asyncio.sleep(delay)
                 except Exception:
                     pass
-        logger.error(f"OpenRouter connectivity test failed after {attempts} attempts: {last_error}")
+        logger.error(
+            f"OpenRouter connectivity test failed after {attempts} attempts: {last_error}"
+        )
         return {
             "available": False,
             "error": last_error,
@@ -392,7 +402,11 @@ class OpenRouterStartupValidator:
         print("\n" + "=" * 60)
         print("OpenRouter Configuration Validation")
         print("=" * 60)
-        print("✅ Configuration is VALID" if validation_result.is_valid else "❌ Configuration is INVALID")
+        print(
+            "✅ Configuration is VALID"
+            if validation_result.is_valid
+            else "❌ Configuration is INVALID"
+        )
         if validation_result.errors:
             print(f"\n❌ Errors ({len(validation_result.errors)}):")
             for error in validation_result.errors:
@@ -407,13 +421,19 @@ class OpenRouterStartupValidator:
                 print(f"  • {rec}")
         print("\n" + "=" * 60)
 
-    async def _persist_or_print_setup_guide(self, validation_result: ValidationResult) -> None:
+    async def _persist_or_print_setup_guide(
+        self, validation_result: ValidationResult
+    ) -> None:
         setup_guide = self.generate_setup_guide(validation_result)
         try:
+
             def _write_guide(path: str, content: str) -> None:
                 with open(path, "w") as f:
                     f.write(content)
-            await asyncio.to_thread(_write_guide, "openrouter_setup_guide.md", setup_guide)
+
+            await asyncio.to_thread(
+                _write_guide, "openrouter_setup_guide.md", setup_guide
+            )
             print("📝 Setup guide saved to: openrouter_setup_guide.md")
         except Exception as e:  # noqa: BLE001
             print(f"⚠️  Could not save setup guide: {e}")

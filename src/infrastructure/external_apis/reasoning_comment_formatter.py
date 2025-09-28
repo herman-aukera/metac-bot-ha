@@ -313,26 +313,18 @@ class ReasoningCommentFormatter:
     def _generate_fallback_comment(self, prediction: Prediction) -> str:
         """Generate a minimal compliant comment when formatting fails."""
         fallback = "Forecast Analysis:\n\n"
-        fallback += (
-            f"This prediction was generated using {prediction.method.value.replace('_', ' ')} methodology "
-        )
+        fallback += f"This prediction was generated using {prediction.method.value.replace('_', ' ')} methodology "
         fallback += f"with {prediction.confidence.value} confidence level.\n\n"
 
         if prediction.result.binary_probability is not None:
-            fallback += (
-                "The assessed probability reflects analysis of available information and uncertainty factors. "
-            )
+            fallback += "The assessed probability reflects analysis of available information and uncertainty factors. "
         elif prediction.result.numeric_value is not None:
-            fallback += (
-                "The predicted value is based on quantitative analysis and trend assessment. "
-            )
+            fallback += "The predicted value is based on quantitative analysis and trend assessment. "
 
         fallback += (
             "Confidence level indicates the degree of certainty in this assessment.\n\n"
         )
-        fallback += (
-            f"Method: {prediction.method.value} | Confidence: {prediction.confidence.value}\n"
-        )
+        fallback += f"Method: {prediction.method.value} | Confidence: {prediction.confidence.value}\n"
         fallback += (
             f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
         )

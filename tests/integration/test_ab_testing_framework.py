@@ -194,9 +194,9 @@ class TestABTestingFramework:
 
             for metric in expected_metrics:
                 assert metric in metrics, f"Missing metric: {metric}"
-                assert isinstance(
-                    metrics[metric], (int, float)
-                ), f"Invalid metric type: {metric}"
+                assert isinstance(metrics[metric], (int, float)), (
+                    f"Invalid metric type: {metric}"
+                )
 
     def test_variant_comparison(self):
         """Test comparison between prompt variants."""
@@ -221,9 +221,9 @@ class TestABTestingFramework:
         ]
 
         # Scenario analysis should use more tokens (more comprehensive)
-        assert (
-            scenario_tokens > basic_tokens
-        ), "Scenario analysis should use more tokens"
+        assert scenario_tokens > basic_tokens, (
+            "Scenario analysis should use more tokens"
+        )
 
         # Compare quality scores
         basic_quality = results["basic_calibrated"]["performance_metrics"][
@@ -234,9 +234,9 @@ class TestABTestingFramework:
         ]
 
         # Quality differences should be measurable
-        assert (
-            abs(basic_quality - scenario_quality) >= 0
-        ), "Should measure quality differences"
+        assert abs(basic_quality - scenario_quality) >= 0, (
+            "Should measure quality differences"
+        )
 
     def test_cost_efficiency_analysis(self):
         """Test cost efficiency analysis across variants."""
@@ -253,7 +253,7 @@ class TestABTestingFramework:
 
             # Cost should be proportional to token usage
             cost = metrics["total_cost_estimate"]
-            tokens = metrics["avg_token_usage"] * len(results[variant]["responses"])
+            metrics["avg_token_usage"] * len(results[variant]["responses"])
 
             assert cost > 0, "Should have positive cost estimate"
             assert cost < 1.0, "Cost should be reasonable for test sample"

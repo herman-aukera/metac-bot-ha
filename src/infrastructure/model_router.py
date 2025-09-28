@@ -59,7 +59,10 @@ class BudgetAwareModelRouter:
         )
 
     def select_model(
-        self, task_type: str, requires_tools: bool = False, is_test: Optional[bool] = None
+        self,
+        task_type: str,
+        requires_tools: bool = False,
+        is_test: Optional[bool] = None,
     ) -> str:
         """
         Select appropriate model based on budget and requirements.

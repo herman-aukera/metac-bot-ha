@@ -615,9 +615,7 @@ class ForecastingStageService:
             line.strip()
             for line in raw_response.split("\n")
             if any(indicator in line.lower() for indicator in gap_indicators)
-        ][
-            :5
-        ]  # Limit to top 5 gaps
+        ][:5]  # Limit to top 5 gaps
 
         # Simple sensitivity analysis based on confidence
         confidence = parsed_forecast.get("confidence", 0.5)

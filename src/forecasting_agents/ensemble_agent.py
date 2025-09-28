@@ -494,9 +494,9 @@ REASONING: [detailed explanation of how you analyzed and synthesized the differe
         reasoning_parts.append("\nIndividual agent predictions:")
         for i, pred in enumerate(predictions):
             agent_type = (
-                pred.method_metadata.get("agent_type", f"Agent {i+1}")
+                pred.method_metadata.get("agent_type", f"Agent {i + 1}")
                 if pred.method_metadata
-                else f"Agent {i+1}"
+                else f"Agent {i + 1}"
             )
             reasoning_parts.append(
                 f"- {agent_type}: {pred.result.binary_probability:.3f} (confidence: {pred.get_confidence_score():.2f})"
@@ -538,9 +538,9 @@ REASONING: [detailed explanation of how you analyzed and synthesized the differe
 
         for i, pred in enumerate(predictions):
             agent_type = (
-                pred.method_metadata.get("agent_type", f"Agent {i+1}")
+                pred.method_metadata.get("agent_type", f"Agent {i + 1}")
                 if pred.method_metadata
-                else f"Agent {i+1}"
+                else f"Agent {i + 1}"
             )
             formatted_predictions.append(
                 f"{agent_type.upper()} AGENT:\n"

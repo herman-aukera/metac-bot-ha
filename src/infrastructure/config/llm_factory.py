@@ -58,7 +58,11 @@ def normalize_model_id(model_name: Any) -> str:
     base, suffix = (model_name.split(":", 1) + [""])[:2]
     lower = base.lower()
 
-    if lower.startswith("gpt-5") or lower.startswith("gpt-oss") or lower.startswith("gpt-4o"):
+    if (
+        lower.startswith("gpt-5")
+        or lower.startswith("gpt-oss")
+        or lower.startswith("gpt-4o")
+    ):
         base = f"openai/{base}"
     elif lower.startswith("claude"):
         base = f"anthropic/{base}"

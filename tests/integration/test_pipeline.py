@@ -439,7 +439,8 @@ class TestAgentIntegration:
                     )()
 
         llm_client.chat_completion = AsyncMock(
-            side_effect=lambda *args, **kwargs: '{"probability": 0.42, "confidence": "high", "reasoning": "Analysis complete", "reasoning_steps": ["Analyzed data", "Evaluated trends"], "lower_bound": 0.30, "upper_bound": 0.55, "confidence_interval": 0.25}'
+            side_effect=lambda *args,
+            **kwargs: '{"probability": 0.42, "confidence": "high", "reasoning": "Analysis complete", "reasoning_steps": ["Analyzed data", "Evaluated trends"], "lower_bound": 0.30, "upper_bound": 0.55, "confidence_interval": 0.25}'
         )
 
         # Different mock responses for different agent types

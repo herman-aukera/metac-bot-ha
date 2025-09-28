@@ -24,7 +24,7 @@ class DummyClient:
         self._i = 0
 
     async def post(self, *a, **kw):
-        r = self._responses[min(self._i, len(self._responses)-1)]
+        r = self._responses[min(self._i, len(self._responses) - 1)]
         self._i += 1
         return r
 

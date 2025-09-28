@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional, List
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,10 +26,14 @@ def _parse_int_env(name: str, default: int) -> int:
         try:
             fval = float(raw)
             coerced = int(fval) if fval == int(fval) else int(fval) + 1
-            logger.warning("%s expected int but got %r; coercing to %d", name, raw, coerced)
+            logger.warning(
+                "%s expected int but got %r; coercing to %d", name, raw, coerced
+            )
             return coerced
         except Exception:
-            logger.warning("%s expected int but got %r; using default %d", name, raw, default)
+            logger.warning(
+                "%s expected int but got %r; using default %d", name, raw, default
+            )
             return default
 
 
@@ -114,7 +119,9 @@ class TournamentConfig:
 
         return cls(
             tournament_id=int(os.getenv("AIB_TOURNAMENT_ID", "32813")),
-            tournament_slug=os.getenv("AIB_TOURNAMENT_SLUG", os.getenv("TOURNAMENT_SLUG", "fall-aib-2025")),
+            tournament_slug=os.getenv(
+                "AIB_TOURNAMENT_SLUG", os.getenv("TOURNAMENT_SLUG", "fall-aib-2025")
+            ),
             tournament_name=os.getenv(
                 "TOURNAMENT_NAME", "Fall 2025 AI Forecasting Benchmark"
             ),

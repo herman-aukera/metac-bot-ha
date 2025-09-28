@@ -286,7 +286,7 @@ class TestDynamicWeightAdjuster:
             adjuster._update_agent_profile(agent)
 
         # Test that rebalancing is needed
-        initial_weights = adjuster.get_dynamic_weights(agents)
+        adjuster.get_dynamic_weights(agents)
 
         # Simulate rebalancing trigger
         needs_rebalancing = any(

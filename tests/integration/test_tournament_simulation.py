@@ -168,7 +168,7 @@ class TestTournamentSimulation:
             questions.append(question)
 
         # Start scheduling simulation
-        session_id = self.dry_run_manager.start_dry_run_session(
+        self.dry_run_manager.start_dry_run_session(
             session_name="Scheduling Optimization Test",
             tournament_context={
                 "scheduling_mode": "optimized",
@@ -239,7 +239,7 @@ class TestTournamentSimulation:
         daily_limit = 20
 
         for question in high_volume_questions[:daily_limit]:  # Respect daily limit
-            result = self.dry_run_manager.simulate_submission(
+            self.dry_run_manager.simulate_submission(
                 session_id=session_id,
                 question=question,
                 prediction=self.mock_prediction,

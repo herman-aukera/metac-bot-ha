@@ -752,7 +752,7 @@ class TestCalibrationValidation:
             overconfidence_questions.append(
                 {
                     "id": 8000 + i,
-                    "title": f"Overconfidence test question {i+1}",
+                    "title": f"Overconfidence test question {i + 1}",
                     "description": "Question designed to test overconfidence bias",
                     "type": "binary",
                     "close_time": "2025-12-01T00:00:00Z",
@@ -778,7 +778,7 @@ class TestCalibrationValidation:
             anchoring_questions.append(
                 {
                     "id": 8100 + i,
-                    "title": f"Anchoring test question {i+1}",
+                    "title": f"Anchoring test question {i + 1}",
                     "description": "Question with potential anchoring points",
                     "type": "binary",
                     "close_time": "2025-12-01T00:00:00Z",

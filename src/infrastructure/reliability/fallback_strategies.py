@@ -382,10 +382,14 @@ class ModelTierFallbackManager:
                 # Create a test model instance via centralized factory
                 try:
                     from src.infrastructure.config.llm_factory import create_llm
-                    test_model = create_llm(option.name, extra_kwargs=option.configuration)
+
+                    test_model = create_llm(
+                        option.name, extra_kwargs=option.configuration
+                    )
                 except Exception:
                     # Fallback to direct instantiation if factory import fails
                     from forecasting_tools import GeneralLlm
+
                     if option.name.startswith("metaculus/"):
                         test_model = GeneralLlm(
                             model=option.name, api_key=None, **option.configuration

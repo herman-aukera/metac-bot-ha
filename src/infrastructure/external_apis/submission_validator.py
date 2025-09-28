@@ -383,7 +383,7 @@ class SubmissionValidator:
                 errors.append(
                     ValidationError(
                         field="prediction_value",
-                        message=f"Choice index {value} out of range [0, {len(question.choices)-1}]",
+                        message=f"Choice index {value} out of range [0, {len(question.choices) - 1}]",
                         severity=ValidationResult.INVALID,
                         code="CHOICE_INDEX_OUT_OF_RANGE",
                     )
@@ -457,7 +457,7 @@ class SubmissionValidator:
                 errors.append(
                     ValidationError(
                         field="timing",
-                        message=f"Question closes in {time_until_close.total_seconds()/60:.0f} minutes",
+                        message=f"Question closes in {time_until_close.total_seconds() / 60:.0f} minutes",
                         severity=ValidationResult.WARNING,
                         code="QUESTION_CLOSING_SOON",
                     )
@@ -1825,9 +1825,9 @@ class DryRunManager:
 
         # Update session
         session["submissions"].append(submission_record.submission_id)
-        session["simulation_results"][
-            submission_record.submission_id
-        ] = simulation_results
+        session["simulation_results"][submission_record.submission_id] = (
+            simulation_results
+        )
 
         # Update submission record with simulation results
         self.audit_manager.update_submission_status(

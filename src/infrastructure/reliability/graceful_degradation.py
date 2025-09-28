@@ -330,7 +330,6 @@ class GracefulDegradationManager:
             return
 
         # Degrade feature
-        old_enabled = feature.enabled
         feature.enabled = False
         feature.degraded = True
 

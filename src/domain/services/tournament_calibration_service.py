@@ -427,7 +427,7 @@ class TournamentCalibrationService:
         for i, adj in enumerate(adjustments):
             if adj.adjustment_type != "no_adjustment":
                 calibration_summary.append(
-                    f"Prediction {i+1}: {adj.original_value:.3f} → {adj.adjusted_value:.3f} "
+                    f"Prediction {i + 1}: {adj.original_value:.3f} → {adj.adjusted_value:.3f} "
                     f"({adj.adjustment_type})"
                 )
 

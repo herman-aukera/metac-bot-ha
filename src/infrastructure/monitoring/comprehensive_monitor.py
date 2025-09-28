@@ -98,7 +98,7 @@ class ComprehensiveMonitor:
             and forecast_value is not None
             and confidence is not None
         ):
-            forecast_record = self.performance_tracker.record_forecast(
+            self.performance_tracker.record_forecast(
                 question_id, forecast_value, confidence
             )
             tracking_results["forecast"] = {
@@ -109,7 +109,10 @@ class ComprehensiveMonitor:
 
         # Track API performance
         api_record = self.performance_tracker.record_api_performance(
-            question_id, task_type, success, response_time=1.0  # Placeholder
+            question_id,
+            task_type,
+            success,
+            response_time=1.0,  # Placeholder
         )
         tracking_results["api"] = api_record
 
@@ -303,7 +306,7 @@ class ComprehensiveMonitor:
 
     def export_monitoring_data(self, days: int = 7) -> Dict[str, Any]:
         """Export comprehensive monitoring data for analysis."""
-        cutoff_date = datetime.now() - timedelta(days=days)
+        datetime.now() - timedelta(days=days)
 
         # Get performance data
         performance_metrics = self.performance_tracker.get_performance_metrics(

@@ -53,11 +53,11 @@ class TestPatternDetector:
             question = Question(
                 id=uuid4(),
                 metaculus_id=1000 + i,
-                title=f"Test Question {i+1}",
-                description=f"Description for question {i+1}",
+                title=f"Test Question {i + 1}",
+                description=f"Description for question {i + 1}",
                 question_type=qtype,
                 status=QuestionStatus.OPEN,
-                url=f"https://test.com/question/{i+1}",
+                url=f"https://test.com/question/{i + 1}",
                 close_time=datetime.utcnow() + timedelta(days=30 + i),
                 resolve_time=datetime.utcnow() + timedelta(days=60 + i),
                 categories=["test_category"],
@@ -114,7 +114,7 @@ class TestPatternDetector:
                 probability=min(0.95, max(0.05, prob)),  # Clamp to valid range
                 confidence=conf,
                 method=method,
-                reasoning=f"Test reasoning for question {i+1}",
+                reasoning=f"Test reasoning for question {i + 1}",
                 created_by=agent,
             )
 
@@ -728,7 +728,9 @@ class TestPatternDetector:
     ):
         """Test handling when no ground truth is provided."""
         results = detector.detect_patterns(
-            sample_forecasts_with_patterns, sample_questions, None  # No ground truth
+            sample_forecasts_with_patterns,
+            sample_questions,
+            None,  # No ground truth
         )
 
         # Should still work but with limited pattern detection

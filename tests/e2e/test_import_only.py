@@ -46,21 +46,21 @@ class TestImportAndBasicFunctionality:
                 bot = TemplateForecaster()
 
                 # Check for key methods that should exist
-                assert hasattr(
-                    bot, "run_research"
-                ), "Bot should have run_research method"
+                assert hasattr(bot, "run_research"), (
+                    "Bot should have run_research method"
+                )
                 assert hasattr(bot, "get_llm"), "Bot should have get_llm method"
-                assert hasattr(
-                    bot, "forecast_on_tournament"
-                ), "Bot should have forecast_on_tournament method"
+                assert hasattr(bot, "forecast_on_tournament"), (
+                    "Bot should have forecast_on_tournament method"
+                )
 
                 # Check for budget management attributes
-                assert hasattr(
-                    bot, "budget_manager"
-                ), "Bot should have budget_manager attribute"
-                assert hasattr(
-                    bot, "token_tracker"
-                ), "Bot should have token_tracker attribute"
+                assert hasattr(bot, "budget_manager"), (
+                    "Bot should have budget_manager attribute"
+                )
+                assert hasattr(bot, "token_tracker"), (
+                    "Bot should have token_tracker attribute"
+                )
 
             except Exception as e:
                 pytest.fail(f"Failed to verify bot methods: {e}")

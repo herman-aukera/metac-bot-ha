@@ -69,7 +69,7 @@ class TestCostAwareModelSelection:
 
         # Check budget status
         status = self.cost_monitor.get_comprehensive_status()
-        initial_utilization = status["budget"]["utilization_percent"]
+        status["budget"]["utilization_percent"]
 
         # Simulate switching to cheaper model
         for i in range(5):
@@ -121,7 +121,7 @@ class TestCostAwareModelSelection:
                 True,
             )
 
-        final_status = self.cost_monitor.get_comprehensive_status()
+        self.cost_monitor.get_comprehensive_status()
 
         # Should have recommendations for cost optimization
         recommendations = self.cost_monitor.get_optimization_recommendations()
@@ -191,7 +191,6 @@ class TestCostAwareModelSelection:
         expected_research_calls = (
             total_questions // 3
         )  # Every 3rd question gets research
-        expected_forecast_calls = total_questions  # All questions get forecasts
 
         assert (
             task_breakdown["forecast"]["calls"] >= total_questions

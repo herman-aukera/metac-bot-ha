@@ -518,7 +518,6 @@ class TestCompetitivePressure:
     @pytest.mark.asyncio
     async def test_pressure_recovery_patterns(self, pressure_tester, test_questions):
         """Test system recovery patterns after pressure periods."""
-        recovery_data = []
 
         # Mock forecast service that improves over time
         call_count = 0

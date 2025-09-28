@@ -574,7 +574,7 @@ class Question:
             return []
 
         similar_questions = []
-        my_category = self.categorize_question()
+        self.categorize_question()
 
         for question in historical_questions:
             if question.id == self.id:

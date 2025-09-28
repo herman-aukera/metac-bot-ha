@@ -3,6 +3,7 @@
 Delegates to forecasting_tools.MetaculusApi passed by caller; does not import
 that package directly to keep testability (call site provides adapter).
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, List

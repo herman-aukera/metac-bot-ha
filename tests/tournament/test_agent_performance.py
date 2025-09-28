@@ -76,7 +76,7 @@ class AgentPerformanceTester:
 
             question = {
                 "id": question_id,
-                "title": f"Test question {i+1}: {category} prediction",
+                "title": f"Test question {i + 1}: {category} prediction",
                 "description": f"Performance test question for {category.lower()} category",
                 "type": "binary",
                 "close_time": (datetime.now() + timedelta(days=30)).isoformat() + "Z",
@@ -451,9 +451,9 @@ class EnsembleOptimizationTester:
         individual_results = {}
         for agent in agents:
             agent_name = agent.__class__.__name__
-            individual_results[agent_name] = (
-                await self.agent_tester.benchmark_agent_performance(agent, questions)
-            )
+            individual_results[
+                agent_name
+            ] = await self.agent_tester.benchmark_agent_performance(agent, questions)
 
         # Test ensemble combinations
         ensemble_results = await self._test_ensemble_combinations(

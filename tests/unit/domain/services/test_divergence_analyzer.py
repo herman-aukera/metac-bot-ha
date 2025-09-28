@@ -415,8 +415,8 @@ class TestDivergenceAnalyzer:
             ),
         ]
 
-        assert self.analyzer._detect_systematic_bias(biased_predictions) == True
-        assert self.analyzer._detect_systematic_bias(unbiased_predictions) == False
+        assert self.analyzer._detect_systematic_bias(biased_predictions)
+        assert not self.analyzer._detect_systematic_bias(unbiased_predictions)
 
     def test_calculate_consensus_prediction(self):
         """Test consensus prediction calculation."""

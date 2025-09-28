@@ -77,7 +77,11 @@ class Forecast:
     ) -> "Forecast":
         now = datetime.now(timezone.utc)
         confidence_scores = [p.get_confidence_score() for p in predictions]
-        avg_conf = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.5
+        avg_conf = (
+            sum(confidence_scores) / len(confidence_scores)
+            if confidence_scores
+            else 0.5
+        )
         return cls(
             id=uuid4(),
             question_id=question_id,
@@ -115,11 +119,19 @@ class Forecast:
         elif isinstance(final_probability, PredictionResult):
             pr = final_probability
         elif hasattr(final_probability, "binary_probability"):
-            pr = PredictionResult(binary_probability=float(getattr(final_probability, "binary_probability")))
+            pr = PredictionResult(
+                binary_probability=float(
+                    getattr(final_probability, "binary_probability")
+                )
+            )
         elif hasattr(final_probability, "value"):
-            pr = PredictionResult(binary_probability=float(getattr(final_probability, "value")))
+            pr = PredictionResult(
+                binary_probability=float(getattr(final_probability, "value"))
+            )
         else:
-            raise TypeError("final_probability must be float-like, Probability, or PredictionResult-like")
+            raise TypeError(
+                "final_probability must be float-like, Probability, or PredictionResult-like"
+            )
 
         final_prediction = Prediction(
             id=uuid4(),
@@ -131,7 +143,9 @@ class Forecast:
             reasoning="Aggregated prediction from pipeline",
             reasoning_steps=["Pipeline aggregation of multiple agent predictions"],
             created_at=now,
-            created_by=(metadata.get("agent_used", "pipeline") if metadata else "pipeline"),
+            created_by=(
+                metadata.get("agent_used", "pipeline") if metadata else "pipeline"
+            ),
         )
 
         if predictions:
@@ -148,7 +162,9 @@ class Forecast:
             final_prediction=final_prediction,
             status=ForecastStatus.DRAFT,
             confidence_score=avg_conf,
-            reasoning_summary=kwargs.get("reasoning_summary", f"Forecast using {aggregation_method} aggregation"),
+            reasoning_summary=kwargs.get(
+                "reasoning_summary", f"Forecast using {aggregation_method} aggregation"
+            ),
             submission_timestamp=None,
             created_at=now,
             updated_at=now,
@@ -179,7 +195,9 @@ class Forecast:
         ]
         if binary_probs:
             mean_prob = sum(binary_probs) / len(binary_probs)
-            variance = sum((p - mean_prob) ** 2 for p in binary_probs) / len(binary_probs)
+            variance = sum((p - mean_prob) ** 2 for p in binary_probs) / len(
+                binary_probs
+            )
             return float(variance)
         return 0.0
 
@@ -207,14 +225,25 @@ class Forecast:
 
     @property
     def prediction(self) -> float:
-        if self.final_prediction and self.final_prediction.result.binary_probability is not None:
+        if (
+            self.final_prediction
+            and self.final_prediction.result.binary_probability is not None
+        ):
             return self.final_prediction.result.binary_probability
         return 0.5
 
     @property
     def confidence(self) -> float:
-        if hasattr(self.final_prediction, "confidence") and hasattr(self.final_prediction.confidence, "value"):
-            confidence_map = {"very_low": 0.2, "low": 0.4, "medium": 0.6, "high": 0.75, "very_high": 0.95}
+        if hasattr(self.final_prediction, "confidence") and hasattr(
+            self.final_prediction.confidence, "value"
+        ):
+            confidence_map = {
+                "very_low": 0.2,
+                "low": 0.4,
+                "medium": 0.6,
+                "high": 0.75,
+                "very_high": 0.95,
+            }
             return confidence_map.get(self.final_prediction.confidence.value, 0.6)
         return self.confidence_score
 
@@ -234,7 +263,9 @@ class Forecast:
         self.tournament_strategy = strategy
         self.updated_at = datetime.now(timezone.utc)
 
-    def add_competitive_intelligence(self, intelligence: CompetitiveIntelligence) -> None:
+    def add_competitive_intelligence(
+        self, intelligence: CompetitiveIntelligence
+    ) -> None:
         self.competitive_intelligence = intelligence
         self.updated_at = datetime.now(timezone.utc)
 
@@ -286,7 +317,16 @@ class Forecast:
     def _calculate_research_quality_risk(self) -> float:
         if not self.research_reports:
             return 0.8
-        avg_quality = sum((0.8 if r.quality.value == "high" else 0.5 if r.quality.value == "medium" else 0.2) for r in self.research_reports) / len(self.research_reports)
+        avg_quality = sum(
+            (
+                0.8
+                if r.quality.value == "high"
+                else 0.5
+                if r.quality.value == "medium"
+                else 0.2
+            )
+            for r in self.research_reports
+        ) / len(self.research_reports)
         return float(1.0 - avg_quality)
 
     def _calculate_time_pressure_risk(self) -> float:
@@ -315,22 +355,34 @@ class Forecast:
             return 0.6
         return 0.3
 
-    def should_submit_prediction(self, strategy: Optional[TournamentStrategy] = None) -> bool:
+    def should_submit_prediction(
+        self, strategy: Optional[TournamentStrategy] = None
+    ) -> bool:
         current_strategy = strategy or self.tournament_strategy
         if not current_strategy:
-            return self.confidence_score > 0.6 and self.calculate_prediction_variance() < 0.1
-        min_confidence = current_strategy.confidence_thresholds.get("minimum_submission", 0.6)
+            return (
+                self.confidence_score > 0.6
+                and self.calculate_prediction_variance() < 0.1
+            )
+        min_confidence = current_strategy.confidence_thresholds.get(
+            "minimum_submission", 0.6
+        )
         if self.confidence_score < min_confidence:
             return False
         risk_assessment = self.risk_assessment or self.calculate_risk_assessment()
         max_risk = 0.8 if current_strategy.risk_profile.value == "aggressive" else 0.6
         return risk_assessment.get("overall_risk", 1.0) <= max_risk
 
-    def optimize_submission_timing(self, tournament_context: Dict[str, Any]) -> Dict[str, Any]:
+    def optimize_submission_timing(
+        self, tournament_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         now_utc = datetime.now(timezone.utc)
         deadline = tournament_context.get("deadline")
         if not isinstance(deadline, datetime):
-            return {"recommended_action": "submit_now", "reason": "No or invalid deadline"}
+            return {
+                "recommended_action": "submit_now",
+                "reason": "No or invalid deadline",
+            }
         if deadline.tzinfo is None or deadline.tzinfo.utcoffset(deadline) is None:
             deadline = deadline.replace(tzinfo=timezone.utc)
         hours = (deadline - now_utc).total_seconds() / 3600
@@ -339,15 +391,41 @@ class Forecast:
             return {"recommended_action": "submit_now", "reason": "No strategy defined"}
         s = strategy.submission_timing_strategy
         if s == "early_advantage":
-            return ({"recommended_action": "submit_now", "reason": "Early submission for competitive advantage"} if hours > 24 else {"recommended_action": "submit_now", "reason": "Close to deadline"})
+            return (
+                {
+                    "recommended_action": "submit_now",
+                    "reason": "Early submission for competitive advantage",
+                }
+                if hours > 24
+                else {"recommended_action": "submit_now", "reason": "Close to deadline"}
+            )
         if s == "late_validation":
-            return ({"recommended_action": "wait", "reason": "Allow time for additional validation"} if hours > 12 else {"recommended_action": "submit_now", "reason": "Approaching deadline"})
+            return (
+                {
+                    "recommended_action": "wait",
+                    "reason": "Allow time for additional validation",
+                }
+                if hours > 12
+                else {
+                    "recommended_action": "submit_now",
+                    "reason": "Approaching deadline",
+                }
+            )
         if s == "optimal_window":
             if hours > 48:
-                return {"recommended_action": "wait", "reason": "Too early, wait for optimal window"}
+                return {
+                    "recommended_action": "wait",
+                    "reason": "Too early, wait for optimal window",
+                }
             if hours > 6:
-                return {"recommended_action": "submit_now", "reason": "In optimal submission window"}
-            return {"recommended_action": "submit_now", "reason": "Deadline approaching"}
+                return {
+                    "recommended_action": "submit_now",
+                    "reason": "In optimal submission window",
+                }
+            return {
+                "recommended_action": "submit_now",
+                "reason": "Deadline approaching",
+            }
         return {"recommended_action": "submit_now", "reason": "Default action"}
 
 

@@ -191,11 +191,15 @@ class TournamentMetaculusClient(MetaculusClient):
                 return []
             page_limit = min(size, remaining)
             status_val = params.get("status", "open")
-            return await self.fetch_questions(status=status_val, limit=page_limit, offset=offset)
+            return await self.fetch_questions(
+                status=status_val, limit=page_limit, offset=offset
+            )
 
         questions: List[Question] = []
         if page_size >= max_questions:
-            questions = await self.fetch_questions(status=params.get("status", "open"), limit=max_questions, offset=0)
+            questions = await self.fetch_questions(
+                status=params.get("status", "open"), limit=max_questions, offset=0
+            )
         else:
             page = 0
             seen_ids: Set[str] = set()
@@ -234,7 +238,9 @@ class TournamentMetaculusClient(MetaculusClient):
         logger.info(
             "Fetched tournament questions",
             total=len(enhanced_questions),
-            critical=len([q for q in enhanced_questions if self._is_critical_question(q)]),
+            critical=len(
+                [q for q in enhanced_questions if self._is_critical_question(q)]
+            ),
         )
         return enhanced_questions
 
@@ -800,7 +806,7 @@ class TournamentMetaculusClient(MetaculusClient):
 
     def get_deadline_summary(self) -> Dict[str, Any]:
         """Get summary of question deadlines and urgency."""
-        now = datetime.now(timezone.utc)
+        datetime.now(timezone.utc)
 
         summary: Dict[str, List[Any]] = {
             "critical": [],  # < 6 hours

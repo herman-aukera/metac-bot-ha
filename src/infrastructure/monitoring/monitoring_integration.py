@@ -95,14 +95,13 @@ def monitor_api_call(question_id: str = None, task_type: str = "general"):
         def wrapper(*args, **kwargs):
             start_time = time.time()
             success = True
-            response = ""
 
             try:
                 result = func(*args, **kwargs)
                 if isinstance(result, str):
-                    response = result
+                    pass
                 elif isinstance(result, dict) and "response" in result:
-                    response = result["response"]
+                    result["response"]
                 return result
             except Exception as e:
                 success = False

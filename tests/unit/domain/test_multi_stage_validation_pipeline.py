@@ -3,7 +3,6 @@ Unit tests for multi-stage validation pipeline components.
 Tests research stage, validation stage, and forecasting stage logic.
 """
 
-
 import pytest
 
 

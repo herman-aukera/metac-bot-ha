@@ -68,7 +68,6 @@ class TestTournamentOrchestrator:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()
@@ -101,7 +100,6 @@ class TestTournamentOrchestrator:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_search.return_value.initialize = AsyncMock()
@@ -386,7 +384,6 @@ class TestTournamentOrchestrator:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.shutdown = AsyncMock()
@@ -416,7 +413,6 @@ class TestTournamentOrchestrator:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_search.return_value.initialize = AsyncMock()
@@ -446,7 +442,6 @@ class TestIntegrationValidation:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure mocks with validation
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()
@@ -483,12 +478,12 @@ class TestIntegrationValidation:
             ]
 
             for component in required_components:
-                assert hasattr(
-                    orchestrator.registry, component
-                ), f"Missing component: {component}"
-                assert (
-                    getattr(orchestrator.registry, component) is not None
-                ), f"Component is None: {component}"
+                assert hasattr(orchestrator.registry, component), (
+                    f"Missing component: {component}"
+                )
+                assert getattr(orchestrator.registry, component) is not None, (
+                    f"Component is None: {component}"
+                )
 
             # Validate component types
             from src.application.dispatcher import Dispatcher
@@ -514,7 +509,6 @@ class TestIntegrationValidation:
                 "src.infrastructure.external_apis.metaculus_client.MetaculusClient"
             ) as mock_metaculus,
         ):
-
             # Configure comprehensive mocks
             mock_llm.return_value.initialize = AsyncMock()
             mock_llm.return_value.health_check = AsyncMock()
@@ -527,13 +521,6 @@ class TestIntegrationValidation:
             await orchestrator.initialize()
 
             # Mock complete pipeline flow
-            mock_question_data = {
-                "id": 12345,
-                "title": "Test Question",
-                "description": "Test description",
-                "type": "binary",
-                "status": "open",
-            }
 
             mock_forecast_result = {
                 "question_id": 12345,

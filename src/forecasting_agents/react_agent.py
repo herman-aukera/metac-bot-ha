@@ -540,7 +540,7 @@ class ReActAgent(BaseAgent):
             )
 
             # Ensure reasoning is a string (handle mock coroutines in tests)
-            if hasattr(reasoning, '__await__'):
+            if hasattr(reasoning, "__await__"):
                 reasoning = await reasoning
             elif not isinstance(reasoning, str):
                 reasoning = str(reasoning)
@@ -898,7 +898,7 @@ Analyze the following information in the context of this forecasting question: {
 
 Question: {question.title}
 Description: {question.description}
-Resolution Criteria: {question.resolution_criteria or 'Not specified'}
+Resolution Criteria: {question.resolution_criteria or "Not specified"}
 
 Provide a structured analysis including:
 1. Key insights relevant to the prediction

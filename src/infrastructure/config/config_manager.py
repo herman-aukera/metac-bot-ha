@@ -81,8 +81,10 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
                 else:
                     raise RuntimeError("Event loop is closed")
             except RuntimeError:
-                self.logger.warning("No running event loop, deferring config change handling")
-                if not hasattr(self.config_manager, '_deferred_changes'):
+                self.logger.warning(
+                    "No running event loop, deferring config change handling"
+                )
+                if not hasattr(self.config_manager, "_deferred_changes"):
                     self.config_manager._deferred_changes = []
                 self.config_manager._deferred_changes.append(
                     (ConfigChangeType.MODIFIED, Path(event.src_path))
@@ -105,9 +107,11 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
                     raise RuntimeError("Event loop is closed")
             except RuntimeError:
                 # No running event loop, defer to main thread
-                self.logger.warning("No running event loop, deferring config change handling")
+                self.logger.warning(
+                    "No running event loop, deferring config change handling"
+                )
                 # Store change for later processing
-                if not hasattr(self.config_manager, '_deferred_changes'):
+                if not hasattr(self.config_manager, "_deferred_changes"):
                     self.config_manager._deferred_changes = []
                 self.config_manager._deferred_changes.append(
                     (ConfigChangeType.CREATED, Path(event.src_path))
@@ -125,8 +129,10 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
                     )
                 )
             except RuntimeError:
-                self.logger.warning("No running event loop, deferring config change handling")
-                if not hasattr(self.config_manager, '_deferred_changes'):
+                self.logger.warning(
+                    "No running event loop, deferring config change handling"
+                )
+                if not hasattr(self.config_manager, "_deferred_changes"):
                     self.config_manager._deferred_changes = []
                 self.config_manager._deferred_changes.append(
                     (ConfigChangeType.DELETED, Path(event.src_path))
@@ -149,8 +155,10 @@ class ConfigFileHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object
                     )
                 )
             except RuntimeError:
-                self.logger.warning("No running event loop, deferring config change handling")
-                if not hasattr(self.config_manager, '_deferred_changes'):
+                self.logger.warning(
+                    "No running event loop, deferring config change handling"
+                )
+                if not hasattr(self.config_manager, "_deferred_changes"):
                     self.config_manager._deferred_changes = []
                 self.config_manager._deferred_changes.append(
                     (ConfigChangeType.MOVED, Path(event.dest_path))
@@ -457,27 +465,42 @@ class ConfigManager:
                 for watch_dir in self.watch_directories:
                     if watch_dir.exists():
                         for fp in watch_dir.rglob("*"):
-                            if fp.is_file() and fp.suffix.lower() in {".yaml", ".yml", ".json", ".toml"}:
+                            if fp.is_file() and fp.suffix.lower() in {
+                                ".yaml",
+                                ".yml",
+                                ".json",
+                                ".toml",
+                            }:
                                 candidate_files.add(fp)
 
                 for fp in candidate_files:
                     try:
                         if not fp.exists():
                             if fp in self.file_timestamps:
-                                await self._handle_config_change(ConfigChangeType.DELETED, fp)
+                                await self._handle_config_change(
+                                    ConfigChangeType.DELETED, fp
+                                )
                                 del self.file_timestamps[fp]
                             continue
 
-                        mtime = datetime.fromtimestamp(fp.stat().st_mtime, tz=timezone.utc)
+                        mtime = datetime.fromtimestamp(
+                            fp.stat().st_mtime, tz=timezone.utc
+                        )
                         last = self.file_timestamps.get(fp)
                         if last is None:
                             self.file_timestamps[fp] = mtime
-                            await self._handle_config_change(ConfigChangeType.CREATED, fp)
+                            await self._handle_config_change(
+                                ConfigChangeType.CREATED, fp
+                            )
                         elif mtime > last:
                             self.file_timestamps[fp] = mtime
-                            await self._handle_config_change(ConfigChangeType.MODIFIED, fp)
+                            await self._handle_config_change(
+                                ConfigChangeType.MODIFIED, fp
+                            )
                     except Exception as e:
-                        logger.warning("Polling watcher error", path=str(fp), error=str(e))
+                        logger.warning(
+                            "Polling watcher error", path=str(fp), error=str(e)
+                        )
                         continue
         except asyncio.CancelledError:
             logger.info("Polling watcher cancelled")
