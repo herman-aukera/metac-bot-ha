@@ -41,6 +41,15 @@ try:  # pragma: no cover - import resolution
         clean_indents = _ft_clean_indents  # type: ignore
     except Exception:
         pass
+
+    # Apply critical patch to fix tournament question filtering
+    try:
+        from src.infrastructure.patches.forecasting_tools_fix import apply_forecasting_tools_patch
+        apply_forecasting_tools_patch()
+        logger.info("✅ Applied forecasting-tools patch for tournament question filtering")
+    except Exception as patch_error:
+        logger.warning(f"Failed to apply forecasting-tools patch: {patch_error}")
+
 except Exception:  # pragma: no cover - allow static analysis without hard dependency
     class ForecastBot:  # type: ignore
         def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -3144,14 +3153,22 @@ if __name__ == "__main__":
     logger.info(f"  Publish reports to Metaculus: {publish_reports}")
     logger.info(f"  Skip previously forecasted: {skip_previously_forecasted}")
     logger.info(f"  Tournament mode: {os.getenv('TOURNAMENT_MODE', 'false')}")
-    tournament_target_env = (
-        os.getenv("AIB_MINIBENCH_TOURNAMENT_SLUG")
-        or os.getenv("AIB_TOURNAMENT_SLUG")
-        or os.getenv("TOURNAMENT_SLUG")
-        or os.getenv("AIB_MINIBENCH_TOURNAMENT_ID")
-        or os.getenv("AIB_TOURNAMENT_ID")
-        or "minibench"
-    )
+    # Tournament target resolution for logging
+    minibench_slug = os.getenv("AIB_MINIBENCH_TOURNAMENT_SLUG")
+    tournament_id = os.getenv("AIB_TOURNAMENT_ID")
+    tournament_slug = os.getenv("AIB_TOURNAMENT_SLUG") or os.getenv("TOURNAMENT_SLUG")
+    minibench_id = os.getenv("AIB_MINIBENCH_TOURNAMENT_ID")
+
+    if minibench_slug:
+        tournament_target_env = minibench_slug
+    elif tournament_id:
+        tournament_target_env = tournament_id
+    elif tournament_slug:
+        tournament_target_env = tournament_slug
+    elif minibench_id:
+        tournament_target_env = minibench_id
+    else:
+        tournament_target_env = "minibench"
     logger.info(f"  Tournament target: {tournament_target_env}")
     logger.info(f"  Budget limit: ${os.getenv('BUDGET_LIMIT', '100.0')}")
     logger.info(f"  Scheduling frequency: {os.getenv('SCHEDULING_FREQUENCY_HOURS', '4')} hours")
@@ -3172,11 +3189,23 @@ if __name__ == "__main__":
         if run_mode == "tournament":
             # MiniBench safety window: optionally skip runs on weekends or outside hours
             try:
-                tgt = (
-                    os.getenv("AIB_TOURNAMENT_SLUG")
-                    or os.getenv("TOURNAMENT_SLUG")
-                    or os.getenv("AIB_TOURNAMENT_ID", "")
-                )
+                # Use same tournament target resolution as main logic
+                minibench_slug_safety = os.getenv("AIB_MINIBENCH_TOURNAMENT_SLUG")
+                tournament_id_safety = os.getenv("AIB_TOURNAMENT_ID")
+                tournament_slug_safety = os.getenv("AIB_TOURNAMENT_SLUG") or os.getenv("TOURNAMENT_SLUG")
+                minibench_id_safety = os.getenv("AIB_MINIBENCH_TOURNAMENT_ID")
+
+                if minibench_slug_safety:
+                    tgt = minibench_slug_safety
+                elif tournament_id_safety:
+                    tgt = tournament_id_safety
+                elif tournament_slug_safety:
+                    tgt = tournament_slug_safety
+                elif minibench_id_safety:
+                    tgt = minibench_id_safety
+                else:
+                    tgt = "minibench"
+
                 if tgt == "minibench":
                     import datetime as _dt
                     try:
@@ -3200,15 +3229,23 @@ if __name__ == "__main__":
             except Exception as _e:  # pragma: no cover
                 logger.warning("MiniBench safety check failed: %s (continuing)", _e)
 
-            # Always prefer MiniBench unless explicitly overridden by env.
-            tournament_target = (
-                os.getenv("AIB_MINIBENCH_TOURNAMENT_SLUG")
-                or os.getenv("AIB_TOURNAMENT_SLUG")
-                or os.getenv("TOURNAMENT_SLUG")
-                or os.getenv("AIB_MINIBENCH_TOURNAMENT_ID")
-                or os.getenv("AIB_TOURNAMENT_ID")
-                or "minibench"
-            )
+            # Tournament target resolution: prefer explicit tournament ID over slug
+            # Priority: MiniBench slug → Tournament ID → Tournament slug → MiniBench ID → fallback
+            minibench_slug = os.getenv("AIB_MINIBENCH_TOURNAMENT_SLUG")
+            tournament_id = os.getenv("AIB_TOURNAMENT_ID")
+            tournament_slug = os.getenv("AIB_TOURNAMENT_SLUG") or os.getenv("TOURNAMENT_SLUG")
+            minibench_id = os.getenv("AIB_MINIBENCH_TOURNAMENT_ID")
+
+            if minibench_slug:
+                tournament_target = minibench_slug
+            elif tournament_id:
+                tournament_target = tournament_id
+            elif tournament_slug:
+                tournament_target = tournament_slug
+            elif minibench_id:
+                tournament_target = minibench_id
+            else:
+                tournament_target = "minibench"
             # In dry-run, allow reprocessing to validate pipeline end-to-end
             if os.getenv("DRY_RUN", "false").lower() == "true":
                 template_bot.skip_previously_forecasted_questions = False
@@ -3494,11 +3531,7 @@ if __name__ == "__main__":
         summary = {
             "run_mode": run_mode,
             "tournament_mode": os.getenv("TOURNAMENT_MODE", "false"),
-            "tournament_target": (
-                os.getenv("AIB_TOURNAMENT_SLUG")
-                or os.getenv("TOURNAMENT_SLUG")
-                or os.getenv("AIB_TOURNAMENT_ID", "unknown")
-            ),
+            "tournament_target": tournament_target_env,
             "publish_reports": os.getenv("PUBLISH_REPORTS", "false"),
             "successful_forecasts": published_success if locals().get('evaluate_publish') else len([r for r in forecast_reports if not isinstance(r, Exception) and not (_is_withheld(r))]),
             "failed_forecasts": len([r for r in forecast_reports if isinstance(r, Exception)]),

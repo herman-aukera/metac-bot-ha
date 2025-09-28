@@ -8,11 +8,11 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from ..agents.base_agent import BaseAgent
-from ..agents.chain_of_thought_agent import ChainOfThoughtAgent
-from ..agents.ensemble_agent_simple import EnsembleAgentSimple
-from ..agents.react_agent import ReActAgent
-from ..agents.tot_agent import TreeOfThoughtAgent
+from ..forecasting_agents.base_agent import BaseAgent
+from ..forecasting_agents.chain_of_thought_agent import ChainOfThoughtAgent
+from ..forecasting_agents.ensemble_agent_simple import EnsembleAgentSimple
+from ..forecasting_agents.react_agent import ReActAgent
+from ..forecasting_agents.tot_agent import TreeOfThoughtAgent
 from ..domain.entities.forecast import Forecast
 from ..domain.entities.question import Question
 from ..domain.services.forecasting_service import ForecastingService
