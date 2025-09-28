@@ -198,3 +198,6 @@ agent.yaml
 
 # macOS
 .DS_Store
+
+# Cleanup folder
+NOISE/

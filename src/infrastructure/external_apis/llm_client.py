@@ -2,6 +2,8 @@
 
 import asyncio
 import os
+import time
+import sys
 from typing import Dict, List, Optional
 
 import httpx
@@ -226,10 +228,12 @@ class LLMClient:
         last_error: Optional[Exception] = None
         for attempt in range(1, max_attempts + 1):
             attempt_count = attempt
-            # Fast fail if global quota exceeded previously
-            from . import llm_client as _mod
-            if getattr(_mod, "OPENROUTER_QUOTA_EXCEEDED", False):
-                raise RuntimeError("OpenRouter quota previously exceeded; circuit open")
+            # Exponential backoff for retry attempts
+            if attempt > 1:
+                delay = min(2 ** (attempt - 1), 60)  # Cap at 60 seconds
+                logger.info(f"Retrying OpenRouter request after {delay}s (attempt {attempt}/{max_attempts})")
+                await asyncio.sleep(delay)
+
             headers = dict(headers_base)
             data = dict(data_base)
             start = time.time()
@@ -246,15 +250,14 @@ class LLMClient:
                         message = ""
                     if "Key limit exceeded" in message:
                         try:
-                            _mod.OPENROUTER_QUOTA_EXCEEDED = True
-                            _mod.OPENROUTER_QUOTA_MESSAGE = message
                             # Log once at info level on first trip
                             if not getattr(self, "_quota_logged", False):
                                 logger.info("OpenRouter quota exceeded: %s", message)
                                 setattr(self, "_quota_logged", True)
                         except Exception:
                             pass
-                        raise RuntimeError(f"OpenRouter quota exceeded: {message}")
+                        # Treat as retryable error - might be temporary rate limit
+                        raise RuntimeError(f"OpenRouter 403 rate limited: {message}")
                 if status >= 500:
                     raise RuntimeError(f"OpenRouter server error status={status}")
                 if status == 429:
@@ -285,9 +288,9 @@ class LLMClient:
                 return content
             except Exception as e:  # pragma: no cover - network/dynamic
                 last_error = e
-                # Do not retry/backoff on hard quota/circuit errors
+                # Only skip retry for permanent errors, not temporary rate limits
                 err_str = str(e).lower()
-                if "quota" in err_str or "circuit open" in err_str:
+                if "circuit open" in err_str:
                     raise
                 sleep_base = min(8.0, 0.75 * (2 ** (attempt - 1)))  # 0.75,1.5,3,6,8 capped
                 jitter = random.uniform(0, sleep_base * 0.25)
@@ -312,7 +315,7 @@ class LLMClient:
                 pass
         except Exception:
             pass
-        raise RuntimeError(f"OpenRouter call failed after {max_attempts} attempts last_error={last_error}")
+        raise RuntimeError(f"OpenRouter failed after {max_attempts} attempts: {last_error}")
 
     async def batch_generate(
         self,

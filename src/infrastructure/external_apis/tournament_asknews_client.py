@@ -162,7 +162,10 @@ class TournamentAskNewsClient:
                 if should_break:
                     break
                 if attempt < max_retries:
-                    await asyncio.sleep(1.0 * (attempt + 1))  # Exponential backoff
+                    # Exponential backoff for rate limits: 12s, 24s, 48s
+                    backoff_delay = 12 * (2 ** attempt)
+                    self.logger.info(f"AskNews retry backoff: waiting {backoff_delay}s before attempt {attempt + 2}")
+                    await asyncio.sleep(backoff_delay)
 
         # Fall back: defer to pipeline free-model synthesis (Kimi K2 / GPT-OSS via OpenRouter)
         self.usage_stats.add_request(success=False, used_fallback=True)
@@ -207,6 +210,15 @@ class TournamentAskNewsClient:
             raise RuntimeError("AskNews SDK not available")
 
         try:
+            # FREE TIER RATE LIMITING: Wait 12 seconds between requests to respect 1 req/10s limit
+            rate_limit_delay = float(os.getenv("ASKNEWS_RATE_LIMIT_SECONDS", "12"))
+            if self.usage_stats.last_request_time:
+                time_since_last = (datetime.now(timezone.utc) - self.usage_stats.last_request_time).total_seconds()
+                if time_since_last < rate_limit_delay:
+                    sleep_time = rate_limit_delay - time_since_last
+                    self.logger.info(f"Rate limiting: waiting {sleep_time:.1f}s for AskNews free tier")
+                    await asyncio.sleep(sleep_time)
+
             # Stagger start to reduce burst (global small jitter)
             await asyncio.sleep(float(os.getenv("ASKNEWS_STAGGER_SECONDS", "0.15")))
             # Acquire global semaphore
@@ -267,12 +279,25 @@ class TournamentAskNewsClient:
                 f"AskNews request failed (attempt {attempt + 1}): {e}"
             )
             if "quota" in str(e).lower() or "limit" in str(e).lower():
-                self.usage_stats.add_request(success=False, quota_exhausted=True)
-                self.quota_exhausted = True
-                self.logger.error(
-                    "AskNews quota exhausted, switching to fallback providers"
-                )
-                return None, True
+                self.usage_stats.add_request(success=False, quota_exhausted=False)  # Don't mark as exhausted yet
+                self._consecutive_failures += 1
+
+                # Only switch to fallback after multiple attempts (exponential backoff)
+                max_rate_limit_attempts = int(os.getenv("ASKNEWS_MAX_RETRIES", "3"))
+                if attempt + 1 >= max_rate_limit_attempts:
+                    self.quota_exhausted = True
+                    self.usage_stats.quota_exhausted_requests += 1
+                    self.logger.error(
+                        f"AskNews quota exhausted after {max_rate_limit_attempts} attempts, switching to fallback providers"
+                    )
+                    return None, True
+                else:
+                    # Exponential backoff: 12s, 24s, 48s delays for rate limits
+                    backoff_delay = 12 * (2 ** attempt)
+                    self.logger.warning(
+                        f"AskNews rate limited, will retry in {backoff_delay}s (attempt {attempt + 1}/{max_rate_limit_attempts})"
+                    )
+                    return None, False
             else:
                 self.usage_stats.add_request(success=False)
                 self._consecutive_failures += 1

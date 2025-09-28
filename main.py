@@ -1479,12 +1479,7 @@ Be very clear about what information may be outdated or incomplete.
     def _is_unacceptable_mc_forecast(self, prediction: "PredictedOptionList", reasoning: str, options: list[str]) -> bool:
         """Gatekeeper for multiple-choice forecasts we should not publish.
 
-        Heuristics:
-        - Missing or empty prediction
-        - Near-uniform distribution across options
-        - Maximum probability too low (< 0.4)
-        - Emergency/neutral messages
-    - All probs within epsilon of 1/N (explicit uniform)
+        ONLY withhold when research actually fails - uncertain forecasts are still valuable.
         """
         if prediction is None or not getattr(prediction, 'predicted_options', None):
             return True
@@ -1503,21 +1498,8 @@ Be very clear about what information may be outdated or incomplete.
         if not probs:
             return True
 
-        max_p = max(probs)
-        min_p = min(probs)
-        n = len(probs)
-        uniform_target = 1.0 / n if n else 0
-        # Explicit uniform detection (tight epsilon)
-        if all(abs(p - uniform_target) < 0.005 for p in probs):
-            return True
-        # Near-uniform or overly uncertain distributions are unacceptable
-        if (max_p - min_p) < 0.10:
-            return True
-        if max_p < 0.40:
-            return True
-
         text = (reasoning or "").lower()
-        # Treat explicit research unavailability as unacceptable
+        # ONLY withhold when research unavailable - let uncertain forecasts through
         if "research unavailable" in text:
             return True
         if NEUTRAL_TEXT_UNABLE in text:
@@ -1546,13 +1528,14 @@ Be very clear about what information may be outdated or incomplete.
         min_p = min(probs)
         n = len(probs)
         uniform_target = 1.0 / n if n else 0
-        if all(abs(p - uniform_target) < 0.005 for p in probs):
+        if all(abs(p - uniform_target) < 0.02 for p in probs):
             return "UNIFORM"
-        if (max_p - min_p) < 0.10:
+        if (max_p - min_p) < 0.05:
             return "LOW_SPREAD"
-        if max_p < 0.40:
+        if max_p < 0.30:
             return "LOW_MAX"
         text = (reasoning or "").lower()
+        # Only flag research failures - let uncertain forecasts through
         if "research unavailable" in text:
             return "RESEARCH_UNAVAILABLE"
         if NEUTRAL_TEXT_UNABLE in text:

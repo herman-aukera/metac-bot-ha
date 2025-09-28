@@ -301,7 +301,10 @@ class WikipediaSearchClient(SearchClient):
         logger.info("Performing Wikipedia search", query=q, max_results=max_results)
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
-                search_url = f"{self.base_url}/page/search/{q}"
+                # Properly encode query in URL path to avoid 404s
+                from urllib.parse import quote
+                encoded_query = quote(q, safe='')
+                search_url = f"{self.base_url}/page/search/{encoded_query}"
                 params = {"limit": min(max_results, 10)}
                 response = await client.get(search_url, params=params)
                 response.raise_for_status()
