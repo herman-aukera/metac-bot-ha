@@ -3088,63 +3088,156 @@ Be very clear about what information may be outdated or incomplete.
 
     async def forecast_question(self, question, return_exceptions: bool = False):
         """
-        Override forecast_question to handle date questions before they reach forecasting-tools.
+        Enhanced forecast_question with comprehensive question type support and error recovery.
 
-        This method intercepts date questions and handles them with our custom implementation
-        before they can trigger the NotImplementedError in the forecasting-tools library.
+        This method handles:
+        - Date questions (custom DateQuestionForecaster)
+        - Discrete questions (custom DiscreteQuestionForecaster)
+        - Standard question types (Binary, MultipleChoice, Numeric)
+        - Robust retry logic with exponential backoff
+        - Intelligent fallback forecasts when all retries are exhausted
+
+        Designed to maximize tournament success rates by handling the 11 main error types
+        that previously caused forecast failures.
         """
 
-        try:
-            # Check if this is a date question
-            if hasattr(question, '__class__') and 'Date' in question.__class__.__name__:
-                logger.info(f"Handling date question: {getattr(question, 'id', 'unknown')}")
+        question_id = getattr(question, 'id', 'unknown')
 
-                # Run research first (same as other question types)
-                research = await self.run_research(question)
+        # Initialize enhanced error recovery if not already done
+        if not hasattr(self, '_error_recovery'):
+            from src.domain.services.enhanced_error_recovery import EnhancedErrorRecovery
+            self._error_recovery = EnhancedErrorRecovery()
 
-                # Use our custom date forecasting
-                forecast_result = await self._run_forecast_on_date(question, research)
+        max_attempts = 5
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return await self._attempt_forecast_with_recovery(question, attempt)
 
-                # Return the forecast result directly - it should be compatible with the expected format
-                logger.info(f"✅ Successfully forecasted date question {getattr(question, 'id', 'unknown')}")
-                return forecast_result
-            else:
-                # For non-date questions, delegate to the existing question type methods
-                # Check the question type and route appropriately
-                if hasattr(question, '__class__'):
-                    class_name = question.__class__.__name__
+            except Exception as e:
+                logger.warning(f"Forecast attempt {attempt} failed for {question_id}: {type(e).__name__}: {str(e)}")
 
-                    # Run research first for all question types
-                    research = await self.run_research(question)
+                # Use enhanced error recovery to decide retry vs fallback
+                should_retry, fallback_result = await self._error_recovery.handle_forecast_failure(
+                    question, e, attempt, max_attempts
+                )
 
-                    if 'Binary' in class_name:
-                        return await self._run_forecast_on_binary(question, research)
-                    elif 'MultipleChoice' in class_name:
-                        return await self._run_forecast_on_multiple_choice(question, research)
-                    elif 'Numeric' in class_name:
-                        return await self._run_forecast_on_numeric(question, research)
-                    else:
-                        logger.warning(f"Unknown question type: {class_name} for question {getattr(question, 'id', 'unknown')}")
-                        # Return a generic error result
-                        error_msg = f"Unsupported question type: {class_name}"
-                        return type('ErrorResult', (), {
-                            'error': error_msg,
-                            'question_id': getattr(question, 'id', 'unknown'),
-                            'question_type': class_name
-                        })()
-                else:
-                    logger.error(f"Question has no class attribute: {question}")
-                    return type('ErrorResult', (), {
-                        'error': 'Question has no class attribute',
-                        'question_id': getattr(question, 'id', 'unknown')
-                    })()
+                if not should_retry:
+                    logger.info(f"Using fallback forecast for {question_id}")
+                    return fallback_result if fallback_result else e
+                # If should_retry is True, continue to next iteration
 
-        except Exception as e:
-            logger.error(f"Error in forecast_question override: {e}")
-            if return_exceptions:
-                return e
-            else:
-                raise
+        # If we get here, all attempts failed
+        logger.error(f"All {max_attempts} forecast attempts failed for {question_id}")
+        if return_exceptions:
+            return Exception(f"All forecast attempts failed for question {question_id}")
+        else:
+            raise Exception(f"All forecast attempts failed for question {question_id}")
+
+    async def _attempt_forecast_with_recovery(self, question, attempt_number: int):
+        """
+        Single forecast attempt with comprehensive question type support.
+        """
+
+        question_id = getattr(question, 'id', 'unknown')
+        class_name = question.__class__.__name__ if hasattr(question, '__class__') else 'Unknown'
+
+        logger.info(f"Forecast attempt {attempt_number} for {question_id} ({class_name})")
+
+        # Handle different question types with custom implementations
+        if 'Date' in class_name:
+            return await self._handle_date_question(question)
+        elif 'Discrete' in class_name or class_name == 'DiscreteQuestion':
+            return await self._handle_discrete_question(question)
+        elif hasattr(question, '__class__'):
+            return await self._handle_standard_question_types(question, class_name)
+        else:
+            raise ValueError(f"Question has no class attribute: {question}")
+
+    async def _handle_date_question(self, question):
+        """Handle date questions with custom DateQuestionForecaster."""
+
+        question_id = getattr(question, 'id', 'unknown')
+        logger.info(f"Handling date question: {question_id}")
+
+        # Run research first
+        research = await self.run_research(question)
+
+        # Use our custom date forecasting
+        forecast_result = await self._run_forecast_on_date(question, research)
+
+        logger.info(f"✅ Successfully forecasted date question {question_id}")
+        return forecast_result
+
+    async def _handle_discrete_question(self, question):
+        """Handle discrete questions with custom DiscreteQuestionForecaster."""
+
+        question_id = getattr(question, 'id', 'unknown')
+        logger.info(f"Handling discrete question: {question_id}")
+
+        # Import discrete question forecaster
+        from src.domain.services.enhanced_error_recovery import DiscreteQuestionForecaster
+
+        discrete_forecaster = DiscreteQuestionForecaster()
+
+        # Run research first
+        research = await self.run_research(question)
+
+        # Get question options
+        options = getattr(question, 'options', [])
+        if not options:
+            # Try to extract from other attributes
+            options = getattr(question, 'choices', getattr(question, 'outcomes', ['Unknown']))
+
+        # Generate the discrete forecast
+        discrete_forecast = discrete_forecaster.forecast_discrete_question(
+            question_text=question.question_text,
+            options=options,
+            background_info=getattr(question, 'background_info', ''),
+            resolution_criteria=getattr(question, 'resolution_criteria', ''),
+            research_data=research,
+            fine_print=getattr(question, 'fine_print', '')
+        )
+
+        # Format for Metaculus API
+        formatted_probabilities = discrete_forecaster.format_probabilities_for_metaculus(
+            discrete_forecast.option_probabilities
+        )
+
+        logger.info(f"✅ Successfully forecasted discrete question {question_id}")
+        logger.info(f"Options: {list(discrete_forecast.option_probabilities.keys())}")
+        logger.info(f"Confidence: {discrete_forecast.confidence}")
+
+        # Create result in expected format
+        result = type('DiscreteQuestionResult', (), {
+            'prediction_value': formatted_probabilities,
+            'reasoning': discrete_forecast.reasoning,
+            'confidence': discrete_forecast.confidence,
+            'question_id': question_id,
+            'question_type': 'discrete'
+        })()
+
+        return result
+
+    async def _handle_standard_question_types(self, question, class_name: str):
+        """Handle standard question types (Binary, MultipleChoice, Numeric) with existing methods."""
+
+        question_id = getattr(question, 'id', 'unknown')
+
+        # Run research first for all question types
+        research = await self.run_research(question)
+
+        if 'Binary' in class_name:
+            logger.info(f"Handling binary question: {question_id}")
+            return await self._run_forecast_on_binary(question, research)
+        elif 'MultipleChoice' in class_name:
+            logger.info(f"Handling multiple choice question: {question_id}")
+            return await self._run_forecast_on_multiple_choice(question, research)
+        elif 'Numeric' in class_name:
+            logger.info(f"Handling numeric question: {question_id}")
+            return await self._run_forecast_on_numeric(question, research)
+        else:
+            logger.warning(f"Unknown standard question type: {class_name} for question {question_id}")
+            raise ValueError(f"Unsupported question type: {class_name}")
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
