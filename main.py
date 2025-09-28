@@ -3000,7 +3000,151 @@ Be very clear about what information may be outdated or incomplete.
             )
         return upper_bound_message, lower_bound_message
 
+    async def _run_forecast_on_date(
+        self, question: Any, research: str
+    ) -> Any:
+        """
+        Forecast on date questions - when will X happen?
 
+        Date questions ask for a probability distribution over dates.
+        This method implements custom date forecasting logic since
+        the forecasting-tools library doesn't support date questions yet.
+        """
+
+        question_id = str(getattr(question, 'id', 'unknown'))
+
+        logger.info(f"Starting date question forecast for {question_id}")
+
+        # Import the date forecaster
+        try:
+            from src.domain.services.date_question_forecaster import DateQuestionForecaster
+
+            date_forecaster = DateQuestionForecaster()
+
+            # Generate the date forecast
+            date_forecast = date_forecaster.forecast_date_question(
+                question_text=question.question_text,
+                background_info=getattr(question, 'background_info', ''),
+                resolution_criteria=getattr(question, 'resolution_criteria', ''),
+                lower_bound=question.lower_bound,
+                upper_bound=question.upper_bound,
+                research_data=research,
+                fine_print=getattr(question, 'fine_print', '')
+            )
+
+            # Convert to format expected by forecasting-tools
+            # For date questions, we need to create a distribution over dates
+            # Format the percentiles for Metaculus API
+            formatted_percentiles = date_forecaster.format_percentiles_for_metaculus(date_forecast.percentiles)
+
+            logger.info(f"Date forecast completed for {question_id}")
+            logger.info(f"Predicted date range: {date_forecast.percentiles[0.1].date()} to {date_forecast.percentiles[0.9].date()}")
+            logger.info(f"Median prediction: {date_forecast.percentiles[0.5].date()}")
+
+            # Create a result in the expected format
+            # Note: This is a custom implementation since forecasting-tools doesn't support dates
+            result = type('DateForecastResult', (), {
+                'prediction_value': formatted_percentiles,
+                'reasoning': date_forecast.reasoning,
+                'confidence': date_forecast.confidence,
+                'question_id': question_id,
+                'question_type': 'date'
+            })()
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Date question forecasting failed for {question_id}: {e}")
+
+            # Create fallback response
+            fallback_reasoning = f"""
+            Date Question Analysis Failed:
+            Question: {question.question_text}
+            Error: {str(e)}
+
+            Fallback approach:
+            - Using uniform distribution across the date range
+            - Range: {question.lower_bound.date()} to {question.upper_bound.date()}
+            - This is a conservative fallback when analysis fails
+            """
+
+            # Create uniform date distribution as fallback
+            total_duration = question.upper_bound - question.lower_bound
+            fallback_percentiles = {}
+            for p in [0.1, 0.25, 0.5, 0.75, 0.9]:
+                fallback_percentiles[p] = question.lower_bound + total_duration * p
+
+            fallback_formatted = [(p, date_obj.strftime('%Y-%m-%d')) for p, date_obj in fallback_percentiles.items()]
+
+            result = type('DateForecastResult', (), {
+                'prediction_value': fallback_formatted,
+                'reasoning': fallback_reasoning.strip(),
+                'confidence': 0.3,
+                'question_id': question_id,
+                'question_type': 'date'
+            })()
+
+            return result
+
+    async def forecast_question(self, question, return_exceptions: bool = False):
+        """
+        Override forecast_question to handle date questions before they reach forecasting-tools.
+
+        This method intercepts date questions and handles them with our custom implementation
+        before they can trigger the NotImplementedError in the forecasting-tools library.
+        """
+
+        try:
+            # Check if this is a date question
+            if hasattr(question, '__class__') and 'Date' in question.__class__.__name__:
+                logger.info(f"Handling date question: {getattr(question, 'id', 'unknown')}")
+
+                # Run research first (same as other question types)
+                research = await self.run_research(question)
+
+                # Use our custom date forecasting
+                forecast_result = await self._run_forecast_on_date(question, research)
+
+                # Return the forecast result directly - it should be compatible with the expected format
+                logger.info(f"✅ Successfully forecasted date question {getattr(question, 'id', 'unknown')}")
+                return forecast_result
+            else:
+                # For non-date questions, delegate to the existing question type methods
+                # Check the question type and route appropriately
+                if hasattr(question, '__class__'):
+                    class_name = question.__class__.__name__
+
+                    # Run research first for all question types
+                    research = await self.run_research(question)
+
+                    if 'Binary' in class_name:
+                        return await self._run_forecast_on_binary(question, research)
+                    elif 'MultipleChoice' in class_name:
+                        return await self._run_forecast_on_multiple_choice(question, research)
+                    elif 'Numeric' in class_name:
+                        return await self._run_forecast_on_numeric(question, research)
+                    else:
+                        logger.warning(f"Unknown question type: {class_name} for question {getattr(question, 'id', 'unknown')}")
+                        # Return a generic error result
+                        error_msg = f"Unsupported question type: {class_name}"
+                        return type('ErrorResult', (), {
+                            'error': error_msg,
+                            'question_id': getattr(question, 'id', 'unknown'),
+                            'question_type': class_name
+                        })()
+                else:
+                    logger.error(f"Question has no class attribute: {question}")
+                    return type('ErrorResult', (), {
+                        'error': 'Question has no class attribute',
+                        'question_id': getattr(question, 'id', 'unknown')
+                    })()
+
+        except Exception as e:
+            logger.error(f"Error in forecast_question override: {e}")
+            if return_exceptions:
+                return e
+            else:
+                raise
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
