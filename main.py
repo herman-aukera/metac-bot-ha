@@ -8,6 +8,7 @@ import os
 import sys
 import atexit
 import inspect
+import signal
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Literal, Set, TYPE_CHECKING, Protocol
@@ -17,6 +18,20 @@ logger = logging.getLogger(__name__)
 _WITHHELD_QUESTION_IDS: Set[int] = set()
 _BLOCKED_PUBLICATION_QIDS: Set[int] = set()
 _OPEN_AIOHTTP_SESSIONS: list = []  # best-effort tracking of any aiohttp sessions for shutdown
+_SHUTDOWN_REQUESTED = False
+
+
+def signal_handler(signum: int, frame: Any) -> None:
+    """Handle shutdown signals gracefully."""
+    global _SHUTDOWN_REQUESTED
+    _SHUTDOWN_REQUESTED = True
+    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+    sys.exit(0)
+
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Kill command
 
 
 # Always provide a safe default for clean_indents; override with forecasting_tools version if available

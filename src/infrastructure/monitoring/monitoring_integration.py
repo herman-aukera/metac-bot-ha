@@ -18,16 +18,21 @@ logger = logging.getLogger(__name__)
 class MonitoringIntegration:
     """Integration service for monitoring system."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize monitoring integration."""
         self.comprehensive_monitor = comprehensive_monitor
         self.budget_dashboard = budget_dashboard
         self.performance_tracker = performance_tracker
-
-        # Start monitoring automatically
-        self.comprehensive_monitor.start_monitoring()
+        self._monitoring_started = False
 
         logger.info("Monitoring integration service initialized")
+
+    def start_monitoring_if_needed(self) -> None:
+        """Start monitoring only when explicitly requested."""
+        if not self._monitoring_started:
+            self.comprehensive_monitor.start_monitoring()
+            self._monitoring_started = True
+            logger.info("Background monitoring started")
 
     def track_api_call(
         self,
@@ -87,12 +92,12 @@ class MonitoringIntegration:
         )
 
 
-def monitor_api_call(question_id: str = None, task_type: str = "general"):
+def monitor_api_call(question_id: str | None = None, task_type: str = "general") -> Callable:
     """Decorator for monitoring API calls."""
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.time()
             success = True
 
@@ -112,14 +117,12 @@ def monitor_api_call(question_id: str = None, task_type: str = "general"):
                 response_time = time.time() - start_time
 
                 # Extract question_id from args/kwargs if not provided
-                actual_question_id = question_id
-                if not actual_question_id:
+                actual_question_id = question_id or "unknown"
+                if actual_question_id == "unknown":
                     if args and hasattr(args[0], "question_id"):
-                        actual_question_id = args[0].question_id
+                        actual_question_id = str(args[0].question_id)
                     elif "question_id" in kwargs:
-                        actual_question_id = kwargs["question_id"]
-                    else:
-                        actual_question_id = "unknown"
+                        actual_question_id = str(kwargs["question_id"])
 
                 monitoring_integration.performance_tracker.record_api_performance(
                     actual_question_id, task_type, success, response_time
