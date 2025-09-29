@@ -1,0 +1,32 @@
+CLEANUP PLAN - Moving non-essential files to NOISE/
+
+IMMEDIATE CANDIDATES FOR NOISE FOLDER:
+1. Duplicate test files with suffixes (_new, _fixed, _clean, _backup)
+2. One-time cleanup/fix scripts (already executed)
+3. Debug/diagnostic utilities not needed in production
+4. Example/demo code not used by main bot
+5. Redundant documentation files
+
+KEEP ESSENTIAL FILES:
+- main.py (entry point)
+- src/domain/* (core business logic)
+- src/application/* (orchestration layer)
+- src/infrastructure/* (API integrations, config)
+- tests/e2e/* (end-to-end validation)
+- tests/deployment/* (deployment validation)
+- Key config files and CI workflows
+- Essential documentation
+
+CLEANUP TARGETS IDENTIFIED:
+- ./cleanup_repo.py (one-time script)
+- ./comprehensive_fix.py (one-time script)
+- ./fix_critical_issues.py (one-time script)
+- ./fix_openrouter_backoff.py (one-time script)
+- ./diagnostics/openrouter_probe.py (debugging tool)
+- ./src/domain/services/ensemble_integration_example.py (example code)
+- ./tests/unit/application/test_ingestion_service_fixed.py (duplicate)
+- ./tests/unit/application/test_dispatcher_fixed.py (duplicate)
+- ./tests/unit/application/test_dispatcher_new.py (duplicate)
+- ./tests/unit/application/test_dispatcher_clean.py (duplicate)
+- ./tests/unit/test_config_fixed.py (duplicate)
+- ./tests/unit/domain/test_forecast_service_new.py (duplicate)
