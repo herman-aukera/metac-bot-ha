@@ -23,6 +23,13 @@ OPENROUTER_TOTAL_BACKOFF = 0.0
 OPENROUTER_QUOTA_EXCEEDED = False
 OPENROUTER_QUOTA_MESSAGE = None
 
+# Circuit breaker for OpenRouter quota exhaustion
+OPENROUTER_CIRCUIT_BREAKER_OPEN = False
+OPENROUTER_CIRCUIT_BREAKER_OPENED_AT = 0.0
+OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
+OPENROUTER_CIRCUIT_BREAKER_THRESHOLD = 10  # Open after 10 consecutive quota failures
+OPENROUTER_CIRCUIT_BREAKER_TIMEOUT = 3600  # Stay open for 1 hour
+
 
 class LLMClient:
     """
@@ -203,8 +210,28 @@ class LLMClient:
         global \
             OPENROUTER_TOTAL_CALLS, \
             OPENROUTER_TOTAL_RETRIES, \
-            OPENROUTER_TOTAL_BACKOFF
+            OPENROUTER_TOTAL_BACKOFF, \
+            OPENROUTER_CIRCUIT_BREAKER_OPEN, \
+            OPENROUTER_CIRCUIT_BREAKER_OPENED_AT, \
+            OPENROUTER_CONSECUTIVE_QUOTA_FAILURES, \
+            OPENROUTER_CIRCUIT_BREAKER_THRESHOLD, \
+            OPENROUTER_CIRCUIT_BREAKER_TIMEOUT
         import random
+
+        # Check circuit breaker state
+        current_time = time.time()
+        if OPENROUTER_CIRCUIT_BREAKER_OPEN:
+            # Check if timeout has elapsed to allow half-open state
+            if current_time - OPENROUTER_CIRCUIT_BREAKER_OPENED_AT < OPENROUTER_CIRCUIT_BREAKER_TIMEOUT:
+                raise RuntimeError(
+                    f"OpenRouter circuit breaker is open due to quota exhaustion. "
+                    f"Will retry in {OPENROUTER_CIRCUIT_BREAKER_TIMEOUT - (current_time - OPENROUTER_CIRCUIT_BREAKER_OPENED_AT):.0f} seconds."
+                )
+            else:
+                # Try to close circuit breaker (half-open state)
+                logger.info("OpenRouter circuit breaker timeout elapsed, attempting half-open state")
+                OPENROUTER_CIRCUIT_BREAKER_OPEN = False
+                OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
 
         base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
         endpoint = f"{base_url.rstrip('/')}/chat/completions"
@@ -260,11 +287,27 @@ class LLMClient:
                     except Exception:
                         message = ""
                     if "Key limit exceeded" in message:
+                        # Increment quota failure counter
+                        OPENROUTER_CONSECUTIVE_QUOTA_FAILURES += 1
+
+                        # Check if we should open circuit breaker
+                        if OPENROUTER_CONSECUTIVE_QUOTA_FAILURES >= OPENROUTER_CIRCUIT_BREAKER_THRESHOLD:
+                            OPENROUTER_CIRCUIT_BREAKER_OPEN = True
+                            OPENROUTER_CIRCUIT_BREAKER_OPENED_AT = current_time
+                            logger.error(
+                                f"OpenRouter circuit breaker OPENED after {OPENROUTER_CONSECUTIVE_QUOTA_FAILURES} "
+                                f"consecutive quota failures. Bot will stop making requests for {OPENROUTER_CIRCUIT_BREAKER_TIMEOUT} seconds."
+                            )
+                            raise RuntimeError(
+                                f"OpenRouter circuit breaker opened due to quota exhaustion. "
+                                f"Stopping execution to prevent infinite retry loops."
+                            )
+
                         try:
-                            # Log once at info level on first trip
-                            if not getattr(self, "_quota_logged", False):
-                                logger.info("OpenRouter quota exceeded: %s", message)
-                                setattr(self, "_quota_logged", True)
+                            # Log quota exceeded with failure count
+                            logger.warning(
+                                f"OpenRouter quota exceeded (failure {OPENROUTER_CONSECUTIVE_QUOTA_FAILURES}/{OPENROUTER_CIRCUIT_BREAKER_THRESHOLD}): {message}"
+                            )
                         except Exception:
                             pass
                         # Treat as retryable error - might be temporary rate limit
@@ -291,6 +334,10 @@ class LLMClient:
                         time.time() - start,
                     )
                 content = result["choices"][0]["message"]["content"]
+
+                # Reset quota failure counter on successful request
+                OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
+
                 # Expose counters externally (for run summary) via attributes
                 try:
                     self.last_openrouter_retry_count = attempt_count
@@ -507,3 +554,53 @@ class LLMClient:
         except Exception as e:
             self.logger.error("Health check failed", error=str(e))
             return False
+
+
+# Global utility functions for circuit breaker state
+def is_openrouter_circuit_breaker_open() -> bool:
+    """Check if OpenRouter circuit breaker is currently open."""
+    global OPENROUTER_CIRCUIT_BREAKER_OPEN, OPENROUTER_CIRCUIT_BREAKER_OPENED_AT, OPENROUTER_CIRCUIT_BREAKER_TIMEOUT
+    global OPENROUTER_CONSECUTIVE_QUOTA_FAILURES
+
+    if not OPENROUTER_CIRCUIT_BREAKER_OPEN:
+        return False
+
+    # Check if timeout has elapsed
+    current_time = time.time()
+    if current_time - OPENROUTER_CIRCUIT_BREAKER_OPENED_AT >= OPENROUTER_CIRCUIT_BREAKER_TIMEOUT:
+        # Auto-reset after timeout
+        OPENROUTER_CIRCUIT_BREAKER_OPEN = False
+        OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
+        logger.info("OpenRouter circuit breaker automatically reset after timeout")
+        return False
+
+    return True
+
+
+def get_openrouter_circuit_breaker_status() -> dict:
+    """Get detailed status of OpenRouter circuit breaker."""
+    global OPENROUTER_CIRCUIT_BREAKER_OPEN, OPENROUTER_CIRCUIT_BREAKER_OPENED_AT
+    global OPENROUTER_CONSECUTIVE_QUOTA_FAILURES, OPENROUTER_CIRCUIT_BREAKER_THRESHOLD
+    global OPENROUTER_CIRCUIT_BREAKER_TIMEOUT
+
+    current_time = time.time()
+    time_until_reset = 0
+    if OPENROUTER_CIRCUIT_BREAKER_OPEN:
+        time_until_reset = max(0, OPENROUTER_CIRCUIT_BREAKER_TIMEOUT - (current_time - OPENROUTER_CIRCUIT_BREAKER_OPENED_AT))
+
+    return {
+        "is_open": is_openrouter_circuit_breaker_open(),
+        "consecutive_failures": OPENROUTER_CONSECUTIVE_QUOTA_FAILURES,
+        "failure_threshold": OPENROUTER_CIRCUIT_BREAKER_THRESHOLD,
+        "opened_at": OPENROUTER_CIRCUIT_BREAKER_OPENED_AT if OPENROUTER_CIRCUIT_BREAKER_OPEN else None,
+        "timeout_seconds": OPENROUTER_CIRCUIT_BREAKER_TIMEOUT,
+        "time_until_reset_seconds": time_until_reset,
+    }
+
+
+def reset_openrouter_circuit_breaker() -> None:
+    """Manually reset OpenRouter circuit breaker (for emergency use)."""
+    global OPENROUTER_CIRCUIT_BREAKER_OPEN, OPENROUTER_CONSECUTIVE_QUOTA_FAILURES
+    OPENROUTER_CIRCUIT_BREAKER_OPEN = False
+    OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
+    logger.info("OpenRouter circuit breaker manually reset")

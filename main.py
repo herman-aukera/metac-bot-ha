@@ -4196,7 +4196,7 @@ if __name__ == "__main__":
     logger.info(f"  Tournament target: {tournament_target_env}")
     logger.info(f"  Budget limit: ${os.getenv('BUDGET_LIMIT', '100.0')}")
     logger.info(
-        f"  Scheduling frequency: {os.getenv('SCHEDULING_FREQUENCY_HOURS', '4')} hours"
+        f"  Scheduling frequency: {os.getenv('SCHEDULING_FREQUENCY_HOURS', '24')} hours"
     )
 
     template_bot = TemplateForecaster(
@@ -4296,11 +4296,23 @@ if __name__ == "__main__":
             if os.getenv("DRY_RUN", "false").lower() == "true":
                 template_bot.skip_previously_forecasted_questions = False
             try:
-                forecast_reports = asyncio.run(
-                    template_bot.forecast_on_tournament(
-                        tournament_target, return_exceptions=True
+                # Check OpenRouter circuit breaker before starting
+                from src.infrastructure.external_apis.llm_client import is_openrouter_circuit_breaker_open, get_openrouter_circuit_breaker_status
+
+                if is_openrouter_circuit_breaker_open():
+                    status = get_openrouter_circuit_breaker_status()
+                    logger.error(
+                        f"Cannot start tournament run: OpenRouter circuit breaker is open. "
+                        f"Quota exhausted after {status['consecutive_failures']} failures. "
+                        f"Will reset in {status['time_until_reset_seconds']:.0f} seconds."
                     )
-                )
+                    forecast_reports = []
+                else:
+                    forecast_reports = asyncio.run(
+                        template_bot.forecast_on_tournament(
+                            tournament_target, return_exceptions=True
+                        )
+                    )
             except Exception as e:
                 logger.error("MiniBench run failed: %s", e)
                 forecast_reports = []
@@ -4314,11 +4326,24 @@ if __name__ == "__main__":
             # The quarterly cup is a good way to test the bot's performance on regularly open questions. You can also use AXC_2025_TOURNAMENT_ID = 32564
             # The new quarterly cup may not be initialized near the beginning of a quarter
             template_bot.skip_previously_forecasted_questions = False
-            forecast_reports = asyncio.run(
-                template_bot.forecast_on_tournament(
-                    MetaculusApi.CURRENT_QUARTERLY_CUP_ID, return_exceptions=True
+
+            # Check OpenRouter circuit breaker before starting
+            from src.infrastructure.external_apis.llm_client import is_openrouter_circuit_breaker_open, get_openrouter_circuit_breaker_status
+
+            if is_openrouter_circuit_breaker_open():
+                status = get_openrouter_circuit_breaker_status()
+                logger.error(
+                    f"Cannot start quarterly cup run: OpenRouter circuit breaker is open. "
+                    f"Quota exhausted after {status['consecutive_failures']} failures. "
+                    f"Will reset in {status['time_until_reset_seconds']:.0f} seconds."
                 )
-            )
+                forecast_reports = []
+            else:
+                forecast_reports = asyncio.run(
+                    template_bot.forecast_on_tournament(
+                        MetaculusApi.CURRENT_QUARTERLY_CUP_ID, return_exceptions=True
+                    )
+                )
         elif run_mode == "test_questions":
             # Example questions are a good way to test the bot's performance on a single question
             EXAMPLE_QUESTIONS = [
@@ -4698,6 +4723,14 @@ if __name__ == "__main__":
             "openrouter_quota_exceeded": bool(_quota_exceeded),
             "openrouter_quota_message": _quota_message,
         }
+
+        # Add circuit breaker status to summary
+        try:
+            from src.infrastructure.external_apis.llm_client import get_openrouter_circuit_breaker_status
+            cb_status = get_openrouter_circuit_breaker_status()
+            summary["openrouter_circuit_breaker"] = cb_status
+        except Exception:
+            summary["openrouter_circuit_breaker"] = {"error": "Could not get circuit breaker status"}
         with open("run_summary.json", "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
         logger.info("Run summary written to run_summary.json")
