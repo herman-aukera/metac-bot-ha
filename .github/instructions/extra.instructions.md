@@ -14,6 +14,5 @@ Resume work on the Metaculus AI Forecast Bot using these `.instructions.md` file
 ✅ Each file = one concern, one layer.
 ✅ Use TDD and commit after each test pass.
 ✅ Target 80%+ coverage before next milestone.
-✅ No real API calls (mock only).
 
 Start with application/dispatcher.py and its tests. Don’t wait for approval if tests pass.

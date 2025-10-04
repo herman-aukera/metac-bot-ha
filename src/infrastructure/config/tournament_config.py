@@ -58,15 +58,15 @@ class TournamentConfig:
     # Operation mode
     mode: TournamentMode = TournamentMode.DEVELOPMENT
 
-    # Scheduling and resource management
-    scheduling_interval_hours: int = 6  # Default to 6 hours to reduce cadence
+    # Scheduling and resource management - RATE LIMIT AWARE for donated API key
+    scheduling_interval_hours: int = 24  # Daily cadence for seasonal tournament
     deadline_aware_scheduling: bool = True
-    critical_period_frequency_hours: int = 2
-    final_24h_frequency_hours: int = 1
+    critical_period_frequency_hours: int = 4  # Slightly more frequent for deadlines
+    final_24h_frequency_hours: int = 2  # More frequent in final hours
     tournament_scope: str = "seasonal"
-    max_concurrent_questions: int = 5
+    max_concurrent_questions: int = 2  # Reduced to 2 to avoid rate limits
     max_research_reports_per_question: int = 1
-    max_predictions_per_report: int = 5
+    max_predictions_per_report: int = 3  # Good balance of quality vs speed
 
     # Tournament scope management - NEW
     tournament_start_date: Optional[str] = None  # ISO format: "2025-09-01"
@@ -87,9 +87,24 @@ class TournamentConfig:
     priority_categories: Optional[List[str]] = None
     min_confidence_threshold: float = 0.6
 
-    # API and resource limits
+    # API and resource limits - QUOTA EXHAUSTION AWARE for donated API keys
     enable_proxy_credits: bool = True
-    asknews_quota_limit: int = 9000
+    asknews_quota_limit: int = 0  # Disabled - use fallback only
+    donated_api_key_mode: bool = True  # Flag to indicate quota-limited key
+
+    # Quota exhaustion fallback mode
+    enable_quota_fallback_mode: bool = True  # Use DuckDuckGo + Wikipedia only
+    disable_openrouter_llm: bool = False  # Keep false - try OpenRouter first then fallback
+    disable_asknews_research: bool = True  # Skip AskNews entirely - use free sources
+
+    # Rate limiting to prevent "running crazy"
+    api_calls_per_minute_limit: int = 5  # Very conservative rate limit
+    delay_between_questions_seconds: int = 60  # 1 minute delay between questions
+    batch_processing_delay_seconds: int = 180  # 3min delay between batches
+
+    # Daily budgets (coordinated with minibench) - REDUCED for quota limits
+    daily_question_budget: int = 10  # Very conservative daily limit
+    minibench_reserved_budget: int = 3  # Reserve minimal for minibench
 
     def __post_init__(self) -> None:
         """Initialize default values after dataclass creation."""
@@ -126,7 +141,7 @@ class TournamentConfig:
                 "TOURNAMENT_NAME", "Fall 2025 AI Forecasting Benchmark"
             ),
             mode=mode,
-            scheduling_interval_hours=_parse_int_env("SCHEDULING_FREQUENCY_HOURS", 6),
+            scheduling_interval_hours=_parse_int_env("SCHEDULING_FREQUENCY_HOURS", 24),
             deadline_aware_scheduling=os.getenv(
                 "DEADLINE_AWARE_SCHEDULING", "true"
             ).lower()
@@ -359,19 +374,55 @@ class TournamentConfig:
         return current_daily_rate > (target_daily_rate * 1.5)
 
     def get_recommended_scheduling_frequency(self) -> int:
-        """Get recommended scheduling frequency based on tournament scope."""
+        """Get recommended scheduling frequency based on tournament scope and API quotas."""
+        # For donated API keys, use very conservative scheduling
+        if getattr(self, 'donated_api_key_mode', False):
+            return 24  # Once per day for donated keys
+
         sustainable_rates = self.calculate_sustainable_forecasting_rate()
         questions_per_day = sustainable_rates["questions_per_day"]
 
         # For seasonal tournaments with low daily rates, less frequent scheduling is appropriate
         if questions_per_day <= 0.5:  # Less than 0.5 questions per day
-            return 8  # Every 8 hours
+            return 12  # Every 12 hours (more conservative)
         elif questions_per_day <= 1.0:  # 0.5-1 questions per day
-            return 6  # Every 6 hours
+            return 8  # Every 8 hours (more conservative)
         elif questions_per_day <= 2.0:  # 1-2 questions per day
-            return 4  # Every 4 hours
+            return 6  # Every 6 hours (more conservative)
         else:  # More than 2 questions per day
-            return 2  # Every 2 hours
+            return 4  # Every 4 hours (more conservative)
+
+    def get_quota_aware_frequency(self) -> int:
+        """Get quota-aware scheduling frequency for donated API keys."""
+        if not getattr(self, 'donated_api_key_mode', False):
+            return self.get_recommended_scheduling_frequency()
+
+        # For donated keys, calculate based on daily budget
+        daily_budget = getattr(self, 'daily_question_budget', 15)
+        minibench_budget = getattr(self, 'minibench_question_budget', 5)
+        tournament_budget = daily_budget - minibench_budget
+
+        # If we need to process more than tournament budget per day, increase frequency
+        if tournament_budget <= 5:
+            return 24  # Once per day
+        elif tournament_budget <= 10:
+            return 12  # Twice per day
+        else:
+            return 8   # Three times per day
+
+    def should_throttle_for_quota(self) -> bool:
+        """Check if we should throttle due to quota concerns."""
+        if not getattr(self, 'donated_api_key_mode', False):
+            return False
+
+        # Check recent quota exceeded events
+        try:
+            import json
+            with open("run_summary.json", "r") as f:
+                summary = json.load(f)
+                return summary.get("openrouter_quota_exceeded", False)
+        except Exception:
+            return False  # If can't read, assume no throttling needed
 
     def update_questions_processed(self, count: int) -> None:
         """Update the count of questions processed."""

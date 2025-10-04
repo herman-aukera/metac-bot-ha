@@ -3,9 +3,9 @@
   "tournament_mode": "true",
   "tournament_target": "32813",
   "publish_reports": "true",
-  "successful_forecasts": 71,
-  "failed_forecasts": 1,
-  "total_processed": 83,
+  "successful_forecasts": 50,
+  "failed_forecasts": 16,
+  "total_processed": 93,
   "blocked_publication_qids": [],
   "withheld_qids": [],
   "publish_attempts": 0,
@@ -18,13 +18,21 @@
   "blocked_cost": 0.0,
   "publication_success_rate": 0.0,
   "publish_decisions": [],
-  "started_at": "2025-09-27T19:13:27.899267+00:00",
-  "finished_at": "2025-09-27T19:34:00.701180+00:00",
+  "started_at": "2025-10-04T18:18:34.731845+00:00",
+  "finished_at": "2025-10-04T18:19:45.835295+00:00",
   "openrouter_retry_count_last_call": null,
   "openrouter_total_backoff_seconds_last_call": null,
   "openrouter_total_calls": 0,
   "openrouter_total_retries": 0,
   "openrouter_total_backoff_seconds": 0.0,
-  "openrouter_quota_exceeded": true,
-  "openrouter_quota_message": "Key limit exceeded. Manage it using https://openrouter.ai/settings/keys"
+  "openrouter_quota_exceeded": false,
+  "openrouter_quota_message": null,
+  "openrouter_circuit_breaker": {
+    "is_open": false,
+    "consecutive_failures": 0,
+    "failure_threshold": 10,
+    "opened_at": null,
+    "timeout_seconds": 3600,
+    "time_until_reset_seconds": 0
+  }
 }
