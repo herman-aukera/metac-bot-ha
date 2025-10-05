@@ -1926,7 +1926,13 @@ Be very clear about what information may be outdated or incomplete.
         self, question: "BinaryQuestion", research: str
     ) -> Any:
         """Disabled alternative forecast retries (free/perplexity models unvalidated)."""
-        return _mk_rp(prediction_value=0.5, reasoning=SAFE_REASONING_FALLBACK)
+        # CRITICAL FIX: Never publish fallback forecasts without proper research
+        # Return None to skip publication instead of returning 0.5
+        q_id = getattr(question, "question_id", getattr(question, "id", "unknown"))
+        logger.error(
+            f"Forecast retry alternatives exhausted for question {q_id} - skipping publication to maintain quality"
+        )
+        return None  # Skip publication - tournament compliance requires proper research
 
     async def _retry_mc_with_alternatives(
         self, question: "MultipleChoiceQuestion", research: str
@@ -4108,6 +4114,15 @@ if __name__ == "__main__":
             return None
 
     openrouter_router = _run_openrouter_validation_safely()
+
+    # CRITICAL: Reset circuit breaker at startup to ensure fresh attempts
+    # This prevents previous run failures from blocking new forecasts
+    try:
+        from src.infrastructure.external_apis.llm_client import reset_openrouter_circuit_breaker
+        reset_openrouter_circuit_breaker()
+        logger.info("✅ OpenRouter circuit breaker reset at startup")
+    except Exception as e:
+        logger.warning(f"Failed to reset circuit breaker: {e}")
 
     parser = argparse.ArgumentParser(
         description="Run the Q1TemplateBot forecasting system"
