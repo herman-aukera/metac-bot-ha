@@ -159,7 +159,9 @@ jobs:
           # Production settings
           DRY_RUN: false
           DISABLE_PUBLICATION_GUARD: true
-          SKIP_PREVIOUSLY_FORECASTED: true
+          # TEMPORARY: Set to false for ONE-TIME re-forecast of fallback questions
+          # RESTORE to true after successful run to avoid duplicate forecasts
+          SKIP_PREVIOUSLY_FORECASTED: false
         run: |
           set -e
 
