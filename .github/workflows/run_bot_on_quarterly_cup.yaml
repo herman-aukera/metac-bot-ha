@@ -173,6 +173,8 @@ jobs:
           APP_ENV: production
           LOG_LEVEL: INFO
           DRY_RUN: false
+          DISABLE_PUBLICATION_GUARD: true
+          SKIP_PREVIOUSLY_FORECASTED: true
 
       - name: Show run summary (if present)
         if: always()

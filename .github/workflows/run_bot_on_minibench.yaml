@@ -271,6 +271,8 @@ jobs:
              TOURNAMENT_MODE=true \
              PUBLISH_REPORTS=true \
              DRY_RUN=false \
+             DISABLE_PUBLICATION_GUARD=true \
+             SKIP_PREVIOUSLY_FORECASTED=true \
              $PY_RUN main.py --mode tournament; then
             echo "✅ Bot execution completed successfully"
             echo "success=true" >> "$GITHUB_OUTPUT"
