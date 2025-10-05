@@ -30,7 +30,35 @@ OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
 OPENROUTER_CIRCUIT_BREAKER_THRESHOLD = 10  # Open after 10 consecutive quota failures
 OPENROUTER_CIRCUIT_BREAKER_TIMEOUT = 3600  # Stay open for 1 hour
 
+# Rate limiting: Track last API call time to enforce minimum delay between requests
+OPENROUTER_LAST_CALL_TIME = 0.0
+OPENROUTER_MIN_DELAY_SECONDS = float(os.getenv("OPENROUTER_MIN_DELAY_SECONDS", "0.5"))  # 0.5 second default delay with key rotation
 
+# API key management: primary paid key with free fallback
+OPENROUTER_PRIMARY_KEY = None
+OPENROUTER_FALLBACK_KEY = None
+OPENROUTER_PRIMARY_RATE_LIMITED = False
+OPENROUTER_PRIMARY_RATE_LIMIT_RESET_TIME = 0.0
+
+
+def _get_openrouter_key(use_fallback: bool = False) -> str:
+    """Get OpenRouter API key - paid primary or free fallback."""
+    global OPENROUTER_PRIMARY_KEY, OPENROUTER_FALLBACK_KEY
+
+    # Initialize keys on first call
+    if OPENROUTER_PRIMARY_KEY is None:
+        OPENROUTER_PRIMARY_KEY = os.getenv("OPENROUTER_API_KEY")
+        OPENROUTER_FALLBACK_KEY = os.getenv("OPENROUTER_API_KEY_2")
+
+        if not OPENROUTER_PRIMARY_KEY:
+            raise ValueError("OPENROUTER_API_KEY not configured")
+
+    # Use fallback if explicitly requested or if primary is rate limited
+    if use_fallback and OPENROUTER_FALLBACK_KEY:
+        logger.info("Using fallback OpenRouter key (free tier)")
+        return OPENROUTER_FALLBACK_KEY
+
+    return OPENROUTER_PRIMARY_KEY
 class LLMClient:
     """
     Client for interacting with language models.
@@ -215,11 +243,27 @@ class LLMClient:
             OPENROUTER_CIRCUIT_BREAKER_OPENED_AT, \
             OPENROUTER_CONSECUTIVE_QUOTA_FAILURES, \
             OPENROUTER_CIRCUIT_BREAKER_THRESHOLD, \
-            OPENROUTER_CIRCUIT_BREAKER_TIMEOUT
+            OPENROUTER_CIRCUIT_BREAKER_TIMEOUT, \
+            OPENROUTER_LAST_CALL_TIME, \
+            OPENROUTER_MIN_DELAY_SECONDS
         import random
 
-        # Check circuit breaker state
+        # Enforce minimum delay between API calls to prevent rate limiting
         current_time = time.time()
+        time_since_last_call = current_time - OPENROUTER_LAST_CALL_TIME
+        if OPENROUTER_LAST_CALL_TIME > 0 and time_since_last_call < OPENROUTER_MIN_DELAY_SECONDS:
+            delay_needed = OPENROUTER_MIN_DELAY_SECONDS - time_since_last_call
+            logger.info(
+                f"Rate limiting: waiting {delay_needed:.2f}s before next OpenRouter call "
+                f"(min delay: {OPENROUTER_MIN_DELAY_SECONDS}s)"
+            )
+            await asyncio.sleep(delay_needed)
+            current_time = time.time()
+
+        # Update last call time
+        OPENROUTER_LAST_CALL_TIME = current_time
+
+        # Check circuit breaker state
         if OPENROUTER_CIRCUIT_BREAKER_OPEN:
             # Check if timeout has elapsed to allow half-open state
             if current_time - OPENROUTER_CIRCUIT_BREAKER_OPENED_AT < OPENROUTER_CIRCUIT_BREAKER_TIMEOUT:
@@ -233,10 +277,13 @@ class LLMClient:
                 OPENROUTER_CIRCUIT_BREAKER_OPEN = False
                 OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
 
+        # Use primary paid key (fallback handled in retry logic)
+        api_key = _get_openrouter_key()
+
         base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
         endpoint = f"{base_url.rstrip('/')}/chat/completions"
         headers_base = {
-            "Authorization": f"Bearer {self.config.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": CONTENT_TYPE_JSON,
             "HTTP-Referer": os.getenv(
                 "OPENROUTER_HTTP_REFERER", "https://github.com/metaculus-bot-ha"
