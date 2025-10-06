@@ -30,7 +30,7 @@ on:
 
 concurrency:
   group: tournament-forecasting
-  cancel-in-progress: true
+  cancel-in-progress: false  # FIXED: Allow runs to complete (was killing all forecasts)
 
 jobs:
   tournament_forecast:
@@ -159,9 +159,8 @@ jobs:
           # Production settings
           DRY_RUN: false
           DISABLE_PUBLICATION_GUARD: true
-          # TEMPORARY: Set to false for ONE-TIME re-forecast of fallback questions
-          # RESTORE to true after successful run to avoid duplicate forecasts
-          SKIP_PREVIOUSLY_FORECASTED: false
+          # RESTORED: Skip previously forecasted to catch only new/missed questions
+          SKIP_PREVIOUSLY_FORECASTED: true
         run: |
           set -e
 
