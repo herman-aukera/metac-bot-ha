@@ -27,7 +27,7 @@ concurrency:
 jobs:
   minibench_forecast:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60 # Increased: Allow time for proper research on all questions
     env:
       METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

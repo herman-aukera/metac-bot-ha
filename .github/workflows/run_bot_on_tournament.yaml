@@ -26,7 +26,7 @@ on:
         required: false
         type: string
   schedule:
-    - cron: '0 */5 * * *' # Every 5 hours for sustainable tournament operation
+    - cron: '0 12 * * *' # Once daily at 12:00 UTC (allows re-forecasting without excessive cost)
 
 concurrency:
   group: tournament-forecasting
@@ -35,7 +35,7 @@ concurrency:
 jobs:
   tournament_forecast:
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # Prevent hanging workflows
+    timeout-minutes: 90 # Increased: Allow time for full research on all questions
     strategy:
       fail-fast: false # Continue even if one attempt fails
     env:
@@ -159,8 +159,8 @@ jobs:
           # Production settings
           DRY_RUN: false
           DISABLE_PUBLICATION_GUARD: true
-          # RESTORED: Skip previously forecasted to catch only new/missed questions
-          SKIP_PREVIOUSLY_FORECASTED: true
+          # Allow re-forecasting to update predictions (runs once daily to manage cost)
+          SKIP_PREVIOUSLY_FORECASTED: false
         run: |
           set -e
 
