@@ -32,7 +32,7 @@ OPENROUTER_CIRCUIT_BREAKER_TIMEOUT = 3600  # Stay open for 1 hour
 
 # Rate limiting: Track last API call time to enforce minimum delay between requests
 OPENROUTER_LAST_CALL_TIME = 0.0
-OPENROUTER_MIN_DELAY_SECONDS = float(os.getenv("OPENROUTER_MIN_DELAY_SECONDS", "0.5"))  # 0.5 second default delay with key rotation
+OPENROUTER_MIN_DELAY_SECONDS = float(os.getenv("OPENROUTER_MIN_DELAY_SECONDS", "2.0"))  # 2.0 second delay to respect daily rate limits
 
 # API key management: primary paid key with free fallback
 OPENROUTER_PRIMARY_KEY = None
