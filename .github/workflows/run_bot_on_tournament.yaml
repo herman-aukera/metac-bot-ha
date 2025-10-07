@@ -26,7 +26,7 @@ on:
         required: false
         type: string
   schedule:
-    - cron: '0 */5 * * *' # Every 5 hours for new questions only
+    - cron: '0 */4 * * *' # Every 4 hours (questions typically have 5-hour windows)
     - cron: '0 12 * * *'  # Daily at noon UTC for re-forecasting (updates existing)
 
 concurrency:
