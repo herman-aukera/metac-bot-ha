@@ -26,7 +26,8 @@ on:
         required: false
         type: string
   schedule:
-    - cron: '0 12 * * *' # Once daily at 12:00 UTC (allows re-forecasting without excessive cost)
+    - cron: '0 */5 * * *' # Every 5 hours for new questions only
+    - cron: '0 12 * * *'  # Daily at noon UTC for re-forecasting (updates existing)
 
 concurrency:
   group: tournament-forecasting
@@ -159,10 +160,19 @@ jobs:
           # Production settings
           DRY_RUN: false
           DISABLE_PUBLICATION_GUARD: true
-          # Allow re-forecasting to update predictions (runs once daily to manage cost)
-          SKIP_PREVIOUSLY_FORECASTED: false
+          # SKIP_PREVIOUSLY_FORECASTED is set dynamically in run script based on time
         run: |
           set -e
+
+          # Dynamic re-forecasting: Allow once daily at 12:00 UTC, otherwise skip previously forecasted
+          CURRENT_HOUR=$(date -u +%H)
+          if [ "$CURRENT_HOUR" = "12" ]; then
+            echo "🔄 Daily re-forecast window (12:00 UTC) - allowing updates to existing forecasts"
+            export SKIP_PREVIOUSLY_FORECASTED=false
+          else
+            echo "📝 Regular forecast window - processing only new questions"
+            export SKIP_PREVIOUSLY_FORECASTED=true
+          fi
 
           # Robust Python runner detection with dependency verification
           echo "🔍 Determining Python execution method..."
