@@ -34,31 +34,82 @@ OPENROUTER_CIRCUIT_BREAKER_TIMEOUT = 3600  # Stay open for 1 hour
 OPENROUTER_LAST_CALL_TIME = 0.0
 OPENROUTER_MIN_DELAY_SECONDS = float(os.getenv("OPENROUTER_MIN_DELAY_SECONDS", "2.0"))  # 2.0 second delay to respect daily rate limits
 
-# API key management: primary paid key with free fallback
-OPENROUTER_PRIMARY_KEY = None
-OPENROUTER_FALLBACK_KEY = None
-OPENROUTER_PRIMARY_RATE_LIMITED = False
-OPENROUTER_PRIMARY_RATE_LIMIT_RESET_TIME = 0.0
+# Multi-key round-robin strategy: Load balance across multiple OpenRouter keys
+OPENROUTER_KEYS = []  # List of available keys
+OPENROUTER_KEY_INDEX = 0  # Current key in rotation
+OPENROUTER_KEY_LIMITS = {}  # Track usage per key: {key: {'used': int, 'limit': int}}
+
+
+def _initialize_openrouter_keys():
+    """Initialize multiple OpenRouter keys for round-robin load balancing."""
+    global OPENROUTER_KEYS, OPENROUTER_KEY_LIMITS
+
+    if OPENROUTER_KEYS:  # Already initialized
+        return
+
+    # Load all available keys (up to 8 keys with $5-10 credit each)
+    # NOTE: OpenRouter limits are CREDIT-BASED ($), not request count
+    # Rate limit is UNLIMITED (-1) - we can make as many requests as we want
+    # until the credit balance runs out. Track usage by monitoring remaining credit.
+    for i in range(1, 9):
+        key_name = f"OPENROUTER_API_KEY_{i}" if i > 1 else "OPENROUTER_API_KEY"
+        key_value = os.getenv(key_name)
+
+        if key_value:
+            OPENROUTER_KEYS.append(key_value)
+            # Limit is in $ credit, not request count. Set high number as placeholder
+            # since actual limit is credit-based and tracked by OpenRouter
+            OPENROUTER_KEY_LIMITS[key_value] = {'used': 0, 'limit': 999999}
+
+    logger.info(
+        "openrouter_multi_key_initialized",
+        total_keys=len(OPENROUTER_KEYS),
+        total_credit_per_key="$5-10 (credit-based, unlimited requests)"
+    )
 
 
 def _get_openrouter_key(use_fallback: bool = False) -> str:
-    """Get OpenRouter API key - paid primary or free fallback."""
-    global OPENROUTER_PRIMARY_KEY, OPENROUTER_FALLBACK_KEY
+    """Get next OpenRouter API key using round-robin strategy."""
+    global OPENROUTER_KEY_INDEX, OPENROUTER_KEY_LIMITS
 
-    # Initialize keys on first call
-    if OPENROUTER_PRIMARY_KEY is None:
-        OPENROUTER_PRIMARY_KEY = os.getenv("OPENROUTER_API_KEY")
-        OPENROUTER_FALLBACK_KEY = os.getenv("OPENROUTER_API_KEY_2")
+    _initialize_openrouter_keys()
 
-        if not OPENROUTER_PRIMARY_KEY:
-            raise ValueError("OPENROUTER_API_KEY not configured")
+    if not OPENROUTER_KEYS:
+        raise ValueError("No OpenRouter API keys configured")
 
-    # Use fallback if explicitly requested or if primary is rate limited
-    if use_fallback and OPENROUTER_FALLBACK_KEY:
-        logger.info("Using fallback OpenRouter key (free tier)")
-        return OPENROUTER_FALLBACK_KEY
+    # Round-robin: select next key that hasn't exceeded its limit
+    attempts = 0
+    while attempts < len(OPENROUTER_KEYS):
+        key = OPENROUTER_KEYS[OPENROUTER_KEY_INDEX]
+        limits = OPENROUTER_KEY_LIMITS[key]
 
-    return OPENROUTER_PRIMARY_KEY
+        # Check if this key still has capacity
+        if limits['limit'] == 0 or limits['used'] < limits['limit']:
+            # Use this key and rotate index
+            selected_key = key
+            OPENROUTER_KEY_INDEX = (OPENROUTER_KEY_INDEX + 1) % len(OPENROUTER_KEYS)
+
+            # Log which key we're using
+            key_display = f"{key[:12]}...{key[-4:]}"
+            logger.info(
+                "openrouter_key_selected",
+                key_index=OPENROUTER_KEY_INDEX - 1 if OPENROUTER_KEY_INDEX > 0 else len(OPENROUTER_KEYS) - 1,
+                key_display=key_display,
+                used=limits['used'],
+                limit=limits['limit']
+            )
+
+            return selected_key
+
+        # This key is exhausted, try next
+        OPENROUTER_KEY_INDEX = (OPENROUTER_KEY_INDEX + 1) % len(OPENROUTER_KEYS)
+        attempts += 1
+
+    # All keys exhausted
+    raise ValueError(
+        f"All OpenRouter API keys exhausted. "
+        f"Total capacity: {sum(v['limit'] for v in OPENROUTER_KEY_LIMITS.values())} req/day"
+    )
 class LLMClient:
     """
     Client for interacting with language models.
@@ -384,6 +435,18 @@ class LLMClient:
 
                 # Reset quota failure counter on successful request
                 OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
+
+                # Track key usage for round-robin load balancing
+                global OPENROUTER_KEY_LIMITS
+                if api_key in OPENROUTER_KEY_LIMITS:
+                    OPENROUTER_KEY_LIMITS[api_key]['used'] += 1
+                    key_display = f"{api_key[:12]}...{api_key[-4:]}"
+                    logger.info(
+                        "openrouter_key_usage_tracked",
+                        key_display=key_display,
+                        used=OPENROUTER_KEY_LIMITS[api_key]['used'],
+                        limit=OPENROUTER_KEY_LIMITS[api_key]['limit']
+                    )
 
                 # Expose counters externally (for run summary) via attributes
                 try:
