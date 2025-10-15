@@ -854,11 +854,13 @@ class TemplateForecaster(ForecastBot):
     - Tournament-specific configurations
     - Budget management and cost-aware model selection
     - Token tracking and real-time cost monitoring
+    - **CRITICAL**: Pre-filters closed questions to prevent money waste
 
     The main entry point of this bot is `forecast_on_tournament` in the parent class.
     See the script at the bottom of the file for more details on how to run the bot.
     Ignoring the finer details, the general flow is:
     - Load questions from Metaculus
+    - **FILTER OUT CLOSED QUESTIONS** (prevent money waste)
     - For each question
         - Execute run_research a number of times equal to research_reports_per_question
         - Execute respective run_forecast function `predictions_per_research_report * research_reports_per_question` times
@@ -3830,6 +3832,31 @@ Be very clear about what information may be outdated or incomplete.
         """
 
         question_id = getattr(question, "id", "unknown")
+
+        # **CRITICAL FIX**: Check if question is closed BEFORE spending money on research
+        # This prevents the catastrophic scenario of spending $32 on unpublishable forecasts
+        status = getattr(question, "status", None)
+        api_json = getattr(question, "api_json", {})
+
+        # Check multiple status indicators
+        is_closed = False
+        if status and str(status).lower() in ["closed", "resolved", "pending_resolution"]:
+            is_closed = True
+        elif api_json:
+            api_status = api_json.get("status", "").lower()
+            if api_status in ["closed", "resolved", "pending_resolution"]:
+                is_closed = True
+            # Also check if open_for_forecasting flag exists and is False
+            if not api_json.get("open_for_forecasting", True):
+                is_closed = True
+
+        if is_closed:
+            error_msg = f"Question {question_id} is already closed to forecasting (status={status}). Skipping to prevent wasted API calls."
+            logger.warning(error_msg)
+            if return_exceptions:
+                return Exception(error_msg)
+            else:
+                raise Exception(error_msg)
 
         # Initialize enhanced error recovery if not already done
         if not hasattr(self, "_error_recovery"):
