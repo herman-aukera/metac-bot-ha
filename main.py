@@ -2599,13 +2599,17 @@ Be very clear about what information may be outdated or incomplete.
                         logger.warning(
                             "Pipeline binary forecast deemed low-confidence/neutral. Retrying with alternatives..."
                         )
-                        alt = await self._retry_forecast_with_alternatives(
-                            question, research
-                        )
-                        if not self._is_unacceptable_forecast(
-                            alt.prediction_value, alt.reasoning
-                        ):
-                            return alt
+                        try:
+                            alt = await self._retry_forecast_with_alternatives(
+                                question, research
+                            )
+                            if alt and hasattr(alt, 'prediction_value') and hasattr(alt, 'reasoning'):
+                                if not self._is_unacceptable_forecast(
+                                    alt.prediction_value, alt.reasoning
+                                ):
+                                    return alt
+                        except Exception as e:
+                            logger.warning(f"Alternative forecast retry failed: {e}")
                         # Fall through to tri-model/legacy paths below
 
                 else:
@@ -2776,18 +2780,19 @@ Be very clear about what information may be outdated or incomplete.
             logger.warning(
                 "Low-confidence/neutral forecast detected. Retrying with alternative free/perplexity models..."
             )
-            alt = await self._retry_forecast_with_alternatives(question, research)
-            if not self._is_unacceptable_forecast(alt.prediction_value, alt.reasoning):
-                return alt
-            else:
-                logger.warning(
-                    "Alternatives did not yield acceptable forecast. Returning best-effort result with explicit caution."
-                )
-                # Append an explicit caution to avoid accidental publication misinterpretation
-                reasoning = (
-                    alt.reasoning or SAFE_REASONING_FALLBACK
-                ) + "\n\n[Note: Low confidence due to upstream API limitations.]"
-                prediction = alt.prediction_value
+            try:
+                alt = await self._retry_forecast_with_alternatives(question, research)
+                if alt and hasattr(alt, 'prediction_value') and hasattr(alt, 'reasoning'):
+                    if not self._is_unacceptable_forecast(alt.prediction_value, alt.reasoning):
+                        return alt
+            except Exception as e:
+                logger.warning(f"Alternative forecast retry failed: {e}")
+
+            logger.warning(
+                "Alternatives did not yield acceptable forecast. Returning best-effort result with explicit caution."
+            )
+            # Append an explicit caution to avoid accidental publication misinterpretation
+            reasoning = (reasoning or SAFE_REASONING_FALLBACK) + "\n\n[Note: Low confidence due to upstream API limitations.]"
 
         safe_reasoning = reasoning or SAFE_REASONING_FALLBACK
 
@@ -2942,14 +2947,20 @@ Be very clear about what information may be outdated or incomplete.
                         logger.warning(
                             "Pipeline MC forecast deemed low-confidence/neutral. Retrying with alternatives..."
                         )
-                        alt = await self._retry_mc_with_alternatives(question, research)
-                        if (
-                            alt.prediction_value
-                            and not self._is_unacceptable_mc_forecast(
-                                alt.prediction_value, alt.reasoning, question.options
-                            )
-                        ):
-                            return alt
+                        try:
+                            alt = await self._retry_mc_with_alternatives(question, research)
+                            if (
+                                alt
+                                and hasattr(alt, 'prediction_value')
+                                and hasattr(alt, 'reasoning')
+                                and alt.prediction_value
+                                and not self._is_unacceptable_mc_forecast(
+                                    alt.prediction_value, alt.reasoning, question.options
+                                )
+                            ):
+                                return alt
+                        except Exception as e:
+                            logger.warning(f"MC alternative forecast retry failed: {e}")
                         # Fall through to tri-model/legacy paths below
 
                 else:
@@ -3132,11 +3143,20 @@ Be very clear about what information may be outdated or incomplete.
             logger.warning(
                 "Low-confidence/uncertain MC forecast detected. Retrying with alternative models..."
             )
-            alt = await self._retry_mc_with_alternatives(question, research)
-            if alt.prediction_value and not self._is_unacceptable_mc_forecast(
-                alt.prediction_value, alt.reasoning, question.options
-            ):
-                return alt
+            try:
+                alt = await self._retry_mc_with_alternatives(question, research)
+                if (
+                    alt
+                    and hasattr(alt, 'prediction_value')
+                    and hasattr(alt, 'reasoning')
+                    and alt.prediction_value
+                    and not self._is_unacceptable_mc_forecast(
+                        alt.prediction_value, alt.reasoning, question.options
+                    )
+                ):
+                    return alt
+            except Exception as e:
+                logger.warning(f"MC alternative forecast retry failed: {e}")
             # Do NOT publish unacceptable alternative; return flagged uniform placeholder instead of None
             # (Upstream aggregator in forecasting_tools can't handle None for MC list.)
             logger.warning(
@@ -3390,16 +3410,22 @@ Be very clear about what information may be outdated or incomplete.
                         logger.warning(
                             "Pipeline numeric forecast deemed low-confidence/neutral. Retrying with alternatives..."
                         )
-                        alt = await self._retry_numeric_with_alternatives(
-                            question, research
-                        )
-                        if (
-                            alt.prediction_value
-                            and not self._is_unacceptable_numeric_forecast(
-                                alt.prediction_value, alt.reasoning
+                        try:
+                            alt = await self._retry_numeric_with_alternatives(
+                                question, research
                             )
-                        ):
-                            return alt
+                            if (
+                                alt
+                                and hasattr(alt, 'prediction_value')
+                                and hasattr(alt, 'reasoning')
+                                and alt.prediction_value
+                                and not self._is_unacceptable_numeric_forecast(
+                                    alt.prediction_value, alt.reasoning
+                                )
+                            ):
+                                return alt
+                        except Exception as e:
+                            logger.warning(f"Numeric alternative forecast retry failed: {e}")
                         # Fall through to tri-model/legacy paths below
 
                 else:
@@ -3596,20 +3622,26 @@ Be very clear about what information may be outdated or incomplete.
             logger.warning(
                 "Low-confidence/uncertain numeric forecast detected. Retrying with alternative models..."
             )
-            alt = await self._retry_numeric_with_alternatives(question, research)
-            if alt.prediction_value and not self._is_unacceptable_numeric_forecast(
-                alt.prediction_value, alt.reasoning
-            ):
-                return alt
-            else:
-                logger.warning(
-                    "Alternatives did not yield acceptable numeric forecast. Returning best-effort with caution."
-                )
-                reasoning = (
-                    alt.reasoning or SAFE_REASONING_FALLBACK
-                ) + "\n\n[Note: Low confidence due to upstream API limitations.]"
-                if alt.prediction_value:
-                    prediction = alt.prediction_value
+            try:
+                alt = await self._retry_numeric_with_alternatives(question, research)
+                if (
+                    alt
+                    and hasattr(alt, 'prediction_value')
+                    and hasattr(alt, 'reasoning')
+                    and alt.prediction_value
+                    and not self._is_unacceptable_numeric_forecast(
+                        alt.prediction_value, alt.reasoning
+                    )
+                ):
+                    return alt
+                else:
+                    logger.warning(
+                        "Alternatives did not yield acceptable numeric forecast. Returning best-effort with caution."
+                    )
+                    reasoning = (reasoning or SAFE_REASONING_FALLBACK) + "\n\n[Note: Low confidence due to upstream API limitations.]"
+            except Exception as e:
+                logger.warning(f"Numeric alternative forecast retry failed: {e}")
+                reasoning = (reasoning or SAFE_REASONING_FALLBACK) + "\n\n[Note: Low confidence due to upstream API limitations.]"
 
         safe_reasoning = reasoning or SAFE_REASONING_FALLBACK
 
@@ -3857,6 +3889,39 @@ Be very clear about what information may be outdated or incomplete.
                 return Exception(error_msg)
             else:
                 raise Exception(error_msg)
+
+        # **CRITICAL FIX**: Check question type compatibility BEFORE expensive research
+        # This prevents wasted API calls on unsupported question types (DateQuestion, etc.)
+        question_type = question.__class__.__name__
+        unsupported_types = []  # DateQuestion and DiscreteQuestion are now supported!
+
+        # Check if this is a truly unsupported format
+        if question_type in unsupported_types:
+            error_msg = f"Question {question_id} type '{question_type}' is not yet supported. Skipping to prevent wasted API calls."
+            logger.warning(error_msg)
+            if return_exceptions:
+                return Exception(error_msg)
+            else:
+                raise Exception(error_msg)
+
+        # For DateQuestion and DiscreteQuestion, verify we have the custom handlers
+        if question_type == "DateQuestion" and not hasattr(self, "_handle_date_question"):
+            error_msg = f"Question {question_id} is DateQuestion but handler not initialized. Skipping."
+            logger.warning(error_msg)
+            if return_exceptions:
+                return Exception(error_msg)
+            else:
+                raise Exception(error_msg)
+
+        if question_type == "DiscreteQuestion" and not hasattr(self, "_handle_discrete_question"):
+            error_msg = f"Question {question_id} is DiscreteQuestion but handler not initialized. Skipping."
+            logger.warning(error_msg)
+            if return_exceptions:
+                return Exception(error_msg)
+            else:
+                raise Exception(error_msg)
+
+        logger.info(f"Question {question_id} type '{question_type}' is supported. Proceeding with forecast.")
 
         # Initialize enhanced error recovery if not already done
         if not hasattr(self, "_error_recovery"):
