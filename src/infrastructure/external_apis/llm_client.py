@@ -27,8 +27,10 @@ OPENROUTER_QUOTA_MESSAGE = None
 OPENROUTER_CIRCUIT_BREAKER_OPEN = False
 OPENROUTER_CIRCUIT_BREAKER_OPENED_AT = 0.0
 OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
-OPENROUTER_CIRCUIT_BREAKER_THRESHOLD = 10  # Open after 10 consecutive quota failures
-OPENROUTER_CIRCUIT_BREAKER_TIMEOUT = 3600  # Stay open for 1 hour
+OPENROUTER_CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("OPENROUTER_CIRCUIT_BREAKER_THRESHOLD", "10"))  # Open after N consecutive quota failures (configurable)
+OPENROUTER_CIRCUIT_BREAKER_TIMEOUT = int(os.getenv("OPENROUTER_CIRCUIT_BREAKER_TIMEOUT", "3600"))  # Stay open for 1 hour (protects budget)
+OPENROUTER_LAST_RESET_TIME = time.time()  # Track last reset for monitoring
+OPENROUTER_AUTO_RESET_INTERVAL = int(os.getenv("OPENROUTER_AUTO_RESET_INTERVAL", "86400"))  # Auto-reset once daily by default (24 hours)
 
 # Rate limiting: Track last API call time to enforce minimum delay between requests
 OPENROUTER_LAST_CALL_TIME = 0.0
@@ -670,18 +672,36 @@ class LLMClient:
 def is_openrouter_circuit_breaker_open() -> bool:
     """Check if OpenRouter circuit breaker is currently open."""
     global OPENROUTER_CIRCUIT_BREAKER_OPEN, OPENROUTER_CIRCUIT_BREAKER_OPENED_AT, OPENROUTER_CIRCUIT_BREAKER_TIMEOUT
-    global OPENROUTER_CONSECUTIVE_QUOTA_FAILURES
+    global OPENROUTER_CONSECUTIVE_QUOTA_FAILURES, OPENROUTER_LAST_RESET_TIME, OPENROUTER_AUTO_RESET_INTERVAL
 
     if not OPENROUTER_CIRCUIT_BREAKER_OPEN:
+        # Check for scheduled daily reset (only if circuit breaker is closed)
+        current_time = time.time()
+        time_since_last_reset = current_time - OPENROUTER_LAST_RESET_TIME
+
+        if time_since_last_reset >= OPENROUTER_AUTO_RESET_INTERVAL:
+            # Periodic reset: clear failure counter to give API another chance
+            OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
+            OPENROUTER_LAST_RESET_TIME = current_time
+            logger.info(
+                "openrouter_circuit_breaker_scheduled_reset",
+                hours_since_last_reset=time_since_last_reset / 3600,
+                next_reset_hours=OPENROUTER_AUTO_RESET_INTERVAL / 3600
+            )
         return False
 
-    # Check if timeout has elapsed
+    # Check if timeout has elapsed (circuit breaker was protecting budget)
     current_time = time.time()
     if current_time - OPENROUTER_CIRCUIT_BREAKER_OPENED_AT >= OPENROUTER_CIRCUIT_BREAKER_TIMEOUT:
-        # Auto-reset after timeout
+        # Auto-reset after timeout - budget protection period is over
         OPENROUTER_CIRCUIT_BREAKER_OPEN = False
         OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
-        logger.info("OpenRouter circuit breaker automatically reset after timeout")
+        OPENROUTER_LAST_RESET_TIME = current_time
+        logger.info(
+            "openrouter_circuit_breaker_timeout_reset",
+            timeout_hours=OPENROUTER_CIRCUIT_BREAKER_TIMEOUT / 3600,
+            message="Circuit breaker auto-reset after budget protection timeout"
+        )
         return False
 
     return True
@@ -709,8 +729,9 @@ def get_openrouter_circuit_breaker_status() -> dict:
 
 
 def reset_openrouter_circuit_breaker() -> None:
-    """Manually reset OpenRouter circuit breaker (for emergency use)."""
-    global OPENROUTER_CIRCUIT_BREAKER_OPEN, OPENROUTER_CONSECUTIVE_QUOTA_FAILURES
+    """Manually reset OpenRouter circuit breaker (for startup or emergency use)."""
+    global OPENROUTER_CIRCUIT_BREAKER_OPEN, OPENROUTER_CONSECUTIVE_QUOTA_FAILURES, OPENROUTER_LAST_RESET_TIME
     OPENROUTER_CIRCUIT_BREAKER_OPEN = False
     OPENROUTER_CONSECUTIVE_QUOTA_FAILURES = 0
+    OPENROUTER_LAST_RESET_TIME = time.time()
     logger.info("OpenRouter circuit breaker manually reset")
