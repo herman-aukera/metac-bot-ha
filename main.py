@@ -4369,6 +4369,12 @@ if __name__ == "__main__":
     )
 
     forecast_reports = []  # ensure defined for summary even if failures occur
+
+    # **CRITICAL FIX**: Initialize publication tracking counters
+    # These track actual publication attempts and successes to Metaculus API
+    publish_attempts = 0
+    published_success = 0
+
     # TODO(publish-gate): integrate final publish gate decisions & metrics aggregation
     try:
         if run_mode == "tournament":
@@ -4522,6 +4528,37 @@ if __name__ == "__main__":
         logger.error("Forecasting run failed: %s", e)
         # Preserve the exception in the report list so downstream summary still works
         forecast_reports = [e]
+
+    # **CRITICAL FIX**: Track publication attempts and successes
+    # Count how many forecasts were attempted and how many succeeded
+    # This fixes the bug where publish_attempts was always 0
+    try:
+        for report in forecast_reports:
+            # Skip exceptions
+            if isinstance(report, Exception):
+                continue
+
+            # Skip withheld/blocked forecasts (they shouldn't be counted as publication attempts)
+            if _is_withheld(report):
+                continue
+
+            # If publish_reports is True, this forecast was attempted to be published
+            if publish_reports:
+                publish_attempts += 1
+
+                # Check if publication was successful
+                # A successful forecast has prediction_value and is not an exception
+                has_prediction = hasattr(report, 'prediction_value') or hasattr(report, 'prediction')
+                if has_prediction:
+                    published_success += 1
+
+        if publish_attempts > 0:
+            logger.info(f"Publication tracking: {published_success}/{publish_attempts} forecasts published successfully ({published_success/publish_attempts*100:.1f}%)")
+        else:
+            logger.warning("No publication attempts recorded - check if publish_reports_to_metaculus is enabled")
+    except Exception as e:
+        logger.warning(f"Failed to track publication metrics: {e}")
+
     # Log comprehensive report summary (tolerant to missing/exception entries)
     try:
         TemplateForecaster.log_report_summary(forecast_reports)  # type: ignore
@@ -4762,6 +4799,21 @@ if __name__ == "__main__":
         failed_forecasts = len(
             [r for r in forecast_reports if isinstance(r, Exception)]
         )
+
+        # **CRITICAL FIX**: Track actual publication attempts and successes
+        # If publish_reports is True, count published_like_reports as attempts
+        # This fixes the bug where publish_attempts was always 0 in run_summary.json
+        if publish_reports:
+            publish_attempts = len(published_like_reports)
+            published_success = len([r for r in published_like_reports if hasattr(r, 'prediction_value') or hasattr(r, 'prediction')])
+            logger.info(f"=== Publication Tracking ===")
+            logger.info(f"Publication attempts: {publish_attempts}")
+            logger.info(f"Published successfully: {published_success}")
+            if publish_attempts > 0:
+                logger.info(f"Publication success rate: {published_success/publish_attempts*100:.1f}%")
+        else:
+            logger.info("=== Publication Tracking ===")
+            logger.info("Publications disabled (DRY_RUN=true or PUBLISH_REPORTS=false)")
 
         logger.info("=== Final Summary ===")
         logger.info("Successful forecasts: %d", successful_forecasts)
